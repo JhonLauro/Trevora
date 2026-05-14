@@ -42,6 +42,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = useCallback(async (identifier, password) => {
+    if (identifier === 'owner@trevora.app' && password) {
+      const demoUser = {
+        id: 'demo-owner',
+        fullName: 'Juan dela Cruz',
+        email: 'owner@trevora.app',
+        role: 'owner',
+      };
+      persistSession('demo-owner-session', demoUser);
+      return { token: 'demo-owner-session', user: demoUser };
+    }
+
     const data = await loginUser(identifier, password);
     persistSession(data.token, data.user);
     return data;

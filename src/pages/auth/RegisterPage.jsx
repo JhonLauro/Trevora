@@ -21,8 +21,6 @@ const RegisterPage = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -57,11 +55,13 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       const { confirmPassword, ...payload } = form;
-      payload.fullName = payload.fullName.trim();
-      payload.email = payload.email.trim();
-      payload.phoneNumber = payload.phoneNumber.trim();
-      await register(payload);
-      navigate('/dashboard');
+      await register({
+        ...payload,
+        fullName: payload.fullName.trim(),
+        email: payload.email.trim(),
+        phoneNumber: payload.phoneNumber.trim(),
+      });
+      navigate('/login');
     } catch (err) {
       const message = err.message || 'Registration failed. Please try again.';
       if (message === 'Email already exists.' || message.toLowerCase().includes('email already')) {
@@ -79,71 +79,76 @@ const RegisterPage = () => {
 
   return (
     <div className="auth-page">
-      <Link to="/" className="back-home-btn">Back to Home</Link>
+      <section className="auth-left">
+        <Link to="/" className="auth-logo">
+          <span>▰</span>
+          <strong>Trevora</strong>
+        </Link>
 
-      <div className="auth-left">
         <div className="auth-left-content">
-          <h1>Join<br /><span>Trevora</span></h1>
-          <p>Create your account and start shaping the travel platform around real users.</p>
-          <div className="auth-left-features">
-            <div className="auth-left-feature">Traveler profiles</div>
-            <div className="auth-left-feature">Supabase-backed accounts</div>
-            <div className="auth-left-feature">Spring Boot API foundation</div>
+          <h1>Start your vehicle service record.</h1>
+          <p>Create an owner account for organizing maintenance records under the correct vehicle profile.</p>
+        </div>
+
+        <div className="auth-feature-list">
+          <div>
+            <span>▤</span>
+            <strong>Capture service records</strong>
+            <small>Receipt, voice, or manual entry</small>
+          </div>
+          <div>
+            <span>✓</span>
+            <strong>Validate & organize</strong>
+            <small>Review records before saving</small>
+          </div>
+          <div>
+            <span>◇</span>
+            <strong>Share securely</strong>
+            <small>Temporary mechanic access via QR</small>
           </div>
         </div>
-      </div>
 
-      <div className="auth-divider">
-        <div className="auth-divider-line" />
-        <div className="auth-divider-icon">T</div>
-        <div className="auth-divider-line" />
-      </div>
+        <p className="auth-footer">© 2026 Trevora. All rights reserved.</p>
+      </section>
 
-      <div className="auth-right">
+      <section className="auth-right">
         <div className="auth-form-box auth-form-box--wide">
-          <p className="auth-brand">Trevora</p>
-          <h2 className="auth-title">Create Account</h2>
-          <p className="auth-subtitle">Fill in the details below to register</p>
+          <h2 className="auth-title">Create account</h2>
+          <p className="auth-subtitle">Set up your owner account to continue</p>
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
-              <label htmlFor="fullName">Full Name</label>
-              <input id="fullName" name="fullName" type="text" autoComplete="name" value={form.fullName} onChange={handleChange} className={fieldErrors.fullName ? 'input-error' : ''} placeholder="e.g. Maria Santos" />
+              <label htmlFor="fullName">Full name</label>
+              <input id="fullName" name="fullName" type="text" autoComplete="name" value={form.fullName} onChange={handleChange} className={fieldErrors.fullName ? 'input-error' : ''} placeholder="Juan dela Cruz" />
               {fieldErrors.fullName && <span className="field-error">{fieldErrors.fullName}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input id="email" name="email" type="email" autoComplete="email" value={form.email} onChange={handleChange} className={fieldErrors.email ? 'input-error' : ''} placeholder="you@email.com" />
+              <label htmlFor="email">Email address</label>
+              <input id="email" name="email" type="email" autoComplete="email" value={form.email} onChange={handleChange} className={fieldErrors.email ? 'input-error' : ''} placeholder="owner@trevora.app" />
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="phoneNumber">Phone Number</label>
-              <input id="phoneNumber" name="phoneNumber" type="tel" autoComplete="tel" value={form.phoneNumber} onChange={handleChange} className={fieldErrors.phoneNumber ? 'input-error' : ''} placeholder="+63 912 345 6789" />
+              <label htmlFor="phoneNumber">Phone number</label>
+              <input id="phoneNumber" name="phoneNumber" type="tel" autoComplete="tel" value={form.phoneNumber} onChange={handleChange} className={fieldErrors.phoneNumber ? 'input-error' : ''} placeholder="+63 917 123 4567" />
               {fieldErrors.phoneNumber && <span className="field-error">{fieldErrors.phoneNumber}</span>}
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <div className="input-wrapper">
-                <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={form.password} onChange={handleChange} className={fieldErrors.password ? 'input-error' : ''} placeholder="Min. 8 characters" />
-                <button type="button" className="toggle-pw" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? 'Hide' : 'Show'}</button>
-              </div>
+              <input id="password" name="password" type="password" autoComplete="new-password" value={form.password} onChange={handleChange} className={fieldErrors.password ? 'input-error' : ''} placeholder="Minimum 8 characters" />
               {fieldErrors.password && <span className="field-error">{fieldErrors.password}</span>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <div className="input-wrapper">
-                <input id="confirmPassword" name="confirmPassword" type={showConfirm ? 'text' : 'password'} autoComplete="new-password" value={form.confirmPassword} onChange={handleChange} className={fieldErrors.confirmPassword ? 'input-error' : ''} placeholder="Repeat password" />
-                <button type="button" className="toggle-pw" onClick={() => setShowConfirm((value) => !value)} aria-label={showConfirm ? 'Hide password' : 'Show password'}>{showConfirm ? 'Hide' : 'Show'}</button>
-              </div>
+              <label htmlFor="confirmPassword">Confirm password</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" value={form.confirmPassword} onChange={handleChange} className={fieldErrors.confirmPassword ? 'input-error' : ''} placeholder="Repeat password" />
               {fieldErrors.confirmPassword && <span className="field-error">{fieldErrors.confirmPassword}</span>}
             </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? <span className="spinner" /> : 'Create Account'}
+              {loading ? <span className="spinner" /> : 'Create account'}
             </button>
           </form>
 
@@ -153,7 +158,7 @@ const RegisterPage = () => {
 
           <Snackbar open={!!apiError} message={apiError} type="error" onClose={() => setApiError('')} />
         </div>
-      </div>
+      </section>
     </div>
   );
 };
