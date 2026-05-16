@@ -45,3 +45,17 @@ Before changing frontend layout or routes, read:
 - `/frontend/design-reference/routes.md`
 
 Use the screenshots as visual references. The implementation does not need to be pixel-perfect, but it should preserve the same flow, page purpose, and main UI elements.
+
+## Module 2 Frontend Scope
+
+Module 2 starts from an existing ServiceDraft created by Module 1.
+
+The frontend should allow the owner to:
+
+1. Review the draft.
+2. See missing required fields.
+3. See low-confidence or source metadata when available.
+4. Correct draft fields.
+5. Confirm and save the validated record.
+
+Do not break Module 1 routes or input flows.

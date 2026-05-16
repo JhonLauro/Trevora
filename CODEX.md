@@ -40,3 +40,15 @@ Build Module 1: Service Record Input.
 - Do not implement Module 2, 3, or 4 unless explicitly asked.
 - Manual entry must work even if OCR, speech-to-text, or AI services are unavailable.
 - Receipt and voice input may use mocked processing for MVP, but the structure must allow real services later.
+
+## Current Priority
+
+Module 1 MVP is complete and pushed.
+
+Next priority:
+Build Module 2: Service Data Validation and Correction.
+
+## Module Ownership
+
+- Module 2 Person A: Review Service Draft and Identify Missing/Flagged Fields
+- Module 2 Person B: Correct Flagged/Incomplete Details and Confirm/Save Validated Record

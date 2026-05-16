@@ -41,3 +41,19 @@ Build only the backend needed for Module 1:
 - enums
 - config
 - exception
+
+## Module 2 Backend Scope
+
+Module 2 should consume existing ServiceDraft records created by Module 1.
+
+The backend should provide services for:
+
+- retrieving a draft for review
+- validating required fields
+- returning validation results
+- applying owner corrections
+- confirming a validated record
+- saving a final ServiceRecord or updating the draft status depending on the current MVP decision
+
+Keep Controller → Service → Repository → Entity structure.
+Do not put validation logic directly in controllers.
