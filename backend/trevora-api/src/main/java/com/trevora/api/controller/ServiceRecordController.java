@@ -1,15 +1,21 @@
 package com.trevora.api.controller;
 
 import com.trevora.api.dto.ManualServiceDraftRequest;
+import com.trevora.api.dto.ServiceDraftCorrectionRequest;
 import com.trevora.api.dto.ServiceDraftResponse;
+import com.trevora.api.dto.ServiceDraftReviewResponse;
+import com.trevora.api.dto.ServiceRecordConfirmationResponse;
 import com.trevora.api.dto.VoiceServiceDraftRequest;
+import com.trevora.api.service.ServiceDraftCorrectionService;
 import com.trevora.api.service.ServiceInputService;
+import com.trevora.api.service.ServiceRecordService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +28,17 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/service-drafts")
 public class ServiceRecordController {
     private final ServiceInputService serviceInputService;
+    private final ServiceDraftCorrectionService serviceDraftCorrectionService;
+    private final ServiceRecordService serviceRecordService;
 
-    public ServiceRecordController(ServiceInputService serviceInputService) {
+    public ServiceRecordController(
+            ServiceInputService serviceInputService,
+            ServiceDraftCorrectionService serviceDraftCorrectionService,
+            ServiceRecordService serviceRecordService
+    ) {
         this.serviceInputService = serviceInputService;
+        this.serviceDraftCorrectionService = serviceDraftCorrectionService;
+        this.serviceRecordService = serviceRecordService;
     }
 
     @PostMapping("/manual")
@@ -51,5 +65,18 @@ public class ServiceRecordController {
     @GetMapping("/{draftId}")
     public ServiceDraftResponse getDraft(@PathVariable UUID draftId) {
         return ServiceDraftResponse.from(serviceInputService.getDraftForMockOwner(draftId));
+    }
+
+    @PatchMapping("/{draftId}/corrections")
+    public ServiceDraftReviewResponse correctDraft(
+            @PathVariable UUID draftId,
+            @Valid @RequestBody ServiceDraftCorrectionRequest request
+    ) {
+        return serviceDraftCorrectionService.correctDraft(draftId, request);
+    }
+
+    @PostMapping("/{draftId}/confirm")
+    public ServiceRecordConfirmationResponse confirmDraft(@PathVariable UUID draftId) {
+        return serviceRecordService.confirmDraft(draftId);
     }
 }

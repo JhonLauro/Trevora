@@ -1,0 +1,66 @@
+package com.trevora.api.service;
+
+import com.trevora.api.dto.ServiceDraftCorrectionRequest;
+import com.trevora.api.dto.ServiceDraftResponse;
+import com.trevora.api.dto.ServiceDraftReviewResponse;
+import com.trevora.api.enums.DraftStatus;
+import com.trevora.api.model.ServiceDraft;
+import com.trevora.api.repository.ServiceDraftRepository;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ServiceDraftCorrectionService {
+    private final ServiceInputService serviceInputService;
+    private final ServiceDraftRepository serviceDraftRepository;
+    private final ServiceDraftValidationService serviceDraftValidationService;
+
+    public ServiceDraftCorrectionService(
+            ServiceInputService serviceInputService,
+            ServiceDraftRepository serviceDraftRepository,
+            ServiceDraftValidationService serviceDraftValidationService
+    ) {
+        this.serviceInputService = serviceInputService;
+        this.serviceDraftRepository = serviceDraftRepository;
+        this.serviceDraftValidationService = serviceDraftValidationService;
+    }
+
+    @Transactional
+    public ServiceDraftReviewResponse correctDraft(UUID draftId, ServiceDraftCorrectionRequest request) {
+        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+
+        draft.setServiceDate(request.serviceDate());
+        draft.setServiceType(blankToNull(request.serviceType()));
+        draft.setOdometer(request.odometer());
+        draft.setTotalCost(request.totalCost());
+        draft.setShopName(blankToNull(request.shopName()));
+        draft.setLocation(blankToNull(request.location()));
+        draft.setPartsReplaced(blankToNull(request.partsReplaced()));
+        draft.setLaborPerformed(blankToNull(request.laborPerformed()));
+        draft.setRemarks(blankToNull(request.remarks()));
+        draft.setStatus(DraftStatus.READY_FOR_REVIEW);
+        draft.setFieldMetadata(withCorrectionMetadata(draft.getFieldMetadata()));
+
+        ServiceDraft savedDraft = serviceDraftRepository.save(draft);
+        return new ServiceDraftReviewResponse(
+                ServiceDraftResponse.from(savedDraft),
+                serviceDraftValidationService.validateDraft(savedDraft)
+        );
+    }
+
+    private Map<String, Object> withCorrectionMetadata(Map<String, Object> existingMetadata) {
+        Map<String, Object> metadata = existingMetadata == null ? new HashMap<>() : new HashMap<>(existingMetadata);
+        metadata.put("ownerCorrected", true);
+        return metadata;
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+}
