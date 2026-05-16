@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+.tools/
+.env
+.env.local
+.env.*
+application-local.properties
+*.log

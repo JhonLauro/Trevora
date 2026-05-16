@@ -1,0 +1,33 @@
+package com.trevora.api.dto;
+
+import com.trevora.api.model.VehicleProfile;
+import java.time.Instant;
+import java.util.UUID;
+
+public record VehicleResponse(
+        UUID vehicleId,
+        UUID ownerId,
+        String make,
+        String model,
+        Integer year,
+        String nickname,
+        String plateNumber,
+        String vinChassisNumber,
+        Integer odometer,
+        Instant createdAt
+) {
+    public static VehicleResponse from(VehicleProfile vehicle) {
+        return new VehicleResponse(
+                vehicle.getVehicleId(),
+                vehicle.getOwnerId(),
+                vehicle.getMake(),
+                vehicle.getModel(),
+                vehicle.getYear(),
+                vehicle.getNickname(),
+                vehicle.getPlateNumber(),
+                vehicle.getVinChassisNumber(),
+                vehicle.getOdometer(),
+                vehicle.getCreatedAt()
+        );
+    }
+}
