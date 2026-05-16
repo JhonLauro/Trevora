@@ -21,6 +21,12 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.FORBIDDEN.value()));
     }
 
+    @ExceptionHandler(InvalidServiceRecordConfirmationException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidConfirmation(InvalidServiceRecordConfirmationException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
         String message = exception.getBindingResult().getFieldErrors().stream()

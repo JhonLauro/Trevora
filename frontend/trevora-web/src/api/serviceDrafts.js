@@ -38,3 +38,16 @@ export function validateServiceDraft(draftId) {
     method: 'POST',
   });
 }
+
+export function updateServiceDraftCorrections(draftId, corrections) {
+  return apiRequest(`/service-drafts/${draftId}/corrections`, {
+    method: 'PATCH',
+    body: JSON.stringify(corrections),
+  });
+}
+
+export function confirmServiceDraft(draftId) {
+  return apiRequest(`/service-drafts/${draftId}/confirm`, {
+    method: 'POST',
+  });
+}

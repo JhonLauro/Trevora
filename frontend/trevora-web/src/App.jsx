@@ -2,8 +2,11 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppShell from './components/AppShell.jsx';
 import ManualEntryPage from './pages/ManualEntryPage.jsx';
 import ReceiptUploadPage from './pages/ReceiptUploadPage.jsx';
+import ServiceDraftCorrectionPage from './pages/ServiceDraftCorrectionPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
+import ServiceRecordConfirmationPage from './pages/ServiceRecordConfirmationPage.jsx';
+import ServiceRecordSavedPage from './pages/ServiceRecordSavedPage.jsx';
 import StructuredServiceDraftPage from './pages/StructuredServiceDraftPage.jsx';
 import VehicleProfileSelectionPage from './pages/VehicleProfileSelectionPage.jsx';
 import VoiceInputPage from './pages/VoiceInputPage.jsx';
@@ -30,6 +33,9 @@ export default function App() {
         <Route path="/service-input/:vehicleId/voice" element={<VoiceInputPage />} />
         <Route path="/service-drafts/:draftId" element={<StructuredServiceDraftPage />} />
         <Route path="/service-drafts/:draftId/review" element={<ServiceDraftReviewPage />} />
+        <Route path="/service-drafts/:draftId/correct" element={<ServiceDraftCorrectionPage />} />
+        <Route path="/service-drafts/:draftId/confirm" element={<ServiceRecordConfirmationPage />} />
+        <Route path="/service-drafts/:draftId/saved" element={<ServiceRecordSavedPage />} />
 
         <Route path="/manual/:vehicleId" element={<RedirectToServiceInput method="manual" />} />
         <Route path="/receipt/:vehicleId" element={<RedirectToServiceInput method="receipt" />} />

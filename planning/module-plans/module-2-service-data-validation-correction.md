@@ -136,3 +136,86 @@ If service_records is not added yet, document that confirmation updates ServiceD
 
 Do not remove mock OCR or mock voice processing.
 Do not bypass the backend by writing directly to Supabase from React.
+
+## Implementation Checkpoint: Person B
+
+Last updated: May 17, 2026
+
+Person B completed the Module 2 correction and confirmation scope:
+
+- 2.3 Correct Flagged or Incomplete Service Details
+- 2.4 Confirm and Save Validated Record
+
+### Backend Implemented
+
+- Added `ServiceDraftCorrectionService`.
+- Added `PATCH /api/service-drafts/{draftId}/corrections`.
+- Corrections update the existing `ServiceDraft`, set status to `READY_FOR_REVIEW`, preserve existing metadata, and add `ownerCorrected = true`.
+- Corrections return the updated draft plus a fresh validation result from `ServiceDraftValidationService`.
+- Added `ServiceRecordService`.
+- Added `POST /api/service-drafts/{draftId}/confirm`.
+- Confirmation reuses `ServiceDraftValidationService` before saving.
+- Confirmation is blocked when any required field is missing or invalid:
+  - vehicleId
+  - serviceDate
+  - serviceType
+  - totalCost
+- Added `ServiceRecord` entity and `ServiceRecordRepository`.
+- Confirmation creates or updates a final `ServiceRecord` for the draft, then marks the source draft as `CONFIRMED`.
+- Added confirmation response DTOs and a bad-request exception for invalid confirmation attempts.
+
+### Frontend Implemented
+
+- Added `/service-drafts/:draftId/correct`.
+- Added `/service-drafts/:draftId/confirm`.
+- Added `/service-drafts/:draftId/saved`.
+- Added editable correction UI for draft fields.
+- Added correction save success/failure messaging.
+- Added final read-only confirmation summary.
+- Added Back to Edit and Confirm and Save Record actions.
+- Added confirmation checkbox gating before save.
+- Added saved-record success screen after confirmation.
+- Existing Module 1 input routes were not changed.
+- Module 3 history page was not implemented; the saved screen keeps View History disabled.
+
+### Database Implemented
+
+Migration added:
+
+- `database/migrations/002_module_2_service_records.sql`
+
+The migration:
+
+- Creates `service_records`.
+- Adds indexes for owner and vehicle lookups.
+- Expands the `service_drafts.status` check constraint to allow `CONFIRMED`.
+
+The migration was applied to the current Supabase database during implementation.
+
+### Runtime Configuration Fix
+
+The backend uses Supabase's pooled PostgreSQL endpoint on port 6543. The PostgreSQL JDBC driver was creating server-side prepared statements that can conflict with PgBouncer pooled connections.
+
+The following setting was added:
+
+```properties
+spring.datasource.hikari.data-source-properties.prepareThreshold=0
+```
+
+This disables server-side prepared statements for the Supabase pooler connection.
+
+### Verification Completed
+
+- Backend Maven test passed with `.\mvnw.cmd test`.
+- Frontend production build passed with `npm run build`.
+- API verification completed for manual, receipt, and voice drafts.
+- Correction and confirmation worked for all three draft sources.
+- Confirmation was verified to fail when `totalCost` was missing.
+- Browser verification completed for correction save, confirmation checkbox gating, and saved success page.
+
+### Remaining Risks
+
+- No automated frontend tests exist yet for the correction and confirmation routes.
+- No backend unit/integration tests exist yet for the new services and endpoints.
+- Real authentication is still not implemented; mock owner scoping is still used.
+- Module 3 service history remains out of scope, so final records are saved but not yet listed in a service history page.

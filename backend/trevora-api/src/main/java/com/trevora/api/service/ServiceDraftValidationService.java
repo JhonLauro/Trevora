@@ -42,7 +42,7 @@ public class ServiceDraftValidationService {
         return validateDraft(serviceInputService.getDraftForMockOwner(draftId));
     }
 
-    private ValidationResult validateDraft(ServiceDraft draft) {
+    public ValidationResult validateDraft(ServiceDraft draft) {
         List<FieldValidationIssue> missingRequiredFields = findMissingRequiredFields(draft);
         List<FieldValidationIssue> flaggedFields = draft.getInputMethod() == InputMethod.MANUAL
                 ? List.of()
