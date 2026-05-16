@@ -3,6 +3,7 @@ import AppShell from './components/AppShell.jsx';
 import ManualEntryPage from './pages/ManualEntryPage.jsx';
 import ReceiptUploadPage from './pages/ReceiptUploadPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
+import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
 import StructuredServiceDraftPage from './pages/StructuredServiceDraftPage.jsx';
 import VehicleProfileSelectionPage from './pages/VehicleProfileSelectionPage.jsx';
 import VoiceInputPage from './pages/VoiceInputPage.jsx';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/service-input/:vehicleId/receipt" element={<ReceiptUploadPage />} />
         <Route path="/service-input/:vehicleId/voice" element={<VoiceInputPage />} />
         <Route path="/service-drafts/:draftId" element={<StructuredServiceDraftPage />} />
+        <Route path="/service-drafts/:draftId/review" element={<ServiceDraftReviewPage />} />
 
         <Route path="/manual/:vehicleId" element={<RedirectToServiceInput method="manual" />} />
         <Route path="/receipt/:vehicleId" element={<RedirectToServiceInput method="receipt" />} />

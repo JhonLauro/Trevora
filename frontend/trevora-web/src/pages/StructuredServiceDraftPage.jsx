@@ -26,15 +26,17 @@ export default function StructuredServiceDraftPage() {
     let active = true;
 
     getServiceDraft(draftId)
-      .then((data) => {
+      .then(async (data) => {
         if (active) {
           setDraft(data);
           setError('');
         }
-        return getVehicle(data.vehicleId);
-      })
-      .then((data) => {
-        if (active) setVehicle(data);
+        try {
+          const vehicleData = await getVehicle(data.vehicleId);
+          if (active) setVehicle(vehicleData);
+        } catch {
+          if (active) setVehicle(null);
+        }
       })
       .catch((err) => {
         if (active) setError(err.message);
@@ -95,6 +97,9 @@ export default function StructuredServiceDraftPage() {
             <div className="actions">
               <Link className="secondary-link" to="/vehicles">
                 Back to vehicles
+              </Link>
+              <Link className="button-link" to={`/service-drafts/${draft.draftId}/review`}>
+                Review and validate
               </Link>
             </div>
           </div>

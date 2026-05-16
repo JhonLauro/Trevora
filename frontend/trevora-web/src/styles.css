@@ -33,6 +33,18 @@ button {
   padding: 0.75rem 1rem;
 }
 
+.button-link {
+  align-items: center;
+  background: #08182c;
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
@@ -392,6 +404,469 @@ p {
   color: #92351f;
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
+}
+
+.review-form .form-grid {
+  align-items: start;
+}
+
+.review-field input,
+.review-field textarea {
+  border-width: 1px;
+}
+
+.field-label-row {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.field-confidence-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.22rem 0.5rem;
+}
+
+.field-confidence-high {
+  background: #e2f8ec;
+  border: 1px solid #85dfad;
+  color: #147645;
+}
+
+.field-confidence-owner {
+  background: #e3f3ef;
+  border: 1px solid #8edfc0;
+  color: #1f5b52;
+}
+
+.field-confidence-medium,
+.field-confidence-source {
+  background: #fff4db;
+  border: 1px solid #ffc45c;
+  color: #8a5600;
+}
+
+.field-confidence-low {
+  background: #fff0ee;
+  border: 1px solid #f29b8f;
+  color: #a63828;
+}
+
+.field-status-high input,
+.field-status-high textarea,
+.field-status-owner input,
+.field-status-owner textarea {
+  background: #f7fffa;
+  border-color: #83d9a5;
+}
+
+.field-status-medium input,
+.field-status-medium textarea,
+.field-status-source input,
+.field-status-source textarea {
+  background: #fffaf0;
+  border-color: #f2bd55;
+}
+
+.field-status-low input,
+.field-status-low textarea {
+  background: #fff7f5;
+  border-color: #e57f72;
+}
+
+.field-needs-review input,
+.field-needs-review textarea {
+  background: #fff7f5;
+  border-color: #e57f72;
+}
+
+.field-needs-review span {
+  color: #a63828;
+}
+
+.review-note {
+  background: #f4f7f9;
+  border-radius: 6px;
+  color: #536472;
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+}
+
+.issue-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.issue-list li {
+  background: #f7faff;
+  border: 1px solid #e1e8ee;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+
+.issue-list span,
+.issue-list small {
+  color: #536472;
+}
+
+.review-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.receipt-review-surface {
+  display: grid;
+  gap: 1rem;
+}
+
+.receipt-extraction-bar {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+}
+
+.receipt-bar-left {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.receipt-bar-left strong::before {
+  color: #7c3aed;
+  content: "AI ";
+}
+
+.mini-chip {
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 0.32rem 0.6rem;
+}
+
+.mini-chip.high {
+  background: #e2f8ec;
+  color: #147645;
+}
+
+.mini-chip.medium {
+  background: #fff4db;
+  color: #8a5600;
+}
+
+.mini-chip.low {
+  background: #fff0ee;
+  color: #a63828;
+}
+
+.mini-chip.neutral {
+  background: #edf4ff;
+  color: #536472;
+}
+
+.attention-count {
+  color: #c36800;
+  font-size: 0.88rem;
+}
+
+.attention-count::before {
+  content: "! ";
+}
+
+.receipt-review-grid {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(440px, 1fr) minmax(360px, 520px);
+}
+
+.receipt-preview-card,
+.auto-fields-panel {
+  background: #ffffff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+}
+
+.receipt-preview-card {
+  overflow: hidden;
+}
+
+.receipt-preview-header {
+  align-items: center;
+  border-bottom: 1px solid #e1e8ee;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+}
+
+.receipt-preview-header span,
+.field-source-hint {
+  color: #8392a5;
+  font-size: 0.76rem;
+}
+
+.receipt-preview-header strong::before {
+  color: #8392a5;
+  content: "View ";
+}
+
+.mock-receipt {
+  background: #f8fbff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  color: #536472;
+  margin: 1rem;
+  padding: 1rem;
+}
+
+.receipt-line {
+  background: #cfd9e4;
+  height: 1px;
+  width: 88%;
+}
+
+.receipt-line.short {
+  width: 62%;
+}
+
+.receipt-line.tiny {
+  width: 35%;
+}
+
+.receipt-line.medium {
+  width: 70%;
+}
+
+.receipt-highlight {
+  display: none;
+}
+
+.receipt-highlight-high {
+  border: 1px solid #72d8ac;
+}
+
+.receipt-highlight-medium {
+  border: 1px solid #f7b653;
+}
+
+.receipt-highlight-low {
+  border: 1px solid #f19b8e;
+}
+
+.receipt-paper {
+  background: linear-gradient(#ffffff, #fbfdff);
+  border: 1px solid #d6e1eb;
+  border-radius: 3px;
+  box-shadow:
+    0 12px 30px rgba(23, 32, 38, 0.08),
+    inset 0 -10px 0 rgba(7, 21, 38, 0.02);
+  color: #071526;
+  display: grid;
+  font-family: "Courier New", monospace;
+  font-size: 0.69rem;
+  gap: 0.6rem;
+  line-height: 1.3;
+  margin: 0 auto;
+  max-width: 300px;
+  min-height: 480px;
+  padding: 1rem 0.95rem;
+  position: relative;
+}
+
+.receipt-paper::before,
+.receipt-paper::after {
+  background-image: linear-gradient(135deg, transparent 50%, #f8fbff 50%), linear-gradient(225deg, transparent 50%, #f8fbff 50%);
+  background-position: top left, top left;
+  background-repeat: repeat-x;
+  background-size: 12px 12px;
+  content: "";
+  height: 12px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.receipt-paper::before {
+  top: -1px;
+}
+
+.receipt-paper::after {
+  bottom: -1px;
+  transform: rotate(180deg);
+}
+
+.receipt-paper strong {
+  font-weight: 900;
+}
+
+.receipt-paper-title,
+.receipt-service-block,
+.receipt-parts-table {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.receipt-paper-title {
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.receipt-meta-row,
+.receipt-item-row,
+.receipt-total-block {
+  align-items: center;
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.receipt-meta-row {
+  margin-top: 0.25rem;
+}
+
+.receipt-separator {
+  border-top: 1px dashed #8ea1b3;
+  height: 1px;
+  margin: 0.2rem 0;
+}
+
+.receipt-region-high,
+.receipt-region-medium,
+.receipt-region-low {
+  border-radius: 3px;
+}
+
+.receipt-region-high {
+  background: rgba(245, 255, 250, 0.76);
+  border: 1px solid #78d9a9;
+}
+
+.receipt-region-medium {
+  background: rgba(255, 250, 240, 0.8);
+  border: 1px solid #f4bd56;
+}
+
+.receipt-region-low {
+  background: rgba(255, 247, 245, 0.82);
+  border: 1px solid #ee9083;
+}
+
+.receipt-paper-title.receipt-region-medium,
+.receipt-service-block,
+.receipt-total-block,
+.receipt-file-note {
+  padding: 0.45rem;
+}
+
+.receipt-service-block span,
+.receipt-parts-table span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-parts-table {
+  padding: 0.25rem 0;
+}
+
+.receipt-total-block {
+  font-size: 0.82rem;
+}
+
+.receipt-file-note {
+  align-self: end;
+  color: #536472;
+  font-size: 0.58rem;
+  margin-top: 1rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.auto-fields-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.auto-fields-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.auto-fields-header h2 {
+  margin: 0;
+}
+
+.receipt-field-stack {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.extraction-field-card {
+  background: #ffffff;
+  border: 1px solid #e1e8ee;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+}
+
+.extraction-field-card input,
+.extraction-field-card textarea {
+  background: #f4f7f9;
+  margin-top: 0.35rem;
+  min-height: 38px;
+  padding: 0.55rem 0.65rem;
+}
+
+.extraction-field-card textarea {
+  min-height: 58px;
+}
+
+.field-source-hint {
+  display: block;
+  margin-top: 0.3rem;
+}
+
+.field-source-hint::before {
+  content: "Source: ";
+}
+
+.receipt-review-footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.voice-transcript-card {
+  background: #f7faff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+}
+
+.voice-transcript-card p {
+  color: #536472;
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .modal-backdrop {
@@ -842,7 +1317,9 @@ p {
 
   .grid-two,
   .content-two,
+  .receipt-review-grid,
   .form-grid,
+  .receipt-field-stack,
   .draft-list div,
   .upload-summary,
   .step-indicator,

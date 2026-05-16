@@ -17,7 +17,7 @@ export async function apiRequest(path, options = {}) {
     let message = 'Request failed.';
     try {
       const body = await response.json();
-      message = body.message ?? message;
+      message = body.message ?? body.error ?? message;
     } catch {
       message = response.statusText || message;
     }

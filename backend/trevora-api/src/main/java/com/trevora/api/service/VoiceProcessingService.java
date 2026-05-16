@@ -30,8 +30,8 @@ public class VoiceProcessingService {
                         "source", "mock_voice_transcription",
                         "transcript", cleanedTranscript,
                         "confidence", Map.of(
-                                "serviceDate", 0.70,
-                                "serviceType", 0.72,
+                                "serviceDate", 0.82,
+                                "serviceType", 0.76,
                                 "totalCost", 0.64,
                                 "laborPerformed", 0.80
                         )

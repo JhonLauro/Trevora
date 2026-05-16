@@ -1,0 +1,638 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { getServiceDraftReview, validateServiceDraft } from '../api/serviceDrafts';
+import { getVehicle } from '../api/vehicles';
+
+const reviewFields = [
+  ['serviceDate', 'Service date', 'date'],
+  ['serviceType', 'Service type', 'text'],
+  ['odometer', 'Odometer', 'number'],
+  ['totalCost', 'Total cost', 'number'],
+  ['shopName', 'Shop / mechanic', 'text'],
+  ['location', 'Location', 'text'],
+  ['partsReplaced', 'Parts replaced', 'textarea'],
+  ['laborPerformed', 'Labor performed', 'textarea'],
+  ['remarks', 'Remarks', 'textarea'],
+];
+
+const requiredFieldNames = new Set(['vehicleId', 'serviceDate', 'serviceType', 'totalCost']);
+const receiptPrimaryFields = [
+  ['vehicleId', 'Vehicle', 'text'],
+  ['serviceDate', 'Service Date', 'date'],
+  ['serviceType', 'Service Type', 'text'],
+  ['totalCost', 'Total Cost', 'number'],
+  ['shopName', 'Shop / Mechanic', 'text'],
+  ['location', 'Location', 'text'],
+  ['partsReplaced', 'Parts Replaced', 'textarea'],
+  ['laborPerformed', 'Labor Performed', 'textarea'],
+  ['remarks', 'Remarks', 'textarea'],
+];
+
+function draftToForm(draft) {
+  return reviewFields.reduce((form, [key]) => {
+    form[key] = draft?.[key] ?? '';
+    return form;
+  }, {});
+}
+
+function formatValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return 'Not provided';
+  }
+  return String(value);
+}
+
+function displaySource(draft) {
+  const source = draft?.fieldMetadata?.source;
+  if (source) return source;
+  if (draft?.inputMethod === 'MANUAL') return 'owner_entered';
+  return 'Not provided';
+}
+
+function buildIssueMap(validation) {
+  const issueMap = new Map();
+  for (const issue of validation?.flaggedFields ?? []) {
+    issueMap.set(issue.fieldName, issue);
+  }
+  for (const issue of validation?.missingRequiredFields ?? []) {
+    issueMap.set(issue.fieldName, issue);
+  }
+  return issueMap;
+}
+
+function fieldStatus(issue, draft, value) {
+  if (!issue && draft?.inputMethod === 'MANUAL' && value !== null && value !== undefined && value !== '') {
+    return 'owner';
+  }
+  if (!issue) return null;
+  if (issue.blocksConfirmation || ['LOW_CONFIDENCE', 'NOT_FOUND', 'MISSING_METADATA', 'UNCERTAIN'].includes(issue.category)) {
+    return 'low';
+  }
+  if (issue.confidence === null || issue.confidence === undefined) {
+    return issue.category === 'SOURCE_FIELD' ? 'source' : null;
+  }
+  const confidence = Number(issue.confidence);
+  if (confidence >= 0.8) return 'high';
+  if (confidence >= 0.75) return 'medium';
+  return 'low';
+}
+
+function fieldBadgeText(issue, draft, value) {
+  if (!issue && draft?.inputMethod === 'MANUAL' && value !== null && value !== undefined && value !== '') {
+    return 'Owner-entered';
+  }
+  if (!issue) return '';
+  if (issue.blocksConfirmation) return 'Required';
+  if (issue.category === 'NOT_FOUND') return 'Not found';
+  if (issue.category === 'MISSING_METADATA') return 'Missing';
+  if (issue.category === 'UNCERTAIN') return 'Uncertain';
+  if (issue.confidence !== null && issue.confidence !== undefined) {
+    const confidence = Number(issue.confidence);
+    const label = confidence >= 0.8 ? 'High' : confidence >= 0.75 ? 'Medium' : 'Low';
+    return `${label} ${Math.round(confidence * 100)}%`;
+  }
+  return issue.category === 'SOURCE_FIELD' ? 'Source' : 'Review';
+}
+
+function vehicleDisplayName(vehicle, draft) {
+  if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
+  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+}
+
+function vehicleSubtext(vehicle, draft) {
+  if (!vehicle) return draft?.vehicleId ?? '';
+  return `${[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}${
+    vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''
+  }`;
+}
+
+function valueForField(key, form, draft, vehicle) {
+  if (key === 'vehicleId') {
+    return vehicleDisplayName(vehicle, draft);
+  }
+  return form[key] ?? '';
+}
+
+function confidenceStats(validation) {
+  const stats = { high: 0, medium: 0, low: 0, notFound: 0, attention: 0 };
+  for (const issue of validation?.flaggedFields ?? []) {
+    if (issue.category === 'NOT_FOUND') {
+      stats.notFound += 1;
+      stats.attention += 1;
+      continue;
+    }
+    if (['LOW_CONFIDENCE', 'MISSING_METADATA', 'UNCERTAIN'].includes(issue.category)) {
+      stats.low += 1;
+      stats.attention += 1;
+      continue;
+    }
+    const confidence = Number(issue.confidence);
+    if (!Number.isFinite(confidence)) continue;
+    if (confidence >= 0.8) stats.high += 1;
+    else if (confidence >= 0.75) stats.medium += 1;
+    else {
+      stats.low += 1;
+      stats.attention += 1;
+    }
+  }
+  stats.attention += validation?.missingRequiredFields?.length ?? 0;
+  return stats;
+}
+
+function sourceHint(fieldName, draft) {
+  if (draft?.inputMethod === 'RECEIPT') {
+    return {
+      vehicleId: 'Pre-selected vehicle',
+      serviceDate: "Line 2: date found on receipt",
+      serviceType: 'Lines 5-6 itemised header',
+      totalCost: 'Bottom total amount',
+      shopName: 'Receipt header',
+      partsReplaced: 'Itemised services block',
+      laborPerformed: 'Service notes from receipt body',
+    }[fieldName];
+  }
+  if (draft?.inputMethod === 'VOICE') {
+    return {
+      serviceDate: 'Inferred from spoken date',
+      serviceType: 'Inferred from service keywords',
+      totalCost: 'Inferred from spoken cost',
+      laborPerformed: 'Original transcript preserved',
+    }[fieldName];
+  }
+  return draft?.inputMethod === 'MANUAL' ? 'Owner-entered value' : undefined;
+}
+
+function ReviewInputField({ field, form, draft, vehicle, fieldIssueMap, missingFieldNames, updateField, variant = 'standard' }) {
+  const [key, label, type] = field;
+  const issue = fieldIssueMap.get(key);
+  const value = valueForField(key, form, draft, vehicle);
+  const status = fieldStatus(issue, draft, value);
+  const badgeText = fieldBadgeText(issue, draft, value);
+  const flagged = missingFieldNames.has(key);
+  const required = requiredFieldNames.has(key);
+  const hint = sourceHint(key, draft);
+  const className = [
+    'review-field',
+    variant === 'receipt' ? 'extraction-field-card' : '',
+    flagged ? 'field-needs-review' : '',
+    status ? `field-status-${status}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <label className={className}>
+      <span className="field-label-row">
+        <span>
+          {label}
+          {required ? ' *' : ''}
+        </span>
+        {badgeText && <span className={`field-confidence-badge ${status ? `field-confidence-${status}` : ''}`}>{badgeText}</span>}
+      </span>
+      {key === 'vehicleId' ? (
+        <input value={value} readOnly />
+      ) : type === 'textarea' ? (
+        <textarea name={key} value={form[key] ?? ''} onChange={updateField} rows={variant === 'receipt' ? '2' : '3'} />
+      ) : (
+        <input
+          name={key}
+          type={type}
+          min={type === 'number' ? '0' : undefined}
+          step={key === 'totalCost' ? '0.01' : undefined}
+          value={form[key] ?? ''}
+          onChange={updateField}
+        />
+      )}
+      {hint && <small className="field-source-hint">{hint}</small>}
+    </label>
+  );
+}
+
+function ReceiptPreview({ draft }) {
+  return (
+    <section className="receipt-preview-card">
+      <div className="receipt-preview-header">
+        <strong>Receipt preview</strong>
+        <span>Hover a field to highlight</span>
+      </div>
+      <div className="mock-receipt">
+        <div className="receipt-paper">
+          <div className="receipt-paper-title receipt-region-medium">
+            <strong>{draft.shopName || 'MOCK OCR AUTO SHOP'}</strong>
+            <span>123 TALAMBAN AVE, QC</span>
+            <span>OR NO. 000-4821</span>
+          </div>
+
+          <div className="receipt-meta-row">
+            <span>DATE</span>
+            <strong className="receipt-region-high">{draft.serviceDate || 'NOT FOUND'}</strong>
+          </div>
+
+          <div className="receipt-separator" />
+
+          <div className="receipt-region-low receipt-service-block">
+            <strong>SERVICES ORDERED</strong>
+            <div className="receipt-item-row">
+              <span>1. {draft.serviceType || 'Service type not found'}</span>
+              <b>P---</b>
+            </div>
+            <div className="receipt-item-row">
+              <span>2. {draft.partsReplaced || 'Parts not found'}</span>
+              <b>P---</b>
+            </div>
+            <div className="receipt-item-row">
+              <span>3. {draft.laborPerformed || 'Labor not found'}</span>
+              <b>P---</b>
+            </div>
+          </div>
+
+          <div className="receipt-separator" />
+
+          <div className="receipt-parts-table">
+            <div className="receipt-item-row">
+              <span>Oil filter x1</span>
+              <b>P450</b>
+            </div>
+            <div className="receipt-item-row">
+              <span>Engine oil</span>
+              <b>P850</b>
+            </div>
+            <div className="receipt-item-row">
+              <span>Labor</span>
+              <b>P200</b>
+            </div>
+          </div>
+
+          <div className="receipt-separator" />
+
+          <div className="receipt-total-block receipt-region-high">
+            <strong>TOTAL</strong>
+            <strong>P{draft.totalCost || '0.00'}</strong>
+          </div>
+
+          <div className="receipt-region-medium receipt-file-note">
+            FILE: {draft.fieldMetadata?.fileName || 'UPLOADED RECEIPT'}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function ServiceDraftReviewPage() {
+  const { draftId } = useParams();
+  const [draft, setDraft] = useState(null);
+  const [validation, setValidation] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
+  const [form, setForm] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [validating, setValidating] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    getServiceDraftReview(draftId)
+      .then(async (data) => {
+        if (active) {
+          setDraft(data.draft);
+          setValidation(data.validation);
+          setForm(draftToForm(data.draft));
+          setError('');
+        }
+        try {
+          const vehicleData = await getVehicle(data.draft.vehicleId);
+          if (active) setVehicle(vehicleData);
+        } catch {
+          if (active) setVehicle(null);
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [draftId]);
+
+  const missingFieldNames = useMemo(
+    () => new Set((validation?.missingRequiredFields ?? []).map((issue) => issue.fieldName)),
+    [validation],
+  );
+  const fieldIssueMap = useMemo(() => buildIssueMap(validation), [validation]);
+  const reviewFlags = validation?.flaggedFields?.filter((issue) => issue.requiresReview) ?? [];
+  const sourceFlags = validation?.flaggedFields?.filter((issue) => !issue.requiresReview) ?? [];
+  const canContinueToConfirmation = validation?.valid;
+
+  function updateField(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  }
+
+  async function runValidation() {
+    setValidating(true);
+    setError('');
+    try {
+      const result = await validateServiceDraft(draftId);
+      setValidation(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  const commonContext = {
+    draft,
+    vehicle,
+    form,
+    validation,
+    fieldIssueMap,
+    missingFieldNames,
+    reviewFlags,
+    sourceFlags,
+    canContinueToConfirmation,
+    validating,
+    runValidation,
+    updateField,
+    draftId,
+  };
+
+  return (
+    <main className="page-shell">
+      <section className="page-header">
+        <p className="eyebrow">
+          <Link className="inline-link" to={`/service-drafts/${draftId}`}>
+            Structured draft
+          </Link>
+          <span>Review</span>
+        </p>
+        <h1>Review Service Draft</h1>
+        <p>Check the draft details and validation warnings before moving to correction or confirmation.</p>
+      </section>
+
+      {loading && <p className="muted">Loading review...</p>}
+      {error && <div className="alert">{error}</div>}
+
+      {draft?.inputMethod === 'RECEIPT' && <ReceiptReviewLayout {...commonContext} />}
+      {draft?.inputMethod === 'VOICE' && <SourceReviewLayout {...commonContext} mode="voice" />}
+      {draft?.inputMethod === 'MANUAL' && <SourceReviewLayout {...commonContext} mode="manual" />}
+    </main>
+  );
+}
+
+function ReceiptReviewLayout({
+  draft,
+  vehicle,
+  form,
+  validation,
+  fieldIssueMap,
+  missingFieldNames,
+  canContinueToConfirmation,
+  validating,
+  runValidation,
+  updateField,
+  draftId,
+}) {
+  const stats = confidenceStats(validation);
+
+  return (
+    <section className="receipt-review-surface">
+      <div className="receipt-extraction-bar">
+        <div className="receipt-bar-left">
+          <strong>AI extraction complete</strong>
+          <span className="mini-chip high">{stats.high} high</span>
+          <span className="mini-chip medium">{stats.medium} medium</span>
+          <span className="mini-chip low">{stats.low} low</span>
+          <span className="mini-chip neutral">{stats.notFound} not found</span>
+        </div>
+        <strong className="attention-count">{stats.attention} fields need attention</strong>
+      </div>
+
+      <div className="receipt-review-grid">
+        <ReceiptPreview draft={draft} />
+
+        <form className="auto-fields-panel" onSubmit={(event) => event.preventDefault()}>
+          <div className="auto-fields-header">
+            <h2>Auto-filled fields</h2>
+            <span className="badge subtle">{displaySource(draft)}</span>
+          </div>
+          <div className="receipt-field-stack">
+            {receiptPrimaryFields.map((field) => (
+              <ReviewInputField
+                key={field[0]}
+                field={field}
+                form={form}
+                draft={draft}
+                vehicle={vehicle}
+                fieldIssueMap={fieldIssueMap}
+                missingFieldNames={missingFieldNames}
+                updateField={updateField}
+                variant="receipt"
+              />
+            ))}
+          </div>
+          <ReviewFooter
+            canContinueToConfirmation={canContinueToConfirmation}
+            validating={validating}
+            runValidation={runValidation}
+            draftId={draftId}
+          />
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function SourceReviewLayout(props) {
+  const {
+    draft,
+    vehicle,
+    form,
+    validation,
+    fieldIssueMap,
+    missingFieldNames,
+    reviewFlags,
+    sourceFlags,
+    canContinueToConfirmation,
+    validating,
+    runValidation,
+    updateField,
+    draftId,
+    mode,
+  } = props;
+  const isVoice = mode === 'voice';
+
+  return (
+    <section className="content-two">
+      <form className="panel record-panel review-form" onSubmit={(event) => event.preventDefault()}>
+        <div className="draft-toolbar">
+          <span className="badge">{draft.inputMethod}</span>
+          <span className="badge subtle">{draft.status}</span>
+          <span className="badge subtle">{displaySource(draft)}</span>
+        </div>
+
+        <div className="draft-vehicle-card">
+          <span className="vehicle-icon">V</span>
+          <div>
+            <h2>{vehicleDisplayName(vehicle, draft)}</h2>
+            <p>{vehicleSubtext(vehicle, draft)}</p>
+          </div>
+        </div>
+
+        {isVoice && (
+          <div className="voice-transcript-card">
+            <strong>Voice transcript</strong>
+            <p>{draft.fieldMetadata?.transcript || draft.laborPerformed || 'No transcript was stored with this draft.'}</p>
+          </div>
+        )}
+
+        <div className="form-grid">
+          {reviewFields.map((field) => (
+            <ReviewInputField
+              key={field[0]}
+              field={field}
+              form={form}
+              draft={draft}
+              vehicle={vehicle}
+              fieldIssueMap={fieldIssueMap}
+              missingFieldNames={missingFieldNames}
+              updateField={updateField}
+            />
+          ))}
+        </div>
+
+        <div className="review-note">
+          This Person A review form is editable for inspection only. Saving corrections belongs to the next Module 2 step.
+        </div>
+
+        <div className="actions">
+          <button className="button-secondary" type="button" onClick={runValidation} disabled={validating}>
+            {validating ? 'Validating...' : 'Run validation'}
+          </button>
+          <Link className="secondary-link" to={`/service-drafts/${draftId}`}>
+            Back to draft
+          </Link>
+        </div>
+      </form>
+
+      <ValidationSidebar
+        validation={validation}
+        reviewFlags={reviewFlags}
+        sourceFlags={sourceFlags}
+        canContinueToConfirmation={canContinueToConfirmation}
+        draftId={draftId}
+      />
+    </section>
+  );
+}
+
+function ValidationSidebar({ validation, reviewFlags, sourceFlags, canContinueToConfirmation, draftId }) {
+  return (
+    <aside className="guidance-stack">
+      <section className={validation?.valid ? 'helper-card success' : 'helper-card warning'}>
+        <h2>Review summary</h2>
+        <ul className="check-list">
+          {(validation?.reviewSummary ?? []).map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="helper-card">
+        <h2>Missing required fields</h2>
+        {validation?.missingRequiredFields?.length ? (
+          <ul className="issue-list">
+            {validation.missingRequiredFields.map((issue) => (
+              <li key={`${issue.fieldName}-${issue.category}`}>
+                <strong>{issue.label}</strong>
+                <span>{issue.message}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Vehicle profile, service date, service type, and total cost are present.</p>
+        )}
+      </section>
+
+      <section className="helper-card">
+        <h2>Fields needing review</h2>
+        {reviewFlags.length ? (
+          <ul className="issue-list">
+            {reviewFlags.map((issue) => (
+              <li key={`${issue.fieldName}-${issue.category}`}>
+                <strong>{issue.label}</strong>
+                <span>
+                  {issue.message}
+                  {issue.confidence !== null && issue.confidence !== undefined ? ` Confidence: ${Math.round(Number(issue.confidence) * 100)}%.` : ''}
+                </span>
+                <small>Current value: {formatValue(issue.currentValue)}</small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No low-confidence, not-found, missing, or uncertain fields were flagged.</p>
+        )}
+      </section>
+
+      {sourceFlags.length > 0 && (
+        <section className="helper-card">
+          <h2>Source-derived fields</h2>
+          <div className="confidence-list">
+            {sourceFlags.map((issue) => (
+              <div key={`${issue.fieldName}-${issue.category}`}>
+                <span>{issue.label}</span>
+                <strong>{issue.confidence !== null && issue.confidence !== undefined ? `${Math.round(Number(issue.confidence) * 100)}%` : issue.source || 'Source'}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="helper-card">
+        <h2>Next steps</h2>
+        <div className="review-actions">
+          <Link className="button-link" to={`/service-drafts/${draftId}/correct`}>
+            Go to correction
+          </Link>
+          {canContinueToConfirmation ? (
+            <Link className="button-link" to={`/service-drafts/${draftId}/confirm`}>
+              Continue to confirmation
+            </Link>
+          ) : (
+            <button type="button" disabled>
+              Confirmation locked
+            </button>
+          )}
+        </div>
+        <p className="muted">Correction and final save routes are placeholders for Person B.</p>
+      </section>
+    </aside>
+  );
+}
+
+function ReviewFooter({ canContinueToConfirmation, validating, runValidation, draftId }) {
+  return (
+    <div className="receipt-review-footer">
+      <button className="button-secondary" type="button" onClick={runValidation} disabled={validating}>
+        {validating ? 'Validating...' : 'Run validation'}
+      </button>
+      <Link className="button-link" to={`/service-drafts/${draftId}/correct`}>
+        Go to correction
+      </Link>
+      {canContinueToConfirmation ? (
+        <Link className="button-link" to={`/service-drafts/${draftId}/confirm`}>
+          Continue to confirmation
+        </Link>
+      ) : (
+        <button type="button" disabled>
+          Confirmation locked
+        </button>
+      )}
+    </div>
+  );
+}
