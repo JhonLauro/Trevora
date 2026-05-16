@@ -1495,7 +1495,22 @@ p {
 }
 
 .button-link-secondary {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 6px;
+  color: #071526;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
   text-decoration: none;
+}
+
+.button-link-secondary:hover {
+  background: #f7faff;
+  border-color: #b9cbe0;
 }
 
 .saved-record-state {
