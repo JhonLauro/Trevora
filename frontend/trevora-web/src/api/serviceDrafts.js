@@ -28,3 +28,13 @@ export function createVoiceServiceDraft(draft) {
 export function getServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}`);
 }
+
+export function getServiceDraftReview(draftId) {
+  return apiRequest(`/service-drafts/${draftId}/review`);
+}
+
+export function validateServiceDraft(draftId) {
+  return apiRequest(`/service-drafts/${draftId}/validate`, {
+    method: 'POST',
+  });
+}
