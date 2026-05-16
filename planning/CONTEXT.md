@@ -21,7 +21,7 @@ Person A has completed:
 - 2.1 Review Service Draft
 - 2.2 Identify Missing Required and Flagged Fields
 
-Person B will work on:
+Person B has completed:
 - 2.3 Correct Flagged or Incomplete Service Details
 - 2.4 Confirm and Save Validated Record
 
@@ -94,14 +94,25 @@ Completed features include:
 
 Person A did not implement correction or final saving.
 
-## Module 2 Person B Current Scope
+## Module 2 Person B Completed Scope
 
-Person B must implement:
+Person B completed:
 
 2.3 Correct Flagged or Incomplete Service Details  
 2.4 Confirm and Save Validated Record  
 
-Person B should build on top of Person A’s validation layer.
+Completed features include:
+
+- Dedicated correction route for editable ServiceDraft fields.
+- Backend correction endpoint that saves owner corrections and re-runs validation.
+- Final confirmation route with read-only summary before saving.
+- Backend confirmation endpoint that reuses validation and blocks save when required fields are missing.
+- Final ServiceRecord persistence through a new service_records table.
+- ServiceDraft status update to CONFIRMED after successful save.
+- Saved-record success screen after confirmation.
+- Supabase pooler-safe PostgreSQL driver configuration.
+
+Person B built on top of Person A’s validation layer.
 
 ## Required Fields Before Confirmation
 
