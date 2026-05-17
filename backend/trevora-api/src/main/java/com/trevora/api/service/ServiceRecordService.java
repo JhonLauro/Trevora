@@ -20,17 +20,20 @@ public class ServiceRecordService {
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceRecordRepository serviceRecordRepository;
     private final ServiceDraftValidationService serviceDraftValidationService;
+    private final CurrentUserService currentUserService;
 
     public ServiceRecordService(
             ServiceInputService serviceInputService,
             ServiceDraftRepository serviceDraftRepository,
             ServiceRecordRepository serviceRecordRepository,
-            ServiceDraftValidationService serviceDraftValidationService
+            ServiceDraftValidationService serviceDraftValidationService,
+            CurrentUserService currentUserService
     ) {
         this.serviceInputService = serviceInputService;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceDraftValidationService = serviceDraftValidationService;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
@@ -44,7 +47,7 @@ public class ServiceRecordService {
         }
 
         ServiceRecord record = serviceRecordRepository
-                .findByDraftIdAndOwnerId(draft.getDraftId(), VehicleService.MOCK_OWNER_ID)
+                .findByDraftIdAndOwnerId(draft.getDraftId(), currentUserService.getCurrentUserId())
                 .orElseGet(ServiceRecord::new);
         copyDraftToRecord(draft, record);
 

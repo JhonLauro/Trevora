@@ -132,6 +132,33 @@ p {
   text-transform: uppercase;
 }
 
+.demo-user-selector {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #ffffff;
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.demo-user-selector span,
+.demo-user-selector small {
+  color: #a9bdd2;
+}
+
+.demo-user-selector span {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.demo-user-selector select {
+  background: #0d2038;
+  border-color: #2a4260;
+  color: #ffffff;
+  margin-top: 0;
+}
+
 .side-nav {
   display: grid;
   gap: 0.4rem;

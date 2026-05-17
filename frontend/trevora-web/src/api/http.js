@@ -1,10 +1,14 @@
+import { getCurrentUserHeaders } from './currentUser.js';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
 export async function apiRequest(path, options = {}) {
+  const currentUserHeaders = getCurrentUserHeaders();
   const headers = options.body instanceof FormData
-    ? { ...options.headers }
+    ? { ...currentUserHeaders, ...options.headers }
     : {
         'Content-Type': 'application/json',
+        ...currentUserHeaders,
         ...options.headers,
       };
 

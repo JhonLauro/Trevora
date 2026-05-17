@@ -20,10 +20,16 @@ public class ServiceHistoryService {
 
     private final ServiceRecordRepository serviceRecordRepository;
     private final VehicleService vehicleService;
+    private final CurrentUserService currentUserService;
 
-    public ServiceHistoryService(ServiceRecordRepository serviceRecordRepository, VehicleService vehicleService) {
+    public ServiceHistoryService(
+            ServiceRecordRepository serviceRecordRepository,
+            VehicleService vehicleService,
+            CurrentUserService currentUserService
+    ) {
         this.serviceRecordRepository = serviceRecordRepository;
         this.vehicleService = vehicleService;
+        this.currentUserService = currentUserService;
     }
 
     public ServiceHistoryResponse getVehicleHistory(
@@ -36,7 +42,7 @@ public class ServiceHistoryService {
 
         String normalizedSort = normalizeSort(sort);
         List<ServiceRecord> allRecords = serviceRecordRepository
-                .findByVehicleIdAndOwnerId(vehicleId, VehicleService.MOCK_OWNER_ID, repositorySortFor(normalizedSort))
+                .findByVehicleIdAndOwnerId(vehicleId, currentUserService.getCurrentUserId(), repositorySortFor(normalizedSort))
                 .stream()
                 .toList();
         List<ServiceRecord> records = allRecords
@@ -70,7 +76,7 @@ public class ServiceHistoryService {
     public ServiceRecordDetailResponse getVehicleHistoryRecord(UUID vehicleId, UUID recordId) {
         vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
         ServiceRecord record = serviceRecordRepository
-                .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, VehicleService.MOCK_OWNER_ID)
+                .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
         return ServiceRecordDetailResponse.from(record, categoryFor(record.getServiceType()));

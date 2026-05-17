@@ -20,17 +20,20 @@ public class ServiceInputService {
     private final VehicleService vehicleService;
     private final OCRProcessingService ocrProcessingService;
     private final VoiceProcessingService voiceProcessingService;
+    private final CurrentUserService currentUserService;
 
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
             VehicleService vehicleService,
             OCRProcessingService ocrProcessingService,
-            VoiceProcessingService voiceProcessingService
+            VoiceProcessingService voiceProcessingService,
+            CurrentUserService currentUserService
     ) {
         this.serviceDraftRepository = serviceDraftRepository;
         this.vehicleService = vehicleService;
         this.ocrProcessingService = ocrProcessingService;
         this.voiceProcessingService = voiceProcessingService;
+        this.currentUserService = currentUserService;
     }
 
     public ServiceDraft createManualDraft(ManualServiceDraftRequest request) {
@@ -38,7 +41,7 @@ public class ServiceInputService {
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(request.vehicleId());
-        draft.setOwnerId(VehicleService.MOCK_OWNER_ID);
+        draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.MANUAL);
         draft.setServiceDate(request.serviceDate());
         draft.setServiceType(request.serviceType().trim());
@@ -61,7 +64,7 @@ public class ServiceInputService {
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(vehicleId);
-        draft.setOwnerId(VehicleService.MOCK_OWNER_ID);
+        draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.RECEIPT);
         draft.setServiceDate(extraction.serviceDate());
         draft.setServiceType(extraction.serviceType());
@@ -84,7 +87,7 @@ public class ServiceInputService {
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(request.vehicleId());
-        draft.setOwnerId(VehicleService.MOCK_OWNER_ID);
+        draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.VOICE);
         draft.setServiceDate(extraction.serviceDate());
         draft.setServiceType(extraction.serviceType());
@@ -102,7 +105,11 @@ public class ServiceInputService {
     }
 
     public ServiceDraft getDraftForMockOwner(UUID draftId) {
-        return serviceDraftRepository.findByDraftIdAndOwnerId(draftId, VehicleService.MOCK_OWNER_ID)
+        return getDraftForCurrentUser(draftId);
+    }
+
+    public ServiceDraft getDraftForCurrentUser(UUID draftId) {
+        return serviceDraftRepository.findByDraftIdAndOwnerId(draftId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service draft was not found."));
     }
 

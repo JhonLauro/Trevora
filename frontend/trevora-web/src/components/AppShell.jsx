@@ -1,4 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { DEMO_USERS, getCurrentDemoUser, setCurrentDemoUser } from '../api/currentUser.js';
 
 function getActiveVehiclePath() {
   const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
@@ -22,9 +24,15 @@ function moduleContextFor(pathname) {
 
 export default function AppShell({ children }) {
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState(getCurrentDemoUser);
   const addServicePath = getActiveVehiclePath();
   const serviceHistoryPath = getActiveHistoryPath();
   const moduleContext = moduleContextFor(location.pathname);
+
+  function handleDemoUserChange(event) {
+    setCurrentUser(setCurrentDemoUser(event.target.value));
+    window.location.reload();
+  }
 
   return (
     <div className="app-shell">
@@ -39,6 +47,18 @@ export default function AppShell({ children }) {
           <strong>{moduleContext.number}</strong>
           <small>{moduleContext.label}</small>
         </div>
+
+        <label className="demo-user-selector">
+          <span>Demo user</span>
+          <select value={currentUser.userId} onChange={handleDemoUserChange}>
+            {DEMO_USERS.map((user) => (
+              <option key={user.userId} value={user.userId}>
+                {user.label}
+              </option>
+            ))}
+          </select>
+          <small>{currentUser.role.replace('_', ' ')}</small>
+        </label>
 
         <nav className="side-nav" aria-label="Primary">
           <NavLink to="/vehicles">My Vehicles</NavLink>
