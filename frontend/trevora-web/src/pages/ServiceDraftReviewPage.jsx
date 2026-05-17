@@ -507,7 +507,7 @@ function SourceReviewLayout(props) {
         </div>
 
         <div className="review-note">
-          This Person A review form is editable for inspection only. Saving corrections belongs to the next Module 2 step.
+          This review form is editable for inspection only. Use correction to save draft updates before confirmation.
         </div>
 
         <div className="actions">
@@ -609,7 +609,7 @@ function ValidationSidebar({ validation, reviewFlags, sourceFlags, canContinueTo
             </button>
           )}
         </div>
-        <p className="muted">Correction and final save routes are placeholders for Person B.</p>
+        <p className="muted">Use correction for saved edits; confirmation opens when required fields are present.</p>
       </section>
     </aside>
   );
