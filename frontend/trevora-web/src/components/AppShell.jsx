@@ -12,6 +12,7 @@ import { getVehicles } from '../api/vehicles.js';
 
 const VEHICLE_LABEL_KEY = 'trevora.activeVehicleLabel';
 const VEHICLE_SUBTITLE_KEY = 'trevora.activeVehicleSubtitle';
+const DEMO_MECHANIC_ID = '00000000-0000-0000-0000-000000000002';
 
 function getActiveVehiclePath() {
   const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
@@ -78,6 +79,13 @@ export default function AppShell({ children }) {
   const shareAccessPath = getActiveSharePath();
   const canUseOwnerWorkflows = currentUser.role === 'VEHICLE_OWNER';
   const canUseMechanicDemo = currentUser.role === 'MECHANIC';
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/access/request/')) return;
+    const mechanicUser = setCurrentDemoUser(DEMO_MECHANIC_ID);
+    setCurrentUser(mechanicUser);
+    setAuthenticated(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!canUseOwnerWorkflows) return undefined;

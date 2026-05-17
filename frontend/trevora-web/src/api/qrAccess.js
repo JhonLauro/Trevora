@@ -53,5 +53,7 @@ export function denyMechanicAccessRequest(requestId) {
 }
 
 export function getMechanicSessionHistory(sessionId) {
-  return apiRequest(`/mechanic-access/sessions/${encodeURIComponent(sessionId)}/history`);
+  return apiRequest(`/mechanic-access/sessions/${encodeURIComponent(sessionId)}/history`, {
+    skipAuthHeaders: true,
+  });
 }

@@ -179,7 +179,7 @@ export default function QRSharingPage() {
                   </button>
                   <Link
                     className="button-link"
-                    to="/mechanic"
+                    to={`/access/request/${currentRequest.accessToken}`}
                     onClick={openDemoMechanicLink}
                   >
                     Open request link

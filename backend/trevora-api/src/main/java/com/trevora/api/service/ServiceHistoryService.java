@@ -3,13 +3,9 @@ package com.trevora.api.service;
 import com.trevora.api.dto.ServiceHistoryResponse;
 import com.trevora.api.dto.ServiceRecordDetailResponse;
 import com.trevora.api.dto.ServiceRecordSummaryResponse;
-import com.trevora.api.exception.AccessRequestException;
 import com.trevora.api.exception.ResourceNotFoundException;
-import com.trevora.api.model.MechanicAccessSession;
 import com.trevora.api.model.ServiceRecord;
-import com.trevora.api.repository.MechanicAccessSessionRepository;
 import com.trevora.api.repository.ServiceRecordRepository;
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -23,18 +19,15 @@ public class ServiceHistoryService {
     private static final String SORT_LATEST = "latest";
 
     private final ServiceRecordRepository serviceRecordRepository;
-    private final MechanicAccessSessionRepository mechanicAccessSessionRepository;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
 
     public ServiceHistoryService(
             ServiceRecordRepository serviceRecordRepository,
-            MechanicAccessSessionRepository mechanicAccessSessionRepository,
             VehicleService vehicleService,
             CurrentUserService currentUserService
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
-        this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
     }
@@ -89,42 +82,6 @@ public class ServiceHistoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
         return ServiceRecordDetailResponse.from(record, categoryFor(record.getServiceType()));
-    }
-
-    public ServiceHistoryResponse getMechanicSessionHistory(UUID sessionId) {
-        MechanicAccessSession session = mechanicAccessSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Mechanic access session was not found."));
-        if (!"APPROVED".equals(session.getStatus())) {
-            throw new AccessRequestException("This mechanic access session is not active.");
-        }
-        if (session.getExpiresAt().isBefore(Instant.now())) {
-            throw new AccessRequestException("This mechanic access session has expired.");
-        }
-
-        List<ServiceRecord> records = serviceRecordRepository
-                .findByVehicleIdAndOwnerId(session.getVehicleId(), session.getOwnerId(), repositorySortFor(SORT_LATEST))
-                .stream()
-                .sorted(comparatorFor(SORT_LATEST))
-                .toList();
-        List<ServiceRecordSummaryResponse> summaries = records.stream()
-                .map(record -> ServiceRecordSummaryResponse.from(record, categoryFor(record.getServiceType())))
-                .toList();
-        List<String> serviceTypes = records.stream()
-                .map(ServiceRecord::getServiceType)
-                .filter(value -> value != null && !value.isBlank())
-                .distinct()
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .toList();
-
-        return new ServiceHistoryResponse(
-                session.getVehicleId(),
-                SORT_LATEST,
-                null,
-                null,
-                summaries.size(),
-                serviceTypes,
-                summaries
-        );
     }
 
     private Sort repositorySortFor(String sort) {
