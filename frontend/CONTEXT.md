@@ -118,7 +118,7 @@ Module 4 provides owner-facing AI explanation and sharing screens, plus mechanic
 
 | Person | Frontend Scope |
 |---|---|
-| Person A | Login/demo user selector, role context, current user handling |
+| Person A | Login/register, logout, demo user selector fallback, role context, current user handling |
 | Person B | AIExplanationPanel and service record explanation UI |
 | Person C | QRSharingPage, access request page, owner approval/denial UI |
 | Person D | MechanicReadOnlyHistoryPage and MechanicAISearchPanel |
@@ -144,3 +144,11 @@ Mechanic:
 - `/access/request/:token`
 - `/mechanic/access/:sessionId`
 - `/mechanic/access/:sessionId/search`
+
+## Module 4 Auth Foundation Frontend Scope
+
+Module 4 Person A owns MVP login/register and current-user state. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+
+Add `LoginPage`, `RegisterPage`, and a logout action. Store logged-in user information locally for the MVP and send `X-User-Id` and `X-User-Role` on API requests. If no logged-in user exists, the app may keep a demo fallback so the existing mock owner development flow remains usable.
+
+Vehicle owner users should keep access to Modules 1-3 owner workflows. Mechanic users should not create vehicle records or service drafts through owner routes; they should use Module 4 mechanic access features only after owner approval.

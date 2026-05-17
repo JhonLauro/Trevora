@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';

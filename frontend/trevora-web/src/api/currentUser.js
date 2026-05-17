@@ -1,0 +1,69 @@
+export const DEMO_USERS = [
+  {
+    label: 'Demo Vehicle Owner',
+    userId: '00000000-0000-0000-0000-000000000001',
+    role: 'VEHICLE_OWNER',
+  },
+  {
+    label: 'Demo Mechanic',
+    userId: '00000000-0000-0000-0000-000000000002',
+    role: 'MECHANIC',
+  },
+];
+
+const STORAGE_KEY = 'trevora.demoUser';
+const AUTH_STORAGE_KEY = 'trevora.authUser';
+
+export function getCurrentDemoUser() {
+  const storedUserId = window.localStorage.getItem(STORAGE_KEY);
+  return DEMO_USERS.find((user) => user.userId === storedUserId) ?? DEMO_USERS[0];
+}
+
+export function setCurrentDemoUser(userId) {
+  const nextUser = DEMO_USERS.find((user) => user.userId === userId) ?? DEMO_USERS[0];
+  window.localStorage.setItem(STORAGE_KEY, nextUser.userId);
+  return nextUser;
+}
+
+export function getLoggedInUser() {
+  const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!storedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
+
+export function setLoggedInUser(user) {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  return user;
+}
+
+export function clearLoggedInUser() {
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export function getActiveCurrentUser() {
+  return getLoggedInUser() ?? getCurrentDemoUser();
+}
+
+export function isLoggedIn() {
+  return getLoggedInUser() !== null;
+}
+
+export function isVehicleOwnerUser(user = getActiveCurrentUser()) {
+  return user?.role === 'VEHICLE_OWNER';
+}
+
+export function getCurrentUserHeaders() {
+  const user = getActiveCurrentUser();
+  return {
+    'X-User-Id': user.userId,
+    'X-User-Role': user.role,
+  };
+}

@@ -6,26 +6,41 @@ Module 4 is split among four people:
 
 | Person | Assignment | SDD Transactions |
 |---|---|---|
-| Person A | Authentication / Access Foundation | Supports Module 4 |
+| Person A | Authentication / Access Foundation + Login/Register | Supports Module 4 |
 | Person B | AI Explanation | 4.1 |
 | Person C | QR Access + Approval | 4.2, 4.3, 4.4 |
 | Person D | Mechanic Read-Only Access + Search | 4.5, 4.6 |
 
 ---
 
-## Person A — Authentication / Access Foundation
+## Person A - Authentication / Access Foundation + Login/Register
 
 ### Goal
 
-Prepare the system to distinguish between vehicle owners and mechanics while preserving current mock owner compatibility.
+Prepare the system to distinguish between vehicle owners and mechanics with MVP login/register while preserving current mock owner compatibility for development safety.
 
 ### Main Responsibilities
 
-- Current user context
-- Role handling
-- Owner/mechanic demo users
-- Mock owner fallback
-- Compatibility with Modules 1–3
+- Register vehicle owner and mechanic users.
+- Login users.
+- Current user context.
+- Role handling.
+- Owner/mechanic demo users or fallback headers for development.
+- Mock owner fallback.
+- Compatibility with Modules 1-3.
+
+### MVP Roles
+
+- `VEHICLE_OWNER`
+- `MECHANIC`
+- `ADMIN` placeholder, optional
+
+### Access Expectations
+
+- Vehicle owners use Modules 1-4 owner features.
+- Mechanics use Module 4 mechanic access features only after owner approval.
+- Mechanic-facing access must use confirmed `service_records`.
+- Mechanic-facing access must not expose incomplete `service_drafts`.
 
 ### Should Not Do
 
@@ -35,7 +50,7 @@ Prepare the system to distinguish between vehicle owners and mechanics while pre
 
 ---
 
-## Person B — AI Explanation
+## Person B - AI Explanation
 
 ### Goal
 
@@ -56,7 +71,7 @@ Show an AI-generated or template-generated explanation for a confirmed service r
 
 ---
 
-## Person C — QR Access Request and Owner Approval
+## Person C - QR Access Request and Owner Approval
 
 ### Goal
 
@@ -78,7 +93,7 @@ Allow the owner to generate a share/QR access request and approve or deny mechan
 
 ---
 
-## Person D — Mechanic Read-Only Access and Search
+## Person D - Mechanic Read-Only Access and Search
 
 ### Goal
 

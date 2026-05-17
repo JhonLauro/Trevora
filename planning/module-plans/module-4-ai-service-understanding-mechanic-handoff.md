@@ -48,6 +48,10 @@ Module 4 must use:
 - Module 3 service history APIs or equivalent backend service methods
 - owner/mechanic user context from the authentication/access foundation
 
+### Authentication Foundation Input
+
+Person A must provide MVP login/register support before the rest of Module 4 access features are built. The auth foundation should distinguish `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN` users. Existing mock owner behavior should remain as a development fallback when no logged-in user or request-header current user is active.
+
 ---
 
 ## Core Module 4 Flow
@@ -75,21 +79,26 @@ Vehicle owner opens a confirmed service record
 - Mechanic access must be temporary and scoped to one selected vehicle.
 - Mechanic search must only search records from the approved shared vehicle.
 - Do not expose incomplete `service_drafts`.
+- Login/register is required for the MVP auth foundation.
+- Vehicle owners use Modules 1-4 owner features.
+- Mechanics use Module 4 mechanic access features only after owner approval.
 
 ---
 
 ## Person Assignments
 
-### Person A — Authentication / Access Foundation
+### Person A — Authentication / Access Foundation + Login/Register
 
 Responsible for preparing the system to distinguish user roles and current user context.
 
 Scope:
+- MVP registration and login
 - Owner/mechanic role context
 - Current user resolver
-- Demo login or demo user selection, if needed
+- Demo login or demo user selection, if needed for development fallback
 - Mock owner backward compatibility
 - Request-header or simple MVP user context support
+- Supported roles: `VEHICLE_OWNER`, `MECHANIC`, optional `ADMIN`
 
 Person A is not directly implementing Module 4 transactions, but their work supports Module 4.
 
@@ -153,7 +162,7 @@ Person D depends on Person C’s access session design.
 
 ## Suggested Work Order
 
-1. Person A creates the authentication/access foundation.
+1. Person A creates the authentication/access foundation, including MVP login/register.
 2. Person B can work in parallel on AI explanation because it only depends on confirmed service records.
 3. Person C builds QR/share access request and approval flow.
 4. Person D builds mechanic read-only access and search after Person C’s access session shape is stable.
@@ -238,11 +247,13 @@ Suggested fields:
 ## Suggested Backend Components
 
 Controllers:
+- `AuthController`
 - `AIController`
 - `QRAccessController`
 - `MechanicAccessController`
 
 Services:
+- `AuthService`
 - `AIExplanationService`
 - `QRAccessService`
 - `AccessApprovalService`
@@ -251,6 +262,7 @@ Services:
 - `CurrentUserService` or `CurrentUserContext`, if added by Person A
 
 Repositories:
+- `UserRepository`
 - `AIExplanationRepository`
 - `QRAccessRepository`
 - `MechanicAccessRepository`
@@ -267,6 +279,10 @@ Entities:
 - `VehicleProfile`
 
 DTOs:
+- `RegisterRequest`
+- `LoginRequest`
+- `AuthResponse`
+- `CurrentUserResponse`
 - `AIExplanationResponse`
 - `QRAccessRequestResponse`
 - `CreateQRAccessRequestResponse`
@@ -281,6 +297,8 @@ DTOs:
 ## Suggested Frontend Routes
 
 Owner-facing:
+- `/login`
+- `/register`
 - `/service-records/:recordId`
 - `/vehicles/:vehicleId/share`
 - `/access/requests`
@@ -325,7 +343,10 @@ Person D:
 - `SearchResultsList`
 
 Person A:
-- `LoginPage` or `DemoUserSelector`, if added
+- `LoginPage`
+- `RegisterPage`
+- logout action
+- `DemoUserSelector`, optional for development fallback
 - `CurrentUserProvider`, if needed
 - `RoleBadge`, optional
 

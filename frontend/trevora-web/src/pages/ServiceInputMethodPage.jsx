@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import StepIndicator from '../components/StepIndicator';
 import { getVehicle } from '../api/vehicles';
 
@@ -30,6 +30,14 @@ const methods = [
   },
 ];
 
+function displayVehicleName(vehicle) {
+  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+}
+
+function displayVehicleSubtitle(vehicle) {
+  return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Active vehicle';
+}
+
 export default function ServiceInputMethodPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
@@ -46,6 +54,8 @@ export default function ServiceInputMethodPage() {
       .then((data) => {
         if (active) {
           setVehicle(data);
+          window.localStorage.setItem('trevora.activeVehicleLabel', displayVehicleName(data));
+          window.localStorage.setItem('trevora.activeVehicleSubtitle', displayVehicleSubtitle(data));
           setError('');
         }
       })

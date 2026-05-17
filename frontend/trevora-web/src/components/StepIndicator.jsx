@@ -1,3 +1,5 @@
+import React from 'react';
+
 const steps = ['Select Vehicle', 'Choose Input Method', 'Create Draft'];
 
 export default function StepIndicator({ currentStep = 3 }) {

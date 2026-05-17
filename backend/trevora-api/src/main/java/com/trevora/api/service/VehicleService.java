@@ -11,21 +11,41 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class VehicleService {
-    public static final UUID MOCK_OWNER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    public static final UUID MOCK_OWNER_ID = CurrentUserService.MOCK_OWNER_ID;
 
     private final VehicleRepository vehicleRepository;
+    private final CurrentUserService currentUserService;
 
-    public VehicleService(VehicleRepository vehicleRepository) {
+    public VehicleService(VehicleRepository vehicleRepository, CurrentUserService currentUserService) {
         this.vehicleRepository = vehicleRepository;
+        this.currentUserService = currentUserService;
     }
 
     public List<VehicleProfile> getVehiclesForMockOwner() {
-        return vehicleRepository.findByOwnerIdOrderByCreatedAtDesc(MOCK_OWNER_ID);
+        return getVehiclesForCurrentUser();
     }
 
     public VehicleProfile createVehicleForMockOwner(CreateVehicleRequest request) {
+        return createVehicleForCurrentUser(request);
+    }
+
+    public VehicleProfile getVehicleForMockOwner(UUID vehicleId) {
+        return getVehicleForCurrentUser(vehicleId);
+    }
+
+    public VehicleProfile verifyVehicleBelongsToMockOwner(UUID vehicleId) {
+        return verifyVehicleBelongsToCurrentUser(vehicleId);
+    }
+
+    public List<VehicleProfile> getVehiclesForCurrentUser() {
+        requireVehicleOwner();
+        return vehicleRepository.findByOwnerIdOrderByCreatedAtDesc(currentUserService.getCurrentUserId());
+    }
+
+    public VehicleProfile createVehicleForCurrentUser(CreateVehicleRequest request) {
+        requireVehicleOwner();
         VehicleProfile vehicle = new VehicleProfile();
-        vehicle.setOwnerId(MOCK_OWNER_ID);
+        vehicle.setOwnerId(currentUserService.getCurrentUserId());
         vehicle.setMake(request.make().trim());
         vehicle.setModel(request.model().trim());
         vehicle.setYear(request.year());
@@ -37,15 +57,18 @@ public class VehicleService {
         return vehicleRepository.save(vehicle);
     }
 
-    public VehicleProfile getVehicleForMockOwner(UUID vehicleId) {
-        return vehicleRepository.findByVehicleIdAndOwnerId(vehicleId, MOCK_OWNER_ID)
+    public VehicleProfile getVehicleForCurrentUser(UUID vehicleId) {
+        requireVehicleOwner();
+        return vehicleRepository.findByVehicleIdAndOwnerId(vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle profile was not found."));
     }
 
-    public VehicleProfile verifyVehicleBelongsToMockOwner(UUID vehicleId) {
+    public VehicleProfile verifyVehicleBelongsToCurrentUser(UUID vehicleId) {
+        requireVehicleOwner();
+        UUID currentUserId = currentUserService.getCurrentUserId();
         return vehicleRepository.findById(vehicleId)
                 .map(vehicle -> {
-                    if (!MOCK_OWNER_ID.equals(vehicle.getOwnerId())) {
+                    if (!currentUserId.equals(vehicle.getOwnerId())) {
                         throw new UnauthorizedVehicleAccessException("Vehicle does not belong to the current owner.");
                     }
                     return vehicle;
@@ -58,5 +81,9 @@ public class VehicleService {
             return null;
         }
         return value.trim();
+    }
+
+    private void requireVehicleOwner() {
+        currentUserService.requireVehicleOwner();
     }
 }
