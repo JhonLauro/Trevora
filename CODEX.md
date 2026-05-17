@@ -28,40 +28,12 @@ Trevora is a web-based vehicle service history system for service understanding 
 | Design database tables | /database | CONTEXT.md, schema.md |
 | Write API docs or update implementation docs | /docs | CONTEXT.md |
 
-## Current Priority
+| Work on Module 4 planning | /planning | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
+| Work on authentication/access foundation | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
+| Work on AI explanation | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
+| Work on QR/access approval | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
+| Work on mechanic read-only access/search | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
 
-Build Module 1: Service Record Input.
-
-## Rules
-
-- Follow the approved SDD structure.
-- Keep implementation aligned with Controller → Service → Repository → Entity.
-- Build MVP functionality first before UI polish.
-- Do not implement Module 2, 3, or 4 unless explicitly asked.
-- Manual entry must work even if OCR, speech-to-text, or AI services are unavailable.
-- Receipt and voice input may use mocked processing for MVP, but the structure must allow real services later.
-
-## Current Priority
-
-Module 1 MVP is complete and pushed.
-
-Module 2 MVP is complete and pushed.
-
-Module 3 MVP is complete and verified.
-
-Next priority:
-Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
-
-## Module Ownership
-
-Module 3 may be split as follows:
-
-- Person A: 3.1 Link Validated Record to Vehicle Profile and 3.2 Organize Records Chronologically
-- Person B: 3.3 Categorize Service Records and 3.4 View Unified Vehicle Service History
-
-## Module 3 Important Rule
-
-Module 3 must use confirmed `ServiceRecord` data created by Module 2. It must not display incomplete `ServiceDraft` records as vehicle history.
 
 ## Module 4 Starting Point
 
@@ -71,3 +43,34 @@ Module 4 may build on the verified Module 3 service history list and detail rout
 | Build Module 3 backend | /backend | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
 | Build Module 3 frontend | /frontend | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
 | Update Module 3 database docs | /database | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
+
+## Current Development Status
+
+Module 1 MVP is complete and pushed.
+Module 2 MVP is complete and pushed.
+Module 3 MVP is complete and pushed.
+
+## Current Priority
+
+Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
+
+Authentication/access foundation will be developed in parallel because Module 4 requires owner/mechanic role separation.
+
+## Module 4 Ownership
+
+| Person | Scope | Main Responsibility |
+|---|---|---|
+| Person A | Authentication / Access Foundation | Current user context, roles, mock owner compatibility |
+| Person B | 4.1 AI Explanation | AI/template explanation for confirmed service records |
+| Person C | 4.2, 4.3, 4.4 | QR/share access request, expiration, owner approval |
+| Person D | 4.5, 4.6 | Mechanic read-only access and mechanic search |
+
+## Module 4 Rules
+
+- Use confirmed `service_records`.
+- Do not expose incomplete `service_drafts`.
+- Do not allow mechanics to edit records.
+- Do not allow mechanic access before owner approval.
+- Shared access must be temporary and scoped to one selected vehicle.
+- AI may be mocked or template-generated for MVP if isolated behind service classes.
+- QR may be implemented as a share link/token for MVP.

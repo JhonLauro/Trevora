@@ -109,3 +109,38 @@ Module 3 MVP is complete and verified. The frontend includes:
 ## Module 4 Frontend Starting Point
 
 Module 4 may add AI explanation and mechanic handoff experiences from the verified Module 3 history/detail pages. Keep the current deterministic history filters available and do not show incomplete service drafts as history.
+
+## Module 4 Frontend Scope
+
+Module 4 provides owner-facing AI explanation and sharing screens, plus mechanic-facing read-only access screens.
+
+## Module 4 Frontend Ownership
+
+| Person | Frontend Scope |
+|---|---|
+| Person A | Login/demo user selector, role context, current user handling |
+| Person B | AIExplanationPanel and service record explanation UI |
+| Person C | QRSharingPage, access request page, owner approval/denial UI |
+| Person D | MechanicReadOnlyHistoryPage and MechanicAISearchPanel |
+
+## Module 4 Frontend Rules
+
+- Keep UI consistent with existing AppShell and Module 1–3 styling.
+- Do not show edit/delete controls to mechanics.
+- Mechanic pages must clearly show read-only and temporary access status.
+- Shared history must only show approved vehicle records.
+- AI explanation may be template-generated/mock for MVP.
+- AI-assisted search may be keyword-based/mock for MVP.
+- Do not break existing Module 1, 2, or 3 routes.
+
+## Suggested Module 4 Routes
+
+Owner:
+- `/service-records/:recordId`
+- `/vehicles/:vehicleId/share`
+- `/access/requests`
+
+Mechanic:
+- `/access/request/:token`
+- `/mechanic/access/:sessionId`
+- `/mechanic/access/:sessionId/search`

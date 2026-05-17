@@ -15,7 +15,7 @@ Trevora is a web-based vehicle service history system for vehicle owners and mec
 
 Module 1 MVP is complete:
 - Vehicle create/select
-- Manual input
+- Manual service record input
 - Receipt upload with mocked OCR
 - Voice transcript with mocked processing
 - Structured ServiceDraft display
@@ -27,37 +27,37 @@ Module 2 MVP is complete:
 - Confirm and save validated ServiceRecord
 - Mark draft as CONFIRMED
 
-Module 3 MVP is complete and verified:
-- Confirmed ServiceRecord history by VehicleProfile
-- Latest-first and oldest-first chronological sorting
-- Service type filtering and deterministic keyword search
-- List and grid service history views
-- Standalone service record detail page
-- Vehicle/owner scoped backend history APIs
+Module 3 MVP is complete:
+- Unified service history from confirmed service_records
+- Vehicle-scoped history
+- Chronological sorting
+- Basic filtering/categorization
+- Record detail view
 
 ## Current Focus
 
-Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
+Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
-## Module 3 Goal
+## Module 4 Development Split
 
-Module 3 should display confirmed ServiceRecord data under the correct registered VehicleProfile.
+| Person | Scope |
+|---|---|
+| Person A | Authentication / Access Foundation |
+| Person B | AI-generated service explanation |
+| Person C | QR/share access request and owner approval |
+| Person D | Temporary mechanic read-only access and mechanic search |
 
-The owner should be able to view a selected vehicle’s confirmed service records, sorted chronologically, filtered/categorized, and shown in one unified service history page.
+## Module 4 Goal
 
-## Important Module 3 Boundary
+Module 4 should allow vehicle owners to understand confirmed service records through AI-generated explanations and share selected vehicle service history with mechanics using owner-approved temporary read-only access.
 
-Do not build history from incomplete ServiceDraft rows.
+## Module 4 MVP Boundary
 
-Do not implement AI explanation, QR sharing, mechanic handoff, or AI-assisted search. Those belong to Module 4.
+For MVP, AI-generated explanations and AI-assisted search may use mock/template logic.
 
-## Module 4 Starting Point
-
-Module 4 can start from the verified Module 3 history baseline:
-
-- `GET /api/vehicles/{vehicleId}/history`
-- `GET /api/vehicles/{vehicleId}/history/{recordId}`
-- `/vehicles/:vehicleId/history`
-- `/vehicles/:vehicleId/history/:recordId`
-
-Module 4 should continue using confirmed `service_records`, keep vehicle/owner scoping, and avoid treating incomplete `service_drafts` as service history.
+The MVP must still enforce the important access rules:
+- no mechanic access before owner approval
+- no mechanic editing
+- access is temporary
+- access is limited to the approved vehicle
+- shared data comes from confirmed service_records only

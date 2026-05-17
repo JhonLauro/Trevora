@@ -109,3 +109,58 @@ Both endpoints use confirmed `service_records`, verify selected vehicle ownershi
 ## Module 4 Backend Starting Point
 
 Module 4 should build AI explanation and mechanic handoff behavior on top of confirmed `service_records` and the existing history APIs. Preserve Controller -> Service -> Repository -> Entity layering, vehicle/owner scoping, and the invariant that incomplete `service_drafts` are not service history.
+
+## Module 4 Backend Scope
+
+Module 4 uses confirmed `service_records` and selected `vehicle_profiles`.
+
+It must not expose incomplete `service_drafts`.
+
+## Module 4 Backend Ownership
+
+| Person | Backend Scope |
+|---|---|
+| Person A | Current user context, role handling, mock owner fallback |
+| Person B | AIController, AIExplanationService, AI explanation persistence/retrieval |
+| Person C | QRAccessController, QRAccessService, AccessApprovalService, QR/access request entities |
+| Person D | MechanicAccessController, MechanicAccessService, MechanicSearchService, mechanic read-only history/search |
+
+## Module 4 Backend Rules
+
+- Keep Controller → Service → Repository → Entity structure.
+- Keep business rules in services, not controllers.
+- Use confirmed `service_records` for AI explanation, shared history, and mechanic search.
+- Do not return incomplete `service_drafts` in mechanic-facing APIs.
+- Verify owner access before creating share/QR requests.
+- Verify mechanic session approval before returning shared history.
+- Verify session expiration before returning shared history.
+- Mechanic APIs must be read-only.
+- AI explanation and search may be mocked for MVP but must be isolated behind service classes.
+
+## Suggested Module 4 Backend Components
+
+Controllers:
+- AIController
+- QRAccessController
+- MechanicAccessController
+
+Services:
+- AIExplanationService
+- QRAccessService
+- AccessApprovalService
+- MechanicAccessService
+- MechanicSearchService
+- CurrentUserService or CurrentUserContext
+
+Repositories:
+- AIExplanationRepository
+- QRAccessRepository
+- MechanicAccessRepository
+- MechanicSearchLogRepository, optional
+- ServiceRecordRepository
+
+Entities:
+- AIExplanation
+- QRAccessRequest
+- MechanicAccessSession
+- MechanicSearchLog, optional
