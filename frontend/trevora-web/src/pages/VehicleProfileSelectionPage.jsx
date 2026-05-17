@@ -137,6 +137,16 @@ export default function VehicleProfileSelectionPage() {
 
                   <div className="card-actions">
                     <button
+                      className="button-secondary"
+                      type="button"
+                      onClick={() => {
+                        window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
+                        navigate(`/vehicles/${vehicle.vehicleId}/history`);
+                      }}
+                    >
+                      View History
+                    </button>
+                    <button
                       type="button"
                       onClick={() => {
                         window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);

@@ -6,9 +6,11 @@ import ServiceDraftCorrectionPage from './pages/ServiceDraftCorrectionPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
 import ServiceRecordConfirmationPage from './pages/ServiceRecordConfirmationPage.jsx';
+import ServiceRecordDetailPage from './pages/ServiceRecordDetailPage.jsx';
 import ServiceRecordSavedPage from './pages/ServiceRecordSavedPage.jsx';
 import StructuredServiceDraftPage from './pages/StructuredServiceDraftPage.jsx';
 import VehicleProfileSelectionPage from './pages/VehicleProfileSelectionPage.jsx';
+import VehicleServiceHistoryPage from './pages/VehicleServiceHistoryPage.jsx';
 import VoiceInputPage from './pages/VoiceInputPage.jsx';
 
 function RedirectToServiceInput({ method }) {
@@ -27,6 +29,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/vehicles" replace />} />
         <Route path="/vehicles" element={<VehicleProfileSelectionPage />} />
+        <Route path="/vehicles/:vehicleId/history" element={<VehicleServiceHistoryPage />} />
+        <Route path="/vehicles/:vehicleId/history/:recordId" element={<ServiceRecordDetailPage />} />
         <Route path="/service-input/:vehicleId" element={<ServiceInputMethodPage />} />
         <Route path="/service-input/:vehicleId/manual" element={<ManualEntryPage />} />
         <Route path="/service-input/:vehicleId/receipt" element={<ReceiptUploadPage />} />

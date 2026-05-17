@@ -49,9 +49,9 @@ export default function ServiceRecordSavedPage() {
         <p>Added to {vehicleName(vehicle, draft)} from this {draft?.inputMethod ?? 'service'} draft.</p>
         {location.state?.serviceRecord?.recordId && <small>Record ID: {location.state.serviceRecord.recordId}</small>}
         <div className="saved-actions">
-          <button className="button-secondary" type="button" disabled>
+          <Link className="button-link-secondary" to={draft?.vehicleId ? `/vehicles/${draft.vehicleId}/history` : '/vehicles'}>
             View History
-          </button>
+          </Link>
           <Link className="button-link" to={addAnotherPath}>
             Add Another
           </Link>

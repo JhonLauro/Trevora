@@ -57,3 +57,55 @@ The backend should provide services for:
 
 Keep Controller → Service → Repository → Entity structure.
 Do not put validation logic directly in controllers.
+
+## Module 3 Backend Scope
+
+Module 3 consumes confirmed `ServiceRecord` records created by Module 2.
+
+The backend should provide APIs for:
+
+- retrieving confirmed service history for a selected vehicle
+- sorting service records chronologically
+- filtering/categorizing service records
+- retrieving service record details
+- ensuring the selected vehicle belongs to the current mock/authenticated owner
+
+## Module 3 Backend Rules
+
+- Use `service_records` as the main source of history.
+- Do not use incomplete `service_drafts` as history.
+- Keep Controller → Service → Repository → Entity structure.
+- Keep access checks in services, not controllers.
+- Reuse `VehicleService` to verify vehicle ownership.
+- Reuse `ServiceRecordRepository` to query confirmed records.
+- Do not implement Module 4 AI explanation or mechanic handoff here.
+
+## Suggested Module 3 Backend Components
+
+Controller:
+- HistoryController
+
+Service:
+- ServiceHistoryService
+
+Repository:
+- ServiceRecordRepository
+- VehicleRepository, if needed for vehicle details
+
+DTOs:
+- ServiceHistoryResponse
+- ServiceRecordSummaryResponse
+- ServiceRecordDetailResponse
+
+## Module 3 Backend Status
+
+Module 3 MVP is complete and verified. The backend exposes:
+
+- `GET /api/vehicles/{vehicleId}/history`
+- `GET /api/vehicles/{vehicleId}/history/{recordId}`
+
+Both endpoints use confirmed `service_records`, verify selected vehicle ownership through `VehicleService`, and scope records by vehicle and owner.
+
+## Module 4 Backend Starting Point
+
+Module 4 should build AI explanation and mechanic handoff behavior on top of confirmed `service_records` and the existing history APIs. Preserve Controller -> Service -> Repository -> Entity layering, vehicle/owner scoping, and the invariant that incomplete `service_drafts` are not service history.

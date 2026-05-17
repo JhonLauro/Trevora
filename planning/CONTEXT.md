@@ -13,187 +13,51 @@ Trevora is a web-based vehicle service history system for vehicle owners and mec
 
 ## Current Development Status
 
-Module 1: Service Record Input is completed as an MVP and pushed.
+Module 1 MVP is complete:
+- Vehicle create/select
+- Manual input
+- Receipt upload with mocked OCR
+- Voice transcript with mocked processing
+- Structured ServiceDraft display
 
-Module 2: Service Data Validation and Correction is currently in progress.
+Module 2 MVP is complete:
+- Review ServiceDraft
+- Validate missing required and flagged fields
+- Correct draft fields
+- Confirm and save validated ServiceRecord
+- Mark draft as CONFIRMED
 
-Person A has completed:
-- 2.1 Review Service Draft
-- 2.2 Identify Missing Required and Flagged Fields
+Module 3 MVP is complete and verified:
+- Confirmed ServiceRecord history by VehicleProfile
+- Latest-first and oldest-first chronological sorting
+- Service type filtering and deterministic keyword search
+- List and grid service history views
+- Standalone service record detail page
+- Vehicle/owner scoped backend history APIs
 
-Person B has completed:
-- 2.3 Correct Flagged or Incomplete Service Details
-- 2.4 Confirm and Save Validated Record
+## Current Focus
 
-## Module 1 Completed Scope
+Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
-Module 1 allows the vehicle owner to create or select a vehicle profile before submitting a service record through one of three input methods:
+## Module 3 Goal
 
-1. Receipt image upload
-2. Voice input
-3. Manual entry
+Module 3 should display confirmed ServiceRecord data under the correct registered VehicleProfile.
 
-Regardless of input method, the system creates one structured ServiceDraft.
+The owner should be able to view a selected vehicle’s confirmed service records, sorted chronologically, filtered/categorized, and shown in one unified service history page.
 
-Module 1 completed transactions:
+## Important Module 3 Boundary
 
-1.1 Create or Select Registered Vehicle Profile  
-1.2 Upload Receipt and Extract Details  
-1.3 Record Voice Service Information  
-1.4 Enter Service Details Manually  
-1.5 Convert Input to Structured Service Entry  
+Do not build history from incomplete ServiceDraft rows.
 
-## Module 1 Handoff to Module 2
+Do not implement AI explanation, QR sharing, mechanic handoff, or AI-assisted search. Those belong to Module 4.
 
-Module 1 produces ServiceDraft records from:
+## Module 4 Starting Point
 
-- Manual entry
-- Receipt upload with mocked OCR processing
-- Voice transcript input with mocked voice processing
+Module 4 can start from the verified Module 3 history baseline:
 
-All three input methods create the same ServiceDraft structure and store the result in the service_drafts table.
+- `GET /api/vehicles/{vehicleId}/history`
+- `GET /api/vehicles/{vehicleId}/history/{recordId}`
+- `/vehicles/:vehicleId/history`
+- `/vehicles/:vehicleId/history/:recordId`
 
-Module 2 must use these existing ServiceDraft records as its starting point.
-
-## Module 2 Goal
-
-Module 2 allows the vehicle owner to review, validate, correct, and confirm a ServiceDraft before it becomes a final validated service record.
-
-The intended flow is:
-
-ServiceDraft from Module 1  
-→ Review draft  
-→ Identify missing required fields and flagged fields  
-→ Correct incomplete or inaccurate fields  
-→ Confirm final validated details  
-→ Save as ServiceRecord or validated record for Module 3  
-
-## Module 2 Transactions
-
-2.1 Review Service Draft  
-2.2 Identify Missing Required and Flagged Fields  
-2.3 Correct Flagged or Incomplete Service Details  
-2.4 Confirm and Save Validated Record  
-
-## Module 2 Person A Completed Scope
-
-Person A completed the review and validation layer.
-
-Completed features include:
-
-- Dedicated ServiceDraft review screen
-- Display of draft details from manual, receipt, and voice input
-- Receipt-style preview and auto-filled fields for receipt drafts
-- Source and confidence details for receipt and voice drafts
-- Manual drafts treated as owner-entered
-- Backend validation service and validation endpoints
-- Required field validation
-- Missing required field display
-- Flagged or low-confidence field display
-- Placeholder buttons for correction and confirmation
-
-Person A did not implement correction or final saving.
-
-## Module 2 Person B Completed Scope
-
-Person B completed:
-
-2.3 Correct Flagged or Incomplete Service Details  
-2.4 Confirm and Save Validated Record  
-
-Completed features include:
-
-- Dedicated correction route for editable ServiceDraft fields.
-- Backend correction endpoint that saves owner corrections and re-runs validation.
-- Final confirmation route with read-only summary before saving.
-- Backend confirmation endpoint that reuses validation and blocks save when required fields are missing.
-- Final ServiceRecord persistence through a new service_records table.
-- ServiceDraft status update to CONFIRMED after successful save.
-- Saved-record success screen after confirmation.
-- Supabase pooler-safe PostgreSQL driver configuration.
-
-Person B built on top of Person A’s validation layer.
-
-## Required Fields Before Confirmation
-
-Before a draft can be confirmed and saved, the following fields must be present:
-
-- Vehicle profile
-- Service date
-- Service type
-- Total cost
-
-Other fields may remain optional.
-
-## Recommended Module 2 Backend Direction
-
-Person B should reuse the existing validation components from Person A.
-
-Recommended backend components:
-
-- ServiceDraftCorrectionService
-- ServiceRecordService
-- ServiceRecordRepository
-- ServiceRecord entity/model, if final validated records are added
-- Correction request/response DTOs
-- Confirmation request/response DTOs
-
-Recommended backend behavior:
-
-1. Retrieve an existing ServiceDraft.
-2. Allow the owner to update/correct draft fields.
-3. Re-run validation after corrections.
-4. Block confirmation if required fields are still missing.
-5. On confirmation, create a final ServiceRecord if the schema is ready.
-6. Update the ServiceDraft status to confirmed/validated if supported.
-
-## Recommended Module 2 Frontend Direction
-
-Recommended frontend pages or sections:
-
-- ServiceDraftCorrectionPage
-- CorrectableFieldInput
-- FieldCorrectionForm
-- ServiceRecordConfirmationPage
-- FinalServiceRecordSummary
-
-The frontend should allow the owner to:
-
-1. Edit missing or flagged draft fields.
-2. Save corrections.
-3. View updated validation results.
-4. Review a final read-only summary.
-5. Confirm and save the validated record.
-
-## MVP Standard
-
-The MVP should prove the end-to-end flow works. It does not need perfect UI, perfect OCR, perfect speech-to-text, or advanced confidence scoring.
-
-For Module 2, the minimum working flow is:
-
-Open existing ServiceDraft  
-→ show validation results  
-→ correct missing or flagged details  
-→ confirm final information  
-→ save validated record  
-
-## What to Avoid
-
-- Do not modify Module 1 input flows unless fixing a critical bug.
-- Do not remove or break manual, receipt, or voice draft creation.
-- Do not bypass backend validation.
-- Do not allow confirmation if required fields are missing.
-- Do not implement Module 3 service history pages yet.
-- Do not implement Module 4 AI explanation, QR sharing, mechanic access, or AI search yet.
-- Do not let mechanics edit owner records.
-- Do not write directly to Supabase from the frontend for core service record operations.
-
-## Important Technical Rules
-
-- Keep the backend aligned with Controller → Service → Repository → Entity.
-- Controllers should handle requests and responses only.
-- Services should contain business logic.
-- Repositories should handle database access.
-- React frontend should communicate with the Spring Boot backend.
-- Spring Boot backend should communicate with Supabase.
-- Mock owner ID is still acceptable until real authentication is added.
+Module 4 should continue using confirmed `service_records`, keep vehicle/owner scoping, and avoid treating incomplete `service_drafts` as service history.
