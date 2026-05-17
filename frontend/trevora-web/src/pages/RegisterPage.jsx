@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
 import { registerUser } from '../api/auth.js';
+import AuthLayout from '../components/AuthLayout.jsx';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -33,11 +34,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="page-shell auth-page">
+    <AuthLayout>
       <section className="auth-card">
-        <p className="eyebrow">Module 4 Auth</p>
-        <h1>Register</h1>
-        <p className="muted">Create an MVP account for owner or mechanic flows.</p>
+        <h1>Create account</h1>
+        <p className="muted">Start organizing your vehicle service history.</p>
 
         {error && <div className="alert">{error}</div>}
 
@@ -69,14 +69,14 @@ export default function RegisterPage() {
             </select>
           </label>
           <button type="submit" disabled={saving}>
-            {saving ? 'Creating account...' : 'Register'}
+            {saving ? 'Creating account...' : 'Create account'}
           </button>
         </form>
 
         <p className="auth-helper">
-          Already have an account? <Link to="/login">Login</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </section>
-    </main>
+    </AuthLayout>
   );
 }

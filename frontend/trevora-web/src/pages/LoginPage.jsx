@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
 import { loginUser } from '../api/auth.js';
+import AuthLayout from '../components/AuthLayout.jsx';
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: 'owner@trevora.app', password: 'password123' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,32 +29,39 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page-shell auth-page">
+    <AuthLayout>
       <section className="auth-card">
-        <p className="eyebrow">Module 4 Auth</p>
-        <h1>Login</h1>
-        <p className="muted">Sign in as a vehicle owner or mechanic.</p>
+        <h1>Welcome back</h1>
+        <p className="muted">Sign in to your account to continue</p>
 
         {error && <div className="alert">{error}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
-            Email
+            Email address
             <input name="email" type="email" value={form.email} onChange={updateField} required />
           </label>
           <label>
-            Password
+            <span className="auth-label-row">
+              Password
+              <Link to="/login">Forgot password?</Link>
+            </span>
             <input name="password" type="password" value={form.password} onChange={updateField} required />
           </label>
+          <label className="auth-checkbox">
+            <input type="checkbox" />
+            Remember me for 30 days
+          </label>
           <button type="submit" disabled={saving}>
-            {saving ? 'Logging in...' : 'Login'}
+            {saving ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
         <p className="auth-helper">
-          New to Trevora? <Link to="/register">Create an account</Link>
+          Don&apos;t have an account? <Link to="/register">Create account</Link>
         </p>
       </section>
-    </main>
+      <p className="auth-demo-note">Demo credentials pre-filled • Click Sign in to explore</p>
+    </AuthLayout>
   );
 }

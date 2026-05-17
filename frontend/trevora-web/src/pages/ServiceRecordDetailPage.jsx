@@ -92,6 +92,9 @@ export default function ServiceRecordDetailPage() {
         <Link className="inline-link" to={`/vehicles/${vehicleId}/history`}>
           Back to History
         </Link>
+        <Link className="inline-link" to={`/vehicles/${vehicleId}/share`}>
+          Share Access
+        </Link>
       </section>
 
       {loading && <p className="muted">Loading service record...</p>}

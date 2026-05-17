@@ -13,6 +13,20 @@ const emptyVehicle = {
   odometer: '',
 };
 
+function displayVehicleName(vehicle) {
+  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+}
+
+function displayVehicleSubtitle(vehicle) {
+  return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Active vehicle';
+}
+
+function setActiveVehicle(vehicle) {
+  window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
+  window.localStorage.setItem('trevora.activeVehicleLabel', displayVehicleName(vehicle));
+  window.localStorage.setItem('trevora.activeVehicleSubtitle', displayVehicleSubtitle(vehicle));
+}
+
 export default function VehicleProfileSelectionPage() {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
@@ -65,7 +79,7 @@ export default function VehicleProfileSelectionPage() {
       setVehicles((current) => [created, ...current]);
       setForm(emptyVehicle);
       setShowCreateForm(false);
-      window.localStorage.setItem('trevora.activeVehicleId', created.vehicleId);
+      setActiveVehicle(created);
       navigate(`/service-input/${created.vehicleId}`);
     } catch (err) {
       setError(err.message);
@@ -150,7 +164,7 @@ export default function VehicleProfileSelectionPage() {
                       className="button-secondary"
                       type="button"
                       onClick={() => {
-                        window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
+                        setActiveVehicle(vehicle);
                         navigate(`/vehicles/${vehicle.vehicleId}/history`);
                       }}
                     >
@@ -160,7 +174,7 @@ export default function VehicleProfileSelectionPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
+                          setActiveVehicle(vehicle);
                           navigate(`/service-input/${vehicle.vehicleId}`);
                         }}
                       >

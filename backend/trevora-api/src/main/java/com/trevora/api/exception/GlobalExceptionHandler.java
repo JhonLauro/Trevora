@@ -33,6 +33,12 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
     }
 
+    @ExceptionHandler(AccessRequestException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessRequest(AccessRequestException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
         String message = exception.getBindingResult().getFieldErrors().stream()

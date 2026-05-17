@@ -1,9 +1,16 @@
 import React from "react";
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppShell from './components/AppShell.jsx';
+import AccountSettingsPage from './pages/AccountSettingsPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ManualEntryPage from './pages/ManualEntryPage.jsx';
+import MechanicAccessRequestPage from './pages/MechanicAccessRequestPage.jsx';
+import MechanicAccessSessionPlaceholderPage from './pages/MechanicAccessSessionPlaceholderPage.jsx';
 import MechanicPlaceholderPage from './pages/MechanicPlaceholderPage.jsx';
+import NotificationsPage from './pages/NotificationsPage.jsx';
+import OwnerAccessRequestsPage from './pages/OwnerAccessRequestsPage.jsx';
+import QRSharingPage from './pages/QRSharingPage.jsx';
 import ReceiptUploadPage from './pages/ReceiptUploadPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ServiceDraftCorrectionPage from './pages/ServiceDraftCorrectionPage.jsx';
@@ -27,15 +34,19 @@ function RedirectToServiceDraft() {
   return <Navigate to={`/service-drafts/${draftId}`} replace />;
 }
 
-export default function App() {
+function AppRoutes() {
   return (
     <AppShell>
       <Routes>
         <Route path="/" element={<Navigate to="/vehicles" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/account-settings" element={<AccountSettingsPage />} />
         <Route path="/mechanic" element={<MechanicPlaceholderPage />} />
+        <Route path="/mechanic/access/:sessionId" element={<MechanicAccessSessionPlaceholderPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/access/requests" element={<OwnerAccessRequestsPage />} />
         <Route path="/vehicles" element={<VehicleProfileSelectionPage />} />
+        <Route path="/vehicles/:vehicleId/share" element={<QRSharingPage />} />
         <Route path="/vehicles/:vehicleId/history" element={<VehicleServiceHistoryPage />} />
         <Route path="/vehicles/:vehicleId/history/:recordId" element={<ServiceRecordDetailPage />} />
         <Route path="/service-input/:vehicleId" element={<ServiceInputMethodPage />} />
@@ -55,5 +66,16 @@ export default function App() {
         <Route path="*" element={<Navigate to="/vehicles" replace />} />
       </Routes>
     </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />
+      <Route path="*" element={<AppRoutes />} />
+    </Routes>
   );
 }
