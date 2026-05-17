@@ -38,6 +38,7 @@ public class ServiceHistoryService {
             String serviceType,
             String keyword
     ) {
+        currentUserService.requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
 
         String normalizedSort = normalizeSort(sort);
@@ -74,6 +75,7 @@ public class ServiceHistoryService {
     }
 
     public ServiceRecordDetailResponse getVehicleHistoryRecord(UUID vehicleId, UUID recordId) {
+        currentUserService.requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
         ServiceRecord record = serviceRecordRepository
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())

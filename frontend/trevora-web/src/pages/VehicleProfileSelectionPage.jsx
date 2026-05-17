@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createVehicle, getVehicles } from '../api/vehicles';
+import { getActiveCurrentUser, isVehicleOwnerUser } from '../api/currentUser.js';
 
 const emptyVehicle = {
   make: '',
@@ -20,6 +21,8 @@ export default function VehicleProfileSelectionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const currentUser = getActiveCurrentUser();
+  const canManageVehicles = isVehicleOwnerUser(currentUser);
 
   useEffect(() => {
     let active = true;
@@ -79,9 +82,11 @@ export default function VehicleProfileSelectionPage() {
           <h1>My Vehicles</h1>
           <p>Manage vehicle profiles before creating service drafts.</p>
         </div>
-        <button type="button" onClick={() => setShowCreateForm(true)}>
-          Add Vehicle
-        </button>
+        {canManageVehicles && (
+          <button type="button" onClick={() => setShowCreateForm(true)}>
+            Add Vehicle
+          </button>
+        )}
       </section>
 
       {error && <div className="alert">{error}</div>}
@@ -91,6 +96,11 @@ export default function VehicleProfileSelectionPage() {
           <h2>Registered vehicles</h2>
           {loading ? (
             <p className="muted">Loading vehicles...</p>
+          ) : !canManageVehicles ? (
+            <section className="history-empty-state">
+              <h2>Owner approval required</h2>
+              <p>Mechanic accounts cannot create vehicle records or service drafts from owner workflows.</p>
+            </section>
           ) : vehicles.length === 0 ? (
             <button className="empty-add-card" type="button" onClick={() => setShowCreateForm(true)}>
               <span>+</span>
@@ -146,23 +156,27 @@ export default function VehicleProfileSelectionPage() {
                     >
                       View History
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
-                        navigate(`/service-input/${vehicle.vehicleId}`);
-                      }}
-                    >
-                      Add Record
-                    </button>
+                    {canManageVehicles && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
+                          navigate(`/service-input/${vehicle.vehicleId}`);
+                        }}
+                      >
+                        Add Record
+                      </button>
+                    )}
                   </div>
                 </article>
               ))}
-              <button className="empty-add-card compact" type="button" onClick={() => setShowCreateForm(true)}>
-                <span>+</span>
-                <strong>Add New Vehicle</strong>
-                <small>Register another vehicle profile.</small>
-              </button>
+              {canManageVehicles && (
+                <button className="empty-add-card compact" type="button" onClick={() => setShowCreateForm(true)}>
+                  <span>+</span>
+                  <strong>Add New Vehicle</strong>
+                  <small>Register another vehicle profile.</small>
+                </button>
+              )}
             </div>
           )}
         </div>

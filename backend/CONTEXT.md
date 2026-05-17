@@ -120,7 +120,7 @@ It must not expose incomplete `service_drafts`.
 
 | Person | Backend Scope |
 |---|---|
-| Person A | Current user context, role handling, mock owner fallback |
+| Person A | Login/register, current user context, role handling, mock owner fallback |
 | Person B | AIController, AIExplanationService, AI explanation persistence/retrieval |
 | Person C | QRAccessController, QRAccessService, AccessApprovalService, QR/access request entities |
 | Person D | MechanicAccessController, MechanicAccessService, MechanicSearchService, mechanic read-only history/search |
@@ -164,3 +164,21 @@ Entities:
 - QRAccessRequest
 - MechanicAccessSession
 - MechanicSearchLog, optional
+
+## Module 4 Auth Foundation Backend Scope
+
+Module 4 Person A owns MVP login/register and current-user resolution. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+
+The auth foundation should reuse the existing `users` table where possible and add only required schema changes such as `password_hash`. Passwords must never be stored as plain text.
+
+Auth endpoints:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`, optional when simple
+
+Current user resolution order:
+1. Logged-in user data sent through supported request headers or future token/session.
+2. Demo request headers `X-User-Id` and `X-User-Role`.
+3. Existing mock owner fallback `00000000-0000-0000-0000-000000000001` with role `VEHICLE_OWNER`.
+
+Mechanic-facing access must use confirmed `service_records` and must never return incomplete `service_drafts`.

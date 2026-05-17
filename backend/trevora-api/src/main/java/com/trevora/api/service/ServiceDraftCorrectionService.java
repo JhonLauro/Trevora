@@ -17,19 +17,23 @@ public class ServiceDraftCorrectionService {
     private final ServiceInputService serviceInputService;
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceDraftValidationService serviceDraftValidationService;
+    private final CurrentUserService currentUserService;
 
     public ServiceDraftCorrectionService(
             ServiceInputService serviceInputService,
             ServiceDraftRepository serviceDraftRepository,
-            ServiceDraftValidationService serviceDraftValidationService
+            ServiceDraftValidationService serviceDraftValidationService,
+            CurrentUserService currentUserService
     ) {
         this.serviceInputService = serviceInputService;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceDraftValidationService = serviceDraftValidationService;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
     public ServiceDraftReviewResponse correctDraft(UUID draftId, ServiceDraftCorrectionRequest request) {
+        currentUserService.requireVehicleOwner();
         ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
 
         draft.setServiceDate(request.serviceDate());

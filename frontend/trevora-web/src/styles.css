@@ -159,6 +159,75 @@ p {
   margin-top: 0;
 }
 
+.demo-user-selector strong {
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.demo-user-selector label {
+  color: #a9bdd2;
+  font-size: 0.85rem;
+}
+
+.auth-link-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.auth-link-row a,
+.sidebar-secondary-button {
+  background: #0d2038;
+  border: 1px solid #2a4260;
+  border-radius: 6px;
+  color: #ffffff;
+  font-weight: 800;
+  padding: 0.65rem 0.75rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.sidebar-secondary-button {
+  width: 100%;
+}
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.auth-card {
+  background: #ffffff;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(7, 21, 38, 0.08);
+  max-width: 520px;
+  padding: 2rem;
+  width: 100%;
+}
+
+.auth-card h1 {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.auth-helper {
+  color: #536472;
+  margin: 1rem 0 0;
+}
+
+.auth-helper a {
+  color: #2657e8;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .side-nav {
   display: grid;
   gap: 0.4rem;

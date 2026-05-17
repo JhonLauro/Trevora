@@ -42,7 +42,7 @@ Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
 | Person | Scope |
 |---|---|
-| Person A | Authentication / Access Foundation |
+| Person A | Authentication / Access Foundation + Login/Register |
 | Person B | AI-generated service explanation |
 | Person C | QR/share access request and owner approval |
 | Person D | Temporary mechanic read-only access and mechanic search |
@@ -61,3 +61,11 @@ The MVP must still enforce the important access rules:
 - access is temporary
 - access is limited to the approved vehicle
 - shared data comes from confirmed service_records only
+
+## Module 4 Authentication Foundation
+
+Login and registration are now part of Person A's Module 4 foundation. The MVP must support `VEHICLE_OWNER` and `MECHANIC` users, with `ADMIN` kept as an optional placeholder role.
+
+Vehicle owners use the existing Modules 1-3 owner workflows and Module 4 owner features. Mechanics must only use Module 4 mechanic access features after owner approval. Mechanic-facing access must use confirmed `service_records`, never incomplete `service_drafts`.
+
+For development safety, the existing mock owner fallback should remain available when no logged-in user or current-user headers are present.

@@ -27,18 +27,26 @@ public class ServiceDraftValidationService {
 
     private final ServiceInputService serviceInputService;
     private final VehicleService vehicleService;
+    private final CurrentUserService currentUserService;
 
-    public ServiceDraftValidationService(ServiceInputService serviceInputService, VehicleService vehicleService) {
+    public ServiceDraftValidationService(
+            ServiceInputService serviceInputService,
+            VehicleService vehicleService,
+            CurrentUserService currentUserService
+    ) {
         this.serviceInputService = serviceInputService;
         this.vehicleService = vehicleService;
+        this.currentUserService = currentUserService;
     }
 
     public ServiceDraftReviewResponse getDraftReview(UUID draftId) {
+        currentUserService.requireVehicleOwner();
         ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
         return new ServiceDraftReviewResponse(ServiceDraftResponse.from(draft), validateDraft(draft));
     }
 
     public ValidationResult validateDraftForMockOwner(UUID draftId) {
+        currentUserService.requireVehicleOwner();
         return validateDraft(serviceInputService.getDraftForMockOwner(draftId));
     }
 

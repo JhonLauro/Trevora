@@ -54,13 +54,13 @@ Module 3 MVP is complete and pushed.
 
 Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
-Authentication/access foundation will be developed in parallel because Module 4 requires owner/mechanic role separation.
+Authentication/access foundation is part of Module 4 Person A because Module 4 requires owner/mechanic role separation. The MVP foundation now includes login and registration, while preserving the existing mock owner fallback for development safety.
 
 ## Module 4 Ownership
 
 | Person | Scope | Main Responsibility |
 |---|---|---|
-| Person A | Authentication / Access Foundation | Current user context, roles, mock owner compatibility |
+| Person A | Authentication / Access Foundation | Login/register, current user context, roles, mock owner compatibility |
 | Person B | 4.1 AI Explanation | AI/template explanation for confirmed service records |
 | Person C | 4.2, 4.3, 4.4 | QR/share access request, expiration, owner approval |
 | Person D | 4.5, 4.6 | Mechanic read-only access and mechanic search |
@@ -69,6 +69,11 @@ Authentication/access foundation will be developed in parallel because Module 4 
 
 - Use confirmed `service_records`.
 - Do not expose incomplete `service_drafts`.
+- Login/register belongs to Module 4 Person A for the MVP auth foundation.
+- Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+- Vehicle owners use Modules 1-4 owner features.
+- Mechanics use Module 4 mechanic access features only after owner approval.
+- Keep mock owner fallback unless a real logged-in user or demo header user is active.
 - Do not allow mechanics to edit records.
 - Do not allow mechanic access before owner approval.
 - Shared access must be temporary and scoped to one selected vehicle.

@@ -1,0 +1,11 @@
+package com.trevora.api.dto;
+
+import java.util.UUID;
+
+public record CurrentUserResponse(
+        UUID userId,
+        String fullName,
+        String email,
+        String role
+) {
+}

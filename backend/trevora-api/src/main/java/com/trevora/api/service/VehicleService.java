@@ -38,10 +38,12 @@ public class VehicleService {
     }
 
     public List<VehicleProfile> getVehiclesForCurrentUser() {
+        requireVehicleOwner();
         return vehicleRepository.findByOwnerIdOrderByCreatedAtDesc(currentUserService.getCurrentUserId());
     }
 
     public VehicleProfile createVehicleForCurrentUser(CreateVehicleRequest request) {
+        requireVehicleOwner();
         VehicleProfile vehicle = new VehicleProfile();
         vehicle.setOwnerId(currentUserService.getCurrentUserId());
         vehicle.setMake(request.make().trim());
@@ -56,11 +58,13 @@ public class VehicleService {
     }
 
     public VehicleProfile getVehicleForCurrentUser(UUID vehicleId) {
+        requireVehicleOwner();
         return vehicleRepository.findByVehicleIdAndOwnerId(vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle profile was not found."));
     }
 
     public VehicleProfile verifyVehicleBelongsToCurrentUser(UUID vehicleId) {
+        requireVehicleOwner();
         UUID currentUserId = currentUserService.getCurrentUserId();
         return vehicleRepository.findById(vehicleId)
                 .map(vehicle -> {
@@ -77,5 +81,9 @@ public class VehicleService {
             return null;
         }
         return value.trim();
+    }
+
+    private void requireVehicleOwner() {
+        currentUserService.requireVehicleOwner();
     }
 }

@@ -36,6 +36,22 @@ public class CurrentUserService {
         return getCurrentUser().userId();
     }
 
+    public UserRole getCurrentUserRole() {
+        return getCurrentUser().role();
+    }
+
+    public boolean isCurrentUserVehicleOwner() {
+        return UserRole.VEHICLE_OWNER == getCurrentUserRole();
+    }
+
+    public void requireVehicleOwner() {
+        if (!isCurrentUserVehicleOwner()) {
+            throw new com.trevora.api.exception.UnauthorizedVehicleAccessException(
+                    "Vehicle owner role is required for this action."
+            );
+        }
+    }
+
     private HttpServletRequest currentRequest() {
         if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
             return attributes.getRequest();

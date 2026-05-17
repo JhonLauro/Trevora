@@ -3,7 +3,7 @@ import { getCurrentUserHeaders } from './currentUser.js';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
 export async function apiRequest(path, options = {}) {
-  const currentUserHeaders = getCurrentUserHeaders();
+  const currentUserHeaders = options.skipAuthHeaders ? {} : getCurrentUserHeaders();
   const headers = options.body instanceof FormData
     ? { ...currentUserHeaders, ...options.headers }
     : {
@@ -14,7 +14,7 @@ export async function apiRequest(path, options = {}) {
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers,
-    ...options,
+    ...withoutHelperOptions(options),
   });
 
   if (!response.ok) {
@@ -33,4 +33,9 @@ export async function apiRequest(path, options = {}) {
   }
 
   return response.json();
+}
+
+function withoutHelperOptions(options) {
+  const { headers, skipAuthHeaders, ...fetchOptions } = options;
+  return fetchOptions;
 }

@@ -1,7 +1,11 @@
+import React from "react";
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import AppShell from './components/AppShell.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 import ManualEntryPage from './pages/ManualEntryPage.jsx';
+import MechanicPlaceholderPage from './pages/MechanicPlaceholderPage.jsx';
 import ReceiptUploadPage from './pages/ReceiptUploadPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
 import ServiceDraftCorrectionPage from './pages/ServiceDraftCorrectionPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
@@ -28,6 +32,9 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<Navigate to="/vehicles" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/mechanic" element={<MechanicPlaceholderPage />} />
         <Route path="/vehicles" element={<VehicleProfileSelectionPage />} />
         <Route path="/vehicles/:vehicleId/history" element={<VehicleServiceHistoryPage />} />
         <Route path="/vehicles/:vehicleId/history/:recordId" element={<ServiceRecordDetailPage />} />

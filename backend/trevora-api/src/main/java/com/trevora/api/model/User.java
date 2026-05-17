@@ -25,6 +25,9 @@ public class User {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "password_hash")
+    private String passwordHash;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -49,11 +52,42 @@ public class User {
         return role;
     }
 
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String normalizedRole() {
+        if ("OWNER".equals(role)) {
+            return "VEHICLE_OWNER";
+        }
+        return role;
     }
 }

@@ -37,6 +37,7 @@ public class ServiceInputService {
     }
 
     public ServiceDraft createManualDraft(ManualServiceDraftRequest request) {
+        requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
 
         ServiceDraft draft = new ServiceDraft();
@@ -59,6 +60,7 @@ public class ServiceInputService {
     }
 
     public ServiceDraft createReceiptDraft(UUID vehicleId, MultipartFile receiptImage) {
+        requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
         MockReceiptExtraction extraction = ocrProcessingService.extractReceiptFields(receiptImage);
 
@@ -82,6 +84,7 @@ public class ServiceInputService {
     }
 
     public ServiceDraft createVoiceDraft(VoiceServiceDraftRequest request) {
+        requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
         MockVoiceExtraction extraction = voiceProcessingService.extractServiceFields(request.transcript());
 
@@ -118,5 +121,9 @@ public class ServiceInputService {
             return null;
         }
         return value.trim();
+    }
+
+    private void requireVehicleOwner() {
+        currentUserService.requireVehicleOwner();
     }
 }

@@ -64,6 +64,8 @@ Module 3 MVP is complete and verified without a new database migration. It uses 
 
 Module 4 should continue treating `service_records` as confirmed service history. If AI explanations, mechanic handoff, QR sharing, or access logs require persistence, add those as Module 4-specific tables or fields without weakening vehicle/owner scoping or changing incomplete `service_drafts` into history records.
 
+Module 4 Person A now includes MVP login/register. Reuse the existing `users` table where possible and preserve the mock owner user `00000000-0000-0000-0000-000000000001`. If password login is implemented, add only the required auth fields, such as `password_hash`, and never store plain-text passwords.
+
 ## Module 4 Database Scope
 
 Module 4 may add new tables for AI explanations and mechanic handoff.
@@ -109,6 +111,9 @@ Optional table for mechanic AI-assisted search logs.
 - AI explanations should reference confirmed `service_records`.
 - QR/share access requests should reference selected `vehicle_profiles`.
 - Mechanic access sessions should reference approved access requests.
+- Supported MVP user roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+- Vehicle owners use Modules 1-4 owner features.
+- Mechanics use Module 4 mechanic access features only after owner approval.
 - Mechanic access must expire.
 - Mechanic access must be scoped to one vehicle.
 - Mechanic search must only search records from the approved vehicle.
