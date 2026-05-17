@@ -12,5 +12,7 @@ public interface ServiceRecordRepository extends JpaRepository<ServiceRecord, UU
 
     List<ServiceRecord> findByVehicleIdAndOwnerId(UUID vehicleId, UUID ownerId, Sort sort);
 
+    Optional<ServiceRecord> findByRecordIdAndOwnerId(UUID recordId, UUID ownerId);
+
     Optional<ServiceRecord> findByRecordIdAndVehicleIdAndOwnerId(UUID recordId, UUID vehicleId, UUID ownerId);
 }

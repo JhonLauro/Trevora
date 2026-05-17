@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
+import AIExplanationPanel from '../components/AIExplanationPanel';
 
 function vehicleName(vehicle, record) {
   if (vehicle) return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
@@ -107,6 +108,7 @@ export default function ServiceRecordDetailPage() {
               <div className="record-detail-badges">
                 <span className="badge">Validated</span>
                 <span className="badge subtle">{sourceLabel(record)}</span>
+                <span className="badge subtle">AI explanation</span>
               </div>
             </div>
           </section>
@@ -142,27 +144,30 @@ export default function ServiceRecordDetailPage() {
               </div>
             </article>
 
-            <aside className="record-source-card">
-              <h2>Source Reference</h2>
-              <dl className="compact-facts">
-                <div>
-                  <dt>Source</dt>
-                  <dd>{sourceLabel(record)}</dd>
-                </div>
-                <div>
-                  <dt>Record ID</dt>
-                  <dd>{record.recordId}</dd>
-                </div>
-                <div>
-                  <dt>Draft trace</dt>
-                  <dd>{record.draftId}</dd>
-                </div>
-                <div>
-                  <dt>Saved</dt>
-                  <dd>{record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Not provided'}</dd>
-                </div>
-              </dl>
-              <p className="muted">AI explanation and mechanic handoff are intentionally left for Module 4.</p>
+            <aside className="record-detail-side">
+              <AIExplanationPanel recordId={record.recordId} />
+
+              <section className="record-source-card">
+                <h2>Source Reference</h2>
+                <dl className="compact-facts">
+                  <div>
+                    <dt>Source</dt>
+                    <dd>{sourceLabel(record)}</dd>
+                  </div>
+                  <div>
+                    <dt>Record ID</dt>
+                    <dd>{record.recordId}</dd>
+                  </div>
+                  <div>
+                    <dt>Draft trace</dt>
+                    <dd>{record.draftId}</dd>
+                  </div>
+                  <div>
+                    <dt>Saved</dt>
+                    <dd>{record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Not provided'}</dd>
+                  </div>
+                </dl>
+              </section>
             </aside>
           </section>
         </>
