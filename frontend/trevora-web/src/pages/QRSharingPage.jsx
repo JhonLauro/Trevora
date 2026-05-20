@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createQRAccessRequest, getVehicleQRAccessRequests } from '../api/qrAccess';
-import { getVehicle } from '../api/vehicles';
+import { getVehicle, getVehicles } from '../api/vehicles';
 
 function vehicleName(vehicle) {
   if (!vehicle) return 'Selected vehicle';
@@ -28,7 +28,9 @@ const DEMO_QR_TOKEN_KEY = 'trevora.demoMechanic.latestQrToken';
 
 export default function QRSharingPage() {
   const { vehicleId } = useParams();
+  const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
   const [requests, setRequests] = useState([]);
   const [currentRequest, setCurrentRequest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,12 +47,15 @@ export default function QRSharingPage() {
     setLoading(true);
     setError('');
 
-    Promise.all([getVehicle(vehicleId), getVehicleQRAccessRequests(vehicleId)])
-      .then(([vehicleData, requestData]) => {
+    Promise.all([getVehicle(vehicleId), getVehicleQRAccessRequests(vehicleId), getVehicles()])
+      .then(([vehicleData, requestData, vehicleList]) => {
         if (!active) return;
         setVehicle(vehicleData);
+        setVehicles(vehicleList);
         setRequests(requestData);
         setCurrentRequest(requestData[0] ?? null);
+        window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(vehicleData));
+        window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(vehicleData));
         if (requestData[0]?.accessToken) {
           window.localStorage.setItem(DEMO_QR_TOKEN_KEY, requestData[0].accessToken);
         }
@@ -66,6 +71,18 @@ export default function QRSharingPage() {
       active = false;
     };
   }, [vehicleId]);
+
+  function handleVehicleChange(event) {
+    const nextVehicleId = event.target.value;
+    const nextVehicle = vehicles.find((item) => item.vehicleId === nextVehicleId);
+
+    window.localStorage.setItem('trevora.activeVehicleId', nextVehicleId);
+    if (nextVehicle) {
+      window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(nextVehicle));
+      window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(nextVehicle));
+    }
+    navigate(`/vehicles/${nextVehicleId}/share`);
+  }
 
   async function handleGenerate() {
     setSaving(true);
@@ -130,8 +147,16 @@ export default function QRSharingPage() {
 
             <label>
               Select Vehicle
-              <select value={vehicleId} readOnly>
-                <option value={vehicleId}>{vehicleName(vehicle)}</option>
+              <select value={vehicleId} onChange={handleVehicleChange}>
+                {vehicles.length === 0 ? (
+                  <option value={vehicleId}>{vehicleName(vehicle)}</option>
+                ) : (
+                  vehicles.map((item) => (
+                    <option key={item.vehicleId} value={item.vehicleId}>
+                      {vehicleName(item)}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
 

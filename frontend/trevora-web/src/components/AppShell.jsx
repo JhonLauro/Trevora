@@ -58,6 +58,11 @@ export default function AppShell({ children }) {
   const canUseOwnerWorkflows = currentUser.role === 'VEHICLE_OWNER';
 
   useEffect(() => {
+    setActiveVehicleLabel(getActiveVehicleLabel());
+    setActiveVehicleSubtitle(getActiveVehicleSubtitle());
+  }, [location.pathname]);
+
+  useEffect(() => {
     if (!canUseOwnerWorkflows) return undefined;
     let active = true;
     getVehicles()
