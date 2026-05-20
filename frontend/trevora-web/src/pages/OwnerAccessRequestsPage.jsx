@@ -22,6 +22,8 @@ export default function OwnerAccessRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState('');
   const [error, setError] = useState('');
+  const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId') || requests[0]?.vehicleProfileId || '';
+  const generateQrPath = activeVehicleId ? `/vehicles/${activeVehicleId}/share` : '/vehicles';
 
   useEffect(() => {
     let active = true;
@@ -82,7 +84,7 @@ export default function OwnerAccessRequestsPage() {
       </section>
 
       <nav className="shared-access-tabs" aria-label="Shared access views">
-        <Link className="shared-access-tab" to="/vehicles">
+        <Link className="shared-access-tab" to={generateQrPath}>
           Generate QR
         </Link>
         <span className="shared-access-tab active">Requests ({requests.length})</span>

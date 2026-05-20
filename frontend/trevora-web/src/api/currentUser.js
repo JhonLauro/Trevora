@@ -6,13 +6,6 @@ export const DEMO_USERS = [
     userId: '00000000-0000-0000-0000-000000000001',
     role: 'VEHICLE_OWNER',
   },
-  {
-    label: 'Demo Mechanic',
-    firstName: 'Demo',
-    lastName: 'Mechanic',
-    userId: '00000000-0000-0000-0000-000000000002',
-    role: 'MECHANIC',
-  },
 ];
 
 const STORAGE_KEY = 'trevora.demoUser';

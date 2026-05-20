@@ -64,7 +64,7 @@ The MVP must still enforce the important access rules:
 
 ## Module 4 Authentication Foundation
 
-Login and registration are now part of Person A's Module 4 foundation. The MVP must support `VEHICLE_OWNER` and `MECHANIC` users, with `ADMIN` kept as an optional placeholder role.
+Login and registration are now part of Person A's Module 4 foundation. The MVP account model is vehicle-owner centered and supports `VEHICLE_OWNER` plus `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
 
 Vehicle owners use the existing Modules 1-3 owner workflows and Module 4 owner features. Mechanics must only use Module 4 mechanic access features after owner approval. Mechanic-facing access must use confirmed `service_records`, never incomplete `service_drafts`.
 

@@ -8,7 +8,6 @@ import ManualEntryPage from './pages/ManualEntryPage.jsx';
 import MechanicAccessRequestPage from './pages/MechanicAccessRequestPage.jsx';
 import MechanicAccessSessionPlaceholderPage from './pages/MechanicAccessSessionPlaceholderPage.jsx';
 import MechanicSharedRecordDetailPage from './pages/MechanicSharedRecordDetailPage.jsx';
-import MechanicPlaceholderPage from './pages/MechanicPlaceholderPage.jsx';
 import NotificationsPage from './pages/NotificationsPage.jsx';
 import OwnerAccessRequestsPage from './pages/OwnerAccessRequestsPage.jsx';
 import QRSharingPage from './pages/QRSharingPage.jsx';
@@ -42,11 +41,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/vehicles" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/account-settings" element={<AccountSettingsPage />} />
-        <Route path="/mechanic" element={<MechanicPlaceholderPage />} />
-        <Route path="/mechanic/access/:sessionId" element={<MechanicAccessSessionPlaceholderPage />} />
-        <Route path="/mechanic/access/:sessionId/history/:recordId" element={<MechanicSharedRecordDetailPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />
         <Route path="/access/requests" element={<OwnerAccessRequestsPage />} />
         <Route path="/vehicles" element={<VehicleProfileSelectionPage />} />
         <Route path="/vehicles/:vehicleId/share" element={<QRSharingPage />} />
@@ -77,6 +72,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />
+      <Route path="/mechanic/access/:sessionId" element={<MechanicAccessSessionPlaceholderPage />} />
+      <Route path="/mechanic/access/:sessionId/history/:recordId" element={<MechanicSharedRecordDetailPage />} />
       <Route path="*" element={<AppRoutes />} />
     </Routes>
   );

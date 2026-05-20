@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { setCurrentDemoUser } from '../api/currentUser';
 import {
   getPublicQRAccessRequest,
   getMechanicRequestStatus,
@@ -14,7 +13,6 @@ function formatDateTime(value) {
 
 const DEMO_QR_TOKEN_KEY = 'trevora.demoMechanic.latestQrToken';
 const DEMO_SESSION_ID_KEY = 'trevora.demoMechanic.approvedSessionId';
-const DEMO_MECHANIC_ID = '00000000-0000-0000-0000-000000000002';
 
 export default function MechanicAccessRequestPage() {
   const { token } = useParams();
@@ -37,7 +35,6 @@ export default function MechanicAccessRequestPage() {
     setLoading(true);
     setError('');
     window.localStorage.setItem(DEMO_QR_TOKEN_KEY, token);
-    setCurrentDemoUser(DEMO_MECHANIC_ID);
 
     loadPublicMechanicStatus(token)
       .then((status) => {
@@ -120,6 +117,9 @@ export default function MechanicAccessRequestPage() {
   return (
     <main className="page-shell module-four-page">
       <section className="mechanic-landing-hero">
+        <Link className="demo-return-link" to="/vehicles">
+          Back to owner demo
+        </Link>
         <p className="eyebrow">Mechanic Access</p>
         <h1>{shareRequest ? shareRequest.vehicleLabel : 'Vehicle service history'}</h1>
         <p>

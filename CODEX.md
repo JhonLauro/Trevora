@@ -93,7 +93,7 @@ Authentication/access foundation is part of Module 4 Person A because Module 4 r
 - Use confirmed `service_records`.
 - Do not expose incomplete `service_drafts`.
 - Supabase Auth signup/sign-in and profile sync belong to Module 4 Person A for the MVP auth foundation.
-- Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+- Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
 - Vehicle owners use Modules 1-4 owner features.
 - Mechanics use Module 4 mechanic access features only after owner approval.
 - Keep mock owner fallback unless a real Supabase bearer token user or demo header user is active.

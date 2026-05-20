@@ -67,8 +67,8 @@ export default function MechanicAccessSessionPlaceholderPage() {
         <section className="history-empty-state mechanic-blocked-state">
           <h2>Access unavailable</h2>
           <p>{error}</p>
-          <Link className="button-link-secondary" to="/mechanic">
-            Back to mechanic access
+          <Link className="button-link-secondary" to="/vehicles">
+            Back to owner demo
           </Link>
         </section>
       ) : (
@@ -142,8 +142,8 @@ export default function MechanicAccessSessionPlaceholderPage() {
                 )}
               </section>
 
-              <Link className="inline-link" to="/mechanic">
-                Back to mechanic access status
+              <Link className="demo-return-link demo-return-link-inline" to="/vehicles">
+                Back to owner demo
               </Link>
             </>
           )}

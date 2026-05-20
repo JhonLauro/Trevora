@@ -111,7 +111,7 @@ Optional table for mechanic AI-assisted search logs.
 - AI explanations should reference confirmed `service_records`.
 - QR/share access requests should reference selected `vehicle_profiles`.
 - Mechanic access sessions should reference approved access requests.
-- Supported MVP user roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+- Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics are not registered users; mechanic identity is captured on temporary access request rows.
 - Vehicle owners use Modules 1-4 owner features.
 - Mechanics use Module 4 mechanic access features only after owner approval.
 - Mechanic access must expire.

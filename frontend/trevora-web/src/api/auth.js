@@ -84,7 +84,7 @@ function normalizeRole(role) {
   if (value === 'OWNER') {
     return 'VEHICLE_OWNER';
   }
-  if (['VEHICLE_OWNER', 'MECHANIC', 'ADMIN'].includes(value)) {
+  if (['VEHICLE_OWNER', 'ADMIN'].includes(value)) {
     return value;
   }
   return 'VEHICLE_OWNER';

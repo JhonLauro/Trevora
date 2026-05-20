@@ -126,8 +126,7 @@ p {
   padding: 1rem 1.25rem;
 }
 
-.active-vehicle-panel > span,
-.sidebar-demo-switcher {
+.active-vehicle-panel > span {
   color: #a9bdd2;
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -201,19 +200,6 @@ p {
 .active-vehicle-menu small {
   color: #a9bdd2;
   font-size: 0.74rem;
-}
-
-.sidebar-demo-switcher {
-  display: grid;
-  gap: 0.35rem;
-  margin-bottom: 0.85rem;
-}
-
-.sidebar-demo-switcher select {
-  background: #0d2038;
-  border-color: #2a4260;
-  color: #ffffff;
-  width: 100%;
 }
 
 .auth-split-page {
@@ -2854,6 +2840,14 @@ p {
   margin: 0;
 }
 
+.mechanic-detail-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
 .voice-caution {
   color: #b45309;
   display: block;
@@ -2988,6 +2982,31 @@ p {
 .mechanic-landing-hero {
   margin: 0 auto 1.5rem;
   max-width: 860px;
+}
+
+.demo-return-link {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 8px;
+  color: #071526;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+  min-height: 38px;
+  padding: 0.55rem 0.8rem;
+  text-decoration: none;
+}
+
+.demo-return-link:hover {
+  background: #f7faff;
+  border-color: #b9cbe0;
+}
+
+.demo-return-link-inline {
+  justify-self: start;
+  margin-bottom: 0;
 }
 
 .mechanic-landing-hero h1 {

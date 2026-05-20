@@ -28,7 +28,7 @@ export default function RegisterPage() {
 
     try {
       const user = await registerUser(form);
-      window.location.assign(user.role === 'MECHANIC' ? '/mechanic' : '/vehicles');
+      window.location.assign(user.role === 'ADMIN' ? '/dashboard' : '/vehicles');
     } catch (err) {
       if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
         setVerificationNotice(err.message);
@@ -79,13 +79,6 @@ export default function RegisterPage() {
               onChange={updateField}
               required
             />
-          </label>
-          <label>
-            Role
-            <select name="role" value={form.role} onChange={updateField}>
-              <option value="VEHICLE_OWNER">Vehicle Owner</option>
-              <option value="MECHANIC">Mechanic</option>
-            </select>
           </label>
           <button type="submit" disabled={saving}>
             {saving ? 'Creating account...' : 'Create account'}
