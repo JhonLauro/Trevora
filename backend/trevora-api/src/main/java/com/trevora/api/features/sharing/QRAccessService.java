@@ -2,6 +2,7 @@ package com.trevora.api.features.sharing;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.auth.UserRepository;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.sharing.CreateMechanicAccessRequest;
@@ -50,6 +51,7 @@ public class QRAccessService {
     private final VehicleRepository vehicleRepository;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
+    private final UserRepository userRepository;
     private final String frontendBaseUrl;
 
     public QRAccessService(
@@ -60,6 +62,7 @@ public class QRAccessService {
             VehicleRepository vehicleRepository,
             VehicleService vehicleService,
             CurrentUserService currentUserService,
+            UserRepository userRepository,
             @Value("${trevora.frontend-base-url:http://localhost:5173}") String frontendBaseUrl
     ) {
         this.qrAccessRepository = qrAccessRepository;
@@ -69,6 +72,7 @@ public class QRAccessService {
         this.vehicleRepository = vehicleRepository;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
+        this.userRepository = userRepository;
         this.frontendBaseUrl = frontendBaseUrl;
     }
 
@@ -236,7 +240,10 @@ public class QRAccessService {
 
     private UUID currentMechanicIdOrNull() {
         if (UserRole.MECHANIC == currentUserService.getCurrentUserRole()) {
-            return currentUserService.getCurrentUserId();
+            UUID currentUserId = currentUserService.getCurrentUserId();
+            if (userRepository.existsById(currentUserId)) {
+                return currentUserId;
+            }
         }
         return null;
     }

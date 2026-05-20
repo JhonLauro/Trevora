@@ -65,6 +65,10 @@ function moduleContextFor(pathname) {
   return { number: 'Module 1', label: 'Service Record Input' };
 }
 
+function isMechanicRoute(pathname) {
+  return pathname === '/mechanic' || pathname.startsWith('/mechanic/') || pathname.startsWith('/access/request/');
+}
+
 export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -81,7 +85,7 @@ export default function AppShell({ children }) {
   const canUseMechanicDemo = currentUser.role === 'MECHANIC';
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/access/request/')) return;
+    if (!isMechanicRoute(location.pathname)) return;
     const mechanicUser = setCurrentDemoUser(DEMO_MECHANIC_ID);
     setCurrentUser(mechanicUser);
     setAuthenticated(false);
