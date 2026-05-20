@@ -6,9 +6,11 @@ This workspace contains the Spring Boot backend for Trevora.
 
 ## Architecture
 
-Use a layered backend design:
+Use feature-based packaging / vertical slicing inside a modular monolith.
 
 Controller → Service → Repository → Domain Model/Entity
+
+The source tree is rooted at `com.trevora.api`. Business capability code lives under `features.*`; cross-cutting code lives under `shared.*`.
 
 ## Backend Rules
 
@@ -31,16 +33,28 @@ Build only the backend needed for Module 1:
 - Voice-based service draft creation
 - Structured service draft retrieval
 
-## Suggested Packages
+## Current Packages
 
-- controller
-- service
-- repository
-- model
-- dto
-- enums
-- config
-- exception
+Feature packages:
+
+- `features.auth` - login/register, users, roles, current-user headers, mock owner fallback.
+- `features.vehicle` - vehicle profile controller, service, repository, entity, and DTOs.
+- `features.serviceinput` - Module 1 draft input endpoints/services, draft entity/repository, input DTOs, OCR/voice mocks, `InputMethod`, and `DraftStatus`.
+- `features.validation` - Module 2 draft review, validation, correction services, controller, and validation DTOs.
+- `features.servicerecord` - confirmed `ServiceRecord` entity/repository and draft confirmation service/DTOs.
+- `features.history` - Module 3 confirmed history controller, service, and history DTOs.
+- `features.ai` - Module 4 AI/template explanation controller, service, and DTO.
+- `features.sharing` - QR/share requests, owner approval/denial, access request entities/repositories, and sharing DTOs.
+- `features.mechanicaccess` - temporary read-only mechanic sessions, shared history/detail, mechanic search services, repository, entity, and DTOs.
+
+Shared packages:
+
+- `shared.config` - Spring configuration.
+- `shared.exception` - shared exceptions and global exception handling.
+- `shared.security` - reserved for future shared security/JWT/filter utilities.
+- `shared.util` - reserved for future generic utilities/constants.
+
+Do not reintroduce top-level layered packages such as `controller`, `service`, `repository`, `model`, `dto`, or `enums` for new feature work.
 
 ## Module 2 Backend Scope
 

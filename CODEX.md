@@ -5,9 +5,9 @@ Trevora is a web-based vehicle service history system for service understanding 
 ## Tech Stack
 
 - Frontend: React + JavaScript
-- Backend: Spring Boot
+- Backend: Spring Boot modular monolith
 - Database/Storage: Supabase
-- Architecture: Client-server with layered backend design
+- Architecture: Client-server with feature-based backend packaging
 - Backend pattern: Controller → Service → Repository → Domain Model/Entity
 
 ## Workspaces
@@ -27,6 +27,29 @@ Trevora is a web-based vehicle service history system for service understanding 
 | Build frontend code | /frontend | CONTEXT.md, /planning/module-plans |
 | Design database tables | /database | CONTEXT.md, schema.md |
 | Write API docs or update implementation docs | /docs | CONTEXT.md |
+
+## Backend Package Structure
+
+The backend is organized as a modular monolith under `com.trevora.api`.
+Each feature package owns its controller, service, repository, entity, DTO, and enum classes where practical, while shared cross-cutting code stays under `shared`.
+
+| Package | Responsibility |
+|---|---|
+| `features.auth` | Login/register, current user resolution, users, roles, password hashing |
+| `features.vehicle` | Vehicle profile ownership, creation, listing, retrieval |
+| `features.serviceinput` | Module 1 service draft creation from manual, receipt, and voice input |
+| `features.validation` | Module 2 draft review, validation, and correction |
+| `features.servicerecord` | Confirming validated drafts into confirmed service records |
+| `features.history` | Module 3 confirmed vehicle service history APIs |
+| `features.ai` | Module 4 AI/template explanation for confirmed records |
+| `features.sharing` | QR/share access request creation, owner approval, denial, expiration |
+| `features.mechanicaccess` | Mechanic temporary read-only history and mechanic search |
+| `shared.config` | Cross-feature Spring configuration |
+| `shared.exception` | Global exception handling and shared exception types |
+| `shared.security` | Reserved for future shared security filters/JWT helpers |
+| `shared.util` | Reserved for future generic utilities/constants |
+
+Keep the internal responsibility split intact: controllers handle HTTP, services hold business rules, repositories handle persistence, and entities preserve table/column mappings. Do not change endpoint URLs or database migrations as part of package-only refactors.
 
 | Work on Module 4 planning | /planning | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
 | Work on authentication/access foundation | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
