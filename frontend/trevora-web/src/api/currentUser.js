@@ -1,11 +1,15 @@
 export const DEMO_USERS = [
   {
     label: 'Demo Vehicle Owner',
+    firstName: 'Demo Vehicle',
+    lastName: 'Owner',
     userId: '00000000-0000-0000-0000-000000000001',
     role: 'VEHICLE_OWNER',
   },
   {
     label: 'Demo Mechanic',
+    firstName: 'Demo',
+    lastName: 'Mechanic',
     userId: '00000000-0000-0000-0000-000000000002',
     role: 'MECHANIC',
   },
@@ -40,8 +44,12 @@ export function getLoggedInUser() {
 }
 
 export function setLoggedInUser(user) {
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-  return user;
+  const normalizedUser = {
+    ...user,
+    fullName: getUserDisplayName(user),
+  };
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
+  return normalizedUser;
 }
 
 export function clearLoggedInUser() {
@@ -50,6 +58,11 @@ export function clearLoggedInUser() {
 
 export function getActiveCurrentUser() {
   return getLoggedInUser() ?? getCurrentDemoUser();
+}
+
+export function getUserDisplayName(user) {
+  const splitName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+  return splitName || user?.fullName || user?.label || 'Current User';
 }
 
 export function isLoggedIn() {

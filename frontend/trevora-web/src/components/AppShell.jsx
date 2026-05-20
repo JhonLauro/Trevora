@@ -5,6 +5,7 @@ import {
   DEMO_USERS,
   getActiveCurrentUser,
   getCurrentDemoUser,
+  getUserDisplayName,
   isLoggedIn,
   setCurrentDemoUser,
 } from '../api/currentUser.js';
@@ -262,7 +263,7 @@ export default function AppShell({ children }) {
           <div className="sidebar-user-card">
             <span className="user-avatar">⌾</span>
             <span>
-              <strong>{authenticated ? currentUser.fullName : getCurrentDemoUser().label}</strong>
+              <strong>{authenticated ? getUserDisplayName(currentUser) : getCurrentDemoUser().label}</strong>
               <small>{authenticated ? currentUser.email : currentUser.role.replace('_', ' ')}</small>
             </span>
           </div>

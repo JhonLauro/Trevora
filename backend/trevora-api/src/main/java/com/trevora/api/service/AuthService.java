@@ -36,7 +36,8 @@ public class AuthService {
 
         User user = new User();
         user.setUserId(UUID.randomUUID());
-        user.setFullName(request.fullName().trim());
+        user.setFirstName(request.firstName().trim());
+        user.setLastName(request.lastName().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordHashingService.hash(request.password()));
         user.setRole(request.role().name());
@@ -60,12 +61,16 @@ public class AuthService {
         return userRepository.findById(currentUser.userId())
                 .map(user -> new CurrentUserResponse(
                         user.getUserId(),
+                        user.getFirstName(),
+                        user.getLastName(),
                         user.getFullName(),
                         user.getEmail(),
                         user.normalizedRole()
                 ))
                 .orElseGet(() -> new CurrentUserResponse(
                         currentUser.userId(),
+                        "Current",
+                        "User",
                         "Current User",
                         null,
                         currentUser.role().name()

@@ -19,6 +19,12 @@ public class User {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Column(name = "first_name", nullable = false)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false)
+    private String lastName;
+
     @Column(nullable = false, unique = true)
     private String email;
 
@@ -41,7 +47,16 @@ public class User {
     }
 
     public String getFullName() {
-        return fullName;
+        String displayName = buildFullName();
+        return displayName.isBlank() ? fullName : displayName;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
     }
 
     public String getEmail() {
@@ -72,6 +87,16 @@ public class User {
         this.fullName = fullName;
     }
 
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+        syncFullName();
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+        syncFullName();
+    }
+
     public void setEmail(String email) {
         this.email = email;
     }
@@ -89,5 +114,16 @@ public class User {
             return "VEHICLE_OWNER";
         }
         return role;
+    }
+
+    private String buildFullName() {
+        return String.join(" ", firstName == null ? "" : firstName.trim(), lastName == null ? "" : lastName.trim()).trim();
+    }
+
+    private void syncFullName() {
+        String displayName = buildFullName();
+        if (!displayName.isBlank()) {
+            this.fullName = displayName;
+        }
     }
 }

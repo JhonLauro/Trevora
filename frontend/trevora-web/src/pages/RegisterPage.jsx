@@ -5,7 +5,8 @@ import AuthLayout from '../components/AuthLayout.jsx';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     role: 'VEHICLE_OWNER',
@@ -42,10 +43,16 @@ export default function RegisterPage() {
         {error && <div className="alert">{error}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            Full name
-            <input name="fullName" value={form.fullName} onChange={updateField} required />
-          </label>
+          <div className="auth-name-grid">
+            <label>
+              First name
+              <input name="firstName" value={form.firstName} onChange={updateField} required />
+            </label>
+            <label>
+              Last name
+              <input name="lastName" value={form.lastName} onChange={updateField} required />
+            </label>
+          </div>
           <label>
             Email
             <input name="email" type="email" value={form.email} onChange={updateField} required />
