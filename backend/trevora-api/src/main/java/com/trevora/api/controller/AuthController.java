@@ -4,7 +4,9 @@ import com.trevora.api.dto.AuthResponse;
 import com.trevora.api.dto.CurrentUserResponse;
 import com.trevora.api.dto.LoginRequest;
 import com.trevora.api.dto.RegisterRequest;
+import com.trevora.api.dto.SupabaseProfileSyncRequest;
 import com.trevora.api.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +31,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/sync")
+    public AuthResponse sync(@Valid @RequestBody SupabaseProfileSyncRequest request, HttpServletRequest servletRequest) {
+        return authService.syncSupabaseProfile(request, servletRequest);
     }
 
     @GetMapping("/me")

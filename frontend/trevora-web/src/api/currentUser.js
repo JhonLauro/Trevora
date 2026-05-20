@@ -43,9 +43,10 @@ export function getLoggedInUser() {
   }
 }
 
-export function setLoggedInUser(user) {
+export function setLoggedInUser(user, session = null) {
   const normalizedUser = {
     ...user,
+    accessToken: session?.access_token ?? user.accessToken,
     fullName: getUserDisplayName(user),
   };
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
@@ -75,8 +76,14 @@ export function isVehicleOwnerUser(user = getActiveCurrentUser()) {
 
 export function getCurrentUserHeaders() {
   const user = getActiveCurrentUser();
-  return {
+  const headers = {
     'X-User-Id': user.userId,
     'X-User-Role': user.role,
   };
+
+  if (user.accessToken) {
+    headers.Authorization = `Bearer ${user.accessToken}`;
+  }
+
+  return headers;
 }

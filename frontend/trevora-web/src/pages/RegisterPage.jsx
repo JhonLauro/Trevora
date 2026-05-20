@@ -13,6 +13,7 @@ export default function RegisterPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [verificationNotice, setVerificationNotice] = useState('');
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -23,11 +24,16 @@ export default function RegisterPage() {
     event.preventDefault();
     setSaving(true);
     setError('');
+    setVerificationNotice('');
 
     try {
       const user = await registerUser(form);
       window.location.assign(user.role === 'MECHANIC' ? '/mechanic' : '/vehicles');
     } catch (err) {
+      if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
+        setVerificationNotice(err.message);
+        return;
+      }
       setError(err.message);
     } finally {
       setSaving(false);
@@ -41,6 +47,12 @@ export default function RegisterPage() {
         <p className="muted">Start organizing your vehicle service history.</p>
 
         {error && <div className="alert">{error}</div>}
+        {verificationNotice && (
+          <div className="auth-status-notice" role="status">
+            <span className="auth-status-icon">✓</span>
+            <span>{verificationNotice}</span>
+          </div>
+        )}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="auth-name-grid">

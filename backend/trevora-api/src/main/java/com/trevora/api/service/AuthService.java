@@ -5,9 +5,12 @@ import com.trevora.api.dto.CurrentUser;
 import com.trevora.api.dto.CurrentUserResponse;
 import com.trevora.api.dto.LoginRequest;
 import com.trevora.api.dto.RegisterRequest;
+import com.trevora.api.dto.SupabaseAuthenticatedUser;
+import com.trevora.api.dto.SupabaseProfileSyncRequest;
 import com.trevora.api.exception.AuthException;
 import com.trevora.api.model.User;
 import com.trevora.api.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -17,15 +20,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordHashingService passwordHashingService;
     private final CurrentUserService currentUserService;
+    private final SupabaseAuthService supabaseAuthService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordHashingService passwordHashingService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            SupabaseAuthService supabaseAuthService
     ) {
         this.userRepository = userRepository;
         this.passwordHashingService = passwordHashingService;
         this.currentUserService = currentUserService;
+        this.supabaseAuthService = supabaseAuthService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -42,6 +48,20 @@ public class AuthService {
         user.setPasswordHash(passwordHashingService.hash(request.password()));
         user.setRole(request.role().name());
 
+        return AuthResponse.from(userRepository.save(user));
+    }
+
+    public AuthResponse syncSupabaseProfile(SupabaseProfileSyncRequest request, HttpServletRequest servletRequest) {
+        SupabaseAuthenticatedUser supabaseUser = supabaseAuthService.requireCurrentUser(servletRequest);
+        String email = normalizeEmail(supabaseUser.email());
+        User user = userRepository.findById(supabaseUser.userId())
+                .or(() -> userRepository.findByEmailIgnoreCase(email))
+                .orElseGet(User::new);
+        user.setUserId(supabaseUser.userId());
+        user.setFirstName(request.firstName().trim());
+        user.setLastName(request.lastName().trim());
+        user.setEmail(email);
+        user.setRole(request.role().name());
         return AuthResponse.from(userRepository.save(user));
     }
 
