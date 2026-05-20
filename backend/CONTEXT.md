@@ -37,7 +37,7 @@ Build only the backend needed for Module 1:
 
 Feature packages:
 
-- `features.auth` - login/register, users, roles, current-user headers, mock owner fallback.
+- `features.auth` - Supabase Auth token verification, profile sync, login/register fallback, users, roles, current-user headers, mock owner fallback.
 - `features.vehicle` - vehicle profile controller, service, repository, entity, and DTOs.
 - `features.serviceinput` - Module 1 draft input endpoints/services, draft entity/repository, input DTOs, OCR/voice mocks, `InputMethod`, and `DraftStatus`.
 - `features.validation` - Module 2 draft review, validation, correction services, controller, and validation DTOs.
@@ -134,7 +134,7 @@ It must not expose incomplete `service_drafts`.
 
 | Person | Backend Scope |
 |---|---|
-| Person A | Login/register, current user context, role handling, mock owner fallback |
+| Person A | Supabase Auth signup/sign-in, profile sync, current user context, role handling, mock owner fallback |
 | Person B | AIController, AIExplanationService, AI explanation persistence/retrieval |
 | Person C | QRAccessController, QRAccessService, AccessApprovalService, QR/access request entities |
 | Person D | MechanicAccessController, MechanicAccessService, MechanicSearchService, mechanic read-only history/search |
@@ -181,18 +181,23 @@ Entities:
 
 ## Module 4 Auth Foundation Backend Scope
 
-Module 4 Person A owns MVP login/register and current-user resolution. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+Module 4 Person A owns MVP Supabase Auth integration, profile sync, login/register fallback, and current-user resolution. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
 
-The auth foundation should reuse the existing `users` table where possible and add only required schema changes such as `password_hash`. Passwords must never be stored as plain text.
+The auth foundation should reuse the existing `users` table where possible. Supabase Auth users are synced into `public.users` through `/api/auth/sync`; legacy/local password support uses `password_hash`. Passwords must never be stored as plain text.
 
 Auth endpoints:
 - `POST /api/auth/register`
 - `POST /api/auth/login`
-- `GET /api/auth/me`, optional when simple
+- `POST /api/auth/sync`
+- `GET /api/auth/me`
 
 Current user resolution order:
-1. Logged-in user data sent through supported request headers or future token/session.
+1. Supabase bearer token verified through Supabase Auth.
 2. Demo request headers `X-User-Id` and `X-User-Role`.
 3. Existing mock owner fallback `00000000-0000-0000-0000-000000000001` with role `VEHICLE_OWNER`.
+
+Runtime environment required for Supabase Auth:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 
 Mechanic-facing access must use confirmed `service_records` and must never return incomplete `service_drafts`.

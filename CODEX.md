@@ -35,7 +35,7 @@ Each feature package owns its controller, service, repository, entity, DTO, and 
 
 | Package | Responsibility |
 |---|---|
-| `features.auth` | Login/register, current user resolution, users, roles, password hashing |
+| `features.auth` | Supabase Auth profile sync, login/register fallback, current user resolution, users, roles, password hashing |
 | `features.vehicle` | Vehicle profile ownership, creation, listing, retrieval |
 | `features.serviceinput` | Module 1 service draft creation from manual, receipt, and voice input |
 | `features.validation` | Module 2 draft review, validation, and correction |
@@ -77,13 +77,13 @@ Module 3 MVP is complete and pushed.
 
 Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
-Authentication/access foundation is part of Module 4 Person A because Module 4 requires owner/mechanic role separation. The MVP foundation now includes login and registration, while preserving the existing mock owner fallback for development safety.
+Authentication/access foundation is part of Module 4 Person A because Module 4 requires owner/mechanic role separation. The MVP foundation now includes Supabase Auth signup/sign-in, backend profile sync, and legacy login/register fallback, while preserving the existing mock owner fallback for development safety.
 
 ## Module 4 Ownership
 
 | Person | Scope | Main Responsibility |
 |---|---|---|
-| Person A | Authentication / Access Foundation | Login/register, current user context, roles, mock owner compatibility |
+| Person A | Authentication / Access Foundation | Supabase Auth signup/sign-in, profile sync, current user context, roles, mock owner compatibility |
 | Person B | 4.1 AI Explanation | AI/template explanation for confirmed service records |
 | Person C | 4.2, 4.3, 4.4 | QR/share access request, expiration, owner approval |
 | Person D | 4.5, 4.6 | Mechanic read-only access and mechanic search |
@@ -92,11 +92,11 @@ Authentication/access foundation is part of Module 4 Person A because Module 4 r
 
 - Use confirmed `service_records`.
 - Do not expose incomplete `service_drafts`.
-- Login/register belongs to Module 4 Person A for the MVP auth foundation.
+- Supabase Auth signup/sign-in and profile sync belong to Module 4 Person A for the MVP auth foundation.
 - Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
 - Vehicle owners use Modules 1-4 owner features.
 - Mechanics use Module 4 mechanic access features only after owner approval.
-- Keep mock owner fallback unless a real logged-in user or demo header user is active.
+- Keep mock owner fallback unless a real Supabase bearer token user or demo header user is active.
 - Do not allow mechanics to edit records.
 - Do not allow mechanic access before owner approval.
 - Shared access must be temporary and scoped to one selected vehicle.

@@ -19,12 +19,24 @@ public class CurrentUserService {
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USER_ROLE_HEADER = "X-User-Role";
 
+    private final SupabaseAuthService supabaseAuthService;
+
+    public CurrentUserService(SupabaseAuthService supabaseAuthService) {
+        this.supabaseAuthService = supabaseAuthService;
+    }
+
     public CurrentUser getCurrentUser() {
         HttpServletRequest request = currentRequest();
         if (request == null) {
             return mockOwner();
         }
 
+        return supabaseAuthService.getCurrentUser(request)
+                .map(user -> new CurrentUser(user.userId(), user.role()))
+                .orElseGet(() -> currentUserFromDemoHeaders(request));
+    }
+
+    private CurrentUser currentUserFromDemoHeaders(HttpServletRequest request) {
         UUID userId = parseUserId(request.getHeader(USER_ID_HEADER));
         UserRole role = parseUserRole(request.getHeader(USER_ROLE_HEADER));
         if (userId == null || role == null) {

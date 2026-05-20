@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { clearLoggedInUser, getActiveCurrentUser, setLoggedInUser } from '../api/currentUser';
+import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
 
 const settingsNav = [
   { id: 'profile', icon: '⌾', label: 'Profile Information' },
@@ -51,7 +51,9 @@ function initials(firstName, lastName) {
 
 export default function AccountSettingsPage() {
   const currentUser = getActiveCurrentUser();
-  const name = splitName(currentUser.fullName || currentUser.label);
+  const name = currentUser.firstName || currentUser.lastName
+    ? { firstName: currentUser.firstName || '', lastName: currentUser.lastName || '' }
+    : splitName(getUserDisplayName(currentUser));
   const [activeTab, setActiveTab] = useState('profile');
   const [form, setForm] = useState({
     firstName: name.firstName,
@@ -84,6 +86,8 @@ export default function AccountSettingsPage() {
     event.preventDefault();
     const updatedUser = {
       ...currentUser,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
       fullName: `${form.firstName} ${form.lastName}`.trim(),
       email: form.email,
       phone: form.phone,

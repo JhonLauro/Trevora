@@ -147,8 +147,12 @@ Mechanic:
 
 ## Module 4 Auth Foundation Frontend Scope
 
-Module 4 Person A owns MVP login/register and current-user state. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+Module 4 Person A owns MVP Supabase Auth signup/sign-in, backend profile sync, and current-user state. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
 
-Add `LoginPage`, `RegisterPage`, and a logout action. Store logged-in user information locally for the MVP and send `X-User-Id` and `X-User-Role` on API requests. If no logged-in user exists, the app may keep a demo fallback so the existing mock owner development flow remains usable.
+Add `LoginPage`, `RegisterPage`, and a logout action. The frontend signs users in through Supabase Auth, sends the Supabase bearer token to `/api/auth/sync`, stores the synced Trevora profile locally for the MVP, and includes both `Authorization: Bearer ...` plus demo-compatible `X-User-Id` and `X-User-Role` headers on authenticated API requests. If no logged-in user exists, the app may keep a demo fallback so the existing mock owner development flow remains usable.
+
+Runtime environment required for Supabase Auth:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 Vehicle owner users should keep access to Modules 1-3 owner workflows. Mechanic users should not create vehicle records or service drafts through owner routes; they should use Module 4 mechanic access features only after owner approval.

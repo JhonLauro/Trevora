@@ -1,13 +1,7 @@
 package com.trevora.api.features.auth;
 
-import com.trevora.api.features.auth.AuthResponse;
-import com.trevora.api.features.auth.CurrentUser;
-import com.trevora.api.features.auth.CurrentUserResponse;
-import com.trevora.api.features.auth.LoginRequest;
-import com.trevora.api.features.auth.RegisterRequest;
 import com.trevora.api.shared.exception.AuthException;
-import com.trevora.api.features.auth.User;
-import com.trevora.api.features.auth.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -17,15 +11,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordHashingService passwordHashingService;
     private final CurrentUserService currentUserService;
+    private final SupabaseAuthService supabaseAuthService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordHashingService passwordHashingService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            SupabaseAuthService supabaseAuthService
     ) {
         this.userRepository = userRepository;
         this.passwordHashingService = passwordHashingService;
         this.currentUserService = currentUserService;
+        this.supabaseAuthService = supabaseAuthService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -36,11 +33,26 @@ public class AuthService {
 
         User user = new User();
         user.setUserId(UUID.randomUUID());
-        user.setFullName(request.fullName().trim());
+        user.setFirstName(request.firstName().trim());
+        user.setLastName(request.lastName().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordHashingService.hash(request.password()));
         user.setRole(request.role().name());
 
+        return AuthResponse.from(userRepository.save(user));
+    }
+
+    public AuthResponse syncSupabaseProfile(SupabaseProfileSyncRequest request, HttpServletRequest servletRequest) {
+        SupabaseAuthenticatedUser supabaseUser = supabaseAuthService.requireCurrentUser(servletRequest);
+        String email = normalizeEmail(supabaseUser.email());
+        User user = userRepository.findById(supabaseUser.userId())
+                .or(() -> userRepository.findByEmailIgnoreCase(email))
+                .orElseGet(User::new);
+        user.setUserId(supabaseUser.userId());
+        user.setFirstName(request.firstName().trim());
+        user.setLastName(request.lastName().trim());
+        user.setEmail(email);
+        user.setRole(request.role().name());
         return AuthResponse.from(userRepository.save(user));
     }
 
@@ -60,12 +72,16 @@ public class AuthService {
         return userRepository.findById(currentUser.userId())
                 .map(user -> new CurrentUserResponse(
                         user.getUserId(),
+                        user.getFirstName(),
+                        user.getLastName(),
                         user.getFullName(),
                         user.getEmail(),
                         user.normalizedRole()
                 ))
                 .orElseGet(() -> new CurrentUserResponse(
                         currentUser.userId(),
+                        "Current",
+                        "User",
                         "Current User",
                         null,
                         currentUser.role().name()

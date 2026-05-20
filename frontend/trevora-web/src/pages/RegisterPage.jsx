@@ -5,13 +5,15 @@ import AuthLayout from '../components/AuthLayout.jsx';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     role: 'VEHICLE_OWNER',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [verificationNotice, setVerificationNotice] = useState('');
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -22,11 +24,16 @@ export default function RegisterPage() {
     event.preventDefault();
     setSaving(true);
     setError('');
+    setVerificationNotice('');
 
     try {
       const user = await registerUser(form);
       window.location.assign(user.role === 'MECHANIC' ? '/mechanic' : '/vehicles');
     } catch (err) {
+      if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
+        setVerificationNotice(err.message);
+        return;
+      }
       setError(err.message);
     } finally {
       setSaving(false);
@@ -40,12 +47,24 @@ export default function RegisterPage() {
         <p className="muted">Start organizing your vehicle service history.</p>
 
         {error && <div className="alert">{error}</div>}
+        {verificationNotice && (
+          <div className="auth-status-notice" role="status">
+            <span className="auth-status-icon">✓</span>
+            <span>{verificationNotice}</span>
+          </div>
+        )}
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <label>
-            Full name
-            <input name="fullName" value={form.fullName} onChange={updateField} required />
-          </label>
+          <div className="auth-name-grid">
+            <label>
+              First name
+              <input name="firstName" value={form.firstName} onChange={updateField} required />
+            </label>
+            <label>
+              Last name
+              <input name="lastName" value={form.lastName} onChange={updateField} required />
+            </label>
+          </div>
           <label>
             Email
             <input name="email" type="email" value={form.email} onChange={updateField} required />

@@ -2,12 +2,11 @@ package com.trevora.api.features.auth;
 
 import java.util.UUID;
 
-public record CurrentUserResponse(
+public record SupabaseAuthenticatedUser(
         UUID userId,
+        String email,
         String firstName,
         String lastName,
-        String fullName,
-        String email,
-        String role
+        UserRole role
 ) {
 }
