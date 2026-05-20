@@ -50,7 +50,7 @@ Module 4 must use:
 
 ### Authentication Foundation Input
 
-Person A must provide MVP login/register support before the rest of Module 4 access features are built. The auth foundation should distinguish `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN` users. Existing mock owner behavior should remain as a development fallback when no logged-in user or request-header current user is active.
+Person A must provide MVP login/register support before the rest of Module 4 access features are built. The auth foundation is vehicle-owner centered: registered account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests. Existing mock owner behavior should remain as a development fallback when no logged-in user or request-header current user is active.
 
 ---
 
@@ -98,7 +98,8 @@ Scope:
 - Demo login or demo user selection, if needed for development fallback
 - Mock owner backward compatibility
 - Request-header or simple MVP user context support
-- Supported roles: `VEHICLE_OWNER`, `MECHANIC`, optional `ADMIN`
+- Supported account roles: `VEHICLE_OWNER`, `ADMIN`
+- Mechanic access is guest/token-based, not account-based
 
 Person A is not directly implementing Module 4 transactions, but their work supports Module 4.
 

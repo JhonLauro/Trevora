@@ -2,7 +2,6 @@ package com.trevora.api.features.sharing;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
-import com.trevora.api.features.auth.UserRepository;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.sharing.CreateMechanicAccessRequest;
@@ -12,7 +11,6 @@ import com.trevora.api.features.sharing.MechanicAccessSessionResponse;
 import com.trevora.api.features.sharing.PublicMechanicRequestStatusResponse;
 import com.trevora.api.features.sharing.PublicQRAccessRequestResponse;
 import com.trevora.api.features.sharing.QRAccessRequestResponse;
-import com.trevora.api.features.auth.UserRole;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.sharing.MechanicAccessRequest;
@@ -51,7 +49,6 @@ public class QRAccessService {
     private final VehicleRepository vehicleRepository;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
-    private final UserRepository userRepository;
     private final String frontendBaseUrl;
 
     public QRAccessService(
@@ -62,7 +59,6 @@ public class QRAccessService {
             VehicleRepository vehicleRepository,
             VehicleService vehicleService,
             CurrentUserService currentUserService,
-            UserRepository userRepository,
             @Value("${trevora.frontend-base-url:http://localhost:5173}") String frontendBaseUrl
     ) {
         this.qrAccessRepository = qrAccessRepository;
@@ -72,7 +68,6 @@ public class QRAccessService {
         this.vehicleRepository = vehicleRepository;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
-        this.userRepository = userRepository;
         this.frontendBaseUrl = frontendBaseUrl;
     }
 
@@ -136,7 +131,7 @@ public class QRAccessService {
         accessRequest.setQrAccessRequestId(qrRequest.getQrAccessRequestId());
         accessRequest.setVehicleId(qrRequest.getVehicleId());
         accessRequest.setOwnerId(qrRequest.getOwnerId());
-        accessRequest.setMechanicId(currentMechanicIdOrNull());
+        accessRequest.setMechanicId(null);
         accessRequest.setMechanicName(requiredText(request.mechanicName(), "mechanicName"));
         accessRequest.setShopName(blankToNull(request.shopName()));
         accessRequest.setContactInfo(blankToNull(request.contactInfo()));
@@ -236,16 +231,6 @@ public class QRAccessService {
                 request.getExpiresAt(),
                 serviceRecordRepository.countByVehicleIdAndOwnerId(request.getVehicleId(), request.getOwnerId())
         );
-    }
-
-    private UUID currentMechanicIdOrNull() {
-        if (UserRole.MECHANIC == currentUserService.getCurrentUserRole()) {
-            UUID currentUserId = currentUserService.getCurrentUserId();
-            if (userRepository.existsById(currentUserId)) {
-                return currentUserId;
-            }
-        }
-        return null;
     }
 
     private String uniqueToken() {

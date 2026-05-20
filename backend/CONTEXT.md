@@ -181,7 +181,7 @@ Entities:
 
 ## Module 4 Auth Foundation Backend Scope
 
-Module 4 Person A owns MVP Supabase Auth integration, profile sync, login/register fallback, and current-user resolution. Supported MVP roles are `VEHICLE_OWNER`, `MECHANIC`, and optional `ADMIN`.
+Module 4 Person A owns MVP Supabase Auth integration, profile sync, login/register fallback, and current-user resolution. Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
 
 The auth foundation should reuse the existing `users` table where possible. Supabase Auth users are synced into `public.users` through `/api/auth/sync`; legacy/local password support uses `password_hash`. Passwords must never be stored as plain text.
 

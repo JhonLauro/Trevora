@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { setCurrentDemoUser } from '../api/currentUser';
 import { createQRAccessRequest, getVehicleQRAccessRequests } from '../api/qrAccess';
 import { getVehicle } from '../api/vehicles';
 
@@ -26,7 +25,6 @@ function statusClass(status) {
 }
 
 const DEMO_QR_TOKEN_KEY = 'trevora.demoMechanic.latestQrToken';
-const DEMO_MECHANIC_ID = '00000000-0000-0000-0000-000000000002';
 
 export default function QRSharingPage() {
   const { vehicleId } = useParams();
@@ -91,10 +89,9 @@ export default function QRSharingPage() {
     setCopied(true);
   }
 
-  function openDemoMechanicLink() {
+  function rememberLatestRequestLink() {
     if (!currentRequest?.accessToken) return;
     window.localStorage.setItem(DEMO_QR_TOKEN_KEY, currentRequest.accessToken);
-    setCurrentDemoUser(DEMO_MECHANIC_ID);
   }
 
   return (
@@ -180,7 +177,7 @@ export default function QRSharingPage() {
                   <Link
                     className="button-link"
                     to={`/access/request/${currentRequest.accessToken}`}
-                    onClick={openDemoMechanicLink}
+                    onClick={rememberLatestRequestLink}
                   >
                     Open request link
                   </Link>

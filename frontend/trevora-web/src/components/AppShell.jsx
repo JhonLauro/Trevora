@@ -2,18 +2,15 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import {
   clearLoggedInUser,
-  DEMO_USERS,
   getActiveCurrentUser,
   getCurrentDemoUser,
   getUserDisplayName,
   isLoggedIn,
-  setCurrentDemoUser,
 } from '../api/currentUser.js';
 import { getVehicles } from '../api/vehicles.js';
 
 const VEHICLE_LABEL_KEY = 'trevora.activeVehicleLabel';
 const VEHICLE_SUBTITLE_KEY = 'trevora.activeVehicleSubtitle';
-const DEMO_MECHANIC_ID = '00000000-0000-0000-0000-000000000002';
 
 function getActiveVehiclePath() {
   const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
@@ -46,30 +43,6 @@ function displayVehicleSubtitle(vehicle) {
   return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Registered vehicle';
 }
 
-function moduleContextFor(pathname) {
-  if (pathname === '/mechanic' || pathname.startsWith('/mechanic/')) {
-    return { number: 'Module 4', label: 'Mechanic Access' };
-  }
-  if (
-    pathname === '/access' ||
-    pathname.startsWith('/access/') ||
-    /^\/vehicles\/[^/]+\/share\/?$/.test(pathname)
-  ) {
-    return { number: 'Module 4', label: 'Mechanic Handoff' };
-  }
-  if (pathname.includes('/history')) {
-    return { number: 'Module 3', label: 'Service History' };
-  }
-  if (pathname.includes('/review') || pathname.includes('/correct') || pathname.includes('/confirm') || pathname.includes('/saved')) {
-    return { number: 'Module 2', label: 'Validation and Correction' };
-  }
-  return { number: 'Module 1', label: 'Service Record Input' };
-}
-
-function isMechanicRoute(pathname) {
-  return pathname === '/mechanic' || pathname.startsWith('/mechanic/') || pathname.startsWith('/access/request/');
-}
-
 export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -83,14 +56,6 @@ export default function AppShell({ children }) {
   const serviceHistoryPath = getActiveHistoryPath();
   const shareAccessPath = getActiveSharePath();
   const canUseOwnerWorkflows = currentUser.role === 'VEHICLE_OWNER';
-  const canUseMechanicDemo = currentUser.role === 'MECHANIC';
-
-  useEffect(() => {
-    if (!isMechanicRoute(location.pathname)) return;
-    const mechanicUser = setCurrentDemoUser(DEMO_MECHANIC_ID);
-    setCurrentUser(mechanicUser);
-    setAuthenticated(false);
-  }, [location.pathname]);
 
   useEffect(() => {
     if (!canUseOwnerWorkflows) return undefined;
@@ -122,16 +87,6 @@ export default function AppShell({ children }) {
     setActiveVehicleLabel(label);
     setActiveVehicleSubtitle(subtitle);
     setVehicleMenuOpen(false);
-  }
-
-  function handleDemoUserChange(event) {
-    const nextUser = setCurrentDemoUser(event.target.value);
-    setCurrentUser(nextUser);
-    if (nextUser.role === 'MECHANIC') {
-      navigate('/mechanic');
-      return;
-    }
-    navigate('/dashboard');
   }
 
   function handleLogout() {
@@ -244,26 +199,9 @@ export default function AppShell({ children }) {
               </NavLink>
             </>
           )}
-          {canUseMechanicDemo && (
-            <NavLink to="/mechanic">
-              <span className="nav-icon">▢</span>
-              Mechanic Access
-            </NavLink>
-          )}
         </nav>
 
         <div className="sidebar-user-panel">
-          <label className="sidebar-demo-switcher">
-            Demo user
-            <select value={currentUser.userId} onChange={handleDemoUserChange}>
-              {DEMO_USERS.map((user) => (
-                <option key={user.userId} value={user.userId}>
-                  {user.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="sidebar-user-card">
             <span className="user-avatar">⌾</span>
             <span>

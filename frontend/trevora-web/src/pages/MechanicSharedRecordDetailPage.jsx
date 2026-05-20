@@ -60,9 +60,14 @@ export default function MechanicSharedRecordDetailPage() {
 
   return (
     <main className="page-shell mechanic-shared-page">
-      <Link className="inline-link" to={`/mechanic/access/${sessionId}`}>
-        Back to shared records
-      </Link>
+      <div className="mechanic-detail-nav">
+        <Link className="inline-link" to={`/mechanic/access/${sessionId}`}>
+          Back to shared records
+        </Link>
+        <Link className="demo-return-link demo-return-link-inline" to="/vehicles">
+          Back to owner demo
+        </Link>
+      </div>
 
       {loading && <p className="muted">Loading read-only record...</p>}
       {error && <BlockedAccessMessage message={error} />}
@@ -124,8 +129,8 @@ function BlockedAccessMessage({ message }) {
     <section className="history-empty-state mechanic-blocked-state">
       <h2>Access unavailable</h2>
       <p>{message}</p>
-      <Link className="button-link-secondary" to="/mechanic">
-        Back to mechanic access
+      <Link className="button-link-secondary" to="/vehicles">
+        Back to owner demo
       </Link>
     </section>
   );

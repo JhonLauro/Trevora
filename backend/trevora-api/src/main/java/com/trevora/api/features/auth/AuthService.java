@@ -37,7 +37,7 @@ public class AuthService {
         user.setLastName(request.lastName().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordHashingService.hash(request.password()));
-        user.setRole(request.role().name());
+        user.setRole(UserRole.VEHICLE_OWNER.name());
 
         return AuthResponse.from(userRepository.save(user));
     }
@@ -48,11 +48,12 @@ public class AuthService {
         User user = userRepository.findById(supabaseUser.userId())
                 .or(() -> userRepository.findByEmailIgnoreCase(email))
                 .orElseGet(User::new);
+        String preservedRole = user.getRole();
         user.setUserId(supabaseUser.userId());
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
         user.setEmail(email);
-        user.setRole(request.role().name());
+        user.setRole(UserRole.ADMIN.name().equals(preservedRole) ? UserRole.ADMIN.name() : UserRole.VEHICLE_OWNER.name());
         return AuthResponse.from(userRepository.save(user));
     }
 

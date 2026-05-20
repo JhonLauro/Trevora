@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       const user = await loginUser(form);
-      window.location.assign(user.role === 'MECHANIC' ? '/mechanic' : '/vehicles');
+      window.location.assign(user.role === 'ADMIN' ? '/dashboard' : '/vehicles');
     } catch (err) {
       setError(err.message);
     } finally {
