@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import { loginUser } from '../api/auth.js';
 import AuthLayout from '../components/AuthLayout.jsx';
 import AuthToast from '../components/AuthToast.jsx';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,12 +41,13 @@ export default function LoginPage() {
     setToast(null);
 
     try {
-      const user = await loginUser({ email, password });
+      await loginUser({ email, password });
       setToast({ type: 'success', message: 'Signed in successfully.' });
-      window.location.assign(user.role === 'ADMIN' ? '/dashboard' : '/vehicles');
+      navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.message);
-      setToast({ type: 'error', message: err.message });
+      const message = err.message || 'Unable to sign in. Please try again.';
+      setError(message);
+      setToast({ type: 'error', message });
     } finally {
       setSaving(false);
     }

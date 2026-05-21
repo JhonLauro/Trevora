@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createVehicle, getVehicles } from '../api/vehicles';
 import { getActiveCurrentUser, isVehicleOwnerUser } from '../api/currentUser.js';
+import {
+  clearActiveVehicleSelection,
+  setActiveVehicleSelection,
+} from '../api/activeVehicle.js';
 
 const emptyVehicle = {
   make: '',
@@ -13,18 +17,8 @@ const emptyVehicle = {
   odometer: '',
 };
 
-function displayVehicleName(vehicle) {
-  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-}
-
-function displayVehicleSubtitle(vehicle) {
-  return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Active vehicle';
-}
-
 function setActiveVehicle(vehicle) {
-  window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
-  window.localStorage.setItem('trevora.activeVehicleLabel', displayVehicleName(vehicle));
-  window.localStorage.setItem('trevora.activeVehicleSubtitle', displayVehicleSubtitle(vehicle));
+  setActiveVehicleSelection(vehicle);
 }
 
 export default function VehicleProfileSelectionPage() {
@@ -45,6 +39,9 @@ export default function VehicleProfileSelectionPage() {
       .then((data) => {
         if (active) {
           setVehicles(data);
+          if (data.length === 0) {
+            clearActiveVehicleSelection();
+          }
           setError('');
         }
       })
@@ -80,6 +77,7 @@ export default function VehicleProfileSelectionPage() {
       setForm(emptyVehicle);
       setShowCreateForm(false);
       setActiveVehicle(created);
+      window.dispatchEvent(new Event('trevora:vehicles-changed'));
       navigate(`/service-input/${created.vehicleId}`);
     } catch (err) {
       setError(err.message);

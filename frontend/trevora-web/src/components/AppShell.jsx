@@ -6,41 +6,32 @@ import {
   getUserDisplayName,
   isLoggedIn,
 } from '../api/currentUser.js';
+import {
+  clearActiveVehicleSelection,
+  displayVehicleName,
+  displayVehicleSubtitle,
+  getActiveVehicleId,
+  getActiveVehicleLabel,
+  getActiveVehicleSubtitle,
+  setActiveVehicleSelection,
+} from '../api/activeVehicle.js';
+import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import { getVehicles } from '../api/vehicles.js';
 import BrandLogo from './BrandLogo.jsx';
 
-const VEHICLE_LABEL_KEY = 'trevora.activeVehicleLabel';
-const VEHICLE_SUBTITLE_KEY = 'trevora.activeVehicleSubtitle';
-
 function getActiveVehiclePath() {
-  const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
+  const activeVehicleId = getActiveVehicleId();
   return activeVehicleId ? `/service-input/${activeVehicleId}` : '/vehicles';
 }
 
 function getActiveHistoryPath() {
-  const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
+  const activeVehicleId = getActiveVehicleId();
   return activeVehicleId ? `/vehicles/${activeVehicleId}/history` : '/vehicles';
 }
 
 function getActiveSharePath() {
-  const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
+  const activeVehicleId = getActiveVehicleId();
   return activeVehicleId ? `/vehicles/${activeVehicleId}/share` : '/vehicles';
-}
-
-function getActiveVehicleLabel() {
-  return window.localStorage.getItem(VEHICLE_LABEL_KEY) || 'Select vehicle';
-}
-
-function getActiveVehicleSubtitle() {
-  return window.localStorage.getItem(VEHICLE_SUBTITLE_KEY) || 'No active vehicle';
-}
-
-function displayVehicleName(vehicle) {
-  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-}
-
-function displayVehicleSubtitle(vehicle) {
-  return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Registered vehicle';
 }
 
 export default function AppShell({ children }) {
@@ -49,6 +40,7 @@ export default function AppShell({ children }) {
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
   const [vehicles, setVehicles] = useState([]);
+  const [pendingNotificationCount, setPendingNotificationCount] = useState(0);
   const [vehicleMenuOpen, setVehicleMenuOpen] = useState(false);
   const [activeVehicleLabel, setActiveVehicleLabel] = useState(getActiveVehicleLabel);
   const [activeVehicleSubtitle, setActiveVehicleSubtitle] = useState(getActiveVehicleSubtitle);
@@ -65,33 +57,62 @@ export default function AppShell({ children }) {
   useEffect(() => {
     if (!canUseOwnerWorkflows) return undefined;
     let active = true;
-    getVehicles()
+
+    function loadVehicles() {
+      getVehicles()
       .then((data) => {
         if (!active) return;
         setVehicles(data);
-        const currentId = window.localStorage.getItem('trevora.activeVehicleId');
+        const currentId = getActiveVehicleId();
         const currentVehicle = data.find((vehicle) => vehicle.vehicleId === currentId);
         const fallbackVehicle = currentVehicle ?? data[0];
-        if (fallbackVehicle && currentVehicle == null) {
-          setActiveVehicle(fallbackVehicle);
+        if (fallbackVehicle) {
+          setActiveVehicle(fallbackVehicle, false);
+        } else {
+          clearActiveVehicleSelection();
+          setActiveVehicleLabel(getActiveVehicleLabel());
+          setActiveVehicleSubtitle(getActiveVehicleSubtitle());
         }
       })
       .catch(() => {});
+    }
+
+    loadVehicles();
+    window.addEventListener('trevora:vehicles-changed', loadVehicles);
+
+    return () => {
+      active = false;
+      window.removeEventListener('trevora:vehicles-changed', loadVehicles);
+    };
+  }, [canUseOwnerWorkflows, location.pathname]);
+
+  useEffect(() => {
+    if (!canUseOwnerWorkflows) {
+      setPendingNotificationCount(0);
+      return undefined;
+    }
+
+    let active = true;
+    getPendingMechanicAccessRequests()
+      .then((data) => {
+        if (active) setPendingNotificationCount(data.length);
+      })
+      .catch(() => {
+        if (active) setPendingNotificationCount(0);
+      });
 
     return () => {
       active = false;
     };
-  }, [canUseOwnerWorkflows]);
+  }, [canUseOwnerWorkflows, location.pathname]);
 
-  function setActiveVehicle(vehicle) {
-    const label = displayVehicleName(vehicle);
-    const subtitle = displayVehicleSubtitle(vehicle);
-    window.localStorage.setItem('trevora.activeVehicleId', vehicle.vehicleId);
-    window.localStorage.setItem(VEHICLE_LABEL_KEY, label);
-    window.localStorage.setItem(VEHICLE_SUBTITLE_KEY, subtitle);
-    setActiveVehicleLabel(label);
-    setActiveVehicleSubtitle(subtitle);
-    setVehicleMenuOpen(false);
+  function setActiveVehicle(vehicle, closeMenu = true) {
+    setActiveVehicleSelection(vehicle);
+    setActiveVehicleLabel(displayVehicleName(vehicle));
+    setActiveVehicleSubtitle(displayVehicleSubtitle(vehicle));
+    if (closeMenu) {
+      setVehicleMenuOpen(false);
+    }
   }
 
   function handleLogout() {
@@ -114,7 +135,12 @@ export default function AppShell({ children }) {
             <button
               className="active-vehicle-card"
               type="button"
-              onClick={() => setVehicleMenuOpen((open) => !open)}
+              onClick={() => {
+                if (!vehicleMenuOpen) {
+                  window.dispatchEvent(new Event('trevora:vehicles-changed'));
+                }
+                setVehicleMenuOpen((open) => !open);
+              }}
             >
               <span className="nav-icon">⌁</span>
               <span>
@@ -133,6 +159,7 @@ export default function AppShell({ children }) {
                 ) : (
                   vehicles.map((vehicle) => (
                     <button
+                      className={vehicle.vehicleId === getActiveVehicleId() ? 'selected' : undefined}
                       key={vehicle.vehicleId}
                       type="button"
                       onClick={() => setActiveVehicle(vehicle)}
@@ -195,7 +222,9 @@ export default function AppShell({ children }) {
               <NavLink to="/notifications" className="sidebar-nav-link">
                 <span className="nav-icon">♧</span>
                 Notifications
-                <span className="notification-pill">3</span>
+                {pendingNotificationCount > 0 && (
+                  <span className="notification-pill">{pendingNotificationCount}</span>
+                )}
               </NavLink>
               <NavLink to="/account-settings" className="sidebar-nav-link">
                 <span className="nav-icon">⚙</span>

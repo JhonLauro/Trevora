@@ -98,10 +98,11 @@ p {
   flex-direction: column;
   height: 100vh;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 1rem 0;
   position: sticky;
   top: 0;
+  z-index: 30;
 }
 
 .brand-mark {
@@ -180,6 +181,7 @@ p {
   display: grid;
   gap: 0.55rem;
   padding: 1rem 1.25rem;
+  position: relative;
 }
 
 .active-vehicle-panel > span {
@@ -225,19 +227,28 @@ p {
 }
 
 .active-vehicle-menu {
+  animation: vehicle-menu-drop 160ms ease-out;
   background: #0d2038;
   border: 1px solid #203852;
   border-radius: 10px;
+  box-shadow: 0 18px 42px rgba(7, 21, 38, 0.3);
   display: grid;
   gap: 0.2rem;
-  margin-top: 0.4rem;
-  max-height: 240px;
+  left: 1.25rem;
+  margin-top: 0;
+  max-height: min(330px, calc(100vh - 190px));
   overflow-y: auto;
   padding: 0.35rem;
+  position: absolute;
+  right: 1.25rem;
+  top: calc(100% - 0.75rem);
+  width: auto;
+  z-index: 80;
 }
 
 .active-vehicle-menu button,
 .active-vehicle-menu a {
+  animation: vehicle-menu-item-drop 180ms ease-out backwards;
   background: transparent;
   border-radius: 8px;
   color: #ffffff;
@@ -248,14 +259,59 @@ p {
   text-decoration: none;
 }
 
+.active-vehicle-menu button:nth-child(2),
+.active-vehicle-menu a:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+.active-vehicle-menu button:nth-child(3),
+.active-vehicle-menu a:nth-child(3) {
+  animation-delay: 60ms;
+}
+
+.active-vehicle-menu button:nth-child(4),
+.active-vehicle-menu a:nth-child(4) {
+  animation-delay: 90ms;
+}
+
+.active-vehicle-menu button:nth-child(n + 5),
+.active-vehicle-menu a:nth-child(n + 5) {
+  animation-delay: 120ms;
+}
+
 .active-vehicle-menu button:hover,
-.active-vehicle-menu a:hover {
+.active-vehicle-menu a:hover,
+.active-vehicle-menu button.selected {
   background: rgba(255, 255, 255, 0.08);
 }
 
 .active-vehicle-menu small {
   color: #a9bdd2;
   font-size: 0.74rem;
+}
+
+@keyframes vehicle-menu-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vehicle-menu-item-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-split-page {
@@ -478,6 +534,48 @@ p {
 
 .auth-toast-success span {
   background: #16a34a;
+}
+
+.app-error-page {
+  align-items: center;
+  background: #eef3f8;
+  display: flex;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.app-error-card {
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(8, 24, 44, 0.12);
+  margin: 0 auto;
+  max-width: 520px;
+  padding: 2rem;
+  width: 100%;
+}
+
+.app-error-card h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.app-error-card p:not(.eyebrow) {
+  color: #53657d;
+  line-height: 1.55;
+}
+
+.app-error-details {
+  background: #f4f7fb;
+  border: 1px solid #d7e1ec;
+  border-radius: 6px;
+  color: #17345f;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin: 1rem 0;
+  overflow-wrap: anywhere;
+  padding: 0.85rem;
+  white-space: pre-wrap;
 }
 
 .side-nav {
@@ -3408,6 +3506,28 @@ p {
   font-size: 0.85rem;
 }
 
+.dashboard-empty-state {
+  background: #f8fbff;
+  border: 1px solid #d7e1ec;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+}
+
+.dashboard-empty-state.compact {
+  min-height: 138px;
+}
+
+.dashboard-empty-state strong {
+  color: #071526;
+}
+
+.dashboard-empty-state p {
+  color: #42526b;
+  margin: 0;
+}
+
 .full-width {
   width: 100%;
 }
@@ -3627,6 +3747,23 @@ p {
 .notification-page-list {
   display: grid;
   gap: 0.85rem;
+}
+
+.notification-empty-state {
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.notification-empty-state h2 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.notification-empty-state p {
+  color: #405570;
+  margin: 0;
 }
 
 .notification-page-card {
@@ -4004,6 +4141,14 @@ p {
     height: auto;
     overflow: visible;
     position: static;
+  }
+
+  .active-vehicle-menu {
+    left: auto;
+    max-height: 280px;
+    position: static;
+    top: auto;
+    width: auto;
   }
 
   .side-nav {

@@ -1,85 +1,153 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  clearActiveVehicleSelection,
+  displayVehicleName,
+  displayVehicleSubtitle,
+  getActiveVehicleId,
+  setActiveVehicleSelection,
+} from '../api/activeVehicle.js';
+import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js';
+import { getVehicleServiceHistory } from '../api/serviceHistory.js';
+import { getVehicles } from '../api/vehicles.js';
 
-const summaryCards = [
-  { icon: '▤', value: '24', label: 'Total Records', tone: 'blue' },
-  { icon: '▣', value: 'May 7, 2026', label: 'Last Service', tone: 'green' },
-  { icon: '$', value: 'PHP 78,400', label: 'Total Cost Recorded', tone: 'amber' },
-  { icon: '!', value: '2', label: 'Needs Review', tone: 'red' },
-];
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
 
-const notifications = [
-  { color: 'orange', title: 'Draft needs review: Air filter replacement', time: '2 hours ago' },
-  { color: 'blue', title: 'Mechanic access request from Juan Santos', time: 'Yesterday' },
-  { color: 'green', title: 'Service record saved: Oil Change + Brake Service', time: '2 days ago' },
-];
-
-const recentRecords = [
-  {
-    date: 'May 7, 2026',
-    vehicle: 'Toyota Vios 2021',
-    serviceType: 'Oil Change + Brake Service',
-    shop: 'Superior Auto Repairs',
-    cost: 'PHP 7,850',
-    source: 'Receipt',
-    status: 'Validated',
-  },
-  {
-    date: 'Apr 12, 2026',
-    vehicle: 'Toyota Vios 2021',
-    serviceType: 'General Inspection',
-    shop: 'Quick Fix Motors',
-    cost: 'PHP 1,200',
-    source: 'Manual',
-    status: 'Validated',
-  },
-  {
-    date: 'Mar 28, 2026',
-    vehicle: 'Toyota Vios 2021',
-    serviceType: 'Air Filter Replacement',
-    shop: 'AutoZone PH',
-    cost: 'PHP 980',
-    source: 'Voice',
-    status: 'Needs Review',
-  },
-  {
-    date: 'Feb 18, 2026',
-    vehicle: 'Toyota Vios 2021',
-    serviceType: 'Tire Rotation',
-    shop: 'GoFlex Tires',
-    cost: 'PHP 500',
-    source: 'Receipt',
-    status: 'Draft',
-  },
-];
+const moneyFormatter = new Intl.NumberFormat('en-PH', {
+  maximumFractionDigits: 0,
+});
 
 function badgeClass(value) {
-  return `dashboard-badge dashboard-badge-${value.toLowerCase().replace(/\s+/g, '-')}`;
+  return `dashboard-badge dashboard-badge-${String(value).toLowerCase().replace(/\s+/g, '-')}`;
+}
+
+function formatDate(value) {
+  if (!value) return 'Not available';
+  return dateFormatter.format(new Date(`${value}T00:00:00`));
+}
+
+function formatMoney(value) {
+  return `PHP ${moneyFormatter.format(Number(value || 0))}`;
+}
+
+function formatSource(value) {
+  return String(value || 'Manual')
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function DashboardPage() {
-  const activeVehicleId = window.localStorage.getItem('trevora.activeVehicleId');
+  const currentUser = getActiveCurrentUser();
+  const [vehicles, setVehicles] = useState([]);
+  const [activeVehicle, setActiveVehicle] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+
+    getVehicles()
+      .then((data) => {
+        if (!active) return;
+        const currentId = getActiveVehicleId();
+        const selectedVehicle = data.find((vehicle) => vehicle.vehicleId === currentId) ?? data[0] ?? null;
+
+        setVehicles(data);
+        setActiveVehicle(selectedVehicle);
+        setError('');
+
+        if (selectedVehicle) {
+          setActiveVehicleSelection(selectedVehicle);
+        } else {
+          clearActiveVehicleSelection();
+          setRecords([]);
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoadingVehicles(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeVehicle?.vehicleId) return undefined;
+
+    let active = true;
+    setLoadingRecords(true);
+
+    getVehicleServiceHistory(activeVehicle.vehicleId, { sort: 'newest' })
+      .then((history) => {
+        if (active) {
+          setRecords(history.records ?? []);
+          setError('');
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoadingRecords(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeVehicle?.vehicleId]);
+
+  const activeVehicleId = activeVehicle?.vehicleId;
   const serviceInputPath = activeVehicleId ? `/service-input/${activeVehicleId}` : '/vehicles';
   const historyPath = activeVehicleId ? `/vehicles/${activeVehicleId}/history` : '/vehicles';
   const sharePath = activeVehicleId ? `/vehicles/${activeVehicleId}/share` : '/vehicles';
+  const recentRecords = records.slice(0, 5);
+  const totalCost = useMemo(
+    () => records.reduce((sum, record) => sum + Number(record.totalCost || 0), 0),
+    [records],
+  );
+  const firstName = getUserDisplayName(currentUser).split(' ')[0] || 'there';
+
+  const summaryCards = [
+    { icon: 'V', value: vehicles.length, label: 'Registered Vehicles', tone: 'blue' },
+    { icon: 'R', value: records.length, label: 'Active Vehicle Records', tone: 'green' },
+    { icon: 'D', value: records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'No records yet', label: 'Last Service', tone: 'amber' },
+    { icon: '$', value: formatMoney(totalCost), label: 'Total Cost Recorded', tone: 'red' },
+  ];
 
   return (
     <main className="page-shell dashboard-page">
       <section className="dashboard-header">
         <div>
-          <h1>Good morning, Juan</h1>
-          <p>Here&apos;s an overview of your vehicle service records.</p>
+          <h1>Good morning, {firstName}</h1>
+          <p>
+            {activeVehicle
+              ? `Here is the service overview for ${displayVehicleName(activeVehicle)}.`
+              : 'Register a vehicle to start building your service history.'}
+          </p>
         </div>
         <Link className="button-link" to={serviceInputPath}>
-          ⊕ Add Service Record
+          {activeVehicle ? 'Add Service Record' : 'Add Vehicle'}
         </Link>
       </section>
+
+      {error && <div className="alert">{error}</div>}
 
       <section className="dashboard-summary-grid">
         {summaryCards.map((card) => (
           <article className="dashboard-summary-card" key={card.label}>
             <span className={`dashboard-summary-icon ${card.tone}`}>{card.icon}</span>
-            <strong>{card.value}</strong>
+            <strong>{loadingVehicles ? 'Loading...' : card.value}</strong>
             <small>{card.label}</small>
           </article>
         ))}
@@ -90,23 +158,23 @@ export default function DashboardPage() {
           <h2>Quick Actions</h2>
           <div className="dashboard-action-list">
             <Link className="dashboard-action primary" to={serviceInputPath}>
-              <span>⊕</span>
-              Add Service Record
+              <span>+</span>
+              {activeVehicle ? 'Add Service Record' : 'Add Vehicle'}
             </Link>
             <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/receipt` : '/vehicles'}>
-              <span>↥</span>
+              <span>R</span>
               Upload Receipt
             </Link>
             <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/voice` : '/vehicles'}>
-              <span>♬</span>
+              <span>V</span>
               Record Voice Note
             </Link>
             <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/manual` : '/vehicles'}>
-              <span>✎</span>
+              <span>M</span>
               Enter Manually
             </Link>
             <Link className="dashboard-action" to={sharePath}>
-              <span>⌘</span>
+              <span>S</span>
               Share with Mechanic
             </Link>
           </div>
@@ -117,16 +185,9 @@ export default function DashboardPage() {
             <h2>Notifications</h2>
             <Link to="/access/requests">View all</Link>
           </div>
-          <div className="dashboard-notification-list">
-            {notifications.map((notification) => (
-              <div className="dashboard-notification" key={notification.title}>
-                <span className={`notification-dot ${notification.color}`} />
-                <div>
-                  <strong>{notification.title}</strong>
-                  <small>{notification.time}</small>
-                </div>
-              </div>
-            ))}
+          <div className="dashboard-empty-state compact">
+            <strong>No new notifications</strong>
+            <p>Access requests and service review reminders will appear here.</p>
           </div>
         </article>
 
@@ -135,82 +196,107 @@ export default function DashboardPage() {
             <h2>Active Vehicle</h2>
             <Link to="/vehicles">All vehicles</Link>
           </div>
-          <div className="dashboard-vehicle-card">
-            <div className="dashboard-vehicle-heading">
-              <span className="nav-icon">⌁</span>
-              <div>
-                <strong>Toyota Vios 2021</strong>
-                <small>Plate: ABC 1234</small>
+          {activeVehicle ? (
+            <>
+              <div className="dashboard-vehicle-card">
+                <div className="dashboard-vehicle-heading">
+                  <span className="nav-icon">V</span>
+                  <div>
+                    <strong>{displayVehicleName(activeVehicle)}</strong>
+                    <small>{displayVehicleSubtitle(activeVehicle)}</small>
+                  </div>
+                </div>
+                <div className="dashboard-vehicle-facts no-odometer">
+                  <div>
+                    <span>Records</span>
+                    <strong>{records.length} saved</strong>
+                  </div>
+                  <div>
+                    <span>Last Service</span>
+                    <strong>{records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'No records yet'}</strong>
+                  </div>
+                  <div>
+                    <span>Total Cost</span>
+                    <strong>{formatMoney(totalCost)}</strong>
+                  </div>
+                </div>
               </div>
+              <Link className="button-link-secondary full-width" to={historyPath}>
+                View Service History
+              </Link>
+            </>
+          ) : (
+            <div className="dashboard-empty-state">
+              <strong>No vehicle registered yet</strong>
+              <p>Add your first vehicle before creating service records.</p>
+              <Link className="button-link-secondary full-width" to="/vehicles">
+                Add Vehicle
+              </Link>
             </div>
-            <div className="dashboard-vehicle-facts no-odometer">
-              <div>
-                <span>Records</span>
-                <strong>24 validated</strong>
-              </div>
-              <div>
-                <span>Last Service</span>
-                <strong>May 7, 2026</strong>
-              </div>
-              <div>
-                <span>Total Cost</span>
-                <strong>PHP 78,400</strong>
-              </div>
-            </div>
-          </div>
-          <Link className="button-link-secondary full-width" to={historyPath}>
-            View Service History
-          </Link>
+          )}
         </article>
       </section>
 
       <section className="dashboard-panel recent-records-panel">
         <div className="dashboard-panel-heading">
           <h2>Recent Service Records</h2>
-          <Link to={historyPath}>View all ›</Link>
+          <Link to={historyPath}>View all</Link>
         </div>
-        <div className="dashboard-table-wrap">
-          <table className="dashboard-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Vehicle</th>
-                <th>Service Type</th>
-                <th>Shop/Mechanic</th>
-                <th>Cost</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentRecords.map((record) => (
-                <tr key={`${record.date}-${record.serviceType}`}>
-                  <td>{record.date}</td>
-                  <td>{record.vehicle}</td>
-                  <td>
-                    <strong>{record.serviceType}</strong>
-                  </td>
-                  <td>{record.shop}</td>
-                  <td>
-                    <strong>{record.cost}</strong>
-                  </td>
-                  <td>
-                    <span className={badgeClass(record.source)}>{record.source}</span>
-                  </td>
-                  <td>
-                    <span className={badgeClass(record.status)}>{record.status}</span>
-                  </td>
-                  <td>
-                    <Link className="inline-link" to={historyPath}>
-                      ⊙ View
-                    </Link>
-                  </td>
+        {loadingRecords ? (
+          <div className="dashboard-empty-state">
+            <strong>Loading service records...</strong>
+          </div>
+        ) : recentRecords.length === 0 ? (
+          <div className="dashboard-empty-state">
+            <strong>No service records yet</strong>
+            <p>Saved records for the active vehicle will appear here.</p>
+          </div>
+        ) : (
+          <div className="dashboard-table-wrap">
+            <table className="dashboard-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Vehicle</th>
+                  <th>Service Type</th>
+                  <th>Shop/Mechanic</th>
+                  <th>Cost</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recentRecords.map((record) => (
+                  <tr key={record.recordId}>
+                    <td>{formatDate(record.serviceDate)}</td>
+                    <td>{displayVehicleName(activeVehicle)}</td>
+                    <td>
+                      <strong>{record.serviceType}</strong>
+                    </td>
+                    <td>{record.shopName || 'Not provided'}</td>
+                    <td>
+                      <strong>{formatMoney(record.totalCost)}</strong>
+                    </td>
+                    <td>
+                      <span className={badgeClass(formatSource(record.sourceInputMethod))}>
+                        {formatSource(record.sourceInputMethod)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={badgeClass('Validated')}>Validated</span>
+                    </td>
+                    <td>
+                      <Link className="inline-link" to={`/vehicles/${record.vehicleId}/history/${record.recordId}`}>
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );
