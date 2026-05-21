@@ -1,3 +1,5 @@
+import { clearActiveVehicleSelection } from './activeVehicle.js';
+
 const AUTH_STORAGE_KEY = 'trevora.authUser';
 const REMOVED_MOCK_OWNER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -9,7 +11,7 @@ export function getLoggedInUser() {
 
   try {
     const user = JSON.parse(storedUser);
-    if (user?.userId === REMOVED_MOCK_OWNER_ID) {
+    if (!isUsableAuthUser(user) || user.userId === REMOVED_MOCK_OWNER_ID) {
       clearLoggedInUser();
       return null;
     }
@@ -21,17 +23,24 @@ export function getLoggedInUser() {
 }
 
 export function setLoggedInUser(user, session = null) {
+  const previousUser = getLoggedInUser();
   const normalizedUser = {
     ...user,
     accessToken: session?.access_token ?? user.accessToken,
     fullName: getUserDisplayName(user),
   };
+
+  if (!previousUser || previousUser.userId !== normalizedUser.userId) {
+    clearActiveVehicleSelection();
+  }
+
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
   return normalizedUser;
 }
 
 export function clearLoggedInUser() {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  clearActiveVehicleSelection();
 }
 
 export function getActiveCurrentUser() {
@@ -45,6 +54,17 @@ export function getUserDisplayName(user) {
 
 export function isLoggedIn() {
   return getLoggedInUser() !== null;
+}
+
+function isUsableAuthUser(user) {
+  return Boolean(
+    user
+      && typeof user === 'object'
+      && typeof user.userId === 'string'
+      && typeof user.role === 'string'
+      && typeof user.accessToken === 'string'
+      && user.accessToken.length > 0
+  );
 }
 
 export function isVehicleOwnerUser(user = getActiveCurrentUser()) {

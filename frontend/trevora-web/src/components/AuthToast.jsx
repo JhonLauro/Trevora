@@ -1,3 +1,5 @@
+import React from 'react';
+
 export default function AuthToast({ message, type = 'error' }) {
   if (!message) return null;
 

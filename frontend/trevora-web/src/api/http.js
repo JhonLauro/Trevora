@@ -16,10 +16,15 @@ export async function apiRequest(path, options = {}) {
         ...options.headers,
       };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers,
-    ...withoutHelperOptions(options),
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers,
+      ...withoutHelperOptions(options),
+    });
+  } catch {
+    throw new Error(`Could not reach the Trevora API at ${API_BASE_URL}. Restart the backend and make sure this frontend port is allowed.`);
+  }
 
   if (!response.ok) {
     let message = 'Request failed.';

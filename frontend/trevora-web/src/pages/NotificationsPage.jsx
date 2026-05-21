@@ -1,135 +1,188 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getActiveCurrentUser } from '../api/currentUser.js';
+import { getMechanicAccessRequests } from '../api/qrAccess';
 
-const notifications = [
-  {
-    icon: '▢',
+function notificationStorageKey(userId) {
+  return `trevora.readNotifications.${userId || 'anonymous'}`;
+}
+
+function loadReadNotificationIds(userId) {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(notificationStorageKey(userId)) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveReadNotificationIds(userId, ids) {
+  window.localStorage.setItem(notificationStorageKey(userId), JSON.stringify([...ids]));
+}
+
+function formatTime(value) {
+  if (!value) return 'Recently';
+
+  const timestamp = new Date(value).getTime();
+  const diffMs = Date.now() - timestamp;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return 'Just now';
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} minutes ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} hours ago`;
+  if (diffMs < 7 * day) return `${Math.floor(diffMs / day)} days ago`;
+
+  return new Date(value).toLocaleDateString();
+}
+
+function buildNotification(request, readIds) {
+  const id = request.mechanicAccessRequestId;
+  const status = String(request.status || '').toUpperCase();
+  const mechanic = request.mechanicName || 'A mechanic';
+  const shop = request.shopName ? ` from ${request.shopName}` : '';
+  const vehicle = request.vehicleLabel || 'your vehicle';
+  const unread = status === 'PENDING' && !readIds.has(id);
+
+  if (status === 'APPROVED') {
+    return {
+      id,
+      icon: '✓',
+      tone: 'green',
+      title: 'Mechanic access approved',
+      body: `${mechanic}${shop} was approved for temporary read-only access to ${vehicle}.`,
+      time: formatTime(request.decidedAt || request.requestedAt),
+      action: 'View access requests',
+      href: '/access/requests',
+      unread: false,
+    };
+  }
+
+  if (status === 'DENIED') {
+    return {
+      id,
+      icon: '!',
+      tone: 'red',
+      title: 'Mechanic access denied',
+      body: `${mechanic}${shop} was denied access to ${vehicle}. No service records were shared.`,
+      time: formatTime(request.decidedAt || request.requestedAt),
+      action: 'View access requests',
+      href: '/access/requests',
+      unread: false,
+    };
+  }
+
+  return {
+    id,
+    icon: '!',
     tone: 'blue',
-    title: 'Mechanic Access Request',
-    body: 'Juan Santos from Superior Auto Repairs has requested access to Toyota Vios 2021 service history.',
-    time: '10 minutes ago',
-    action: 'Review Request',
+    title: 'Mechanic access request',
+    body: `${mechanic}${shop} requested temporary read-only access to ${vehicle}.`,
+    time: formatTime(request.requestedAt),
+    action: 'Review request',
     href: '/access/requests',
-    unread: true,
-  },
-  {
-    icon: '▤',
-    tone: 'orange',
-    title: 'Draft Needs Review',
-    body: "Your voice-recorded service draft for 'Air Filter Replacement' has missing fields and needs review before saving.",
-    time: '2 hours ago',
-    action: 'Review Draft',
-    href: '/vehicles',
-    unread: true,
-  },
-  {
-    icon: '✓',
-    tone: 'green',
-    title: 'Service Record Saved',
-    body: 'Oil Change + Brake Service record for Toyota Vios 2021 has been successfully validated and saved.',
-    time: '2 days ago',
-    action: 'View Record',
-    href: '/dashboard',
-    unread: false,
-  },
-  {
-    icon: '△',
-    tone: 'red',
-    title: 'Missing Required Fields',
-    body: "The service draft for 'Tire Rotation' is missing vehicle profile and total cost. Please complete before saving.",
-    time: '3 days ago',
-    action: 'Fix Fields',
-    href: '/vehicles',
-    unread: false,
-  },
-  {
-    icon: '✓',
-    tone: 'green',
-    title: 'Mechanic Access Approved',
-    body: "You approved Maria Garcia's access to Honda Civic 2019 service history. Access expires in 30 minutes.",
-    time: '1 week ago',
-    action: '',
-    href: '',
-    unread: false,
-  },
-  {
-    icon: '×',
-    tone: 'red',
-    title: 'Mechanic Access Denied',
-    body: 'Access request from an unknown service center was denied. No records were shared.',
-    time: '1 week ago',
-    action: '',
-    href: '',
-    unread: false,
-  },
-  {
-    icon: '◷',
-    tone: 'gray',
-    title: 'Temporary Access Expired',
-    body: "Maria Garcia's read-only access to Honda Civic 2019 has expired. All access has been revoked.",
-    time: '1 week ago',
-    action: '',
-    href: '',
-    unread: false,
-  },
-  {
-    icon: '✣',
-    tone: 'purple',
-    title: 'AI Explanation Unavailable',
-    body: 'The AI explanation for your recent record is temporarily unavailable. Your record has been saved and is accessible.',
-    time: '2 weeks ago',
-    action: '',
-    href: '',
-    unread: false,
-  },
-];
+    unread,
+  };
+}
 
 export default function NotificationsPage() {
+  const currentUser = getActiveCurrentUser();
   const [filter, setFilter] = useState('all');
+  const [requests, setRequests] = useState([]);
+  const [readIds, setReadIds] = useState(() => loadReadNotificationIds(currentUser?.userId));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    setReadIds(loadReadNotificationIds(currentUser?.userId));
+
+    getMechanicAccessRequests('')
+      .then((data) => {
+        if (active) setRequests(data);
+      })
+      .catch((err) => {
+        if (active) setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser?.userId]);
+
+  const notifications = requests.map((request) => buildNotification(request, readIds));
+  const unreadCount = notifications.filter((item) => item.unread).length;
   const shown = filter === 'unread' ? notifications.filter((item) => item.unread) : notifications;
+
+  function markAllRead() {
+    const nextReadIds = new Set(readIds);
+    requests
+      .filter((request) => String(request.status || '').toUpperCase() === 'PENDING')
+      .forEach((request) => nextReadIds.add(request.mechanicAccessRequestId));
+    setReadIds(nextReadIds);
+    saveReadNotificationIds(currentUser?.userId, nextReadIds);
+  }
 
   return (
     <main className="page-shell notifications-page">
       <section className="notifications-header">
         <div>
           <h1>Notifications</h1>
-          <p>2 unread notifications</p>
+          <p>{loading ? 'Loading notifications...' : `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`}</p>
         </div>
-        <button className="button-link-secondary" type="button">
-          ✓ Mark all read
+        <button className="button-link-secondary" type="button" onClick={markAllRead} disabled={unreadCount === 0}>
+          Mark all read
         </button>
       </section>
 
+      {error && <div className="alert">{error}</div>}
+
       <div className="notification-tabs">
         <button className={filter === 'all' ? 'active' : ''} type="button" onClick={() => setFilter('all')}>
-          All (8)
+          All ({notifications.length})
         </button>
         <button className={filter === 'unread' ? 'active' : ''} type="button" onClick={() => setFilter('unread')}>
-          Unread (2)
+          Unread ({unreadCount})
         </button>
       </div>
 
       <section className="notification-page-list">
-        {shown.map((notification) => (
-          <article className={notification.unread ? 'notification-page-card unread' : 'notification-page-card'} key={notification.title}>
-            <span className={`notification-icon ${notification.tone}`}>{notification.icon}</span>
-            <div>
-              <div className="notification-title-row">
-                <h2>
-                  {notification.title}
-                  {notification.unread && <span className="unread-dot" />}
-                </h2>
-                <small>{notification.time}</small>
+        {loading ? (
+          <section className="notification-empty-state">
+            <h2>Loading notifications...</h2>
+          </section>
+        ) : shown.length === 0 ? (
+          <section className="notification-empty-state">
+            <h2>{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</h2>
+            <p>Mechanic access requests for your vehicles will appear here.</p>
+          </section>
+        ) : (
+          shown.map((notification) => (
+            <article className={notification.unread ? 'notification-page-card unread' : 'notification-page-card'} key={notification.id}>
+              <span className={`notification-icon ${notification.tone}`}>{notification.icon}</span>
+              <div>
+                <div className="notification-title-row">
+                  <h2>
+                    {notification.title}
+                    {notification.unread && <span className="unread-dot" />}
+                  </h2>
+                  <small>{notification.time}</small>
+                </div>
+                <p>{notification.body}</p>
+                {notification.action && (
+                  <Link className="inline-link" to={notification.href}>
+                    {notification.action}
+                  </Link>
+                )}
               </div>
-              <p>{notification.body}</p>
-              {notification.action && (
-                <Link className="inline-link" to={notification.href}>
-                  {notification.action} →
-                </Link>
-              )}
-            </div>
-          </article>
-        ))}
+            </article>
+          ))
+        )}
       </section>
     </main>
   );

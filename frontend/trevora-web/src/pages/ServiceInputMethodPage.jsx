@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import StepIndicator from '../components/StepIndicator';
+import { clearActiveVehicleSelection, setActiveVehicleSelection } from '../api/activeVehicle.js';
 import { getVehicle } from '../api/vehicles';
 
 const methods = [
@@ -30,14 +31,6 @@ const methods = [
   },
 ];
 
-function displayVehicleName(vehicle) {
-  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-}
-
-function displayVehicleSubtitle(vehicle) {
-  return vehicle.plateNumber || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Active vehicle';
-}
-
 export default function ServiceInputMethodPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
@@ -48,19 +41,19 @@ export default function ServiceInputMethodPage() {
   useEffect(() => {
     let active = true;
 
-    window.localStorage.setItem('trevora.activeVehicleId', vehicleId);
-
     getVehicle(vehicleId)
       .then((data) => {
         if (active) {
           setVehicle(data);
-          window.localStorage.setItem('trevora.activeVehicleLabel', displayVehicleName(data));
-          window.localStorage.setItem('trevora.activeVehicleSubtitle', displayVehicleSubtitle(data));
+          setActiveVehicleSelection(data);
           setError('');
         }
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) {
+          clearActiveVehicleSelection();
+          setError(err.message);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
