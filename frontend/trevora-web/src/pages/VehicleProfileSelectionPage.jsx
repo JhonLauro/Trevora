@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Car, Plus } from 'lucide-react';
 import { createVehicle, getVehicles } from '../api/vehicles';
 import { getActiveCurrentUser, isVehicleOwnerUser } from '../api/currentUser.js';
 import {
   clearActiveVehicleSelection,
+  getActiveVehicleId,
   setActiveVehicleSelection,
 } from '../api/activeVehicle.js';
 
@@ -31,6 +33,7 @@ export default function VehicleProfileSelectionPage() {
   const [error, setError] = useState('');
   const currentUser = getActiveCurrentUser();
   const canManageVehicles = isVehicleOwnerUser(currentUser);
+  const activeVehicleId = getActiveVehicleId();
 
   useEffect(() => {
     let active = true;
@@ -90,7 +93,6 @@ export default function VehicleProfileSelectionPage() {
     <main className="page-shell">
       <section className="page-header page-header-row">
         <div>
-          <p className="eyebrow">Module 1</p>
           <h1>My Vehicles</h1>
           <p>Manage vehicle profiles before creating service drafts.</p>
         </div>
@@ -115,20 +117,30 @@ export default function VehicleProfileSelectionPage() {
             </section>
           ) : vehicles.length === 0 ? (
             <button className="empty-add-card" type="button" onClick={() => setShowCreateForm(true)}>
-              <span>+</span>
+              <span>
+                <Plus size={24} aria-hidden="true" />
+              </span>
               <strong>Add New Vehicle</strong>
-              <small>Register a vehicle profile to start Module 1.</small>
+              <small>Register a vehicle profile to start adding service records.</small>
             </button>
           ) : (
             <div className="vehicle-list">
               {vehicles.map((vehicle) => (
-                <article className="vehicle-card" key={vehicle.vehicleId}>
+                <article
+                  className={`vehicle-card ${vehicle.vehicleId === activeVehicleId ? 'vehicle-card-active' : ''}`}
+                  key={vehicle.vehicleId}
+                >
                   <div className="vehicle-card-header">
-                    <span className="vehicle-icon">V</span>
-                    <div>
-                      <h3>{vehicle.nickname || `${vehicle.make} ${vehicle.model}`}</h3>
-                      <p>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}</p>
+                    <div className="vehicle-card-title">
+                      <span className="vehicle-icon">
+                        <Car size={23} strokeWidth={2.25} aria-hidden="true" />
+                      </span>
+                      <div>
+                        <h3>{vehicle.nickname || `${vehicle.make} ${vehicle.model}`}</h3>
+                        <p>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}</p>
+                      </div>
                     </div>
+                    {vehicle.vehicleId === activeVehicleId && <span className="vehicle-active-badge">Active</span>}
                   </div>
 
                   <div className="vehicle-stat-grid">
@@ -184,7 +196,9 @@ export default function VehicleProfileSelectionPage() {
               ))}
               {canManageVehicles && (
                 <button className="empty-add-card compact" type="button" onClick={() => setShowCreateForm(true)}>
-                  <span>+</span>
+                  <span>
+                    <Plus size={24} aria-hidden="true" />
+                  </span>
                   <strong>Add New Vehicle</strong>
                   <small>Register another vehicle profile.</small>
                 </button>

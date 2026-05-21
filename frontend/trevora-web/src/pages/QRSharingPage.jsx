@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AlertTriangle, Car, Copy, ExternalLink, QrCode, Shield } from 'lucide-react';
 import { createQRAccessRequest, getVehicleQRAccessRequests } from '../api/qrAccess';
 import { getVehicle, getVehicles } from '../api/vehicles';
 
@@ -127,7 +128,9 @@ export default function QRSharingPage() {
       {!loading && (
         <>
         <section className="shared-access-notice">
-          <span className="notice-icon">▢</span>
+          <span className="notice-icon">
+            <Shield size={18} aria-hidden="true" />
+          </span>
           <div>
             <strong>Mechanic access requires your approval and is temporary read-only.</strong>
             <p>Mechanics can view but cannot edit, delete, or create service records.</p>
@@ -144,7 +147,15 @@ export default function QRSharingPage() {
 
         <section className="shared-access-layout">
           <article className="access-card">
-            <h2>Generate QR Access Code</h2>
+            <div className="access-card-title-row">
+              <div>
+                <h2>Generate QR Access Code</h2>
+                <p>Choose the vehicle history this temporary request can target.</p>
+              </div>
+              <span>
+                <QrCode size={20} aria-hidden="true" />
+              </span>
+            </div>
 
             <label>
               Select Vehicle
@@ -162,17 +173,23 @@ export default function QRSharingPage() {
             </label>
 
             <div className="access-scope-box">
-              <strong>Access scope</strong>
-              <p>Service history for <strong>{vehicleName(vehicle)}</strong> only</p>
+              <span>
+                <Car size={18} aria-hidden="true" />
+              </span>
+              <div>
+                <strong>Access scope</strong>
+                <p>Service history for <strong>{vehicleName(vehicle)}</strong> only</p>
+              </div>
             </div>
 
             <div className="access-warning-box">
-              <span>△</span>
+              <AlertTriangle size={17} aria-hidden="true" />
               This QR creates an access request, not direct access. The mechanic must wait for your approval before
               viewing records.
             </div>
 
             <button className="generate-qr-button" type="button" onClick={handleGenerate} disabled={saving}>
+              <QrCode size={18} aria-hidden="true" />
               {saving ? 'Generating...' : 'Generate One-time QR Code'}
             </button>
 
@@ -184,47 +201,56 @@ export default function QRSharingPage() {
           <article className="access-card qr-display-card">
             {currentRequest ? (
               <>
-                <div className="qr-code-frame" aria-label="QR code for mechanic access request">
-                  {currentRequest.accessUrl ? (
-                    <QRCodeSVG
-                      value={currentRequest.accessUrl}
-                      size={208}
-                      bgColor="#ffffff"
-                      fgColor="#071526"
-                      level="M"
-                      includeMargin
-                    />
-                  ) : (
-                    <div className="qr-missing-url">
-                      <strong>QR unavailable</strong>
-                      <p>The backend did not return a share URL for this access request.</p>
+                <div className="qr-display-top">
+                  <div className="qr-code-frame" aria-label="QR code for mechanic access request">
+                    {currentRequest.accessUrl ? (
+                      <QRCodeSVG
+                        value={currentRequest.accessUrl}
+                        size={208}
+                        bgColor="#ffffff"
+                        fgColor="#071526"
+                        level="M"
+                        includeMargin
+                      />
+                    ) : (
+                      <div className="qr-missing-url">
+                        <strong>QR unavailable</strong>
+                        <p>The backend did not return a share URL for this access request.</p>
+                      </div>
+                    )}
+                    <small>{currentRequest.accessToken}</small>
+                  </div>
+                  <div className="qr-display-summary">
+                    <div className="qr-result-heading">
+                      <strong>One-time access request ready</strong>
+                      <span className={statusClass(currentRequest.status)}>{currentRequest.status}</span>
                     </div>
-                  )}
-                  <small>{currentRequest.accessToken}</small>
+                    <p className="qr-scan-note">
+                      Phone scanning requires the share URL to be reachable from the phone. Use deployment, a local
+                      network IP, or a tunnel for real-device testing.
+                    </p>
+                  </div>
                 </div>
-                <div className="qr-result-heading">
-                  <strong>One-time access request ready</strong>
-                  <span className={statusClass(currentRequest.status)}>{currentRequest.status}</span>
-                </div>
-                <p className="qr-scan-note">
-                  Phone scanning requires the share URL to be reachable from the phone. Use deployment, a local
-                  network IP, or a tunnel for real-device testing.
-                </p>
-                <label>
-                  Share URL
-                  <input value={currentRequest.accessUrl || ''} placeholder="Share URL unavailable" readOnly />
-                </label>
-                <div className="access-action-row">
-                  <button className="button-secondary" type="button" onClick={copyLink}>
-                    {copied ? 'Copied' : 'Copy link'}
-                  </button>
-                  <Link
-                    className="button-link"
-                    to={`/access/request/${currentRequest.accessToken}`}
-                    onClick={rememberLatestRequestLink}
-                  >
-                    Open request link
-                  </Link>
+
+                <div className="share-url-panel">
+                  <label>
+                    Share URL
+                    <input value={currentRequest.accessUrl || ''} placeholder="Share URL unavailable" readOnly />
+                  </label>
+                  <div className="access-action-row">
+                    <button className="button-secondary" type="button" onClick={copyLink}>
+                      <Copy size={16} aria-hidden="true" />
+                      {copied ? 'Copied' : 'Copy link'}
+                    </button>
+                    <Link
+                      className="button-link"
+                      to={`/access/request/${currentRequest.accessToken}`}
+                      onClick={rememberLatestRequestLink}
+                    >
+                      <ExternalLink size={16} aria-hidden="true" />
+                      Open request link
+                    </Link>
+                  </div>
                 </div>
                 <dl className="compact-facts">
                   <div>
@@ -239,7 +265,9 @@ export default function QRSharingPage() {
               </>
             ) : (
               <div className="qr-empty-state">
-                <span>▦</span>
+                <span>
+                  <QrCode size={40} aria-hidden="true" />
+                </span>
                 <strong>QR code will appear here</strong>
                 <p>Select a vehicle and click Generate</p>
               </div>

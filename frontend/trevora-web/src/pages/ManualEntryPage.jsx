@@ -101,7 +101,7 @@ export default function ManualEntryPage() {
           <div className="panel-heading">
             <div>
               <h2>Enter service details</h2>
-              <p>Manual entries are marked owner-verified for this Module 1 draft.</p>
+              <p>Manual entries are marked owner-verified for this draft.</p>
             </div>
             <span className="method-badge">Owner verified</span>
           </div>

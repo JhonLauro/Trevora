@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import {
   clearLoggedInUser,
+  AUTH_USER_CHANGED_EVENT,
   getActiveCurrentUser,
   getUserDisplayName,
   isLoggedIn,
@@ -38,7 +39,7 @@ import BrandLogo from './BrandLogo.jsx';
 const SIDEBAR_COLLAPSED_KEY = 'trevora.sidebarCollapsed';
 
 function getActiveVehiclePath(activeVehicleId) {
-  return activeVehicleId ? `/service-input/${activeVehicleId}` : '/vehicles';
+  return '/service-input';
 }
 
 function getActiveHistoryPath(activeVehicleId) {
@@ -86,6 +87,16 @@ export default function AppShell({ children }) {
     setActiveVehicleLabel(getActiveVehicleLabel());
     setActiveVehicleSubtitle(getActiveVehicleSubtitle());
   }, [location.pathname]);
+
+  useEffect(() => {
+    function syncCurrentUser() {
+      setCurrentUser(getActiveCurrentUser());
+      setAuthenticated(isLoggedIn());
+    }
+
+    window.addEventListener(AUTH_USER_CHANGED_EVENT, syncCurrentUser);
+    return () => window.removeEventListener(AUTH_USER_CHANGED_EVENT, syncCurrentUser);
+  }, []);
 
   useEffect(() => {
     if (!canUseOwnerWorkflows) return undefined;

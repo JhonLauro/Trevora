@@ -36,6 +36,17 @@ export function getMechanicAccessRequests(status) {
   return apiRequest(`/mechanic-access/requests${query}`);
 }
 
+export function getOwnerMechanicAccessSessions(status) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiRequest(`/mechanic-access/owner/sessions${query}`);
+}
+
+export function revokeOwnerMechanicAccessSession(sessionId) {
+  return apiRequest(`/mechanic-access/owner/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: 'POST',
+  });
+}
+
 export function getPendingMechanicAccessRequests() {
   return apiRequest('/mechanic-access/requests/pending');
 }

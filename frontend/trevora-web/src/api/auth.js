@@ -108,3 +108,14 @@ function normalizeSupabaseAuthError(error) {
 export function getCurrentUser() {
   return apiRequest('/auth/me');
 }
+
+export function syncCurrentUserProfile(payload) {
+  return apiRequest('/auth/sync', {
+    method: 'POST',
+    body: JSON.stringify({
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      role: payload.role ?? 'VEHICLE_OWNER',
+    }),
+  });
+}

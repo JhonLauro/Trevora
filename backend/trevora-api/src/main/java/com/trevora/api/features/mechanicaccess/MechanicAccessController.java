@@ -5,6 +5,7 @@ import com.trevora.api.features.sharing.MechanicAccessRequestResponse;
 import com.trevora.api.features.mechanicaccess.MechanicSearchResponse;
 import com.trevora.api.features.mechanicaccess.MechanicSharedHistoryResponse;
 import com.trevora.api.features.mechanicaccess.MechanicSharedRecordDetailResponse;
+import com.trevora.api.features.mechanicaccess.OwnerMechanicAccessSessionResponse;
 import com.trevora.api.features.sharing.AccessApprovalService;
 import com.trevora.api.features.mechanicaccess.MechanicAccessService;
 import com.trevora.api.features.mechanicaccess.MechanicSearchService;
@@ -52,6 +53,16 @@ public class MechanicAccessController {
     @PostMapping("/requests/{requestId}/deny")
     public AccessDecisionResponse denyRequest(@PathVariable UUID requestId) {
         return accessApprovalService.denyRequest(requestId);
+    }
+
+    @GetMapping("/owner/sessions")
+    public List<OwnerMechanicAccessSessionResponse> getOwnerSessions(@RequestParam(required = false) String status) {
+        return mechanicAccessService.getOwnerSessions(status);
+    }
+
+    @PostMapping("/owner/sessions/{sessionId}/revoke")
+    public OwnerMechanicAccessSessionResponse revokeOwnerSession(@PathVariable UUID sessionId) {
+        return mechanicAccessService.revokeOwnerSession(sessionId);
     }
 
     @GetMapping("/sessions/{sessionId}/history")

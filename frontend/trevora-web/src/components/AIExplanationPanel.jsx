@@ -37,7 +37,6 @@ export default function AIExplanationPanel({ recordId }) {
     <section className="ai-explanation-card" aria-live="polite">
       <div className="ai-explanation-header">
         <div>
-          <p className="eyebrow">Module 4</p>
           <h2>AI Explanation</h2>
         </div>
         <button

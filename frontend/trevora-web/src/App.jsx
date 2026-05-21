@@ -55,6 +55,7 @@ function AppRoutes() {
         <Route path="/vehicles/:vehicleId/share" element={<QRSharingPage />} />
         <Route path="/vehicles/:vehicleId/history" element={<VehicleServiceHistoryPage />} />
         <Route path="/vehicles/:vehicleId/history/:recordId" element={<ServiceRecordDetailPage />} />
+        <Route path="/service-input" element={<ServiceInputMethodPage />} />
         <Route path="/service-input/:vehicleId" element={<ServiceInputMethodPage />} />
         <Route path="/service-input/:vehicleId/manual" element={<ManualEntryPage />} />
         <Route path="/service-input/:vehicleId/receipt" element={<ReceiptUploadPage />} />

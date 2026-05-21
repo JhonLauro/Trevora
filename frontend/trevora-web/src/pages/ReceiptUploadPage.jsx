@@ -245,7 +245,7 @@ export default function ReceiptUploadPage() {
               </li>
               <li>
                 <strong>You still review</strong>
-                <span>The draft is checked in Module 2 before any final record is saved.</span>
+                <span>The draft is reviewed before any final record is saved.</span>
               </li>
             </ul>
           </section>

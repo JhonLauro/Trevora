@@ -3,10 +3,14 @@ package com.trevora.api.features.mechanicaccess;
 import com.trevora.api.features.mechanicaccess.MechanicSharedHistoryResponse;
 import com.trevora.api.features.mechanicaccess.MechanicSharedRecordDetailResponse;
 import com.trevora.api.features.mechanicaccess.MechanicSharedServiceRecordResponse;
+import com.trevora.api.features.mechanicaccess.OwnerMechanicAccessSessionResponse;
+import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSession;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.sharing.MechanicAccessRepository;
+import com.trevora.api.features.sharing.MechanicAccessRequest;
 import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
@@ -24,20 +28,50 @@ import org.springframework.transaction.annotation.Transactional;
 public class MechanicAccessService {
     static final String SESSION_APPROVED = "APPROVED";
     static final String SESSION_EXPIRED = "EXPIRED";
+    static final String SESSION_REVOKED = "REVOKED";
     static final String PERMISSION_READ_ONLY = "READ_ONLY";
 
     private final MechanicAccessSessionRepository mechanicAccessSessionRepository;
+    private final MechanicAccessRepository mechanicAccessRepository;
     private final ServiceRecordRepository serviceRecordRepository;
     private final VehicleRepository vehicleRepository;
+    private final CurrentUserService currentUserService;
 
     public MechanicAccessService(
             MechanicAccessSessionRepository mechanicAccessSessionRepository,
+            MechanicAccessRepository mechanicAccessRepository,
             ServiceRecordRepository serviceRecordRepository,
-            VehicleRepository vehicleRepository
+            VehicleRepository vehicleRepository,
+            CurrentUserService currentUserService
     ) {
         this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
+        this.mechanicAccessRepository = mechanicAccessRepository;
         this.serviceRecordRepository = serviceRecordRepository;
         this.vehicleRepository = vehicleRepository;
+        this.currentUserService = currentUserService;
+    }
+
+    @Transactional
+    public List<OwnerMechanicAccessSessionResponse> getOwnerSessions(String status) {
+        currentUserService.requireVehicleOwner();
+        UUID ownerId = currentUserService.getCurrentUserId();
+        List<MechanicAccessSession> sessions = blankToNull(status) == null
+                ? mechanicAccessSessionRepository.findByOwnerIdOrderByApprovedAtDesc(ownerId)
+                : mechanicAccessSessionRepository.findByOwnerIdAndStatusOrderByApprovedAtDesc(ownerId, status.trim().toUpperCase(Locale.ROOT));
+        return sessions.stream()
+                .map(this::expireIfNeeded)
+                .map(this::toOwnerSessionResponse)
+                .toList();
+    }
+
+    @Transactional
+    public OwnerMechanicAccessSessionResponse revokeOwnerSession(UUID sessionId) {
+        currentUserService.requireVehicleOwner();
+        MechanicAccessSession session = mechanicAccessSessionRepository
+                .findByMechanicAccessSessionIdAndOwnerId(sessionId, currentUserService.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Mechanic access session was not found."));
+        session.setStatus(SESSION_REVOKED);
+        return toOwnerSessionResponse(mechanicAccessSessionRepository.save(session));
     }
 
     @Transactional
@@ -104,6 +138,21 @@ public class MechanicAccessService {
                 .toList();
     }
 
+    private MechanicAccessSession expireIfNeeded(MechanicAccessSession session) {
+        if (SESSION_APPROVED.equals(session.getStatus()) && !session.getExpiresAt().isAfter(Instant.now())) {
+            session.setStatus(SESSION_EXPIRED);
+            return mechanicAccessSessionRepository.save(session);
+        }
+        return session;
+    }
+
+    private OwnerMechanicAccessSessionResponse toOwnerSessionResponse(MechanicAccessSession session) {
+        MechanicAccessRequest request = mechanicAccessRepository
+                .findById(session.getMechanicAccessRequestId())
+                .orElse(null);
+        return OwnerMechanicAccessSessionResponse.from(session, vehicleLabel(session.getVehicleId()), request);
+    }
+
     MechanicSharedServiceRecordResponse toSharedRecord(ServiceRecord record) {
         return MechanicSharedServiceRecordResponse.from(record, categoryFor(record.getServiceType()));
     }
@@ -149,5 +198,12 @@ public class MechanicAccessService {
             return "Inspection";
         }
         return "General";
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }
