@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  ACTIVE_VEHICLE_CHANGED_EVENT,
   clearActiveVehicleSelection,
   displayVehicleName,
   displayVehicleSubtitle,
@@ -49,9 +50,22 @@ export default function DashboardPage() {
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [error, setError] = useState('');
+  const [activeVehicleRevision, setActiveVehicleRevision] = useState(0);
+
+  useEffect(() => {
+    function handleActiveVehicleChanged() {
+      setActiveVehicleRevision((current) => current + 1);
+    }
+
+    window.addEventListener(ACTIVE_VEHICLE_CHANGED_EVENT, handleActiveVehicleChanged);
+    return () => {
+      window.removeEventListener(ACTIVE_VEHICLE_CHANGED_EVENT, handleActiveVehicleChanged);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
+    setLoadingVehicles(true);
 
     getVehicles()
       .then((data) => {
@@ -80,7 +94,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeVehicleRevision]);
 
   useEffect(() => {
     if (!activeVehicle?.vehicleId) return undefined;

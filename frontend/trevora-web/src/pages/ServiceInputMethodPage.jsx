@@ -10,8 +10,8 @@ const methods = [
     title: 'Receipt / Photo',
     badge: 'Recommended',
     icon: 'R',
-    description: 'Upload a receipt image. Mock OCR extracts draft fields for review.',
-    meta: 'Best accuracy when a receipt is available.',
+    description: 'Upload a receipt image. Tesseract OCR and AI extraction create a draft for review.',
+    meta: 'Best with clear receipt photos.',
   },
   {
     key: 'voice',

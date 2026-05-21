@@ -4,8 +4,8 @@ package com.trevora.api.features.serviceinput;
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.serviceinput.ManualServiceDraftRequest;
-import com.trevora.api.features.serviceinput.MockReceiptExtraction;
 import com.trevora.api.features.serviceinput.MockVoiceExtraction;
+import com.trevora.api.features.serviceinput.ReceiptExtractionResult;
 import com.trevora.api.features.serviceinput.VoiceServiceDraftRequest;
 import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.InputMethod;
@@ -65,7 +65,7 @@ public class ServiceInputService {
     public ServiceDraft createReceiptDraft(UUID vehicleId, MultipartFile receiptImage) {
         requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
-        MockReceiptExtraction extraction = ocrProcessingService.extractReceiptFields(receiptImage);
+        ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(receiptImage);
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(vehicleId);
