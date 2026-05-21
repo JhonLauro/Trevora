@@ -4,6 +4,7 @@ import { isLoggedIn } from './api/currentUser.js';
 import AppShell from './components/AppShell.jsx';
 import AccountSettingsPage from './pages/AccountSettingsPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ManualEntryPage from './pages/ManualEntryPage.jsx';
 import MechanicAccessRequestPage from './pages/MechanicAccessRequestPage.jsx';
@@ -77,7 +78,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />
@@ -87,3 +88,4 @@ export default function App() {
     </Routes>
   );
 }
+
