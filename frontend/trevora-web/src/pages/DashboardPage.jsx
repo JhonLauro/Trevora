@@ -107,10 +107,14 @@ export default function DashboardPage() {
     };
   }, [activeVehicle?.vehicleId]);
 
-  const activeVehicleId = activeVehicle?.vehicleId;
+  const activeVehicleId = activeVehicle?.vehicleId || getActiveVehicleId();
+  const hasActiveVehicleTarget = Boolean(activeVehicleId);
   const serviceInputPath = activeVehicleId ? `/service-input/${activeVehicleId}` : '/vehicles';
   const historyPath = activeVehicleId ? `/vehicles/${activeVehicleId}/history` : '/vehicles';
   const sharePath = activeVehicleId ? `/vehicles/${activeVehicleId}/share` : '/vehicles';
+  const receiptInputPath = activeVehicleId ? `/service-input/${activeVehicleId}/receipt` : '/vehicles';
+  const voiceInputPath = activeVehicleId ? `/service-input/${activeVehicleId}/voice` : '/vehicles';
+  const manualInputPath = activeVehicleId ? `/service-input/${activeVehicleId}/manual` : '/vehicles';
   const recentRecords = records.slice(0, 5);
   const totalCost = useMemo(
     () => records.reduce((sum, record) => sum + Number(record.totalCost || 0), 0),
@@ -137,7 +141,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <Link className="button-link" to={serviceInputPath}>
-          {activeVehicle ? 'Add Service Record' : 'Add Vehicle'}
+          {hasActiveVehicleTarget ? 'Add Service Record' : 'Add Vehicle'}
         </Link>
       </section>
 
@@ -159,17 +163,17 @@ export default function DashboardPage() {
           <div className="dashboard-action-list">
             <Link className="dashboard-action primary" to={serviceInputPath}>
               <span>+</span>
-              {activeVehicle ? 'Add Service Record' : 'Add Vehicle'}
+              {hasActiveVehicleTarget ? 'Add Service Record' : 'Add Vehicle'}
             </Link>
-            <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/receipt` : '/vehicles'}>
+            <Link className="dashboard-action" to={receiptInputPath}>
               <span>R</span>
               Upload Receipt
             </Link>
-            <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/voice` : '/vehicles'}>
+            <Link className="dashboard-action" to={voiceInputPath}>
               <span>V</span>
               Record Voice Note
             </Link>
-            <Link className="dashboard-action" to={activeVehicleId ? `/service-input/${activeVehicleId}/manual` : '/vehicles'}>
+            <Link className="dashboard-action" to={manualInputPath}>
               <span>M</span>
               Enter Manually
             </Link>

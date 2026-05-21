@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StepIndicator from '../components/StepIndicator';
 import { createReceiptServiceDraft } from '../api/serviceDrafts';
@@ -7,8 +7,11 @@ import { getVehicle } from '../api/vehicles';
 export default function ReceiptUploadPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [vehicle, setVehicle] = useState(null);
   const [receiptImage, setReceiptImage] = useState(null);
+  const [draggingReceipt, setDraggingReceipt] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +28,20 @@ export default function ReceiptUploadPage() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    function preventBrowserFileOpen(event) {
+      event.preventDefault();
+    }
+
+    window.addEventListener('dragover', preventBrowserFileOpen);
+    window.addEventListener('drop', preventBrowserFileOpen);
+
+    return () => {
+      window.removeEventListener('dragover', preventBrowserFileOpen);
+      window.removeEventListener('drop', preventBrowserFileOpen);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -48,9 +65,56 @@ export default function ReceiptUploadPage() {
     };
   }, [vehicleId]);
 
-  function handleFileChange(event) {
-    setReceiptImage(event.target.files?.[0] ?? null);
+  function setSelectedReceipt(file) {
+    setReceiptImage(file);
     setError('');
+  }
+
+  function handleFileChange(event) {
+    setSelectedReceipt(event.target.files?.[0] ?? null);
+  }
+
+  function handleUploadZoneClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleUploadZoneKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleUploadZoneClick();
+    }
+  }
+
+  function handleDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDraggingReceipt(true);
+  }
+
+  function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    setDraggingReceipt(false);
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDraggingReceipt(false);
+
+    const droppedFile = Array.from(event.dataTransfer.files).find(isSupportedReceiptFile);
+    if (!droppedFile) {
+      setError('Drop a supported receipt image file.');
+      return;
+    }
+
+    setSelectedReceipt(droppedFile);
+  }
+
+  function openPreview(event) {
+    event.stopPropagation();
+    setPreviewOpen(true);
   }
 
   async function handleSubmit(event) {
@@ -108,21 +172,52 @@ export default function ReceiptUploadPage() {
             <span className="method-badge">Mock OCR</span>
           </div>
 
-          <label className="upload-zone">
-            <input type="file" accept="image/*" onChange={handleFileChange} />
-            <span className="upload-icon">U</span>
-            <strong>Drop receipt here or click to upload</strong>
-            <small>PNG, JPG, HEIC, or PDF-style receipt image.</small>
-          </label>
-
-          {receiptImage && (
-            <div className="upload-summary">
-              <div>
-                <h2>Selected file</h2>
-                <p>{receiptImage.name}</p>
-                <p className="muted">{Math.round(receiptImage.size / 1024)} KB</p>
+          <div
+            className={`upload-zone ${receiptImage ? 'has-file' : ''} ${draggingReceipt ? 'is-dragging' : ''}`}
+            onClick={handleUploadZoneClick}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onKeyDown={handleUploadZoneKeyDown}
+            role="button"
+            tabIndex={0}
+          >
+            <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" onChange={handleFileChange} />
+            {receiptImage ? (
+              <div className="upload-preview">
+                {previewUrl ? (
+                  <button className="upload-preview-button" type="button" onClick={openPreview}>
+                    <img src={previewUrl} alt="Selected receipt preview" />
+                  </button>
+                ) : (
+                  <span className="upload-icon">U</span>
+                )}
+                <div className="upload-preview-meta">
+                  <strong>{receiptImage.name}</strong>
+                  <small>{Math.round(receiptImage.size / 1024)} KB · Click or drag to replace</small>
+                  {previewUrl && <span>Click the preview to open full size</span>}
+                </div>
               </div>
-              {previewUrl && <img src={previewUrl} alt="Selected receipt preview" />}
+            ) : (
+              <>
+                <span className="upload-icon">U</span>
+                <strong>Drop receipt here or click to upload</strong>
+                <small>PNG, JPG, HEIC, or PDF-style receipt image.</small>
+              </>
+            )}
+          </div>
+
+          {previewOpen && previewUrl && (
+            <div className="image-preview-overlay" role="dialog" aria-modal="true" aria-label="Receipt image preview">
+              <button
+                className="image-preview-close"
+                type="button"
+                aria-label="Close receipt preview"
+                onClick={() => setPreviewOpen(false)}
+              >
+                ×
+              </button>
+              <img src={previewUrl} alt="Full-size selected receipt preview" />
             </div>
           )}
 
@@ -158,4 +253,10 @@ export default function ReceiptUploadPage() {
       </section>
     </main>
   );
+}
+
+function isSupportedReceiptFile(file) {
+  if (!file) return false;
+  if (file.type.startsWith('image/')) return true;
+  return /\.(heic|heif|jpe?g|png|webp)$/i.test(file.name);
 }

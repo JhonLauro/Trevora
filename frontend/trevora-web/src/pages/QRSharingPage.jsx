@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createQRAccessRequest, getVehicleQRAccessRequests } from '../api/qrAccess';
 import { getVehicle, getVehicles } from '../api/vehicles';
@@ -183,17 +184,35 @@ export default function QRSharingPage() {
           <article className="access-card qr-display-card">
             {currentRequest ? (
               <>
-                <div className="qr-placeholder" aria-label="QR code placeholder">
-                  <span>QR</span>
+                <div className="qr-code-frame" aria-label="QR code for mechanic access request">
+                  {currentRequest.accessUrl ? (
+                    <QRCodeSVG
+                      value={currentRequest.accessUrl}
+                      size={208}
+                      bgColor="#ffffff"
+                      fgColor="#071526"
+                      level="M"
+                      includeMargin
+                    />
+                  ) : (
+                    <div className="qr-missing-url">
+                      <strong>QR unavailable</strong>
+                      <p>The backend did not return a share URL for this access request.</p>
+                    </div>
+                  )}
                   <small>{currentRequest.accessToken}</small>
                 </div>
                 <div className="qr-result-heading">
                   <strong>One-time access request ready</strong>
                   <span className={statusClass(currentRequest.status)}>{currentRequest.status}</span>
                 </div>
+                <p className="qr-scan-note">
+                  Phone scanning requires the share URL to be reachable from the phone. Use deployment, a local
+                  network IP, or a tunnel for real-device testing.
+                </p>
                 <label>
                   Share URL
-                  <input value={currentRequest.accessUrl} readOnly />
+                  <input value={currentRequest.accessUrl || ''} placeholder="Share URL unavailable" readOnly />
                 </label>
                 <div className="access-action-row">
                   <button className="button-secondary" type="button" onClick={copyLink}>

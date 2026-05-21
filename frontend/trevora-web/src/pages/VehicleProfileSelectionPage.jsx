@@ -204,41 +204,46 @@ export default function VehicleProfileSelectionPage() {
 
             <div className="form-grid">
               <label>
-                Nickname
-                <input name="nickname" value={form.nickname} onChange={updateField} placeholder="Daily driver" />
+                Vehicle nickname
+                <input name="nickname" value={form.nickname} onChange={updateField} placeholder="Ex. Daily driver" />
               </label>
               <label>
-                Make
-                <input name="make" value={form.make} onChange={updateField} placeholder="Toyota" required />
+                Vehicle brand
+                <input name="make" value={form.make} onChange={updateField} placeholder="Ex. Toyota" required />
               </label>
               <label>
-                Model
-                <input name="model" value={form.model} onChange={updateField} placeholder="Vios" required />
+                Vehicle model
+                <input name="model" value={form.model} onChange={updateField} placeholder="Ex. Vios" required />
               </label>
               <label>
-                Year
-                <input name="year" type="number" min="1886" value={form.year} onChange={updateField} placeholder="2021" />
+                Model year
+                <input name="year" type="number" min="1886" value={form.year} onChange={updateField} placeholder="Ex. 2021" />
               </label>
               <label>
                 Plate number
-                <input name="plateNumber" value={form.plateNumber} onChange={updateField} placeholder="ABC 1234" />
+                <input name="plateNumber" value={form.plateNumber} onChange={updateField} placeholder="Ex. ABC 1234" />
               </label>
               <label>
-                Current odometer
+                Current mileage
                 <input
                   name="odometer"
                   type="number"
                   min="0"
                   value={form.odometer}
                   onChange={updateField}
-                  placeholder="62400"
+                  placeholder="Ex. 62400"
                 />
               </label>
             </div>
 
             <label>
               VIN / chassis number
-              <input name="vinChassisNumber" value={form.vinChassisNumber} onChange={updateField} />
+              <input
+                name="vinChassisNumber"
+                value={form.vinChassisNumber}
+                onChange={updateField}
+                placeholder="Ex. MR053HY9300000000"
+              />
             </label>
 
             <div className="actions">
