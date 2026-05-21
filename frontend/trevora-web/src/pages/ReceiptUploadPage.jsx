@@ -167,9 +167,9 @@ export default function ReceiptUploadPage() {
           <div className="panel-heading">
             <div>
               <h2>Upload your receipt</h2>
-              <p>Use a clear photo so the mocked OCR can create a structured draft.</p>
+              <p>Use a clear photo so OCR and AI extraction can create a structured draft.</p>
             </div>
-            <span className="method-badge">Mock OCR</span>
+            <span className="method-badge">OCR + AI</span>
           </div>
 
           <div
@@ -237,15 +237,15 @@ export default function ReceiptUploadPage() {
             <ul className="feature-list">
               <li>
                 <strong>OCR reads your receipt</strong>
-                <span>Raw text is mocked from the uploaded image.</span>
+                <span>Tesseract extracts raw text from the uploaded image.</span>
               </li>
               <li>
-                <strong>Fields are mapped</strong>
-                <span>Service date, type, shop, cost, and details are drafted.</span>
+                <strong>AI maps the fields</strong>
+                <span>OpenAI returns structured draft values from the OCR text.</span>
               </li>
               <li>
-                <strong>Confidence is stored</strong>
-                <span>Metadata shows source and mocked confidence values.</span>
+                <strong>You still review</strong>
+                <span>The draft is checked in Module 2 before any final record is saved.</span>
               </li>
             </ul>
           </section>

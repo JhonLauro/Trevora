@@ -1,6 +1,7 @@
 export const ACTIVE_VEHICLE_ID_KEY = 'trevora.activeVehicleId';
 export const ACTIVE_VEHICLE_LABEL_KEY = 'trevora.activeVehicleLabel';
 export const ACTIVE_VEHICLE_SUBTITLE_KEY = 'trevora.activeVehicleSubtitle';
+export const ACTIVE_VEHICLE_CHANGED_EVENT = 'trevora:active-vehicle-changed';
 
 export function getActiveVehicleId() {
   return window.localStorage.getItem(ACTIVE_VEHICLE_ID_KEY);
@@ -18,6 +19,15 @@ export function setActiveVehicleSelection(vehicle) {
   window.localStorage.setItem(ACTIVE_VEHICLE_ID_KEY, vehicle.vehicleId);
   window.localStorage.setItem(ACTIVE_VEHICLE_LABEL_KEY, displayVehicleName(vehicle));
   window.localStorage.setItem(ACTIVE_VEHICLE_SUBTITLE_KEY, displayVehicleSubtitle(vehicle));
+}
+
+export function notifyActiveVehicleChanged(vehicle) {
+  window.dispatchEvent(new CustomEvent(ACTIVE_VEHICLE_CHANGED_EVENT, {
+    detail: {
+      vehicle,
+      vehicleId: vehicle?.vehicleId ?? null,
+    },
+  }));
 }
 
 export function clearActiveVehicleSelection() {

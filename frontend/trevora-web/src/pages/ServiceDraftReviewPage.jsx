@@ -49,6 +49,28 @@ function displaySource(draft) {
   return 'Not provided';
 }
 
+function receiptExtractionStatus(draft) {
+  const metadata = draft?.fieldMetadata ?? {};
+  if (metadata.source === 'mock_ocr') {
+    return 'Fallback mock used';
+  }
+  if (metadata.fallbackUsed) {
+    return 'OCR fallback used';
+  }
+  if (metadata.source === 'tesseract_openai') {
+    return 'Real OCR + AI used';
+  }
+  return 'Receipt extraction';
+}
+
+function receiptProviderLabel(draft) {
+  const metadata = draft?.fieldMetadata ?? {};
+  const ocr = metadata.ocrProvider || 'OCR';
+  const ai = metadata.aiProvider || 'AI';
+  const model = metadata.aiModel ? ` (${metadata.aiModel})` : '';
+  return `${ocr} + ${ai}${model}`;
+}
+
 function buildIssueMap(validation) {
   const issueMap = new Map();
   for (const issue of validation?.flaggedFields ?? []) {
@@ -143,12 +165,14 @@ function sourceHint(fieldName, draft) {
   if (draft?.inputMethod === 'RECEIPT') {
     return {
       vehicleId: 'Pre-selected vehicle',
-      serviceDate: "Line 2: date found on receipt",
-      serviceType: 'Lines 5-6 itemised header',
-      totalCost: 'Bottom total amount',
-      shopName: 'Receipt header',
-      partsReplaced: 'Itemised services block',
-      laborPerformed: 'Service notes from receipt body',
+      serviceDate: 'Extracted from OCR text when present',
+      serviceType: 'Mapped by AI from receipt text',
+      totalCost: 'Mapped from total or amount paid',
+      shopName: 'Mapped from receipt header when present',
+      location: 'Mapped from address text when present',
+      partsReplaced: 'Mapped from itemized parts when present',
+      laborPerformed: 'Mapped from service or labor lines',
+      remarks: 'Raw OCR text appears here if AI extraction fails',
     }[fieldName];
   }
   if (draft?.inputMethod === 'VOICE') {
@@ -209,70 +233,58 @@ function ReviewInputField({ field, form, draft, vehicle, fieldIssueMap, missingF
 }
 
 function ReceiptPreview({ draft }) {
+  const metadata = draft?.fieldMetadata ?? {};
+  const rawOcrText = metadata.rawOcrText;
+  const confidenceNotes = Array.isArray(metadata.confidenceNotes) ? metadata.confidenceNotes : [];
+  const extractionErrors = Array.isArray(metadata.extractionErrors) ? metadata.extractionErrors : [];
+  const hasRawOcrText = typeof rawOcrText === 'string' && rawOcrText.trim().length > 0;
+
   return (
     <section className="receipt-preview-card">
       <div className="receipt-preview-header">
-        <strong>Receipt preview</strong>
-        <span>Hover a field to highlight</span>
+        <strong>{hasRawOcrText ? 'Raw OCR text' : 'Receipt extraction source'}</strong>
+        <span>{receiptProviderLabel(draft)}</span>
       </div>
-      <div className="mock-receipt">
-        <div className="receipt-paper">
-          <div className="receipt-paper-title receipt-region-medium">
-            <strong>{draft.shopName || 'MOCK OCR AUTO SHOP'}</strong>
-            <span>123 TALAMBAN AVE, QC</span>
-            <span>OR NO. 000-4821</span>
+      <div className="ocr-source-panel">
+        {hasRawOcrText ? (
+          <pre>{rawOcrText}</pre>
+        ) : (
+          <div className="ocr-empty-state">
+            <strong>{metadata.source === 'mock_ocr' ? 'Mock fallback generated this draft.' : 'No raw OCR text was stored.'}</strong>
+            <span>
+              {metadata.source === 'mock_ocr'
+                ? 'Tesseract was not used or could not extract text for this upload.'
+                : 'The draft can still be reviewed and corrected before confirmation.'}
+            </span>
           </div>
+        )}
 
-          <div className="receipt-meta-row">
-            <span>DATE</span>
-            <strong className="receipt-region-high">{draft.serviceDate || 'NOT FOUND'}</strong>
+        {(confidenceNotes.length > 0 || extractionErrors.length > 0) && (
+          <div className="ocr-note-list">
+            {confidenceNotes.map((note) => (
+              <span key={`note-${note}`}>{note}</span>
+            ))}
+            {extractionErrors.map((error) => (
+              <span key={`error-${error}`} className="ocr-error-note">
+                {error}
+              </span>
+            ))}
           </div>
+        )}
+      </div>
 
-          <div className="receipt-separator" />
-
-          <div className="receipt-region-low receipt-service-block">
-            <strong>SERVICES ORDERED</strong>
-            <div className="receipt-item-row">
-              <span>1. {draft.serviceType || 'Service type not found'}</span>
-              <b>P---</b>
-            </div>
-            <div className="receipt-item-row">
-              <span>2. {draft.partsReplaced || 'Parts not found'}</span>
-              <b>P---</b>
-            </div>
-            <div className="receipt-item-row">
-              <span>3. {draft.laborPerformed || 'Labor not found'}</span>
-              <b>P---</b>
-            </div>
-          </div>
-
-          <div className="receipt-separator" />
-
-          <div className="receipt-parts-table">
-            <div className="receipt-item-row">
-              <span>Oil filter x1</span>
-              <b>P450</b>
-            </div>
-            <div className="receipt-item-row">
-              <span>Engine oil</span>
-              <b>P850</b>
-            </div>
-            <div className="receipt-item-row">
-              <span>Labor</span>
-              <b>P200</b>
-            </div>
-          </div>
-
-          <div className="receipt-separator" />
-
-          <div className="receipt-total-block receipt-region-high">
-            <strong>TOTAL</strong>
-            <strong>P{draft.totalCost || '0.00'}</strong>
-          </div>
-
-          <div className="receipt-region-medium receipt-file-note">
-            FILE: {draft.fieldMetadata?.fileName || 'UPLOADED RECEIPT'}
-          </div>
+      <div className="receipt-source-facts">
+        <div>
+          <span>Source</span>
+          <strong>{displaySource(draft)}</strong>
+        </div>
+        <div>
+          <span>Fallback</span>
+          <strong>{metadata.fallbackUsed ? 'Yes' : 'No'}</strong>
+        </div>
+        <div>
+          <span>Model</span>
+          <strong>{metadata.aiModel || 'Not configured'}</strong>
         </div>
       </div>
     </section>
@@ -404,7 +416,8 @@ function ReceiptReviewLayout({
     <section className="receipt-review-surface">
       <div className="receipt-extraction-bar">
         <div className="receipt-bar-left">
-          <strong>AI extraction complete</strong>
+          <strong>{receiptExtractionStatus(draft)}</strong>
+          <span className="mini-chip neutral">{receiptProviderLabel(draft)}</span>
           <span className="mini-chip high">{stats.high} high</span>
           <span className="mini-chip medium">{stats.medium} medium</span>
           <span className="mini-chip low">{stats.low} low</span>

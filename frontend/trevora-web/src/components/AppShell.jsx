@@ -1,6 +1,21 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import {
+  Bell,
+  Car,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  History,
+  LayoutDashboard,
+  LogOut,
+  PlusCircle,
+  Settings,
+  Share2,
+  UserCircle,
+} from 'lucide-react';
+import {
   clearLoggedInUser,
   getActiveCurrentUser,
   getUserDisplayName,
@@ -13,25 +28,40 @@ import {
   getActiveVehicleId,
   getActiveVehicleLabel,
   getActiveVehicleSubtitle,
+  notifyActiveVehicleChanged,
   setActiveVehicleSelection,
 } from '../api/activeVehicle.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import { getVehicles } from '../api/vehicles.js';
 import BrandLogo from './BrandLogo.jsx';
 
-function getActiveVehiclePath() {
-  const activeVehicleId = getActiveVehicleId();
+const SIDEBAR_COLLAPSED_KEY = 'trevora.sidebarCollapsed';
+
+function getActiveVehiclePath(activeVehicleId) {
   return activeVehicleId ? `/service-input/${activeVehicleId}` : '/vehicles';
 }
 
-function getActiveHistoryPath() {
-  const activeVehicleId = getActiveVehicleId();
+function getActiveHistoryPath(activeVehicleId) {
   return activeVehicleId ? `/vehicles/${activeVehicleId}/history` : '/vehicles';
 }
 
-function getActiveSharePath() {
-  const activeVehicleId = getActiveVehicleId();
+function getActiveSharePath(activeVehicleId) {
   return activeVehicleId ? `/vehicles/${activeVehicleId}/share` : '/vehicles';
+}
+
+function nextPathForVehicle(pathname, vehicleId) {
+  if (!vehicleId) return null;
+  if (pathname === '/dashboard') return null;
+  if (/^\/vehicles\/[^/]+\/history(?:\/[^/]+)?$/.test(pathname)) {
+    return `/vehicles/${vehicleId}/history`;
+  }
+  if (/^\/vehicles\/[^/]+\/share$/.test(pathname)) {
+    return `/vehicles/${vehicleId}/share`;
+  }
+  if (/^\/service-input\/[^/]+(?:\/(?:manual|receipt|voice))?$/.test(pathname)) {
+    return pathname.replace(/^\/service-input\/[^/]+/, `/service-input/${vehicleId}`);
+  }
+  return null;
 }
 
 export default function AppShell({ children }) {
@@ -42,14 +72,17 @@ export default function AppShell({ children }) {
   const [vehicles, setVehicles] = useState([]);
   const [pendingNotificationCount, setPendingNotificationCount] = useState(0);
   const [vehicleMenuOpen, setVehicleMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true');
+  const [activeVehicleId, setActiveVehicleId] = useState(getActiveVehicleId);
   const [activeVehicleLabel, setActiveVehicleLabel] = useState(getActiveVehicleLabel);
   const [activeVehicleSubtitle, setActiveVehicleSubtitle] = useState(getActiveVehicleSubtitle);
-  const addServicePath = getActiveVehiclePath();
-  const serviceHistoryPath = getActiveHistoryPath();
-  const shareAccessPath = getActiveSharePath();
+  const addServicePath = getActiveVehiclePath(activeVehicleId);
+  const serviceHistoryPath = getActiveHistoryPath(activeVehicleId);
+  const shareAccessPath = getActiveSharePath(activeVehicleId);
   const canUseOwnerWorkflows = currentUser?.role === 'VEHICLE_OWNER';
 
   useEffect(() => {
+    setActiveVehicleId(getActiveVehicleId());
     setActiveVehicleLabel(getActiveVehicleLabel());
     setActiveVehicleSubtitle(getActiveVehicleSubtitle());
   }, [location.pathname]);
@@ -60,21 +93,22 @@ export default function AppShell({ children }) {
 
     function loadVehicles() {
       getVehicles()
-      .then((data) => {
-        if (!active) return;
-        setVehicles(data);
-        const currentId = getActiveVehicleId();
-        const currentVehicle = data.find((vehicle) => vehicle.vehicleId === currentId);
-        const fallbackVehicle = currentVehicle ?? data[0];
-        if (fallbackVehicle) {
-          setActiveVehicle(fallbackVehicle, false);
-        } else {
-          clearActiveVehicleSelection();
-          setActiveVehicleLabel(getActiveVehicleLabel());
-          setActiveVehicleSubtitle(getActiveVehicleSubtitle());
-        }
-      })
-      .catch(() => {});
+        .then((data) => {
+          if (!active) return;
+          setVehicles(data);
+          const currentId = getActiveVehicleId();
+          const currentVehicle = data.find((vehicle) => vehicle.vehicleId === currentId);
+          const fallbackVehicle = currentVehicle ?? data[0];
+          if (fallbackVehicle) {
+            setActiveVehicle(fallbackVehicle, false);
+          } else {
+            clearActiveVehicleSelection();
+            setActiveVehicleId(getActiveVehicleId());
+            setActiveVehicleLabel(getActiveVehicleLabel());
+            setActiveVehicleSubtitle(getActiveVehicleSubtitle());
+          }
+        })
+        .catch(() => {});
     }
 
     loadVehicles();
@@ -108,11 +142,32 @@ export default function AppShell({ children }) {
 
   function setActiveVehicle(vehicle, closeMenu = true) {
     setActiveVehicleSelection(vehicle);
+    setActiveVehicleId(vehicle.vehicleId);
     setActiveVehicleLabel(displayVehicleName(vehicle));
     setActiveVehicleSubtitle(displayVehicleSubtitle(vehicle));
     if (closeMenu) {
       setVehicleMenuOpen(false);
     }
+  }
+
+  function handleVehicleSelection(vehicle) {
+    setActiveVehicle(vehicle);
+    notifyActiveVehicleChanged(vehicle);
+    const nextPath = nextPathForVehicle(location.pathname, vehicle.vehicleId);
+    if (nextPath && nextPath !== location.pathname) {
+      navigate(nextPath);
+    }
+  }
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      if (next) {
+        setVehicleMenuOpen(false);
+      }
+      return next;
+    });
   }
 
   function handleLogout() {
@@ -123,10 +178,18 @@ export default function AppShell({ children }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className="app-sidebar">
         <div className="brand-mark">
           <BrandLogo variant="light" className="brand-logo" />
+          <button
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="sidebar-collapse-button"
+            type="button"
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed ? <ChevronRight size={18} aria-hidden="true" /> : <ChevronLeft size={18} aria-hidden="true" />}
+          </button>
         </div>
 
         {canUseOwnerWorkflows && (
@@ -135,6 +198,7 @@ export default function AppShell({ children }) {
             <button
               className="active-vehicle-card"
               type="button"
+              title={sidebarCollapsed ? `${activeVehicleLabel} - ${activeVehicleSubtitle}` : undefined}
               onClick={() => {
                 if (!vehicleMenuOpen) {
                   window.dispatchEvent(new Event('trevora:vehicles-changed'));
@@ -142,12 +206,16 @@ export default function AppShell({ children }) {
                 setVehicleMenuOpen((open) => !open);
               }}
             >
-              <span className="nav-icon">⌁</span>
-              <span>
+              <span className="nav-icon">
+                <Car size={18} aria-hidden="true" />
+              </span>
+              <span className="active-vehicle-copy">
                 <strong>{activeVehicleLabel}</strong>
                 <small>{activeVehicleSubtitle}</small>
               </span>
-              <span className="vehicle-caret">{vehicleMenuOpen ? '⌃' : '⌄'}</span>
+              <span className="vehicle-caret">
+                {vehicleMenuOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+              </span>
             </button>
 
             {vehicleMenuOpen && (
@@ -159,10 +227,10 @@ export default function AppShell({ children }) {
                 ) : (
                   vehicles.map((vehicle) => (
                     <button
-                      className={vehicle.vehicleId === getActiveVehicleId() ? 'selected' : undefined}
+                      className={vehicle.vehicleId === activeVehicleId ? 'selected' : undefined}
                       key={vehicle.vehicleId}
                       type="button"
-                      onClick={() => setActiveVehicle(vehicle)}
+                      onClick={() => handleVehicleSelection(vehicle)}
                     >
                       <strong>{displayVehicleName(vehicle)}</strong>
                       <small>{displayVehicleSubtitle(vehicle)}</small>
@@ -177,13 +245,17 @@ export default function AppShell({ children }) {
         <nav className="side-nav" aria-label="Primary">
           {canUseOwnerWorkflows && (
             <>
-              <NavLink to="/dashboard">
-                <span className="nav-icon">□</span>
-                Dashboard
+              <NavLink to="/dashboard" title="Dashboard">
+                <span className="nav-icon">
+                  <LayoutDashboard size={18} aria-hidden="true" />
+                </span>
+                <span className="nav-label">Dashboard</span>
               </NavLink>
-              <NavLink to="/vehicles" end>
-                <span className="nav-icon">⌁</span>
-                My Vehicles
+              <NavLink to="/vehicles" end title="My Vehicles">
+                <span className="nav-icon">
+                  <Car size={18} aria-hidden="true" />
+                </span>
+                <span className="nav-label">My Vehicles</span>
               </NavLink>
             </>
           )}
@@ -193,8 +265,10 @@ export default function AppShell({ children }) {
               to={addServicePath}
               title={addServicePath === '/vehicles' ? 'Select a vehicle first' : 'Add a service record'}
             >
-              <span className="nav-icon">⊕</span>
-              Add Service Record
+              <span className="nav-icon">
+                <PlusCircle size={18} aria-hidden="true" />
+              </span>
+              <span className="nav-label">Add Service Record</span>
             </NavLink>
           )}
           {canUseOwnerWorkflows && (
@@ -203,8 +277,10 @@ export default function AppShell({ children }) {
               to={serviceHistoryPath}
               title={serviceHistoryPath === '/vehicles' ? 'Select a vehicle first' : 'View service history'}
             >
-              <span className="nav-icon">↺</span>
-              Service History
+              <span className="nav-icon">
+                <History size={18} aria-hidden="true" />
+              </span>
+              <span className="nav-label">Service History</span>
             </NavLink>
           )}
           {canUseOwnerWorkflows && (
@@ -213,22 +289,28 @@ export default function AppShell({ children }) {
               to={shareAccessPath}
               title={shareAccessPath === '/vehicles' ? 'Select a vehicle first' : 'Share mechanic access'}
             >
-              <span className="nav-icon">⌘</span>
-              Shared Access
+              <span className="nav-icon">
+                <Share2 size={18} aria-hidden="true" />
+              </span>
+              <span className="nav-label">Shared Access</span>
             </NavLink>
           )}
           {canUseOwnerWorkflows && (
             <>
-              <NavLink to="/notifications" className="sidebar-nav-link">
-                <span className="nav-icon">♧</span>
-                Notifications
+              <NavLink to="/notifications" className="sidebar-nav-link" title="Notifications">
+                <span className="nav-icon">
+                  <Bell size={18} aria-hidden="true" />
+                </span>
+                <span className="nav-label">Notifications</span>
                 {pendingNotificationCount > 0 && (
                   <span className="notification-pill">{pendingNotificationCount}</span>
                 )}
               </NavLink>
-              <NavLink to="/account-settings" className="sidebar-nav-link">
-                <span className="nav-icon">⚙</span>
-                Account Settings
+              <NavLink to="/account-settings" className="sidebar-nav-link" title="Account Settings">
+                <span className="nav-icon">
+                  <Settings size={18} aria-hidden="true" />
+                </span>
+                <span className="nav-label">Account Settings</span>
               </NavLink>
             </>
           )}
@@ -236,15 +318,17 @@ export default function AppShell({ children }) {
 
         <div className="sidebar-user-panel">
           <div className="sidebar-user-card">
-            <span className="user-avatar">⌾</span>
-            <span>
+            <span className="user-avatar">
+              <UserCircle size={22} aria-hidden="true" />
+            </span>
+            <span className="sidebar-user-copy">
               <strong>{authenticated ? getUserDisplayName(currentUser) : 'Signed out'}</strong>
               <small>{authenticated ? currentUser?.email : 'Authentication required'}</small>
             </span>
           </div>
 
-          <button className="sidebar-signout-button" type="button" onClick={handleLogout}>
-            ↪ Sign out
+          <button className="sidebar-signout-button" type="button" onClick={handleLogout} title="Sign out">
+            <LogOut size={18} aria-hidden="true" /> <span className="nav-label">Sign out</span>
           </button>
         </div>
       </aside>

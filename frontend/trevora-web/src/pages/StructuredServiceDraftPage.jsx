@@ -15,6 +15,15 @@ const labels = [
   ['remarks', 'Remarks'],
 ];
 
+function extractionStatus(draft) {
+  const metadata = draft?.fieldMetadata ?? {};
+  if (draft?.inputMethod !== 'RECEIPT') return null;
+  if (metadata.source === 'mock_ocr') return 'Mock fallback used';
+  if (metadata.fallbackUsed) return 'OCR fallback used';
+  if (metadata.source === 'tesseract_openai') return 'Real OCR + AI used';
+  return 'Receipt extraction';
+}
+
 export default function StructuredServiceDraftPage() {
   const { draftId } = useParams();
   const [draft, setDraft] = useState(null);
@@ -51,6 +60,8 @@ export default function StructuredServiceDraftPage() {
   }, [draftId]);
 
   const confidence = draft?.fieldMetadata?.confidence ?? null;
+  const rawOcrText = draft?.fieldMetadata?.rawOcrText;
+  const receiptStatus = extractionStatus(draft);
 
   return (
     <main className="page-shell">
@@ -116,12 +127,37 @@ export default function StructuredServiceDraftPage() {
                   <dt>Source</dt>
                   <dd>{draft.fieldMetadata?.source || 'Not provided'}</dd>
                 </div>
+                {receiptStatus && (
+                  <div>
+                    <dt>Extraction</dt>
+                    <dd>{receiptStatus}</dd>
+                  </div>
+                )}
+                {draft.inputMethod === 'RECEIPT' && (
+                  <>
+                    <div>
+                      <dt>OCR provider</dt>
+                      <dd>{draft.fieldMetadata?.ocrProvider || 'Not provided'}</dd>
+                    </div>
+                    <div>
+                      <dt>AI model</dt>
+                      <dd>{draft.fieldMetadata?.aiModel || 'Not provided'}</dd>
+                    </div>
+                  </>
+                )}
                 <div>
                   <dt>Status</dt>
                   <dd>{draft.status}</dd>
                 </div>
               </dl>
             </section>
+
+            {typeof rawOcrText === 'string' && rawOcrText.trim() && (
+              <section className="metadata-box">
+                <h2>Raw OCR text</h2>
+                <pre>{rawOcrText}</pre>
+              </section>
+            )}
 
             {confidence && (
               <section className="helper-card">
