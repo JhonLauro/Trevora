@@ -51,15 +51,15 @@ function initials(firstName, lastName) {
 
 export default function AccountSettingsPage() {
   const currentUser = getActiveCurrentUser();
-  const name = currentUser.firstName || currentUser.lastName
-    ? { firstName: currentUser.firstName || '', lastName: currentUser.lastName || '' }
+  const name = currentUser?.firstName || currentUser?.lastName
+    ? { firstName: currentUser?.firstName || '', lastName: currentUser?.lastName || '' }
     : splitName(getUserDisplayName(currentUser));
   const [activeTab, setActiveTab] = useState('profile');
   const [form, setForm] = useState({
     firstName: name.firstName,
     lastName: name.lastName,
-    email: currentUser.email || 'owner@trevora.app',
-    phone: currentUser.phone || '+63 917 123 4567',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -103,7 +103,7 @@ export default function AccountSettingsPage() {
       return;
     }
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setSavedMessage('Password update saved for this MVP demo session.');
+    setSavedMessage('Password update saved for this session.');
   }
 
   function togglePreference(key) {

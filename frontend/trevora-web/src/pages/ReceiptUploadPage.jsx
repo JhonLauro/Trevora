@@ -112,7 +112,7 @@ export default function ReceiptUploadPage() {
             <input type="file" accept="image/*" onChange={handleFileChange} />
             <span className="upload-icon">U</span>
             <strong>Drop receipt here or click to upload</strong>
-            <small>PNG, JPG, HEIC, or PDF-style image for the MVP demo.</small>
+            <small>PNG, JPG, HEIC, or PDF-style receipt image.</small>
           </label>
 
           {receiptImage && (

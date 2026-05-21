@@ -4,6 +4,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080
 
 export async function apiRequest(path, options = {}) {
   const currentUserHeaders = options.skipAuthHeaders ? {} : getCurrentUserHeaders();
+  if (!options.skipAuthHeaders && !currentUserHeaders.Authorization) {
+    throw new Error('Please sign in to continue.');
+  }
+
   const headers = options.body instanceof FormData
     ? { ...currentUserHeaders, ...options.headers }
     : {

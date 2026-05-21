@@ -24,7 +24,7 @@ function statusClass(status) {
   return `access-status access-status-${String(status || '').toLowerCase()}`;
 }
 
-const DEMO_QR_TOKEN_KEY = 'trevora.demoMechanic.latestQrToken';
+const LATEST_QR_TOKEN_KEY = 'trevora.mechanic.latestQrToken';
 
 export default function QRSharingPage() {
   const { vehicleId } = useParams();
@@ -57,7 +57,7 @@ export default function QRSharingPage() {
         window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(vehicleData));
         window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(vehicleData));
         if (requestData[0]?.accessToken) {
-          window.localStorage.setItem(DEMO_QR_TOKEN_KEY, requestData[0].accessToken);
+          window.localStorage.setItem(LATEST_QR_TOKEN_KEY, requestData[0].accessToken);
         }
       })
       .catch((err) => {
@@ -92,7 +92,7 @@ export default function QRSharingPage() {
       const created = await createQRAccessRequest(vehicleId);
       setCurrentRequest(created);
       setRequests((current) => [created, ...current]);
-      window.localStorage.setItem(DEMO_QR_TOKEN_KEY, created.accessToken);
+      window.localStorage.setItem(LATEST_QR_TOKEN_KEY, created.accessToken);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -108,7 +108,7 @@ export default function QRSharingPage() {
 
   function rememberLatestRequestLink() {
     if (!currentRequest?.accessToken) return;
-    window.localStorage.setItem(DEMO_QR_TOKEN_KEY, currentRequest.accessToken);
+    window.localStorage.setItem(LATEST_QR_TOKEN_KEY, currentRequest.accessToken);
   }
 
   return (

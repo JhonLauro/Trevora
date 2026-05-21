@@ -1,5 +1,6 @@
 import React from "react";
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { isLoggedIn } from './api/currentUser.js';
 import AppShell from './components/AppShell.jsx';
 import AccountSettingsPage from './pages/AccountSettingsPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
@@ -35,6 +36,12 @@ function RedirectToServiceDraft() {
 }
 
 function AppRoutes() {
+  const location = useLocation();
+
+  if (!isLoggedIn()) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
   return (
     <AppShell>
       <Routes>
@@ -70,6 +77,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />

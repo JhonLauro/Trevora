@@ -3,11 +3,11 @@ import React, { useEffect, useState } from 'react';
 import {
   clearLoggedInUser,
   getActiveCurrentUser,
-  getCurrentDemoUser,
   getUserDisplayName,
   isLoggedIn,
 } from '../api/currentUser.js';
 import { getVehicles } from '../api/vehicles.js';
+import BrandLogo from './BrandLogo.jsx';
 
 const VEHICLE_LABEL_KEY = 'trevora.activeVehicleLabel';
 const VEHICLE_SUBTITLE_KEY = 'trevora.activeVehicleSubtitle';
@@ -55,7 +55,7 @@ export default function AppShell({ children }) {
   const addServicePath = getActiveVehiclePath();
   const serviceHistoryPath = getActiveHistoryPath();
   const shareAccessPath = getActiveSharePath();
-  const canUseOwnerWorkflows = currentUser.role === 'VEHICLE_OWNER';
+  const canUseOwnerWorkflows = currentUser?.role === 'VEHICLE_OWNER';
 
   useEffect(() => {
     setActiveVehicleLabel(getActiveVehicleLabel());
@@ -97,7 +97,7 @@ export default function AppShell({ children }) {
   function handleLogout() {
     clearLoggedInUser();
     setAuthenticated(false);
-    setCurrentUser(getCurrentDemoUser());
+    setCurrentUser(null);
     window.location.assign('/login');
   }
 
@@ -105,8 +105,7 @@ export default function AppShell({ children }) {
     <div className="app-shell">
       <aside className="app-sidebar">
         <div className="brand-mark">
-          <span className="brand-icon">⌁</span>
-          <strong>Trevora</strong>
+          <BrandLogo variant="light" className="brand-logo" />
         </div>
 
         {canUseOwnerWorkflows && (
@@ -210,8 +209,8 @@ export default function AppShell({ children }) {
           <div className="sidebar-user-card">
             <span className="user-avatar">⌾</span>
             <span>
-              <strong>{authenticated ? getUserDisplayName(currentUser) : getCurrentDemoUser().label}</strong>
-              <small>{authenticated ? currentUser.email : currentUser.role.replace('_', ' ')}</small>
+              <strong>{authenticated ? getUserDisplayName(currentUser) : 'Signed out'}</strong>
+              <small>{authenticated ? currentUser?.email : 'Authentication required'}</small>
             </span>
           </div>
 

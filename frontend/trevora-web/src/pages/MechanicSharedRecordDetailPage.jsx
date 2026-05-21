@@ -64,8 +64,8 @@ export default function MechanicSharedRecordDetailPage() {
         <Link className="inline-link" to={`/mechanic/access/${sessionId}`}>
           Back to shared records
         </Link>
-        <Link className="demo-return-link demo-return-link-inline" to="/vehicles">
-          Back to owner demo
+        <Link className="owner-return-link owner-return-link-inline" to="/login">
+          Back to owner sign in
         </Link>
       </div>
 
@@ -129,8 +129,8 @@ function BlockedAccessMessage({ message }) {
     <section className="history-empty-state mechanic-blocked-state">
       <h2>Access unavailable</h2>
       <p>{message}</p>
-      <Link className="button-link-secondary" to="/vehicles">
-        Back to owner demo
+      <Link className="button-link-secondary" to="/login">
+        Back to owner sign in
       </Link>
     </section>
   );

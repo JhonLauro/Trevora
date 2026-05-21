@@ -11,8 +11,8 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
-const DEMO_QR_TOKEN_KEY = 'trevora.demoMechanic.latestQrToken';
-const DEMO_SESSION_ID_KEY = 'trevora.demoMechanic.approvedSessionId';
+const LATEST_QR_TOKEN_KEY = 'trevora.mechanic.latestQrToken';
+const APPROVED_SESSION_ID_KEY = 'trevora.mechanic.approvedSessionId';
 
 export default function MechanicAccessRequestPage() {
   const { token } = useParams();
@@ -34,7 +34,7 @@ export default function MechanicAccessRequestPage() {
     let active = true;
     setLoading(true);
     setError('');
-    window.localStorage.setItem(DEMO_QR_TOKEN_KEY, token);
+    window.localStorage.setItem(LATEST_QR_TOKEN_KEY, token);
 
     loadPublicMechanicStatus(token)
       .then((status) => {
@@ -46,7 +46,7 @@ export default function MechanicAccessRequestPage() {
         }
         if (status.session) {
           setApprovedSession(status.session);
-          window.localStorage.setItem(DEMO_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
+          window.localStorage.setItem(APPROVED_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
           setShowRequestModal(false);
         }
       })
@@ -71,7 +71,7 @@ export default function MechanicAccessRequestPage() {
           if (status.mechanicRequest) setSubmittedRequest(status.mechanicRequest);
           if (status.session) {
             setApprovedSession(status.session);
-            window.localStorage.setItem(DEMO_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
+            window.localStorage.setItem(APPROVED_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
           }
         })
         .catch(() => {});
@@ -117,8 +117,8 @@ export default function MechanicAccessRequestPage() {
   return (
     <main className="page-shell module-four-page">
       <section className="mechanic-landing-hero">
-        <Link className="demo-return-link" to="/vehicles">
-          Back to owner demo
+        <Link className="owner-return-link" to="/login">
+          Back to owner sign in
         </Link>
         <p className="eyebrow">Mechanic Access</p>
         <h1>{shareRequest ? shareRequest.vehicleLabel : 'Vehicle service history'}</h1>

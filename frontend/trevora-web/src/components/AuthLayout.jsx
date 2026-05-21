@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandLogo from './BrandLogo.jsx';
 
 const authFeatures = [
   ['▤', 'Capture service records', 'Receipt, voice, or manual entry'],
@@ -11,8 +12,7 @@ export default function AuthLayout({ children }) {
     <main className="auth-split-page">
       <section className="auth-brand-panel">
         <div className="auth-brand-mark">
-          <span className="brand-icon">⌁</span>
-          <strong>Trevora</strong>
+          <BrandLogo variant="light" className="auth-brand-logo" />
         </div>
 
         <div className="auth-brand-copy">

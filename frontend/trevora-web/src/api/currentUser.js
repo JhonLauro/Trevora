@@ -1,26 +1,5 @@
-export const DEMO_USERS = [
-  {
-    label: 'Demo Vehicle Owner',
-    firstName: 'Demo Vehicle',
-    lastName: 'Owner',
-    userId: '00000000-0000-0000-0000-000000000001',
-    role: 'VEHICLE_OWNER',
-  },
-];
-
-const STORAGE_KEY = 'trevora.demoUser';
 const AUTH_STORAGE_KEY = 'trevora.authUser';
-
-export function getCurrentDemoUser() {
-  const storedUserId = window.localStorage.getItem(STORAGE_KEY);
-  return DEMO_USERS.find((user) => user.userId === storedUserId) ?? DEMO_USERS[0];
-}
-
-export function setCurrentDemoUser(userId) {
-  const nextUser = DEMO_USERS.find((user) => user.userId === userId) ?? DEMO_USERS[0];
-  window.localStorage.setItem(STORAGE_KEY, nextUser.userId);
-  return nextUser;
-}
+const REMOVED_MOCK_OWNER_ID = '00000000-0000-0000-0000-000000000001';
 
 export function getLoggedInUser() {
   const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -29,7 +8,12 @@ export function getLoggedInUser() {
   }
 
   try {
-    return JSON.parse(storedUser);
+    const user = JSON.parse(storedUser);
+    if (user?.userId === REMOVED_MOCK_OWNER_ID) {
+      clearLoggedInUser();
+      return null;
+    }
+    return user;
   } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     return null;
@@ -51,7 +35,7 @@ export function clearLoggedInUser() {
 }
 
 export function getActiveCurrentUser() {
-  return getLoggedInUser() ?? getCurrentDemoUser();
+  return getLoggedInUser();
 }
 
 export function getUserDisplayName(user) {
@@ -68,11 +52,12 @@ export function isVehicleOwnerUser(user = getActiveCurrentUser()) {
 }
 
 export function getCurrentUserHeaders() {
-  const user = getActiveCurrentUser();
-  const headers = {
-    'X-User-Id': user.userId,
-    'X-User-Role': user.role,
-  };
+  const user = getLoggedInUser();
+  if (!user) {
+    return {};
+  }
+
+  const headers = {};
 
   if (user.accessToken) {
     headers.Authorization = `Bearer ${user.accessToken}`;
