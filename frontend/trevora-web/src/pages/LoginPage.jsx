@@ -2,19 +2,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import { loginUser } from '../api/auth.js';
 import AuthLayout from '../components/AuthLayout.jsx';
-import AuthToast from '../components/AuthToast.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState(null);
 
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
-    setToast(null);
   }
 
   async function handleSubmit(event) {
@@ -25,29 +22,24 @@ export default function LoginPage() {
     if (!email || !password) {
       const message = 'Enter your email address and password to sign in.';
       setError(message);
-      setToast({ type: 'error', message });
       return;
     }
 
     if (!isValidEmail(email)) {
       const message = 'Enter a valid email address.';
       setError(message);
-      setToast({ type: 'error', message });
       return;
     }
 
     setSaving(true);
     setError('');
-    setToast(null);
 
     try {
       await loginUser({ email, password });
-      setToast({ type: 'success', message: 'Signed in successfully.' });
       navigate('/dashboard', { replace: true });
     } catch (err) {
       const message = err.message || 'Unable to sign in. Please try again.';
       setError(message);
-      setToast({ type: 'error', message });
     } finally {
       setSaving(false);
     }
@@ -55,7 +47,6 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <AuthToast message={toast?.message} type={toast?.type} />
       <section className="auth-card">
         <h1>Welcome back</h1>
         <p className="muted">Sign in to your account to continue</p>
