@@ -25,7 +25,7 @@ const methods = [
     title: 'Voice Note',
     badge: 'Quick entry',
     icon: 'V',
-    description: 'Enter spoken-service text. Mock voice processing structures the draft.',
+    description: 'Record a voice note. Speech-to-text returns editable transcript text.',
     meta: 'Useful when you remember the service details.',
   },
   {

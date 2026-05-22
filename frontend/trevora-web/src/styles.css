@@ -2370,19 +2370,86 @@ p {
   padding: 1.25rem;
 }
 
+.voice-recorder-card {
+  align-items: center;
+  background: #f7faff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 74px minmax(0, 1fr);
+  padding: 1.15rem;
+}
+
+.voice-recorder-card.recording {
+  background: #fff8f6;
+  border-color: #ffb8a8;
+}
+
 .voice-pulse {
   align-items: center;
-  background: #ffeded;
-  border: 8px solid #ffd1d1;
+  background: #edf4ff;
+  border: 6px solid #dce9ff;
   border-radius: 999px;
-  color: #d92b2b;
-  display: inline-flex;
-  font-size: 1.4rem;
+  color: #2657e8;
+  display: flex;
+  font-size: 1rem;
   font-weight: 900;
-  height: 96px;
+  height: 64px;
   justify-content: center;
   justify-self: center;
-  width: 96px;
+  letter-spacing: 0;
+  width: 64px;
+}
+
+.voice-recorder-card.recording .voice-pulse {
+  animation: voicePulse 1.2s ease-in-out infinite;
+  background: #ffeded;
+  border-color: #ffd1d1;
+  color: #d92b2b;
+}
+
+.voice-recorder-copy {
+  min-width: 0;
+}
+
+.voice-recorder-copy strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.voice-recorder-copy p {
+  color: #536472;
+  margin: 0;
+}
+
+.voice-recorder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  grid-column: 1 / -1;
+}
+
+.voice-audio-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+@keyframes voicePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(217, 43, 43, 0.22);
+    transform: scale(1);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(217, 43, 43, 0);
+    transform: scale(1.03);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 43, 43, 0);
+    transform: scale(1);
+  }
 }
 
 .draft-vehicle-card {
