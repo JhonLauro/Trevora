@@ -7415,6 +7415,90 @@ p {
   font-weight: 600;
 }
 
+.receipt-camera-stage {
+  background: #071526;
+  border: 1px solid #203246;
+  border-radius: 8px;
+  min-height: 260px;
+  overflow: hidden;
+  position: relative;
+}
+
+.receipt-camera-preview {
+  background: #071526;
+  display: block;
+  height: min(52vh, 420px);
+  object-fit: cover;
+  width: 100%;
+}
+
+.receipt-camera-empty {
+  align-items: center;
+  color: #cfe2f5;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  min-height: 260px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.receipt-camera-empty strong {
+  color: #ffffff;
+}
+
+.receipt-camera-empty span,
+.receipt-camera-message,
+.receipt-camera-fallback p {
+  color: #536472;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.receipt-camera-message {
+  background: #f8fbff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+}
+
+.receipt-camera-actions {
+  align-items: stretch;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.receipt-camera-actions > .button-secondary {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.45rem;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.receipt-camera-action {
+  min-height: 108px;
+}
+
+.receipt-camera-fallback {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  display: flex;
+  gap: 0.8rem;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.receipt-camera-fallback button {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0.45rem;
+}
+
 .receipt-pages-empty {
   background: #f8fbff;
   border: 1px solid #dce4eb;
@@ -7504,6 +7588,24 @@ p {
 
 .receipt-page-actions button {
   min-height: 40px;
+}
+
+@media (min-width: 720px) {
+  .receipt-camera-actions {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .receipt-camera-fallback {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .receipt-page-section-heading {
+    align-items: stretch;
+    display: grid;
+  }
 }
 
 .danger-lite {
