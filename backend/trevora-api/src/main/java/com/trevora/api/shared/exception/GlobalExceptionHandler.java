@@ -1,5 +1,6 @@
 package com.trevora.api.shared.exception;
 
+import com.trevora.api.features.serviceinput.VoiceTranscriptionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -35,6 +36,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessRequestException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessRequest(AccessRequestException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @ExceptionHandler(VoiceTranscriptionException.class)
+    public ResponseEntity<ApiErrorResponse> handleVoiceTranscription(VoiceTranscriptionException exception) {
         return ResponseEntity.badRequest()
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
     }

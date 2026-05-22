@@ -25,6 +25,17 @@ export function createVoiceServiceDraft(draft) {
   });
 }
 
+export function transcribeVoiceAudio({ vehicleId, audioFile }) {
+  const formData = new FormData();
+  formData.append('vehicleId', vehicleId);
+  formData.append('audioFile', audioFile);
+
+  return apiRequest('/service-drafts/voice/transcribe', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
 export function getServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}`);
 }

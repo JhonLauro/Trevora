@@ -8,6 +8,8 @@ import com.trevora.api.features.serviceinput.ServiceDraftResponse;
 import com.trevora.api.features.validation.ServiceDraftReviewResponse;
 import com.trevora.api.features.servicerecord.ServiceRecordConfirmationResponse;
 import com.trevora.api.features.serviceinput.VoiceServiceDraftRequest;
+import com.trevora.api.features.serviceinput.VoiceTranscriptionResponse;
+import com.trevora.api.features.serviceinput.VoiceTranscriptionService;
 import com.trevora.api.features.validation.ServiceDraftCorrectionService;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.servicerecord.ServiceRecordService;
@@ -32,15 +34,18 @@ public class ServiceRecordController {
     private final ServiceInputService serviceInputService;
     private final ServiceDraftCorrectionService serviceDraftCorrectionService;
     private final ServiceRecordService serviceRecordService;
+    private final VoiceTranscriptionService voiceTranscriptionService;
 
     public ServiceRecordController(
             ServiceInputService serviceInputService,
             ServiceDraftCorrectionService serviceDraftCorrectionService,
-            ServiceRecordService serviceRecordService
+            ServiceRecordService serviceRecordService,
+            VoiceTranscriptionService voiceTranscriptionService
     ) {
         this.serviceInputService = serviceInputService;
         this.serviceDraftCorrectionService = serviceDraftCorrectionService;
         this.serviceRecordService = serviceRecordService;
+        this.voiceTranscriptionService = voiceTranscriptionService;
     }
 
     @PostMapping("/manual")
@@ -62,6 +67,14 @@ public class ServiceRecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public ServiceDraftResponse createVoiceDraft(@Valid @RequestBody VoiceServiceDraftRequest request) {
         return ServiceDraftResponse.from(serviceInputService.createVoiceDraft(request));
+    }
+
+    @PostMapping(value = "/voice/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public VoiceTranscriptionResponse transcribeVoiceDraft(
+            @RequestParam UUID vehicleId,
+            @RequestParam("audioFile") MultipartFile audioFile
+    ) {
+        return voiceTranscriptionService.transcribe(vehicleId, audioFile);
     }
 
     @GetMapping("/{draftId}")
