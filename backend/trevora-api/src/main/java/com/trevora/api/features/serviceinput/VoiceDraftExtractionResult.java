@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
-public record MockVoiceExtraction(
+public record VoiceDraftExtractionResult(
         LocalDate serviceDate,
         String serviceType,
         Integer odometer,

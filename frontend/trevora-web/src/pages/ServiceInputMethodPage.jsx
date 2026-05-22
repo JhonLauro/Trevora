@@ -25,7 +25,7 @@ const methods = [
     title: 'Voice Note',
     badge: 'Quick entry',
     icon: 'V',
-    description: 'Record a voice note. Speech-to-text returns editable transcript text.',
+    description: 'Record a voice note. Review the raw transcript first, then translate it when needed.',
     meta: 'Useful when you remember the service details.',
   },
   {

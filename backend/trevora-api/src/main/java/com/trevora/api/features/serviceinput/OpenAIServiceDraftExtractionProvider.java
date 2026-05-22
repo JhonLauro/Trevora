@@ -21,6 +21,7 @@ import org.springframework.web.client.RestClientResponseException;
 public class OpenAIServiceDraftExtractionProvider {
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
     private static final int MAX_OCR_CHARS = 12000;
+    private static final int MAX_VOICE_TRANSCRIPT_CHARS = 6000;
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -43,6 +44,29 @@ public class OpenAIServiceDraftExtractionProvider {
             throw new ReceiptProcessingException("OpenAI extraction is enabled but OPENAI_API_KEY is not configured.");
         }
 
+        return requestFields(
+                systemPrompt(),
+                "OCR text:\n" + truncate(rawOcrText, MAX_OCR_CHARS),
+                "OpenAI extraction"
+        );
+    }
+
+    public ReceiptDraftFields extractVoiceFields(String transcript) {
+        if (apiKey == null) {
+            throw new ReceiptProcessingException("OpenAI voice extraction is enabled but OPENAI_API_KEY is not configured.");
+        }
+        if (transcript == null || transcript.isBlank()) {
+            throw new ReceiptProcessingException("Voice transcript is required before structured extraction.");
+        }
+
+        return requestFields(
+                voiceSystemPrompt(),
+                "Voice transcript:\n" + truncate(transcript, MAX_VOICE_TRANSCRIPT_CHARS),
+                "OpenAI voice extraction"
+        );
+    }
+
+    private ReceiptDraftFields requestFields(String systemPrompt, String userContent, String failureLabel) {
         try {
             Map<String, Object> request = new LinkedHashMap<>();
             request.put("model", model);
@@ -51,11 +75,11 @@ public class OpenAIServiceDraftExtractionProvider {
             request.put("messages", List.of(
                     Map.of(
                             "role", "system",
-                            "content", systemPrompt()
+                            "content", systemPrompt
                     ),
                     Map.of(
                             "role", "user",
-                            "content", "OCR text:\n" + truncate(rawOcrText, MAX_OCR_CHARS)
+                            "content", userContent
                     )
             ));
 
@@ -70,9 +94,9 @@ public class OpenAIServiceDraftExtractionProvider {
 
             return parseOpenAIResponse(responseBody);
         } catch (RestClientResponseException exception) {
-            throw new ReceiptProcessingException("OpenAI extraction failed with HTTP status " + exception.getStatusCode().value() + ".", exception);
+            throw new ReceiptProcessingException(failureLabel + " failed with HTTP status " + exception.getStatusCode().value() + ".", exception);
         } catch (RestClientException exception) {
-            throw new ReceiptProcessingException("OpenAI extraction request failed.", exception);
+            throw new ReceiptProcessingException(failureLabel + " request failed.", exception);
         }
     }
 
@@ -122,6 +146,28 @@ public class OpenAIServiceDraftExtractionProvider {
                 partsReplaced, laborPerformed, remarks, confidenceNotes, fieldSources.
                 confidenceNotes must be an array of short strings about uncertain or missing fields.
                 fieldSources must be an object mapping extracted field names to page/source labels such as "PAGE 1 - UPLOAD - receipt.jpg".
+                """;
+    }
+
+    private String voiceSystemPrompt() {
+        return """
+                You are a vehicle service record extraction specialist.
+                Use only the voice transcript. Do not invent missing values.
+                Return strict JSON only. Do not include markdown or explanation.
+                Missing, unrelated, or uncertain fields must be null.
+                If the transcript is not about vehicle service, set all service fields to null and add a confidence note.
+                Dates should be ISO format yyyy-MM-dd when possible.
+                totalCost should be numeric when possible.
+                odometer should be numeric when possible.
+                serviceType should be a concise service label only when a service is explicitly described.
+                partsReplaced should include only explicit parts.
+                laborPerformed should include only explicit work performed.
+                remarks should include only explicit notes that do not fit another field.
+                Return exactly these keys:
+                serviceDate, serviceType, odometer, totalCost, shopName, location,
+                partsReplaced, laborPerformed, remarks, confidenceNotes, fieldSources.
+                confidenceNotes must be an array of short strings about uncertain, missing, or unrelated fields.
+                fieldSources must be an object mapping extracted field names to "voice transcript".
                 """;
     }
 

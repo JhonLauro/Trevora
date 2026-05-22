@@ -10,6 +10,7 @@ import com.trevora.api.features.servicerecord.ServiceRecordConfirmationResponse;
 import com.trevora.api.features.serviceinput.VoiceServiceDraftRequest;
 import com.trevora.api.features.serviceinput.VoiceTranscriptionResponse;
 import com.trevora.api.features.serviceinput.VoiceTranscriptionService;
+import com.trevora.api.features.serviceinput.VoiceTranslationRequest;
 import com.trevora.api.features.validation.ServiceDraftCorrectionService;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.servicerecord.ServiceRecordService;
@@ -94,6 +95,11 @@ public class ServiceRecordController {
             @RequestParam("audioFile") MultipartFile audioFile
     ) {
         return voiceTranscriptionService.transcribe(vehicleId, audioFile);
+    }
+
+    @PostMapping("/voice/translate")
+    public VoiceTranscriptionResponse translateVoiceDraft(@Valid @RequestBody VoiceTranslationRequest request) {
+        return voiceTranscriptionService.translateToEnglish(request.vehicleId(), request.transcript());
     }
 
     @GetMapping("/{draftId}")

@@ -24,6 +24,17 @@ function extractionStatus(draft) {
   return 'Receipt extraction';
 }
 
+function sourceDisplay(draft) {
+  const source = draft?.fieldMetadata?.source;
+  if (draft?.inputMethod === 'RECEIPT') return 'Receipt OCR + AI';
+  if (source === 'openai_voice_extraction') return 'Voice transcript + AI extraction';
+  if (source === 'voice_transcript_manual_review') return 'Voice transcript only';
+  if (source === 'legacy_voice_transcript_only') return 'Voice transcript only';
+  if (source === 'mock_voice_transcription') return 'Legacy mock voice draft';
+  if (source === 'owner_entered') return 'Owner entered';
+  return source || 'Not provided';
+}
+
 function displayMode(value) {
   if (value === 'SCAN') return 'Scan';
   if (value === 'UPLOAD') return 'Upload';
@@ -157,7 +168,7 @@ export default function StructuredServiceDraftPage() {
                 </div>
                 <div>
                   <dt>Source</dt>
-                  <dd>{draft.inputMethod === 'RECEIPT' ? 'Receipt OCR + AI' : draft.fieldMetadata?.source || 'Not provided'}</dd>
+                  <dd>{sourceDisplay(draft)}</dd>
                 </div>
                 {draft.inputMethod === 'RECEIPT' && (
                   <>

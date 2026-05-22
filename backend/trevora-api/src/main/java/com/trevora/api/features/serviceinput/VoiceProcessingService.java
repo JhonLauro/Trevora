@@ -1,70 +1,86 @@
 package com.trevora.api.features.serviceinput;
 
-import com.trevora.api.features.serviceinput.MockVoiceExtraction;
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class VoiceProcessingService {
-    public MockVoiceExtraction extractServiceFields(String transcript) {
+    private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
+    private final String aiProvider;
+
+    public VoiceProcessingService(
+            OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
+            @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
+    ) {
+        this.openAIExtractionProvider = openAIExtractionProvider;
+        this.aiProvider = normalizeProvider(aiProvider, "mock");
+    }
+
+    public VoiceDraftExtractionResult extractServiceFields(String transcript) {
         String cleanedTranscript = transcript.trim();
-        String lowerTranscript = cleanedTranscript.toLowerCase(Locale.ROOT);
 
-        String serviceType = inferServiceType(lowerTranscript);
+        if (!"openai".equals(aiProvider)) {
+            throw new VoiceTranscriptionException("Voice draft extraction is not configured. Set AI_EXTRACTION_PROVIDER=openai and OPENAI_API_KEY before creating voice drafts.");
+        }
 
-        return new MockVoiceExtraction(
-                LocalDate.now(),
-                serviceType,
-                null,
-                BigDecimal.valueOf(1200.00),
-                null,
-                null,
-                inferPartsReplaced(lowerTranscript),
-                cleanedTranscript,
-                "Mock voice extraction for MVP. Replace VoiceProcessingService with real speech-to-text and mapping later.",
-                Map.of(
-                        "inputMethod", "VOICE",
-                        "source", "mock_voice_transcription",
-                        "transcript", cleanedTranscript,
-                        "confidence", Map.of(
-                                "serviceDate", 0.82,
-                                "serviceType", 0.76,
-                                "totalCost", 0.64,
-                                "laborPerformed", 0.80
-                        )
+        try {
+            ReceiptDraftFields fields = openAIExtractionProvider.extractVoiceFields(cleanedTranscript);
+            return extractedVoiceDraft(fields, cleanedTranscript);
+        } catch (ReceiptProcessingException exception) {
+            throw new VoiceTranscriptionException("Voice draft extraction failed: " + exception.getMessage(), exception);
+        }
+    }
+
+    private VoiceDraftExtractionResult extractedVoiceDraft(ReceiptDraftFields fields, String transcript) {
+        return new VoiceDraftExtractionResult(
+                fields.serviceDate(),
+                fields.serviceType(),
+                fields.odometer(),
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.partsReplaced(),
+                fields.laborPerformed(),
+                fields.remarks(),
+                metadata(
+                        "openai_voice_extraction",
+                        transcript,
+                        false,
+                        fields.confidenceNotes(),
+                        fields.fieldSources()
                 )
         );
     }
 
-    private String inferServiceType(String transcript) {
-        if (transcript.contains("brake")) {
-            return "Brake service";
-        }
-        if (transcript.contains("oil")) {
-            return "Oil change";
-        }
-        if (transcript.contains("battery")) {
-            return "Battery service";
-        }
-        if (transcript.contains("tire") || transcript.contains("tyre")) {
-            return "Tire service";
-        }
-        return "Voice-described service";
+    private Map<String, Object> metadata(
+            String source,
+            String transcript,
+            boolean fallbackUsed,
+            List<String> confidenceNotes,
+            Map<String, String> fieldSources
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("inputMethod", "VOICE");
+        metadata.put("inputType", "voice");
+        metadata.put("source", source);
+        metadata.put("transcript", transcript);
+        metadata.put("aiProvider", aiProvider);
+        metadata.put("aiModel", openAIExtractionProvider.model());
+        metadata.put("fallbackUsed", fallbackUsed);
+        metadata.put("confidenceNotes", confidenceNotes == null ? List.of() : confidenceNotes);
+        metadata.put("fieldSources", fieldSources == null ? Map.of() : fieldSources);
+        metadata.put("warnings", List.of());
+        return metadata;
     }
 
-    private String inferPartsReplaced(String transcript) {
-        if (transcript.contains("filter")) {
-            return "Mock extracted filter replacement";
+    private String normalizeProvider(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
         }
-        if (transcript.contains("battery")) {
-            return "Mock extracted battery replacement";
-        }
-        if (transcript.contains("brake pad")) {
-            return "Mock extracted brake pad replacement";
-        }
-        return null;
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 }
