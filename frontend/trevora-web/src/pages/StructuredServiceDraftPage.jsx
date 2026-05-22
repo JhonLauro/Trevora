@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
@@ -18,10 +19,34 @@ const labels = [
 function extractionStatus(draft) {
   const metadata = draft?.fieldMetadata ?? {};
   if (draft?.inputMethod !== 'RECEIPT') return null;
-  if (metadata.source === 'mock_ocr') return 'Mock fallback used';
-  if (metadata.fallbackUsed) return 'OCR fallback used';
+  if (metadata.fallbackUsed) return 'Needs review';
   if (metadata.source === 'tesseract_openai') return 'Real OCR + AI used';
   return 'Receipt extraction';
+}
+
+function displayMode(value) {
+  if (value === 'SCAN') return 'Scan';
+  if (value === 'UPLOAD') return 'Upload';
+  return 'Not provided';
+}
+
+function reviewCount(metadata = {}) {
+  const notes = Array.isArray(metadata.confidenceNotes) ? metadata.confidenceNotes.length : 0;
+  const warnings = Array.isArray(metadata.warnings) ? metadata.warnings.length : 0;
+  const errors = Array.isArray(metadata.extractionErrors) ? metadata.extractionErrors.length : 0;
+  return notes + warnings + errors;
+}
+
+function friendlyNotes(metadata = {}) {
+  const notes = Array.isArray(metadata.confidenceNotes) ? metadata.confidenceNotes : [];
+  const warnings = Array.isArray(metadata.warnings) ? metadata.warnings : [];
+  const errors = Array.isArray(metadata.extractionErrors) ? metadata.extractionErrors : [];
+  const fallbackNote = metadata.fallbackUsed
+    ? ['Some details could not be extracted automatically. Please review and complete the draft.']
+    : [];
+  return [...fallbackNote, ...notes, ...warnings, ...errors]
+    .filter(Boolean)
+    .map((note) => String(note).replace(/mock/gi, 'fallback'));
 }
 
 export default function StructuredServiceDraftPage() {
@@ -61,6 +86,8 @@ export default function StructuredServiceDraftPage() {
 
   const confidence = draft?.fieldMetadata?.confidence ?? null;
   const rawOcrText = draft?.fieldMetadata?.rawOcrText;
+  const userNotes = friendlyNotes(draft?.fieldMetadata);
+  const fieldsNeedingReview = reviewCount(draft?.fieldMetadata);
   const receiptStatus = extractionStatus(draft);
 
   return (
@@ -80,6 +107,9 @@ export default function StructuredServiceDraftPage() {
             <div className="draft-toolbar">
               <span className="badge">{draft.inputMethod}</span>
               <span className="badge subtle">{draft.status}</span>
+            </div>
+            <div className="review-reminder">
+              Please review all extracted details before saving.
             </div>
 
             <div className="draft-vehicle-card">
@@ -116,6 +146,8 @@ export default function StructuredServiceDraftPage() {
           </div>
 
           <aside className="guidance-stack">
+            <StoredReceiptPreview source={draft} title="Saved receipt" />
+
             <section className="helper-card">
               <h2>Draft source</h2>
               <dl className="compact-facts">
@@ -125,8 +157,24 @@ export default function StructuredServiceDraftPage() {
                 </div>
                 <div>
                   <dt>Source</dt>
-                  <dd>{draft.fieldMetadata?.source || 'Not provided'}</dd>
+                  <dd>{draft.inputMethod === 'RECEIPT' ? 'Receipt OCR + AI' : draft.fieldMetadata?.source || 'Not provided'}</dd>
                 </div>
+                {draft.inputMethod === 'RECEIPT' && (
+                  <>
+                    <div>
+                      <dt>Input mode</dt>
+                      <dd>{displayMode(draft.fieldMetadata?.receiptInputMode)}</dd>
+                    </div>
+                    <div>
+                      <dt>Pages processed</dt>
+                      <dd>{draft.fieldMetadata?.pageCount ?? 1}</dd>
+                    </div>
+                    <div>
+                      <dt>Fields needing review</dt>
+                      <dd>{fieldsNeedingReview || 'None flagged'}</dd>
+                    </div>
+                  </>
+                )}
                 {receiptStatus && (
                   <div>
                     <dt>Extraction</dt>
@@ -150,14 +198,14 @@ export default function StructuredServiceDraftPage() {
                   <dd>{draft.status}</dd>
                 </div>
               </dl>
+              {userNotes.length > 0 && (
+                <ul className="metadata-note-list">
+                  {userNotes.slice(0, 4).map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              )}
             </section>
-
-            {typeof rawOcrText === 'string' && rawOcrText.trim() && (
-              <section className="metadata-box">
-                <h2>Raw OCR text</h2>
-                <pre>{rawOcrText}</pre>
-              </section>
-            )}
 
             {confidence && (
               <section className="helper-card">
@@ -174,10 +222,17 @@ export default function StructuredServiceDraftPage() {
             )}
 
             {draft.fieldMetadata && (
-              <section className="metadata-box">
+              <details className="metadata-box">
+                <summary>View extracted text/source details</summary>
+                {typeof rawOcrText === 'string' && rawOcrText.trim() && (
+                  <>
+                    <h2>Raw OCR text</h2>
+                    <pre>{rawOcrText}</pre>
+                  </>
+                )}
                 <h2>Source metadata</h2>
                 <pre>{JSON.stringify(draft.fieldMetadata, null, 2)}</pre>
-              </section>
+              </details>
             )}
           </aside>
         </section>

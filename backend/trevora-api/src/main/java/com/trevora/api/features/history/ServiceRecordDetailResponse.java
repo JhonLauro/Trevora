@@ -25,6 +25,10 @@ public record ServiceRecordDetailResponse(
         String laborPerformed,
         String remarks,
         Map<String, Object> fieldMetadata,
+        String receiptStorageBucket,
+        String receiptStoragePath,
+        String receiptOriginalFilename,
+        String receiptContentType,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -46,6 +50,10 @@ public record ServiceRecordDetailResponse(
                 record.getLaborPerformed(),
                 record.getRemarks(),
                 record.getFieldMetadata(),
+                record.getReceiptStorageBucket(),
+                record.getReceiptStoragePath(),
+                record.getReceiptOriginalFilename(),
+                record.getReceiptContentType(),
                 record.getCreatedAt(),
                 record.getUpdatedAt()
         );

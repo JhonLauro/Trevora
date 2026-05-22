@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getServiceDraftReview, validateServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
@@ -51,11 +52,8 @@ function displaySource(draft) {
 
 function receiptExtractionStatus(draft) {
   const metadata = draft?.fieldMetadata ?? {};
-  if (metadata.source === 'mock_ocr') {
-    return 'Fallback mock used';
-  }
   if (metadata.fallbackUsed) {
-    return 'OCR fallback used';
+    return 'Needs review';
   }
   if (metadata.source === 'tesseract_openai') {
     return 'Real OCR + AI used';
@@ -245,15 +243,16 @@ function ReceiptPreview({ draft }) {
         <strong>{hasRawOcrText ? 'Raw OCR text' : 'Receipt extraction source'}</strong>
         <span>{receiptProviderLabel(draft)}</span>
       </div>
+      <StoredReceiptPreview source={draft} title="Saved receipt" />
       <div className="ocr-source-panel">
         {hasRawOcrText ? (
           <pre>{rawOcrText}</pre>
         ) : (
           <div className="ocr-empty-state">
-            <strong>{metadata.source === 'mock_ocr' ? 'Mock fallback generated this draft.' : 'No raw OCR text was stored.'}</strong>
+            <strong>{metadata.fallbackUsed ? 'Some details need manual review.' : 'No raw OCR text was stored.'}</strong>
             <span>
-              {metadata.source === 'mock_ocr'
-                ? 'Tesseract was not used or could not extract text for this upload.'
+              {metadata.fallbackUsed
+                ? 'Some receipt details could not be extracted automatically. Review and complete the draft before saving.'
                 : 'The draft can still be reviewed and corrected before confirmation.'}
             </span>
           </div>

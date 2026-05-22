@@ -99,7 +99,8 @@ public class OpenAIServiceDraftExtractionProvider {
                     asText(fieldsNode.get("partsReplaced")),
                     asText(fieldsNode.get("laborPerformed")),
                     asText(fieldsNode.get("remarks")),
-                    asStringList(fieldsNode.get("confidenceNotes"))
+                    asStringList(fieldsNode.get("confidenceNotes")),
+                    asStringMap(fieldsNode.get("fieldSources"))
             );
         } catch (JsonProcessingException exception) {
             throw new ReceiptProcessingException("OpenAI extraction returned invalid JSON.", exception);
@@ -108,17 +109,19 @@ public class OpenAIServiceDraftExtractionProvider {
 
     private String systemPrompt() {
         return """
-                You extract vehicle service receipt data from OCR text.
-                Use only the OCR text. Do not invent missing values.
-                Return JSON only. Do not include markdown.
-                Missing fields must be null.
+                You are a vehicle service record extraction specialist.
+                Use only the OCR text and page/source metadata. Do not invent missing values.
+                Return strict JSON only. Do not include markdown or explanation.
+                Missing or uncertain fields must be null.
+                If pages conflict, choose the clearest supported value and add a confidence note.
                 Dates should be ISO format yyyy-MM-dd when possible.
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
                 Return exactly these keys:
                 serviceDate, serviceType, odometer, totalCost, shopName, location,
-                partsReplaced, laborPerformed, remarks, confidenceNotes.
+                partsReplaced, laborPerformed, remarks, confidenceNotes, fieldSources.
                 confidenceNotes must be an array of short strings about uncertain or missing fields.
+                fieldSources must be an object mapping extracted field names to page/source labels such as "PAGE 1 - UPLOAD - receipt.jpg".
                 """;
     }
 
@@ -202,6 +205,20 @@ public class OpenAIServiceDraftExtractionProvider {
         }
         String value = asText(node);
         return value == null ? List.of() : List.of(value);
+    }
+
+    private Map<String, String> asStringMap(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return Map.of();
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        node.fields().forEachRemaining(entry -> {
+            String value = asText(entry.getValue());
+            if (value != null) {
+                values.put(entry.getKey(), value);
+            }
+        });
+        return values;
     }
 
     private String stripMarkdownFence(String value) {

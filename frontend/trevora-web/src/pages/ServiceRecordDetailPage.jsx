@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
 import AIExplanationPanel from '../components/AIExplanationPanel';
@@ -149,6 +150,12 @@ export default function ServiceRecordDetailPage() {
 
             <aside className="record-detail-side">
               <AIExplanationPanel recordId={record.recordId} />
+
+              {record.receiptStoragePath && (
+                <section className="record-source-card">
+                  <StoredReceiptPreview source={record} title="Stored receipt" />
+                </section>
+              )}
 
               <section className="record-source-card">
                 <h2>Source Reference</h2>

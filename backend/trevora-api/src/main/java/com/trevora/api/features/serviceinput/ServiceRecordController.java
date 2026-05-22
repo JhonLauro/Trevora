@@ -14,6 +14,8 @@ import com.trevora.api.features.validation.ServiceDraftCorrectionService;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.servicerecord.ServiceRecordService;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -58,9 +60,26 @@ public class ServiceRecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public ServiceDraftResponse createReceiptDraft(
             @RequestParam UUID vehicleId,
-            @RequestParam("receiptImage") MultipartFile receiptImage
+            @RequestParam(required = false, name = "receiptImage") MultipartFile receiptImage,
+            @RequestParam(required = false, name = "receiptImages") List<MultipartFile> receiptImages,
+            @RequestParam(required = false, defaultValue = "UPLOAD") String receiptInputMode,
+            @RequestParam(required = false) String receiptStorageBucket,
+            @RequestParam(required = false) String receiptStoragePath,
+            @RequestParam(required = false) String receiptOriginalFilename,
+            @RequestParam(required = false) String receiptContentType,
+            @RequestParam(required = false) String receiptPagesJson
     ) {
-        return ServiceDraftResponse.from(serviceInputService.createReceiptDraft(vehicleId, receiptImage));
+        List<MultipartFile> files = normalizedReceiptFiles(receiptImage, receiptImages);
+        return ServiceDraftResponse.from(serviceInputService.createReceiptDraft(
+                vehicleId,
+                files,
+                receiptInputMode,
+                receiptStorageBucket,
+                receiptStoragePath,
+                receiptOriginalFilename,
+                receiptContentType,
+                receiptPagesJson
+        ));
     }
 
     @PostMapping("/voice")
@@ -93,5 +112,16 @@ public class ServiceRecordController {
     @PostMapping("/{draftId}/confirm")
     public ServiceRecordConfirmationResponse confirmDraft(@PathVariable UUID draftId) {
         return serviceRecordService.confirmDraft(draftId);
+    }
+
+    private List<MultipartFile> normalizedReceiptFiles(MultipartFile receiptImage, List<MultipartFile> receiptImages) {
+        List<MultipartFile> files = new ArrayList<>();
+        if (receiptImages != null) {
+            files.addAll(receiptImages.stream().filter(file -> file != null && !file.isEmpty()).toList());
+        }
+        if (files.isEmpty() && receiptImage != null && !receiptImage.isEmpty()) {
+            files.add(receiptImage);
+        }
+        return files;
     }
 }

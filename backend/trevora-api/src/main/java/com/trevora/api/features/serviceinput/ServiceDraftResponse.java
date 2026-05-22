@@ -25,6 +25,10 @@ public record ServiceDraftResponse(
         String remarks,
         DraftStatus status,
         Map<String, Object> fieldMetadata,
+        String receiptStorageBucket,
+        String receiptStoragePath,
+        String receiptOriginalFilename,
+        String receiptContentType,
         Instant createdAt
 ) {
     public static ServiceDraftResponse from(ServiceDraft draft) {
@@ -44,6 +48,10 @@ public record ServiceDraftResponse(
                 draft.getRemarks(),
                 draft.getStatus(),
                 draft.getFieldMetadata(),
+                draft.getReceiptStorageBucket(),
+                draft.getReceiptStoragePath(),
+                draft.getReceiptOriginalFilename(),
+                draft.getReceiptContentType(),
                 draft.getCreatedAt()
         );
     }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
@@ -164,6 +165,12 @@ export default function ServiceRecordConfirmationPage() {
               })}
             </dl>
           </section>
+
+          {draft.receiptStoragePath && (
+            <section className="confirmation-card">
+              <StoredReceiptPreview source={draft} title="Stored receipt" />
+            </section>
+          )}
 
           <label className="confirmation-check">
             <input checked={authorized} onChange={(event) => setAuthorized(event.target.checked)} type="checkbox" />

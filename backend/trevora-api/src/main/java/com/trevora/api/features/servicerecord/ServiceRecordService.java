@@ -83,5 +83,9 @@ public class ServiceRecordService {
         record.setLaborPerformed(draft.getLaborPerformed());
         record.setRemarks(draft.getRemarks());
         record.setFieldMetadata(draft.getFieldMetadata());
+        record.setReceiptStorageBucket(draft.getReceiptStorageBucket());
+        record.setReceiptStoragePath(draft.getReceiptStoragePath());
+        record.setReceiptOriginalFilename(draft.getReceiptOriginalFilename());
+        record.setReceiptContentType(draft.getReceiptContentType());
     }
 }

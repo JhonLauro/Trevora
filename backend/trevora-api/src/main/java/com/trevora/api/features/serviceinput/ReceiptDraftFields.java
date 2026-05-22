@@ -3,6 +3,7 @@ package com.trevora.api.features.serviceinput;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public record ReceiptDraftFields(
         LocalDate serviceDate,
@@ -14,6 +15,7 @@ public record ReceiptDraftFields(
         String partsReplaced,
         String laborPerformed,
         String remarks,
-        List<String> confidenceNotes
+        List<String> confidenceNotes,
+        Map<String, String> fieldSources
 ) {
 }

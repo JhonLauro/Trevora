@@ -72,6 +72,18 @@ public class ServiceDraft {
     @Column(name = "field_metadata", columnDefinition = "jsonb")
     private Map<String, Object> fieldMetadata;
 
+    @Column(name = "receipt_storage_bucket")
+    private String receiptStorageBucket;
+
+    @Column(name = "receipt_storage_path", columnDefinition = "text")
+    private String receiptStoragePath;
+
+    @Column(name = "receipt_original_filename")
+    private String receiptOriginalFilename;
+
+    @Column(name = "receipt_content_type")
+    private String receiptContentType;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -194,6 +206,38 @@ public class ServiceDraft {
 
     public void setFieldMetadata(Map<String, Object> fieldMetadata) {
         this.fieldMetadata = fieldMetadata;
+    }
+
+    public String getReceiptStorageBucket() {
+        return receiptStorageBucket;
+    }
+
+    public void setReceiptStorageBucket(String receiptStorageBucket) {
+        this.receiptStorageBucket = receiptStorageBucket;
+    }
+
+    public String getReceiptStoragePath() {
+        return receiptStoragePath;
+    }
+
+    public void setReceiptStoragePath(String receiptStoragePath) {
+        this.receiptStoragePath = receiptStoragePath;
+    }
+
+    public String getReceiptOriginalFilename() {
+        return receiptOriginalFilename;
+    }
+
+    public void setReceiptOriginalFilename(String receiptOriginalFilename) {
+        this.receiptOriginalFilename = receiptOriginalFilename;
+    }
+
+    public String getReceiptContentType() {
+        return receiptContentType;
+    }
+
+    public void setReceiptContentType(String receiptContentType) {
+        this.receiptContentType = receiptContentType;
     }
 
     public Instant getCreatedAt() {

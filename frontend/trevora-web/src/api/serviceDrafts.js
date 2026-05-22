@@ -1,4 +1,5 @@
 import { apiRequest } from './http';
+import { removeStoredReceipt, uploadReceiptPages } from './receiptStorage';
 
 export function createManualServiceDraft(draft) {
   return apiRequest('/service-drafts/manual', {
@@ -7,15 +8,40 @@ export function createManualServiceDraft(draft) {
   });
 }
 
-export function createReceiptServiceDraft({ vehicleId, receiptImage }) {
+export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
+  return createReceiptPagesServiceDraft({
+    vehicleId,
+    pages: [{ file: receiptImage, pageNumber: 1 }],
+    receiptInputMode: 'UPLOAD',
+  });
+}
+
+export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode }) {
+  const storedPages = await uploadReceiptPages({ vehicleId, pages });
+  const primaryPage = storedPages[0];
   const formData = new FormData();
   formData.append('vehicleId', vehicleId);
-  formData.append('receiptImage', receiptImage);
-
-  return apiRequest('/service-drafts/receipt', {
-    method: 'POST',
-    body: formData,
+  formData.append('receiptInputMode', receiptInputMode || 'UPLOAD');
+  pages.forEach((page) => {
+    formData.append('receiptImages', page.file ?? page);
   });
+  if (primaryPage) {
+    formData.append('receiptStorageBucket', primaryPage.bucket);
+    formData.append('receiptStoragePath', primaryPage.path);
+    formData.append('receiptOriginalFilename', primaryPage.originalFilename);
+    formData.append('receiptContentType', primaryPage.contentType);
+    formData.append('receiptPagesJson', JSON.stringify(storedPages));
+  }
+
+  try {
+    return await apiRequest('/service-drafts/receipt', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (error) {
+    await Promise.all(storedPages.map((page) => removeStoredReceipt(page)));
+    throw error;
+  }
 }
 
 export function createVoiceServiceDraft(draft) {

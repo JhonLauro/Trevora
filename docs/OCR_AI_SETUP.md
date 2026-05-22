@@ -1,14 +1,102 @@
 # OCR + AI Receipt Setup
 
-Trevora receipt upload now creates a `ServiceDraft` through an OCR + AI pipeline:
+Trevora receipt input creates a `ServiceDraft` through the OCR + AI pipeline. It never writes a final `ServiceRecord` directly; Module 2 review/correction still controls confirmation.
 
-1. The existing receipt upload endpoint receives the image.
-2. `TesseractOCRProvider` runs the local Tesseract executable and extracts raw text.
-3. `OpenAIServiceDraftExtractionProvider` sends only that raw OCR text to OpenAI and asks for strict JSON.
-4. `OCRProcessingService` maps the JSON into draft fields and stores metadata in `ServiceDraft.fieldMetadata`.
-5. Module 2 review/correction still validates the draft before a final `ServiceRecord` can be saved.
+## Upload vs Scan
 
-The AI/OCR pipeline never writes a final service record directly.
+Receipt input has two frontend modes:
+
+- Upload Receipt: the owner selects one or more existing receipt images from the device.
+- Scan Receipt: the owner captures one receipt page at a time with the device camera. The MVP uses browser file capture with `capture="environment"` for better device compatibility.
+
+Both modes submit one multipart request and create one `ServiceDraft`.
+
+## Multi-page Support
+
+One service transaction can include multiple pages, such as casa invoices, job orders, official receipts, and card slips.
+
+The backend accepts:
+
+- Legacy `receiptImage` for old single-image uploads.
+- New repeated `receiptImages` multipart files for multi-page upload or scan.
+- `receiptInputMode=UPLOAD` or `receiptInputMode=SCAN`.
+
+OCR runs separately per page. `ServiceDraft.fieldMetadata.pages` stores:
+
+- `pageNumber`
+- `originalFilename`
+- `inputMode`
+- `ocrProvider`
+- `rawText`
+- `textLength`
+- `ocrStatus`: `SUCCESS`, `EMPTY`, or `FAILED`
+- `errorMessage` when OCR fails or returns empty text
+
+If one page fails OCR, the backend continues with the remaining pages. Page order follows upload/capture order.
+
+## Page-aware AI Input
+
+Successful page OCR text is combined before AI extraction in this format:
+
+```text
+[PAGE 1 - UPLOAD - receipt-a.jpg]
+OCR text...
+
+[PAGE 2 - UPLOAD - receipt-b.jpg]
+OCR text...
+```
+
+Long combined OCR text is truncated before OpenAI extraction for token safety. Metadata includes a warning when truncation may have happened.
+
+## OpenAI Extraction Rules
+
+The OpenAI prompt acts as a vehicle service record extraction specialist:
+
+- Use only OCR text and page/source metadata.
+- Do not invent values.
+- Return strict JSON only.
+- Missing or uncertain fields must be `null`.
+- Dates should be `yyyy-MM-dd` when possible.
+- `totalCost` should be numeric when possible.
+- `odometer` should be numeric when possible.
+- If pages conflict, choose the clearest value and add a confidence note.
+- Include `confidenceNotes` and `fieldSources` when possible.
+
+Expected JSON keys:
+
+```text
+serviceDate
+serviceType
+odometer
+totalCost
+shopName
+location
+partsReplaced
+laborPerformed
+remarks
+confidenceNotes
+fieldSources
+```
+
+## Draft Metadata
+
+`ServiceDraft.fieldMetadata` includes:
+
+- `inputType: receipt`
+- `receiptInputMode`
+- `pageCount`
+- `ocrProvider`
+- `aiProvider`
+- `aiModel`
+- `fallbackUsed`
+- `pages`
+- `confidenceNotes`
+- `fieldSources`
+- `warnings`
+- `extractionErrors`
+- `rawOcrText` for successful OCR fallback/debug review
+
+Uploaded Supabase Storage references for all pages are stored in `storedReceiptPages`. The existing top-level receipt storage columns keep the first page as the primary display image.
 
 ## Environment Variables
 
@@ -55,39 +143,21 @@ Verify:
 tesseract --version
 ```
 
-## OpenAI Extraction
-
-Set:
-
-```properties
-AI_EXTRACTION_PROVIDER=openai
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-```
-
-The extraction prompt requires JSON only and tells the model:
-
-- Use only the OCR text.
-- Do not invent values.
-- Return missing fields as `null`.
-- Normalize dates to `yyyy-MM-dd` when possible.
-- Return numeric `totalCost` and `odometer` when possible.
-
-Expected JSON keys are `serviceDate`, `serviceType`, `odometer`, `totalCost`, `shopName`, `location`, `partsReplaced`, `laborPerformed`, `remarks`, and `confidenceNotes`.
-
 ## Fallback Behavior
 
 Fallback is intentionally kept for demo reliability:
 
-- If `OCR_PROVIDER` is not `tesseract`, the existing mock receipt extraction is used.
-- If Tesseract is unavailable, fails, or returns empty text, the existing mock receipt extraction is used.
-- If OpenAI is unavailable, not configured, or returns invalid JSON after successful OCR, a draft is still created with raw OCR text in `remarks`.
-- Extraction metadata includes `ocrProvider`, `aiProvider`, `aiModel`, `fallbackUsed`, `rawOcrText`, `confidenceNotes`, and `extractionErrors` when present.
+- If `OCR_PROVIDER` is not `tesseract`, mock receipt extraction is used.
+- If every page fails OCR or returns empty text, mock receipt extraction is used.
+- If some pages fail OCR, successful page text still proceeds to AI extraction.
+- If OpenAI is unavailable, not configured, or returns invalid JSON after successful OCR, a draft is still created with combined raw OCR text in `remarks`.
+- Metadata records page-level OCR failures and AI failures in `extractionErrors`.
 
 ## MVP Limitations
 
-- OCR quality depends heavily on image lighting, angle, focus, and receipt print quality.
+- OCR quality depends on image lighting, angle, focus, and receipt print quality.
+- Scan mode uses browser camera capture through file input; fully live camera scanning/cropping is not implemented yet.
+- Page reordering is not implemented in the MVP; page order follows selection/capture order.
 - The executable wrapper currently uses English OCR (`eng`).
-- AI extraction confidence is advisory and Module 2 review remains required.
-- PDF OCR depends on the local Tesseract installation and supporting system libraries.
+- AI confidence is advisory and Module 2 review remains required.
 - Raw OCR text is stored in draft metadata for review/debugging, so avoid uploading sensitive receipts outside trusted environments.
