@@ -37,6 +37,12 @@ function sourceLabel(record) {
   return `${source} source`;
 }
 
+function relatedComponents(record) {
+  if (Array.isArray(record?.relatedComponents)) return record.relatedComponents;
+  const components = record?.classification?.relatedComponents;
+  return Array.isArray(components) ? components : [];
+}
+
 const detailFields = [
   ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
   ['odometer', 'Odometer at Service', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
@@ -111,6 +117,10 @@ export default function ServiceRecordDetailPage() {
               </p>
               <div className="record-detail-badges">
                 <span className="badge">Validated</span>
+                <span className="badge subtle">{record.category || 'Other'}</span>
+                {relatedComponents(record).slice(0, 4).map((component) => (
+                  <span className="badge subtle" key={component}>{component}</span>
+                ))}
                 <span className="badge subtle">{sourceLabel(record)}</span>
                 <span className="badge subtle">AI explanation</span>
               </div>

@@ -43,7 +43,9 @@ function reviewCount(metadata = {}) {
   const notes = Array.isArray(metadata.confidenceNotes) ? metadata.confidenceNotes.length : 0;
   const warnings = Array.isArray(metadata.warnings) ? metadata.warnings.length : 0;
   const errors = Array.isArray(metadata.extractionErrors) ? metadata.extractionErrors.length : 0;
-  return notes + warnings + errors;
+  const fieldSources = metadata.fieldSources && typeof metadata.fieldSources === 'object' ? metadata.fieldSources : {};
+  const fieldReview = Object.values(fieldSources).filter((source) => source && typeof source === 'object' && source.needsReview).length;
+  return notes + warnings + errors + fieldReview;
 }
 
 function friendlyNotes(metadata = {}) {
@@ -56,6 +58,47 @@ function friendlyNotes(metadata = {}) {
   return [...fallbackNote, ...notes, ...warnings, ...errors]
     .filter(Boolean)
     .map((note) => String(note).replace(/mock/gi, 'fallback'));
+}
+
+function fieldEvidence(metadata = {}, fieldName) {
+  const source = metadata.fieldSources?.[fieldName];
+  const confidence = metadata.fieldConfidence?.[fieldName];
+  if (source && typeof source === 'object') {
+    return {
+      sourceType: source.sourceType,
+      confidence: source.confidence || confidence,
+      sourceText: source.sourceText,
+      pageNumber: source.pageNumber,
+      needsReview: Boolean(source.needsReview),
+    };
+  }
+  if (source || confidence) {
+    return { sourceType: source ? 'EXTRACTED_FROM_TEXT' : undefined, confidence, sourceText: source, needsReview: confidence === 'low' || confidence === 'not_found' };
+  }
+  return null;
+}
+
+function evidenceLabel(evidence, value) {
+  if (!value || value === 'Not provided') return 'Missing';
+  if (!evidence) return '';
+  if (evidence.sourceType === 'CONFLICTING') return 'Conflicting values found';
+  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Suggested by AI';
+  if (evidence.confidence === 'not_found') return 'Missing';
+  if (evidence.confidence === 'low' || evidence.needsReview) return 'Needs review';
+  if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') return 'Extracted from receipt';
+  return '';
+}
+
+function evidenceClass(label) {
+  if (label === 'Suggested by AI') return 'field-confidence-source';
+  if (label === 'Extracted from receipt') return 'field-confidence-high';
+  if (label === 'Missing' || label === 'Needs review' || label === 'Low confidence' || label === 'Conflicting values found') return 'field-confidence-low';
+  return '';
+}
+
+function classificationFromDraft(draft) {
+  const classification = draft?.fieldMetadata?.classification;
+  return classification && typeof classification === 'object' ? classification : null;
 }
 
 export default function StructuredServiceDraftPage() {
@@ -99,6 +142,8 @@ export default function StructuredServiceDraftPage() {
   const userNotes = friendlyNotes(draft?.fieldMetadata);
   const fieldsNeedingReview = reviewCount(draft?.fieldMetadata);
   const receiptStatus = extractionStatus(draft);
+  const classification = classificationFromDraft(draft);
+  const relatedComponents = Array.isArray(classification?.relatedComponents) ? classification.relatedComponents : [];
 
   return (
     <main className="page-shell">
@@ -120,7 +165,24 @@ export default function StructuredServiceDraftPage() {
             </div>
             <div className="review-reminder">
               Please review all extracted details before saving.
+              <span>AI suggestions are draft values. Please review before saving.</span>
             </div>
+
+            {classification && (
+              <div className="classification-badges-panel">
+                <div>
+                  <strong>Draft classification</strong>
+                  <span>Controlled category and component suggestions for service history.</span>
+                </div>
+                <div className="classification-badge-row">
+                  <span className="field-confidence-badge field-confidence-source">{classification.serviceCategory || 'Other'}</span>
+                  {relatedComponents.slice(0, 5).map((component) => (
+                    <span className="field-confidence-badge field-confidence-high" key={component}>{component}</span>
+                  ))}
+                  {classification.needsOwnerReview && <span className="field-confidence-badge field-confidence-low">Needs review</span>}
+                </div>
+              </div>
+            )}
 
             <div className="draft-vehicle-card">
               <span className="vehicle-icon">V</span>
@@ -137,12 +199,24 @@ export default function StructuredServiceDraftPage() {
             </div>
 
             <dl className="draft-list">
-              {labels.map(([key, label]) => (
-                <div key={key}>
-                  <dt>{label}</dt>
-                  <dd>{draft[key] || 'Not provided'}</dd>
-                </div>
-              ))}
+              {labels.map(([key, label]) => {
+                const value = draft[key] || 'Not provided';
+                const evidence = fieldEvidence(draft.fieldMetadata, key);
+                const labelText = evidenceLabel(evidence, value);
+                const lowConfidence = evidence?.confidence === 'low' && labelText !== 'Needs review' ? 'Low confidence' : '';
+                return (
+                  <div key={key}>
+                    <dt>{label}</dt>
+                    <dd>
+                      <span>{value}</span>
+                      <span className="field-badge-row">
+                        {labelText && <span className={`field-confidence-badge ${evidenceClass(labelText)}`}>{labelText}</span>}
+                        {lowConfidence && <span className="field-confidence-badge field-confidence-low">{lowConfidence}</span>}
+                      </span>
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
 
             <div className="actions">

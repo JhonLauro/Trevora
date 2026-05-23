@@ -1,6 +1,5 @@
 package com.trevora.api.features.serviceinput;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -11,14 +10,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class VoiceProcessingService {
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
+    private final ServiceClassificationService classificationService;
     private final String aiProvider;
 
     public VoiceProcessingService(
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
+            ServiceClassificationService classificationService,
             @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
     ) {
         this.openAIExtractionProvider = openAIExtractionProvider;
-        this.aiProvider = normalizeProvider(aiProvider);
+        this.classificationService = classificationService;
+        this.aiProvider = normalizeProvider(aiProvider, "mock");
     }
 
     public VoiceDraftExtractionResult extractServiceFields(String transcript) {
@@ -36,31 +38,48 @@ public class VoiceProcessingService {
 
         try {
             ReceiptDraftFields fields = openAIExtractionProvider.extractVoiceFields(cleanedTranscript);
-            return new VoiceDraftExtractionResult(
-                    fields.serviceDate(),
-                    fields.serviceType(),
-                    fields.odometer(),
-                    fields.totalCost(),
-                    fields.shopName(),
-                    fields.location(),
-                    fields.partsReplaced(),
-                    fields.laborPerformed(),
-                    fields.remarks(),
-                    metadata(
-                            "openai_voice_extraction",
-                            cleanedTranscript,
-                            false,
-                            fields.confidenceNotes(),
-                            fields.fieldSources(),
-                            List.of()
-                    )
-            );
+            return extractedVoiceDraft(fields, cleanedTranscript);
         } catch (ReceiptProcessingException exception) {
             return transcriptOnlyDraft(cleanedTranscript, List.of(exception.getMessage()));
         }
     }
 
+    private VoiceDraftExtractionResult extractedVoiceDraft(ReceiptDraftFields fields, String transcript) {
+        ServiceClassification classification = classificationService.classifyAiOrFallback(
+                fields.classification(),
+                transcript,
+                fields.serviceType(),
+                fields.partsReplaced(),
+                fields.laborPerformed(),
+                fields.remarks(),
+                1
+        );
+        return new VoiceDraftExtractionResult(
+                fields.serviceDate(),
+                fields.serviceType(),
+                fields.odometer(),
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.partsReplaced(),
+                fields.laborPerformed(),
+                fields.remarks(),
+                metadata(
+                        "openai_voice_extraction",
+                        transcript,
+                        false,
+                        fields.confidenceNotes(),
+                        fields.fieldSources(),
+                        fields.fieldConfidence(),
+                        fields.aiSuggestedFields(),
+                        classification,
+                        fields.warnings()
+                )
+        );
+    }
+
     private VoiceDraftExtractionResult transcriptOnlyDraft(String transcript, List<String> extractionErrors) {
+        List<String> warnings = List.of("Draft needs manual review because structured voice extraction was unavailable or incomplete.");
         return new VoiceDraftExtractionResult(
                 null,
                 null,
@@ -77,7 +96,10 @@ public class VoiceProcessingService {
                         true,
                         List.of("No structured service fields were extracted from the voice transcript."),
                         Map.of(),
-                        extractionErrors
+                        Map.of(),
+                        List.of(),
+                        null,
+                        extractionErrors == null || extractionErrors.isEmpty() ? warnings : mergeLists(warnings, extractionErrors)
                 )
         );
     }
@@ -87,8 +109,11 @@ public class VoiceProcessingService {
             String transcript,
             boolean fallbackUsed,
             List<String> confidenceNotes,
-            Map<String, String> fieldSources,
-            List<String> extractionErrors
+            Map<String, Object> fieldSources,
+            Map<String, String> fieldConfidence,
+            List<String> aiSuggestedFields,
+            ServiceClassification classification,
+            List<String> warnings
     ) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("inputMethod", "VOICE");
@@ -100,23 +125,23 @@ public class VoiceProcessingService {
         metadata.put("transcript", transcript);
         metadata.put("confidenceNotes", confidenceNotes == null ? List.of() : confidenceNotes);
         metadata.put("fieldSources", fieldSources == null ? Map.of() : fieldSources);
-
-        List<String> warnings = new ArrayList<>();
-        if (fallbackUsed) {
-            warnings.add("Draft needs manual review because structured voice extraction was unavailable or incomplete.");
-        }
-        metadata.put("warnings", warnings);
-
-        if (extractionErrors != null && !extractionErrors.isEmpty()) {
-            metadata.put("extractionErrors", extractionErrors);
-        }
-
+        metadata.put("fieldConfidence", fieldConfidence == null ? Map.of() : fieldConfidence);
+        metadata.put("aiSuggestedFields", aiSuggestedFields == null ? List.of() : aiSuggestedFields);
+        metadata.put("classification", classification == null ? Map.of() : classification.toMetadata());
+        metadata.put("warnings", warnings == null ? List.of() : warnings);
         return metadata;
     }
 
-    private String normalizeProvider(String value) {
+    private List<String> mergeLists(List<String> first, List<String> second) {
+        return java.util.stream.Stream.concat(
+                first == null ? java.util.stream.Stream.empty() : first.stream(),
+                second == null ? java.util.stream.Stream.empty() : second.stream()
+        ).toList();
+    }
+
+    private String normalizeProvider(String value, String fallback) {
         if (value == null || value.isBlank()) {
-            return "mock";
+            return fallback;
         }
         return value.trim().toLowerCase(Locale.ROOT);
     }

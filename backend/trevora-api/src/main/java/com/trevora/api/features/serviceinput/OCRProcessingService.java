@@ -17,17 +17,20 @@ public class OCRProcessingService {
 
     private final TesseractOCRProvider tesseractOCRProvider;
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
+    private final ServiceClassificationService classificationService;
     private final String ocrProvider;
     private final String aiProvider;
 
     public OCRProcessingService(
             TesseractOCRProvider tesseractOCRProvider,
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
+            ServiceClassificationService classificationService,
             @Value("${trevora.ocr.provider:mock}") String ocrProvider,
             @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
     ) {
         this.tesseractOCRProvider = tesseractOCRProvider;
         this.openAIExtractionProvider = openAIExtractionProvider;
+        this.classificationService = classificationService;
         this.ocrProvider = normalizeProvider(ocrProvider, "mock");
         this.aiProvider = normalizeProvider(aiProvider, "mock");
     }
@@ -111,6 +114,15 @@ public class OCRProcessingService {
             List<Map<String, Object>> pages,
             List<String> extractionErrors
     ) {
+        ServiceClassification classification = classificationService.classifyAiOrFallback(
+                fields.classification(),
+                rawOcrText,
+                fields.serviceType(),
+                fields.partsReplaced(),
+                fields.laborPerformed(),
+                fields.remarks(),
+                pages == null ? 0 : pages.size()
+        );
         return new ReceiptExtractionResult(
                 fields.serviceDate(),
                 fields.serviceType(),
@@ -121,7 +133,20 @@ public class OCRProcessingService {
                 fields.partsReplaced(),
                 fields.laborPerformed(),
                 fields.remarks(),
-                metadata("tesseract_openai", rawOcrText, receiptInputMode, pages, false, fields.confidenceNotes(), fields.fieldSources(), extractionErrors)
+                metadata(
+                        "tesseract_openai",
+                        rawOcrText,
+                        receiptInputMode,
+                        pages,
+                        false,
+                        fields.confidenceNotes(),
+                        fields.fieldSources(),
+                        fields.fieldConfidence(),
+                        fields.aiSuggestedFields(),
+                        classification,
+                        fields.warnings(),
+                        extractionErrors
+                )
         );
     }
 
@@ -131,6 +156,14 @@ public class OCRProcessingService {
             List<Map<String, Object>> pages,
             List<String> extractionErrors
     ) {
+        ServiceClassification classification = classificationService.keywordFallback(
+                rawOcrText,
+                null,
+                null,
+                null,
+                rawOcrText,
+                pages == null ? 0 : pages.size()
+        );
         return new ReceiptExtractionResult(
                 null,
                 null,
@@ -149,6 +182,10 @@ public class OCRProcessingService {
                         true,
                         List.of("OpenAI extraction was unavailable or invalid; review raw OCR text."),
                         Map.of(),
+                        Map.of(),
+                        List.of(),
+                        classification,
+                        List.of(),
                         extractionErrors
                 )
         );
@@ -203,7 +240,17 @@ public class OCRProcessingService {
         )));
         metadata.put("confidenceNotes", List.of("Mock receipt extraction was used for demo reliability."));
         metadata.put("fieldSources", Map.of());
+        metadata.put("fieldConfidence", Map.of());
+        metadata.put("aiSuggestedFields", List.of());
         metadata.put("warnings", List.of("Receipt OCR fell back to mock extraction."));
+        metadata.put("classification", classificationService.keywordFallback(
+                "",
+                "Receipt-based service",
+                "Mock extracted parts from " + fileName,
+                "Mock extracted labor from receipt image",
+                "",
+                Math.max(1, pageCount)
+        ).toMetadata());
         metadata.put("fileName", fileName);
         metadata.put("confidence", Map.of(
                 "serviceDate", 0.82,
@@ -224,7 +271,11 @@ public class OCRProcessingService {
             List<Map<String, Object>> pages,
             boolean fallbackUsed,
             List<String> confidenceNotes,
-            Map<String, String> fieldSources,
+            Map<String, Object> fieldSources,
+            Map<String, String> fieldConfidence,
+            List<String> aiSuggestedFields,
+            ServiceClassification classification,
+            List<String> aiWarnings,
             List<String> extractionErrors
     ) {
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -241,7 +292,13 @@ public class OCRProcessingService {
         metadata.put("pages", pages == null ? List.of() : pages);
         metadata.put("confidenceNotes", confidenceNotes == null ? List.of() : confidenceNotes);
         metadata.put("fieldSources", fieldSources == null ? Map.of() : fieldSources);
+        metadata.put("fieldConfidence", fieldConfidence == null ? Map.of() : fieldConfidence);
+        metadata.put("aiSuggestedFields", aiSuggestedFields == null ? List.of() : aiSuggestedFields);
+        metadata.put("classification", classification == null ? Map.of() : classification.toMetadata());
         List<String> warnings = new ArrayList<>();
+        if (aiWarnings != null) {
+            warnings.addAll(aiWarnings.stream().filter(warning -> warning != null && !warning.isBlank()).toList());
+        }
         if (rawOcrText != null && rawOcrText.length() > OPENAI_SAFE_OCR_CHARS) {
             warnings.add("Combined OCR text exceeded OpenAI safety length and was truncated for AI extraction.");
         }

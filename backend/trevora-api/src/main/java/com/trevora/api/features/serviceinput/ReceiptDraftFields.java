@@ -16,6 +16,10 @@ public record ReceiptDraftFields(
         String laborPerformed,
         String remarks,
         List<String> confidenceNotes,
-        Map<String, String> fieldSources
+        Map<String, Object> fieldSources,
+        Map<String, String> fieldConfidence,
+        List<String> aiSuggestedFields,
+        ServiceClassification classification,
+        List<String> warnings
 ) {
 }

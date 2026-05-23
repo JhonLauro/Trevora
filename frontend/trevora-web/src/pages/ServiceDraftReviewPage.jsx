@@ -83,7 +83,57 @@ function buildIssueMap(validation) {
   return issueMap;
 }
 
+function fieldEvidence(draft, fieldName) {
+  const metadata = draft?.fieldMetadata ?? {};
+  const source = metadata.fieldSources?.[fieldName];
+  const confidence = metadata.fieldConfidence?.[fieldName];
+  if (source && typeof source === 'object') {
+    return {
+      sourceType: source.sourceType,
+      confidence: source.confidence || confidence,
+      sourceText: source.sourceText,
+      pageNumber: source.pageNumber,
+      needsReview: Boolean(source.needsReview),
+    };
+  }
+  if (source || confidence) {
+    return {
+      sourceType: source ? 'EXTRACTED_FROM_TEXT' : undefined,
+      confidence,
+      sourceText: source,
+      needsReview: confidence === 'low' || confidence === 'not_found',
+    };
+  }
+  return null;
+}
+
+function evidenceStatus(evidence, value) {
+  if (!value && evidence?.confidence === 'not_found') return 'low';
+  if (!evidence) return null;
+  if (evidence.sourceType === 'CONFLICTING') return 'low';
+  if (evidence.needsReview || evidence.confidence === 'low' || evidence.confidence === 'not_found') return 'low';
+  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'source';
+  if (evidence.confidence === 'high') return 'high';
+  if (evidence.confidence === 'medium') return 'medium';
+  return null;
+}
+
+function evidenceBadgeText(evidence, value) {
+  if ((!value || value === '') && evidence?.confidence === 'not_found') return 'Missing';
+  if (!evidence) return '';
+  if (evidence.sourceType === 'CONFLICTING') return 'Conflicting values found';
+  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Suggested by AI';
+  if (evidence.confidence === 'not_found') return 'Missing';
+  if (evidence.confidence === 'low') return 'Low confidence';
+  if (evidence.needsReview) return 'Needs review';
+  if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') return 'Extracted from receipt';
+  return '';
+}
+
 function fieldStatus(issue, draft, value) {
+  const evidence = fieldEvidence(draft, issue?.fieldName);
+  const evidenceState = evidenceStatus(evidence, value);
+  if (evidenceState) return evidenceState;
   if (!issue && draft?.inputMethod === 'MANUAL' && value !== null && value !== undefined && value !== '') {
     return 'owner';
   }
@@ -101,6 +151,9 @@ function fieldStatus(issue, draft, value) {
 }
 
 function fieldBadgeText(issue, draft, value) {
+  const evidence = fieldEvidence(draft, issue?.fieldName);
+  const evidenceText = evidenceBadgeText(evidence, value);
+  if (evidenceText) return evidenceText;
   if (!issue && draft?.inputMethod === 'MANUAL' && value !== null && value !== undefined && value !== '') {
     return 'Owner-entered';
   }
@@ -163,6 +216,11 @@ function confidenceStats(validation) {
 }
 
 function sourceHint(fieldName, draft) {
+  const evidence = fieldEvidence(draft, fieldName);
+  if (evidence?.sourceText) {
+    const page = evidence.pageNumber ? `Page ${evidence.pageNumber}: ` : '';
+    return `${page}${String(evidence.sourceText)}`;
+  }
   if (draft?.inputMethod === 'RECEIPT') {
     return {
       vehicleId: 'Pre-selected vehicle',
@@ -191,8 +249,9 @@ function ReviewInputField({ field, form, draft, vehicle, fieldIssueMap, missingF
   const [key, label, type] = field;
   const issue = fieldIssueMap.get(key);
   const value = valueForField(key, form, draft, vehicle);
-  const status = fieldStatus(issue, draft, value);
-  const badgeText = fieldBadgeText(issue, draft, value);
+  const evidence = fieldEvidence(draft, key);
+  const status = evidenceStatus(evidence, value) || fieldStatus(issue, draft, value);
+  const badgeText = evidenceBadgeText(evidence, value) || fieldBadgeText(issue, draft, value);
   const flagged = missingFieldNames.has(key);
   const required = requiredFieldNames.has(key);
   const hint = sourceHint(key, draft);
@@ -233,6 +292,33 @@ function ReviewInputField({ field, form, draft, vehicle, fieldIssueMap, missingF
   );
 }
 
+function classificationFromDraft(draft) {
+  const classification = draft?.fieldMetadata?.classification;
+  return classification && typeof classification === 'object' ? classification : null;
+}
+
+function ClassificationBadges({ draft }) {
+  const classification = classificationFromDraft(draft);
+  if (!classification) return null;
+  const components = Array.isArray(classification.relatedComponents) ? classification.relatedComponents : [];
+  return (
+    <section className="classification-badges-panel">
+      <div>
+        <strong>Draft classification</strong>
+        <span>AI-assisted suggestions. Review before saving.</span>
+      </div>
+      <div className="classification-badge-row">
+        <span className="field-confidence-badge field-confidence-source">{classification.serviceCategory || 'Other'}</span>
+        {components.slice(0, 5).map((component) => (
+          <span className="field-confidence-badge field-confidence-high" key={component}>{component}</span>
+        ))}
+        {classification.source && <span className="field-confidence-badge field-confidence-source">Suggested by {classification.source}</span>}
+        {classification.needsOwnerReview && <span className="field-confidence-badge field-confidence-low">Needs review</span>}
+      </div>
+    </section>
+  );
+}
+
 function ReceiptPreview({ draft }) {
   const metadata = draft?.fieldMetadata ?? {};
   const rawOcrText = metadata.rawOcrText;
@@ -247,33 +333,37 @@ function ReceiptPreview({ draft }) {
         <span>{receiptProviderLabel(draft)}</span>
       </div>
       <StoredReceiptPreview source={draft} title="Saved receipt" />
-      <div className="ocr-source-panel">
-        {hasRawOcrText ? (
-          <pre>{rawOcrText}</pre>
-        ) : (
-          <div className="ocr-empty-state">
-            <strong>{metadata.fallbackUsed ? 'Some details need manual review.' : 'No raw OCR text was stored.'}</strong>
-            <span>
-              {metadata.fallbackUsed
-                ? 'Some receipt details could not be extracted automatically. Review and complete the draft before saving.'
-                : 'The draft can still be reviewed and corrected before confirmation.'}
-            </span>
-          </div>
-        )}
-
-        {(confidenceNotes.length > 0 || extractionErrors.length > 0) && (
-          <div className="ocr-note-list">
-            {confidenceNotes.map((note) => (
-              <span key={`note-${note}`}>{note}</span>
-            ))}
-            {extractionErrors.map((error) => (
-              <span key={`error-${error}`} className="ocr-error-note">
-                {error}
+      <p className="receipt-ai-reminder">AI suggestions are draft values. Please review before saving.</p>
+      <details className="ocr-source-panel">
+        <summary>View extracted text/source details</summary>
+        <div>
+          {hasRawOcrText ? (
+            <pre>{rawOcrText}</pre>
+          ) : (
+            <div className="ocr-empty-state">
+              <strong>{metadata.fallbackUsed ? 'Some details need manual review.' : 'No raw OCR text was stored.'}</strong>
+              <span>
+                {metadata.fallbackUsed
+                  ? 'Some receipt details could not be extracted automatically. Review and complete the draft before saving.'
+                  : 'The draft can still be reviewed and corrected before confirmation.'}
               </span>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+
+          {(confidenceNotes.length > 0 || extractionErrors.length > 0) && (
+            <div className="ocr-note-list">
+              {confidenceNotes.map((note) => (
+                <span key={`note-${note}`}>{note}</span>
+              ))}
+              {extractionErrors.map((error) => (
+                <span key={`error-${error}`} className="ocr-error-note">
+                  {error}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
 
       <div className="receipt-source-facts">
         <div>
@@ -451,6 +541,7 @@ function ReceiptReviewLayout({
               />
             ))}
           </div>
+          <ClassificationBadges draft={draft} />
           <ReviewFooter
             canContinueToConfirmation={canContinueToConfirmation}
             validating={validating}
@@ -520,6 +611,8 @@ function SourceReviewLayout(props) {
             />
           ))}
         </div>
+
+        <ClassificationBadges draft={draft} />
 
         <div className="review-note">
           This review form is editable for inspection only. Use correction to save draft updates before confirmation.

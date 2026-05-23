@@ -1,6 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  CalendarDays,
+  CarFront,
+  ClipboardPenLine,
+  History,
+  Mic,
+  PhilippinePeso,
+  PlusCircle,
+  ReceiptText,
+  Share2,
+} from 'lucide-react';
+import {
   ACTIVE_VEHICLE_CHANGED_EVENT,
   clearActiveVehicleSelection,
   displayVehicleName,
@@ -137,10 +148,10 @@ export default function DashboardPage() {
   const firstName = getUserDisplayName(currentUser).split(' ')[0] || 'there';
 
   const summaryCards = [
-    { icon: 'V', value: vehicles.length, label: 'Registered Vehicles', tone: 'blue' },
-    { icon: 'R', value: records.length, label: 'Active Vehicle Records', tone: 'green' },
-    { icon: 'D', value: records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'No records yet', label: 'Last Service', tone: 'amber' },
-    { icon: '$', value: formatMoney(totalCost), label: 'Total Cost Recorded', tone: 'red' },
+    { icon: CarFront, value: vehicles.length, label: 'Registered Vehicles', tone: 'blue' },
+    { icon: History, value: records.length, label: 'Active Vehicle Records', tone: 'green' },
+    { icon: CalendarDays, value: records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'No records yet', label: 'Last Service', tone: 'amber' },
+    { icon: PhilippinePeso, value: formatMoney(totalCost), label: 'Total Cost Recorded', tone: 'red' },
   ];
 
   return (
@@ -162,13 +173,16 @@ export default function DashboardPage() {
       {error && <div className="alert">{error}</div>}
 
       <section className="dashboard-summary-grid">
-        {summaryCards.map((card) => (
-          <article className="dashboard-summary-card" key={card.label}>
-            <span className={`dashboard-summary-icon ${card.tone}`}>{card.icon}</span>
-            <strong>{loadingVehicles ? 'Loading...' : card.value}</strong>
-            <small>{card.label}</small>
-          </article>
-        ))}
+        {summaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <article className="dashboard-summary-card" key={card.label}>
+              <span className={`dashboard-summary-icon ${card.tone}`}><Icon size={19} /></span>
+              <strong>{loadingVehicles ? 'Loading...' : card.value}</strong>
+              <small>{card.label}</small>
+            </article>
+          );
+        })}
       </section>
 
       <section className="dashboard-mid-grid">
@@ -176,23 +190,23 @@ export default function DashboardPage() {
           <h2>Quick Actions</h2>
           <div className="dashboard-action-list">
             <Link className="dashboard-action primary" to={serviceInputPath}>
-              <span>+</span>
+              <span><PlusCircle size={18} /></span>
               {hasActiveVehicleTarget ? 'Add Service Record' : 'Add Vehicle'}
             </Link>
             <Link className="dashboard-action" to={receiptInputPath}>
-              <span>R</span>
+              <span><ReceiptText size={18} /></span>
               Upload Receipt
             </Link>
             <Link className="dashboard-action" to={voiceInputPath}>
-              <span>V</span>
+              <span><Mic size={18} /></span>
               Record Voice Note
             </Link>
             <Link className="dashboard-action" to={manualInputPath}>
-              <span>M</span>
+              <span><ClipboardPenLine size={18} /></span>
               Enter Manually
             </Link>
             <Link className="dashboard-action" to={sharePath}>
-              <span>S</span>
+              <span><Share2 size={18} /></span>
               Share with Mechanic
             </Link>
           </div>
@@ -218,7 +232,7 @@ export default function DashboardPage() {
             <>
               <div className="dashboard-vehicle-card">
                 <div className="dashboard-vehicle-heading">
-                  <span className="nav-icon">V</span>
+                  <span className="nav-icon"><CarFront size={20} /></span>
                   <div>
                     <strong>{displayVehicleName(activeVehicle)}</strong>
                     <small>{displayVehicleSubtitle(activeVehicle)}</small>

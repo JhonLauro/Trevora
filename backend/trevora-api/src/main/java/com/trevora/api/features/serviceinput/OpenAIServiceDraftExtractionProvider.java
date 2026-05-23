@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,18 +114,51 @@ public class OpenAIServiceDraftExtractionProvider {
             }
 
             JsonNode fieldsNode = objectMapper.readTree(stripMarkdownFence(contentNode.asText()));
+            Map<String, Object> fieldSources = asObjectMap(fieldsNode.get("fieldSources"));
+            Map<String, String> fieldConfidence = fieldConfidence(fieldsNode.get("fieldConfidence"), fieldSources);
+            List<String> aiSuggestedFields = aiSuggestedFields(fieldsNode.get("aiSuggestedFields"), fieldSources);
+            List<String> warnings = new ArrayList<>(asStringList(fieldsNode.get("warnings")));
+            LocalDate serviceDate = asDate(fieldsNode.get("serviceDate"));
+            Integer odometer = asInteger(fieldsNode.get("odometer"));
+            BigDecimal totalCost = asBigDecimal(fieldsNode.get("totalCost"));
+            String shopName = asText(fieldsNode.get("shopName"));
+            String location = asText(fieldsNode.get("location"));
+            if (isInferredFactualValue(fieldSources, "serviceDate")) {
+                serviceDate = null;
+                warnings.add("Service date was not directly supported by receipt text and was left blank.");
+            }
+            if (isInferredFactualValue(fieldSources, "odometer")) {
+                odometer = null;
+                warnings.add("Odometer was not directly supported by receipt text and was left blank.");
+            }
+            if (isInferredFactualValue(fieldSources, "totalCost")) {
+                totalCost = null;
+                warnings.add("Total cost was not directly supported by receipt text and was left blank.");
+            }
+            if (isInferredFactualValue(fieldSources, "shopName")) {
+                shopName = null;
+                warnings.add("Shop name was not directly supported by receipt text and was left blank.");
+            }
+            if (isInferredFactualValue(fieldSources, "location")) {
+                location = null;
+                warnings.add("Location was not directly supported by receipt text and was left blank.");
+            }
             return new ReceiptDraftFields(
-                    asDate(fieldsNode.get("serviceDate")),
+                    serviceDate,
                     asText(fieldsNode.get("serviceType")),
-                    asInteger(fieldsNode.get("odometer")),
-                    asBigDecimal(fieldsNode.get("totalCost")),
-                    asText(fieldsNode.get("shopName")),
-                    asText(fieldsNode.get("location")),
+                    odometer,
+                    totalCost,
+                    shopName,
+                    location,
                     asText(fieldsNode.get("partsReplaced")),
                     asText(fieldsNode.get("laborPerformed")),
                     asText(fieldsNode.get("remarks")),
                     asStringList(fieldsNode.get("confidenceNotes")),
-                    asStringMap(fieldsNode.get("fieldSources"))
+                    fieldSources,
+                    fieldConfidence,
+                    aiSuggestedFields,
+                    classification(fieldsNode.get("classification")),
+                    warnings
             );
         } catch (JsonProcessingException exception) {
             throw new ReceiptProcessingException("OpenAI extraction returned invalid JSON.", exception);
@@ -133,19 +167,57 @@ public class OpenAIServiceDraftExtractionProvider {
 
     private String systemPrompt() {
         return """
-                You are a vehicle service record extraction specialist.
-                Use only the OCR text and page/source metadata. Do not invent missing values.
+                You are a vehicle service record extraction specialist for service center receipts, invoices, job orders, and official receipts.
+                Use only the OCR text and page/source metadata. Do not use outside knowledge.
                 Return strict JSON only. Do not include markdown or explanation.
-                Missing or uncertain fields must be null.
-                If pages conflict, choose the clearest supported value and add a confidence note.
+
+                Factual values must be directly supported by visible OCR text. Do not invent or infer factual values.
+                Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, and chassis number.
+                If a factual value is missing or uncertain, return null for that field.
+                If multiple possible factual values exist, choose the clearest source-supported value only and add a warning.
+
+                You may classify or infer only these draft fields from OCR text:
+                serviceType, laborPerformed, partsReplaced, remarks.
+                These inferred or summarized values must be labeled as AI-suggested with sourceType INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED, confidence medium or low unless the source text is explicit, and needsReview true.
+
+                Field-level evidence is required for every returned field, including missing fields.
+                Each fieldSources entry must be an object with:
+                value, confidence, sourceType, sourceText, pageNumber, needsReview.
+                confidence must be one of high, medium, low, not_found.
+                sourceType must be one of EXTRACTED_FROM_TEXT, INFERRED_FROM_TEXT, EXTRACTED_AND_SUMMARIZED, NOT_FOUND, CONFLICTING.
+                sourceText must be the shortest useful OCR snippet supporting the value, or null when not found.
+                pageNumber must be a number when identifiable, otherwise null.
+                needsReview must be true for inferred, summarized, low-confidence, not_found, or conflicting fields.
+
                 Dates should be ISO format yyyy-MM-dd when possible.
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
+                Classification must use only these serviceCategory values:
+                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                Classification relatedComponents must use only these values:
+                Engine, Engine Oil, Oil Filter, Brakes, Tires, Battery, Air Filter,
+                Transmission, Cooling System, Suspension, Lights, AC System,
+                Electrical, Body, Fluids, Other.
+                You may infer classification labels from serviceType, partsReplaced,
+                laborPerformed, remarks, and OCR text. Do not invent factual values.
+                Mark inferred classification as AI-suggested and set needsOwnerReview true.
+                Add classification notes when serviceType is inferred from labor/parts,
+                multiple components are detected, confidence is medium or low,
+                source documents are multi-page, or classification is uncertain.
+
                 Return exactly these keys:
                 serviceDate, serviceType, odometer, totalCost, shopName, location,
-                partsReplaced, laborPerformed, remarks, confidenceNotes, fieldSources.
-                confidenceNotes must be an array of short strings about uncertain or missing fields.
-                fieldSources must be an object mapping extracted field names to page/source labels such as "PAGE 1 - UPLOAD - receipt.jpg".
+                partsReplaced, laborPerformed, remarks, classification, confidenceNotes, fieldSources,
+                fieldConfidence, aiSuggestedFields, warnings.
+                classification must be an object with exactly these keys:
+                normalizedServiceType, serviceCategory, relatedComponents, recordTags,
+                confidence, source, needsOwnerReview, notes.
+                classification.confidence must be high, medium, or low.
+                classification.source must be AI.
+                confidenceNotes must be an array of short user-safe notes about uncertain, inferred, conflicting, or missing fields.
+                fieldConfidence must map every field name to high, medium, low, or not_found.
+                aiSuggestedFields must list field names whose sourceType is INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED.
+                warnings must be an array of short user-safe notes about conflicts or limitations.
                 """;
     }
 
@@ -160,11 +232,33 @@ public class OpenAIServiceDraftExtractionProvider {
                 Dates should be ISO format yyyy-MM-dd when possible.
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
+                serviceType should be a concise service label only when a service is explicitly described.
+                partsReplaced should include only explicit parts.
+                laborPerformed should include only explicit work performed.
+                remarks should include only explicit notes that do not fit another field.
+                Classification must use only these serviceCategory values:
+                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                Classification relatedComponents must use only these values:
+                Engine, Engine Oil, Oil Filter, Brakes, Tires, Battery, Air Filter,
+                Transmission, Cooling System, Suspension, Lights, AC System,
+                Electrical, Body, Fluids, Other.
+                You may infer classification labels from the transcript, serviceType,
+                partsReplaced, laborPerformed, and remarks. Do not invent factual values.
+                Mark inferred classification as AI-suggested and set needsOwnerReview true.
+
                 Return exactly these keys:
                 serviceDate, serviceType, odometer, totalCost, shopName, location,
-                partsReplaced, laborPerformed, remarks, confidenceNotes, fieldSources.
-                confidenceNotes must be an array of short strings about uncertain or missing fields.
+                partsReplaced, laborPerformed, remarks, classification, confidenceNotes, fieldSources,
+                fieldConfidence, aiSuggestedFields, warnings.
+                classification must be an object with exactly these keys:
+                normalizedServiceType, serviceCategory, relatedComponents, recordTags,
+                confidence, source, needsOwnerReview, notes.
+                classification.confidence must be high, medium, or low.
+                classification.source must be AI.
+                confidenceNotes must be an array of short strings about uncertain, missing, or unrelated fields.
                 fieldSources must be an object mapping extracted field names to "voice transcript".
+                fieldConfidence must map field names to high, medium, low, or not_found.
+                aiSuggestedFields and warnings must be arrays.
                 """;
     }
 
@@ -248,6 +342,94 @@ public class OpenAIServiceDraftExtractionProvider {
         }
         String value = asText(node);
         return value == null ? List.of() : List.of(value);
+    }
+
+    private Map<String, Object> asObjectMap(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return Map.of();
+        }
+        Map<String, Object> values = objectMapper.convertValue(
+                node,
+                objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class)
+        );
+        return values == null ? Map.of() : values;
+    }
+
+    private Map<String, String> fieldConfidence(JsonNode node, Map<String, Object> fieldSources) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (node != null && node.isObject()) {
+            node.fields().forEachRemaining(entry -> {
+                String confidence = normalizeConfidence(asText(entry.getValue()));
+                if (confidence != null) {
+                    values.put(entry.getKey(), confidence);
+                }
+            });
+        }
+        fieldSources.forEach((fieldName, evidence) -> {
+            if (values.containsKey(fieldName) || !(evidence instanceof Map<?, ?> evidenceMap)) {
+                return;
+            }
+            String confidence = normalizeConfidence(evidenceMap.get("confidence") == null ? null : String.valueOf(evidenceMap.get("confidence")));
+            if (confidence != null) {
+                values.put(fieldName, confidence);
+            }
+        });
+        return values;
+    }
+
+    private List<String> aiSuggestedFields(JsonNode node, Map<String, Object> fieldSources) {
+        List<String> values = new ArrayList<>(asStringList(node));
+        fieldSources.forEach((fieldName, evidence) -> {
+            if (!(evidence instanceof Map<?, ?> evidenceMap) || values.contains(fieldName)) {
+                return;
+            }
+            String sourceType = evidenceMap.get("sourceType") == null ? "" : String.valueOf(evidenceMap.get("sourceType"));
+            if ("INFERRED_FROM_TEXT".equalsIgnoreCase(sourceType) || "EXTRACTED_AND_SUMMARIZED".equalsIgnoreCase(sourceType)) {
+                values.add(fieldName);
+            }
+        });
+        return values;
+    }
+
+    private ServiceClassification classification(JsonNode node) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return null;
+        }
+        return new ServiceClassification(
+                asText(node.get("normalizedServiceType")),
+                asText(node.get("serviceCategory")),
+                asStringList(node.get("relatedComponents")),
+                asStringList(node.get("recordTags")),
+                asText(node.get("confidence")),
+                asText(node.get("source")),
+                asStringList(node.get("notes")),
+                node.has("needsOwnerReview") && node.get("needsOwnerReview").asBoolean(true)
+        );
+    }
+
+    private String normalizeConfidence(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase();
+        return switch (normalized) {
+            case "high", "medium", "low", "not_found" -> normalized;
+            default -> null;
+        };
+    }
+
+    private boolean isInferredFactualValue(Map<String, Object> fieldSources, String fieldName) {
+        Object evidence = fieldSources.get(fieldName);
+        if (!(evidence instanceof Map<?, ?> evidenceMap)) {
+            return false;
+        }
+        Object sourceTypeNode = evidenceMap.get("sourceType");
+        if (sourceTypeNode == null) {
+            return false;
+        }
+        String sourceType = String.valueOf(sourceTypeNode);
+        return "INFERRED_FROM_TEXT".equalsIgnoreCase(sourceType)
+                || "EXTRACTED_AND_SUMMARIZED".equalsIgnoreCase(sourceType);
     }
 
     private Map<String, String> asStringMap(JsonNode node) {
