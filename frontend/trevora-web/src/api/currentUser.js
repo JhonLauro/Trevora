@@ -2,10 +2,54 @@ import { clearActiveVehicleSelection } from './activeVehicle.js';
 
 const AUTH_STORAGE_KEY = 'trevora.authUser';
 const REMOVED_MOCK_OWNER_ID = '00000000-0000-0000-0000-000000000001';
+const REMEMBERED_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 export const AUTH_USER_CHANGED_EVENT = 'trevora:auth-user-changed';
 
 export function getLoggedInUser() {
-  const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  return getStoredAuthEntry()?.user ?? null;
+}
+
+export function setLoggedInUser(user, session = null, options = {}) {
+  const previousEntry = getStoredAuthEntry();
+  const previousUser = previousEntry?.user ?? null;
+  const remember = options.remember ?? previousEntry?.remember ?? true;
+  const rememberedUntil = remember
+    ? options.rememberedUntil ?? previousUser?.rememberedUntil ?? Date.now() + REMEMBERED_SESSION_DURATION_MS
+    : undefined;
+  const normalizedUser = {
+    ...user,
+    accessToken: session?.access_token ?? user.accessToken,
+    fullName: getUserDisplayName(user),
+    ...(rememberedUntil ? { rememberedUntil } : {}),
+  };
+
+  if (!previousUser || previousUser.userId !== normalizedUser.userId) {
+    clearActiveVehicleSelection();
+  }
+
+  removeStoredAuthUser();
+  getAuthStorage(remember).setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
+  notifyAuthUserChanged();
+  return normalizedUser;
+}
+
+export function clearLoggedInUser() {
+  removeStoredAuthUser();
+  clearActiveVehicleSelection();
+  notifyAuthUserChanged();
+}
+
+function getStoredAuthEntry() {
+  const sessionEntry = readStoredAuthUser(window.sessionStorage, false);
+  if (sessionEntry) {
+    return sessionEntry;
+  }
+
+  return readStoredAuthUser(window.localStorage, true);
+}
+
+function readStoredAuthUser(storage, remember) {
+  const storedUser = storage.getItem(AUTH_STORAGE_KEY);
   if (!storedUser) {
     return null;
   }
@@ -13,37 +57,33 @@ export function getLoggedInUser() {
   try {
     const user = JSON.parse(storedUser);
     if (!isUsableAuthUser(user) || user.userId === REMOVED_MOCK_OWNER_ID) {
-      clearLoggedInUser();
+      storage.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
-    return user;
+
+    if (remember && isRememberedSessionExpired(user)) {
+      storage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+
+    return { user, remember };
   } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    storage.removeItem(AUTH_STORAGE_KEY);
     return null;
   }
 }
 
-export function setLoggedInUser(user, session = null) {
-  const previousUser = getLoggedInUser();
-  const normalizedUser = {
-    ...user,
-    accessToken: session?.access_token ?? user.accessToken,
-    fullName: getUserDisplayName(user),
-  };
-
-  if (!previousUser || previousUser.userId !== normalizedUser.userId) {
-    clearActiveVehicleSelection();
-  }
-
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
-  notifyAuthUserChanged();
-  return normalizedUser;
+function isRememberedSessionExpired(user) {
+  return Number.isFinite(user.rememberedUntil) && Date.now() > user.rememberedUntil;
 }
 
-export function clearLoggedInUser() {
+function getAuthStorage(remember) {
+  return remember ? window.localStorage : window.sessionStorage;
+}
+
+function removeStoredAuthUser() {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
-  clearActiveVehicleSelection();
-  notifyAuthUserChanged();
+  window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 export function getActiveCurrentUser() {

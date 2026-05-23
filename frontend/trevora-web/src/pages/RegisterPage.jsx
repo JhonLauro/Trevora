@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
-import { registerUser } from '../api/auth.js';
+import { registerUser, verifyRegistrationOtp } from '../api/auth.js';
 import AuthLayout from '../components/AuthLayout.jsx';
 import AuthToast from '../components/AuthToast.jsx';
 
@@ -14,13 +14,17 @@ export default function RegisterPage() {
     role: 'VEHICLE_OWNER',
   });
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
   const [verificationNotice, setVerificationNotice] = useState('');
+  const [pendingVerification, setPendingVerification] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
   const [toast, setToast] = useState(null);
 
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+    setError('');
     setToast(null);
   }
 
@@ -44,16 +48,23 @@ export default function RegisterPage() {
     setSaving(true);
     setError('');
     setVerificationNotice('');
+    setPendingVerification(null);
+    setOtpCode('');
     setToast(null);
 
     try {
-      const user = await registerUser(payload);
-      setToast({ type: 'success', message: 'Account created successfully.' });
-      window.location.assign(user.role === 'ADMIN' ? '/dashboard' : '/vehicles');
+      const result = await registerUser(payload);
+      if (result.requiresVerification) {
+        setPendingVerification({ ...payload, otpType: result.otpType });
+        setVerificationNotice(`${result.message} Enter the code sent to ${payload.email}.`);
+        setToast({ type: 'success', message: result.message });
+        return;
+      }
     } catch (err) {
       if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
-        setVerificationNotice(err.message);
-        setToast({ type: 'success', message: err.message });
+        setPendingVerification(payload);
+        setVerificationNotice(`Enter the verification code sent to ${payload.email}.`);
+        setToast({ type: 'success', message: 'Verification code sent.' });
         return;
       }
       setError(err.message);
@@ -61,6 +72,100 @@ export default function RegisterPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleVerifyAccount(event) {
+    event.preventDefault();
+    const token = otpCode.trim().replace(/\s+/g, '');
+
+    if (!pendingVerification) {
+      setError('Create an account first before entering a verification code.');
+      return;
+    }
+
+    if (!token) {
+      setError('Enter the verification code from your email.');
+      return;
+    }
+
+    setVerifying(true);
+    setError('');
+    setToast(null);
+
+    try {
+      const user = await verifyRegistrationOtp({
+        ...pendingVerification,
+        token,
+      });
+      setToast({ type: 'success', message: 'Account verified successfully.' });
+      window.location.assign(user.role === 'ADMIN' ? '/dashboard' : '/vehicles');
+    } catch (err) {
+      setError(err.message || 'Unable to verify this code. Please try again.');
+      setToast({ type: 'error', message: err.message || 'Unable to verify this code. Please try again.' });
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function resetVerification() {
+    setPendingVerification(null);
+    setVerificationNotice('');
+    setOtpCode('');
+    setError('');
+    setToast(null);
+  }
+
+  if (pendingVerification) {
+    return (
+      <AuthLayout>
+        <AuthToast message={toast?.message} type={toast?.type} />
+        <section className="auth-card">
+          <p className="eyebrow">Verify account</p>
+          <h1>Enter your email code</h1>
+          <p className="muted">Complete verification before signing in to Trevora.</p>
+
+          {error && <div className="alert">{error}</div>}
+          {verificationNotice && (
+            <div className="auth-status-notice" role="status">
+              <span className="auth-status-icon">i</span>
+              <span>{verificationNotice}</span>
+            </div>
+          )}
+
+          <form className="auth-form" onSubmit={handleVerifyAccount} noValidate>
+            <div className="auth-otp-panel">
+              <label>
+                Verification code
+                <input
+                  className="auth-otp-input"
+                  name="otpCode"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otpCode}
+                  onChange={(event) => {
+                    setOtpCode(event.target.value);
+                    setError('');
+                  }}
+                  placeholder="Enter email code"
+                  required
+                />
+              </label>
+              <p>Use the code from the email Supabase sent after account creation.</p>
+            </div>
+            <button type="submit" disabled={verifying}>
+              {verifying ? 'Verifying account...' : 'Verify account'}
+            </button>
+            <button className="auth-text-button" type="button" onClick={resetVerification} disabled={verifying}>
+              Use a different email
+            </button>
+          </form>
+
+          <p className="auth-helper">
+            Already verified? <Link to="/login">Sign in</Link>
+          </p>
+        </section>
+      </AuthLayout>
+    );
   }
 
   return (
@@ -73,7 +178,7 @@ export default function RegisterPage() {
         {error && <div className="alert">{error}</div>}
         {verificationNotice && (
           <div className="auth-status-notice" role="status">
-            <span className="auth-status-icon">✓</span>
+            <span className="auth-status-icon">i</span>
             <span>{verificationNotice}</span>
           </div>
         )}
