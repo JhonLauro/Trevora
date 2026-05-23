@@ -147,13 +147,145 @@ public class ServiceDraftValidationService {
             }
         }
 
+        Object fieldConfidenceNode = metadata.get("fieldConfidence");
+        if (fieldConfidenceNode instanceof Map<?, ?> fieldConfidenceMap) {
+            for (Map.Entry<?, ?> entry : fieldConfidenceMap.entrySet()) {
+                String fieldName = String.valueOf(entry.getKey());
+                String confidence = String.valueOf(entry.getValue()).toLowerCase(Locale.ROOT);
+                if (containsAnyIssue(issues, fieldName)) {
+                    continue;
+                }
+                switch (confidence) {
+                    case "not_found" -> issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "NOT_FOUND",
+                            "WARNING",
+                            labelFor(fieldName) + " was not found in the receipt source.",
+                            true
+                    ));
+                    case "low" -> issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "LOW_CONFIDENCE",
+                            "WARNING",
+                            labelFor(fieldName) + " has low extraction confidence and should be reviewed.",
+                            true
+                    ));
+                    case "medium" -> issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "SOURCE_FIELD",
+                            "INFO",
+                            labelFor(fieldName) + " was extracted or suggested from the draft source.",
+                            false
+                    ));
+                    case "high" -> issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "SOURCE_FIELD",
+                            "INFO",
+                            labelFor(fieldName) + " was extracted from the draft source.",
+                            false
+                    ));
+                    default -> {
+                    }
+                }
+            }
+        }
+
+        Object fieldSourcesNode = metadata.get("fieldSources");
+        if (fieldSourcesNode instanceof Map<?, ?> fieldSourcesMap) {
+            for (Map.Entry<?, ?> entry : fieldSourcesMap.entrySet()) {
+                String fieldName = String.valueOf(entry.getKey());
+                if (!(entry.getValue() instanceof Map<?, ?> evidence)) {
+                    continue;
+                }
+                String sourceType = evidence.get("sourceType") == null ? "" : String.valueOf(evidence.get("sourceType"));
+                boolean needsReview = Boolean.parseBoolean(String.valueOf(evidence.get("needsReview")));
+                if ("CONFLICTING".equalsIgnoreCase(sourceType) && !containsIssue(issues, fieldName, "UNCERTAIN")) {
+                    issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "UNCERTAIN",
+                            "WARNING",
+                            labelFor(fieldName) + " has conflicting source values and should be reviewed.",
+                            true
+                    ));
+                } else if (needsReview && !containsIssue(issues, fieldName, "LOW_CONFIDENCE")) {
+                    issues.add(fieldMetadataIssue(
+                            draft,
+                            fieldName,
+                            "LOW_CONFIDENCE",
+                            "WARNING",
+                            labelFor(fieldName) + " was suggested by AI and should be reviewed.",
+                            true
+                    ));
+                }
+            }
+        }
+
         addNamedMetadataFlags(issues, draft, "notFound", "NOT_FOUND", "WARNING", "was marked not found in source metadata.");
         addNamedMetadataFlags(issues, draft, "missing", "MISSING_METADATA", "WARNING", "was marked missing in source metadata.");
         addNamedMetadataFlags(issues, draft, "uncertain", "UNCERTAIN", "WARNING", "was marked uncertain in source metadata.");
         addNamedMetadataFlags(issues, draft, "lowConfidence", "LOW_CONFIDENCE", "WARNING", "was marked low confidence in source metadata.");
         addNamedMetadataFlags(issues, draft, "sourceFields", "SOURCE_FIELD", "INFO", "was identified as source-derived metadata.");
+        addClassificationFlag(issues, draft);
 
         return issues;
+    }
+
+    private void addClassificationFlag(List<FieldValidationIssue> issues, ServiceDraft draft) {
+        Object classificationNode = draft.getFieldMetadata() == null ? null : draft.getFieldMetadata().get("classification");
+        if (!(classificationNode instanceof Map<?, ?> classification)) {
+            return;
+        }
+        boolean needsOwnerReview = Boolean.parseBoolean(String.valueOf(classification.get("needsOwnerReview")));
+        String confidence = classification.get("confidence") == null ? "" : String.valueOf(classification.get("confidence")).toLowerCase(Locale.ROOT);
+        if (!needsOwnerReview && !"low".equals(confidence)) {
+            return;
+        }
+        if (containsAnyIssue(issues, "classification")) {
+            return;
+        }
+        issues.add(new FieldValidationIssue(
+                "classification",
+                "Classification",
+                "CLASSIFICATION_REVIEW",
+                "WARNING",
+                "Service category and related component suggestions should be reviewed by the owner.",
+                classification,
+                switch (confidence) {
+                    case "high" -> 0.9;
+                    case "medium" -> 0.7;
+                    default -> 0.45;
+                },
+                metadataSource(draft),
+                false,
+                true
+        ));
+    }
+
+    private FieldValidationIssue fieldMetadataIssue(
+            ServiceDraft draft,
+            String fieldName,
+            String category,
+            String severity,
+            String message,
+            boolean requiresReview
+    ) {
+        return new FieldValidationIssue(
+                fieldName,
+                labelFor(fieldName),
+                category,
+                severity,
+                message,
+                valueForField(draft, fieldName),
+                confidenceFor(draft, fieldName),
+                metadataSource(draft),
+                false,
+                requiresReview
+        );
     }
 
     private void addNamedMetadataFlags(
@@ -223,6 +355,10 @@ public class ServiceDraftValidationService {
         );
     }
 
+    private boolean containsAnyIssue(List<FieldValidationIssue> issues, String fieldName) {
+        return issues.stream().anyMatch(issue -> issue.fieldName().equals(fieldName));
+    }
+
     private boolean isMissing(Object value) {
         if (value == null) {
             return true;
@@ -239,6 +375,19 @@ public class ServiceDraftValidationService {
         Object confidenceNode = draft.getFieldMetadata() == null ? null : draft.getFieldMetadata().get("confidence");
         if (confidenceNode instanceof Map<?, ?> confidenceMap) {
             return asDouble(confidenceMap.get(fieldName));
+        }
+        Object fieldConfidenceNode = draft.getFieldMetadata() == null ? null : draft.getFieldMetadata().get("fieldConfidence");
+        if (fieldConfidenceNode instanceof Map<?, ?> fieldConfidenceMap) {
+            Object value = fieldConfidenceMap.get(fieldName);
+            if (value != null) {
+                return switch (String.valueOf(value).toLowerCase(Locale.ROOT)) {
+                    case "high" -> 0.9;
+                    case "medium" -> 0.7;
+                    case "low" -> 0.45;
+                    case "not_found" -> 0.0;
+                    default -> null;
+                };
+            }
         }
         return null;
     }

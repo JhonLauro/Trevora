@@ -30,6 +30,7 @@ public class ServiceInputService {
     private final VoiceProcessingService voiceProcessingService;
     private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
+    private final ServiceClassificationService classificationService;
 
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
@@ -37,7 +38,8 @@ public class ServiceInputService {
             OCRProcessingService ocrProcessingService,
             VoiceProcessingService voiceProcessingService,
             CurrentUserService currentUserService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ServiceClassificationService classificationService
     ) {
         this.serviceDraftRepository = serviceDraftRepository;
         this.vehicleService = vehicleService;
@@ -45,6 +47,7 @@ public class ServiceInputService {
         this.voiceProcessingService = voiceProcessingService;
         this.currentUserService = currentUserService;
         this.objectMapper = objectMapper;
+        this.classificationService = classificationService;
     }
 
     public ServiceDraft createManualDraft(ManualServiceDraftRequest request) {
@@ -65,7 +68,19 @@ public class ServiceInputService {
         draft.setLaborPerformed(blankToNull(request.laborPerformed()));
         draft.setRemarks(blankToNull(request.remarks()));
         draft.setStatus(DraftStatus.DRAFT);
-        draft.setFieldMetadata(Map.of("inputMethod", "MANUAL", "source", "owner_entered"));
+        ServiceClassification classification = classificationService.keywordFallback(
+                null,
+                draft.getServiceType(),
+                draft.getPartsReplaced(),
+                draft.getLaborPerformed(),
+                draft.getRemarks(),
+                1
+        );
+        Map<String, Object> manualMetadata = new LinkedHashMap<>();
+        manualMetadata.put("inputMethod", "MANUAL");
+        manualMetadata.put("source", "owner_entered");
+        manualMetadata.put("classification", classification.toMetadata());
+        draft.setFieldMetadata(manualMetadata);
 
         return serviceDraftRepository.save(draft);
     }

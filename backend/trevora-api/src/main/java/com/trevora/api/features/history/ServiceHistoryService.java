@@ -142,7 +142,7 @@ public class ServiceHistoryService {
         if (value.contains("inspect") || value.contains("diagnostic") || value.contains("check")) {
             return "Inspection";
         }
-        return "General";
+        return "Other";
     }
 
     private String blankToNull(String value) {

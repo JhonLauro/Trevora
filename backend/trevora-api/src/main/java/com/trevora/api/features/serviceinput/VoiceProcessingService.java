@@ -10,13 +10,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class VoiceProcessingService {
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
+    private final ServiceClassificationService classificationService;
     private final String aiProvider;
 
     public VoiceProcessingService(
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
+            ServiceClassificationService classificationService,
             @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
     ) {
         this.openAIExtractionProvider = openAIExtractionProvider;
+        this.classificationService = classificationService;
         this.aiProvider = normalizeProvider(aiProvider, "mock");
     }
 
@@ -36,6 +39,15 @@ public class VoiceProcessingService {
     }
 
     private VoiceDraftExtractionResult extractedVoiceDraft(ReceiptDraftFields fields, String transcript) {
+        ServiceClassification classification = classificationService.classifyAiOrFallback(
+                fields.classification(),
+                transcript,
+                fields.serviceType(),
+                fields.partsReplaced(),
+                fields.laborPerformed(),
+                fields.remarks(),
+                1
+        );
         return new VoiceDraftExtractionResult(
                 fields.serviceDate(),
                 fields.serviceType(),
@@ -51,7 +63,11 @@ public class VoiceProcessingService {
                         transcript,
                         false,
                         fields.confidenceNotes(),
-                        fields.fieldSources()
+                        fields.fieldSources(),
+                        fields.fieldConfidence(),
+                        fields.aiSuggestedFields(),
+                        classification,
+                        fields.warnings()
                 )
         );
     }
@@ -61,7 +77,11 @@ public class VoiceProcessingService {
             String transcript,
             boolean fallbackUsed,
             List<String> confidenceNotes,
-            Map<String, String> fieldSources
+            Map<String, Object> fieldSources,
+            Map<String, String> fieldConfidence,
+            List<String> aiSuggestedFields,
+            ServiceClassification classification,
+            List<String> warnings
     ) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("inputMethod", "VOICE");
@@ -73,7 +93,10 @@ public class VoiceProcessingService {
         metadata.put("fallbackUsed", fallbackUsed);
         metadata.put("confidenceNotes", confidenceNotes == null ? List.of() : confidenceNotes);
         metadata.put("fieldSources", fieldSources == null ? Map.of() : fieldSources);
-        metadata.put("warnings", List.of());
+        metadata.put("fieldConfidence", fieldConfidence == null ? Map.of() : fieldConfidence);
+        metadata.put("aiSuggestedFields", aiSuggestedFields == null ? List.of() : aiSuggestedFields);
+        metadata.put("classification", classification == null ? Map.of() : classification.toMetadata());
+        metadata.put("warnings", warnings == null ? List.of() : warnings);
         return metadata;
     }
 
