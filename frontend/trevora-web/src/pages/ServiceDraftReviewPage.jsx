@@ -45,6 +45,9 @@ function formatValue(value) {
 
 function displaySource(draft) {
   const source = draft?.fieldMetadata?.source;
+  if (source === 'openai_voice_extraction') return 'Voice transcript + AI extraction';
+  if (source === 'voice_transcript_manual_review') return 'Voice transcript only';
+  if (source === 'legacy_voice_transcript_only') return 'Legacy voice transcript';
   if (source) return source;
   if (draft?.inputMethod === 'MANUAL') return 'owner_entered';
   return 'Not provided';

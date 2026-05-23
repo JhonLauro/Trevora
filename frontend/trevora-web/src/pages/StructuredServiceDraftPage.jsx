@@ -30,6 +30,15 @@ function displayMode(value) {
   return 'Not provided';
 }
 
+function displayDraftSource(draft) {
+  const source = draft?.fieldMetadata?.source;
+  if (draft?.inputMethod === 'RECEIPT') return 'Receipt OCR + AI';
+  if (source === 'openai_voice_extraction') return 'Voice transcript + AI extraction';
+  if (source === 'voice_transcript_manual_review') return 'Voice transcript only';
+  if (source === 'legacy_voice_transcript_only') return 'Legacy voice transcript';
+  return source || 'Not provided';
+}
+
 function reviewCount(metadata = {}) {
   const notes = Array.isArray(metadata.confidenceNotes) ? metadata.confidenceNotes.length : 0;
   const warnings = Array.isArray(metadata.warnings) ? metadata.warnings.length : 0;
@@ -86,6 +95,7 @@ export default function StructuredServiceDraftPage() {
 
   const confidence = draft?.fieldMetadata?.confidence ?? null;
   const rawOcrText = draft?.fieldMetadata?.rawOcrText;
+  const voiceTranscript = draft?.fieldMetadata?.transcript;
   const userNotes = friendlyNotes(draft?.fieldMetadata);
   const fieldsNeedingReview = reviewCount(draft?.fieldMetadata);
   const receiptStatus = extractionStatus(draft);
@@ -157,7 +167,7 @@ export default function StructuredServiceDraftPage() {
                 </div>
                 <div>
                   <dt>Source</dt>
-                  <dd>{draft.inputMethod === 'RECEIPT' ? 'Receipt OCR + AI' : draft.fieldMetadata?.source || 'Not provided'}</dd>
+                  <dd>{displayDraftSource(draft)}</dd>
                 </div>
                 {draft.inputMethod === 'RECEIPT' && (
                   <>
@@ -228,6 +238,12 @@ export default function StructuredServiceDraftPage() {
                   <>
                     <h2>Raw OCR text</h2>
                     <pre>{rawOcrText}</pre>
+                  </>
+                )}
+                {typeof voiceTranscript === 'string' && voiceTranscript.trim() && (
+                  <>
+                    <h2>Voice transcript</h2>
+                    <pre>{voiceTranscript}</pre>
                   </>
                 )}
                 <h2>Source metadata</h2>

@@ -5,13 +5,14 @@ import AuthLayout from '../components/AuthLayout.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   function updateField(event) {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+    const { name, type, checked, value } = event.target;
+    setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }));
+    setError('');
   }
 
   async function handleSubmit(event) {
@@ -35,7 +36,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await loginUser({ email, password });
+      await loginUser({ email, password, remember: form.remember });
       navigate('/dashboard', { replace: true });
     } catch (err) {
       const message = err.message || 'Unable to sign in. Please try again.';
@@ -80,7 +81,7 @@ export default function LoginPage() {
             />
           </label>
           <label className="auth-checkbox">
-            <input type="checkbox" />
+            <input name="remember" type="checkbox" checked={form.remember} onChange={updateField} />
             Remember me for 30 days
           </label>
           <button type="submit" disabled={saving}>

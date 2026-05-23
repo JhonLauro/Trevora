@@ -62,6 +62,13 @@ export function transcribeVoiceAudio({ vehicleId, audioFile }) {
   });
 }
 
+export function translateVoiceTranscript({ vehicleId, transcript }) {
+  return apiRequest('/service-drafts/voice/translate', {
+    method: 'POST',
+    body: JSON.stringify({ vehicleId, transcript }),
+  });
+}
+
 export function getServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}`);
 }

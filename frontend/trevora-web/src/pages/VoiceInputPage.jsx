@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StepIndicator from '../components/StepIndicator';
-import { createVoiceServiceDraft, transcribeVoiceAudio } from '../api/serviceDrafts';
+import { createVoiceServiceDraft, transcribeVoiceAudio, translateVoiceTranscript } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
 function preferredAudioMimeType() {
@@ -26,10 +26,13 @@ export default function VoiceInputPage() {
   const chunksRef = useRef([]);
   const [vehicle, setVehicle] = useState(null);
   const [transcript, setTranscript] = useState('');
+  const [sourceTranscript, setSourceTranscript] = useState('');
+  const [translated, setTranslated] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState('');
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +81,9 @@ export default function VoiceInputPage() {
     stopStream();
     chunksRef.current = [];
     setRecording(false);
+    setTranscript('');
+    setSourceTranscript('');
+    setTranslated(false);
     setAudioBlob(null);
     setAudioUrl((current) => {
       if (current) URL.revokeObjectURL(current);
@@ -115,6 +121,7 @@ export default function VoiceInputPage() {
         recorderRef.current = null;
         stopStream();
         setRecording(false);
+        void transcribeBlob(blob);
       };
 
       recorderRef.current = recorder;
@@ -133,25 +140,51 @@ export default function VoiceInputPage() {
     }
   }
 
-  async function handleTranscribe() {
-    if (!audioBlob) {
+  async function transcribeBlob(blob) {
+    if (!blob) {
       setError('Record a voice note before transcribing.');
       return;
     }
 
     setTranscribing(true);
     setError('');
+    setSourceTranscript('');
+    setTranslated(false);
 
     try {
-      const audioFile = new File([audioBlob], filenameFor(audioBlob), {
-        type: audioBlob.type || 'audio/webm',
+      const audioFile = new File([blob], filenameFor(blob), {
+        type: blob.type || 'audio/webm',
       });
       const result = await transcribeVoiceAudio({ vehicleId, audioFile });
-      setTranscript(result.transcript || '');
+      const rawTranscript = result.sourceTranscript || result.transcript || '';
+      setTranscript(rawTranscript);
+      setSourceTranscript(rawTranscript);
     } catch (err) {
       setError(err.message);
     } finally {
       setTranscribing(false);
+    }
+  }
+
+  async function handleTranslate() {
+    const rawTranscript = (sourceTranscript || transcript).trim();
+    if (!rawTranscript) {
+      setError('Transcribe or type a voice note before translating.');
+      return;
+    }
+
+    setTranslating(true);
+    setError('');
+
+    try {
+      const result = await translateVoiceTranscript({ vehicleId, transcript: rawTranscript });
+      setSourceTranscript(result.sourceTranscript || rawTranscript);
+      setTranscript(result.transcript || rawTranscript);
+      setTranslated(Boolean(result.translated));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTranslating(false);
     }
   }
 
@@ -208,9 +241,9 @@ export default function VoiceInputPage() {
           <div className="panel-heading">
             <div>
               <h2>Record your service note</h2>
-              <p>Record audio, transcribe it, then review the transcript before creating the draft.</p>
+              <p>Stop recording to generate the raw transcript, then translate it to English when needed.</p>
             </div>
-            <span className="method-badge">Speech to text</span>
+            <span className="method-badge">Raw then English</span>
           </div>
 
           <div className={`voice-recorder-card${recording ? ' recording' : ''}`}>
@@ -245,11 +278,16 @@ export default function VoiceInputPage() {
             <button
               className="button-secondary full-width"
               type="button"
-              onClick={handleTranscribe}
-              disabled={!audioBlob || recording || transcribing}
+              onClick={handleTranslate}
+              disabled={!transcript.trim() || recording || transcribing || translating}
             >
-              {transcribing ? 'Transcribing...' : 'Transcribe recording'}
+              {translating ? 'Translating...' : 'Translate to English'}
             </button>
+            {(transcribing || translating) && (
+              <p className="voice-processing-note">
+                {transcribing ? 'Generating raw transcript...' : 'Translating transcript to English...'}
+              </p>
+            )}
           </div>
 
           <div className="voice-entry-box">
@@ -259,6 +297,9 @@ export default function VoiceInputPage() {
                 value={transcript}
                 onChange={(event) => {
                   setTranscript(event.target.value);
+                  if (!translated) {
+                    setSourceTranscript(event.target.value);
+                  }
                   setError('');
                 }}
                 placeholder="Example: I changed the oil and replaced the filter today. Total cost was around 1200."
@@ -267,16 +308,24 @@ export default function VoiceInputPage() {
             </label>
           </div>
 
-          <div className="voice-summary">
-            <h2>Transcript preview</h2>
-            <p>{transcript.trim() || 'No transcript yet. Record audio or type the service details manually.'}</p>
-          </div>
+          {translated && (
+            <div className="voice-summary">
+              <h2>Transcript preview</h2>
+              <p>{transcript.trim() || 'No transcript yet. Record audio or type the service details manually.'}</p>
+              {sourceTranscript.trim() && sourceTranscript.trim() !== transcript.trim() && (
+                <div className="voice-source-transcript">
+                  <strong>Original transcript</strong>
+                  <span>{sourceTranscript}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="actions">
             <Link className="secondary-link" to={`/service-input/${vehicleId}`}>
               Change method
             </Link>
-            <button type="submit" disabled={saving || loading || transcribing || recording}>
+            <button type="submit" disabled={saving || loading || transcribing || translating || recording}>
               {saving ? 'Creating draft...' : 'Create voice draft'}
             </button>
           </div>
@@ -292,11 +341,11 @@ export default function VoiceInputPage() {
               </div>
               <div>
                 <dt>Transcript</dt>
-                <dd>The backend sends the audio to OpenAI and returns editable text.</dd>
+                <dd>The backend returns the raw transcript first, then translates only when requested.</dd>
               </div>
               <div>
                 <dt>Draft fields</dt>
-                <dd>Trevora still uses the existing voice draft parser before review.</dd>
+                <dd>Trevora creates the draft from the transcript you reviewed.</dd>
               </div>
             </dl>
           </section>

@@ -6,6 +6,8 @@ import com.trevora.api.features.serviceinput.ServiceDraft;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,27 +34,50 @@ public record ServiceDraftResponse(
         Instant createdAt
 ) {
     public static ServiceDraftResponse from(ServiceDraft draft) {
+        boolean legacyMockVoiceDraft = isLegacyMockVoiceDraft(draft);
+        Map<String, Object> fieldMetadata = legacyMockVoiceDraft
+                ? legacyVoiceMetadata(draft.getFieldMetadata())
+                : draft.getFieldMetadata();
+
         return new ServiceDraftResponse(
                 draft.getDraftId(),
                 draft.getVehicleId(),
                 draft.getOwnerId(),
                 draft.getInputMethod(),
-                draft.getServiceDate(),
-                draft.getServiceType(),
-                draft.getOdometer(),
-                draft.getTotalCost(),
-                draft.getShopName(),
-                draft.getLocation(),
-                draft.getPartsReplaced(),
-                draft.getLaborPerformed(),
-                draft.getRemarks(),
+                legacyMockVoiceDraft ? null : draft.getServiceDate(),
+                legacyMockVoiceDraft ? null : draft.getServiceType(),
+                legacyMockVoiceDraft ? null : draft.getOdometer(),
+                legacyMockVoiceDraft ? null : draft.getTotalCost(),
+                legacyMockVoiceDraft ? null : draft.getShopName(),
+                legacyMockVoiceDraft ? null : draft.getLocation(),
+                legacyMockVoiceDraft ? null : draft.getPartsReplaced(),
+                legacyMockVoiceDraft ? null : draft.getLaborPerformed(),
+                legacyMockVoiceDraft ? null : draft.getRemarks(),
                 draft.getStatus(),
-                draft.getFieldMetadata(),
+                fieldMetadata,
                 draft.getReceiptStorageBucket(),
                 draft.getReceiptStoragePath(),
                 draft.getReceiptOriginalFilename(),
                 draft.getReceiptContentType(),
                 draft.getCreatedAt()
         );
+    }
+
+    private static boolean isLegacyMockVoiceDraft(ServiceDraft draft) {
+        if (draft == null || draft.getInputMethod() != InputMethod.VOICE || draft.getFieldMetadata() == null) {
+            return false;
+        }
+        Object source = draft.getFieldMetadata().get("source");
+        return "mock_voice_transcription".equals(source);
+    }
+
+    private static Map<String, Object> legacyVoiceMetadata(Map<String, Object> original) {
+        Map<String, Object> metadata = new LinkedHashMap<>(original == null ? Map.of() : original);
+        metadata.put("source", "legacy_voice_transcript_only");
+        metadata.put("fallbackUsed", true);
+        metadata.put("confidence", Map.of());
+        metadata.put("confidenceNotes", List.of("Legacy mock voice fields were hidden. Review the transcript and fill missing service details."));
+        metadata.put("warnings", List.of("This draft was created before real voice extraction was restored."));
+        return metadata;
     }
 }

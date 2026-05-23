@@ -24,14 +24,20 @@ export async function registerUser(payload) {
   }
 
   if (!data.session) {
-    const verificationError = new Error('Account created. Check your email to verify your account, then sign in.');
-    verificationError.code = 'EMAIL_VERIFICATION_REQUIRED';
-    throw verificationError;
+    return {
+      requiresVerification: true,
+      otpType: 'signup',
+      message: 'A verification code has been sent to your email.',
+    };
   }
 
-  const user = await syncSupabaseProfile(payload, data.session.access_token);
-  setLoggedInUser(user, data.session);
-  return user;
+  await client.auth.signOut();
+  await requestRegistrationEmailCode(client, payload.email);
+  return {
+    requiresVerification: true,
+    otpType: 'email',
+    message: 'A verification code has been sent to your email.',
+  };
 }
 
 export async function loginUser(payload) {
@@ -45,15 +51,50 @@ export async function loginUser(payload) {
     throw normalizeSupabaseAuthError(error);
   }
 
-  const metadata = data.user?.user_metadata ?? {};
+  const profile = profileFromSupabaseUser(data.user);
+  const user = await syncSupabaseProfile(profile, data.session.access_token);
+  setLoggedInUser(user, data.session, { remember: payload.remember });
+  return user;
+}
+
+export async function verifyRegistrationOtp(payload) {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.auth.verifyOtp({
+    email: payload.email,
+    token: payload.token,
+    type: payload.otpType || 'signup',
+  });
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
+
+  if (!data.session) {
+    throw new Error('Account verification did not return a session. Request a new code and try again.');
+  }
+
+  const supabaseProfile = profileFromSupabaseUser(data.user);
   const profile = {
-    firstName: metadata.first_name || metadata.firstName || metadata.full_name?.split(' ')?.[0] || 'User',
-    lastName: metadata.last_name || metadata.lastName || '',
-    role: normalizeRole(metadata.role),
+    firstName: payload.firstName || supabaseProfile.firstName,
+    lastName: payload.lastName || supabaseProfile.lastName,
+    role: payload.role || supabaseProfile.role,
   };
   const user = await syncSupabaseProfile(profile, data.session.access_token);
   setLoggedInUser(user, data.session);
   return user;
+}
+
+async function requestRegistrationEmailCode(client, email) {
+  const { error } = await client.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+    },
+  });
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
 }
 
 async function syncSupabaseProfile(payload, accessToken) {
@@ -90,6 +131,17 @@ function normalizeRole(role) {
   return 'VEHICLE_OWNER';
 }
 
+function profileFromSupabaseUser(user) {
+  const metadata = user?.user_metadata ?? {};
+  const fullName = metadata.full_name || metadata.fullName || metadata.name || '';
+  const fallbackNameParts = fullName.trim().split(/\s+/, 2);
+  return {
+    firstName: metadata.first_name || metadata.firstName || fallbackNameParts[0] || 'User',
+    lastName: metadata.last_name || metadata.lastName || fallbackNameParts[1] || 'Account',
+    role: normalizeRole(metadata.role),
+  };
+}
+
 function normalizeSupabaseAuthError(error) {
   const message = String(error?.message || 'Authentication request failed.');
   const normalizedMessage = message.toLowerCase();
@@ -100,6 +152,14 @@ function normalizeSupabaseAuthError(error) {
 
   if (normalizedMessage.includes('already registered') || normalizedMessage.includes('already exists')) {
     return new Error('An account with this email already exists. Please sign in instead.');
+  }
+
+  if (normalizedMessage.includes('otp') && normalizedMessage.includes('expired')) {
+    return new Error('That code has expired. Request a new code and try again.');
+  }
+
+  if (normalizedMessage.includes('token') && normalizedMessage.includes('invalid')) {
+    return new Error('That code is invalid. Check the email code and try again.');
   }
 
   return new Error(message);
