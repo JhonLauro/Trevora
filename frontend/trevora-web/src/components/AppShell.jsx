@@ -4,7 +4,6 @@ import {
   Bell,
   Car,
   ChevronLeft,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   History,
@@ -181,6 +180,11 @@ export default function AppShell({ children }) {
     });
   }
 
+  function expandSidebar() {
+    setSidebarCollapsed(false);
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'false');
+  }
+
   function handleLogout() {
     clearLoggedInUser();
     setAuthenticated(false);
@@ -192,15 +196,29 @@ export default function AppShell({ children }) {
     <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className="app-sidebar">
         <div className="brand-mark">
-          <BrandLogo variant="light" className="brand-logo" />
-          <button
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="sidebar-collapse-button"
-            type="button"
-            onClick={toggleSidebar}
-          >
-            {sidebarCollapsed ? <ChevronRight size={18} aria-hidden="true" /> : <ChevronLeft size={18} aria-hidden="true" />}
-          </button>
+          {sidebarCollapsed ? (
+            <button
+              aria-label="Expand sidebar"
+              className="brand-logo-button"
+              type="button"
+              onClick={expandSidebar}
+              title="Expand sidebar"
+            >
+              <BrandLogo variant="light" className="brand-logo" />
+            </button>
+          ) : (
+            <BrandLogo variant="light" className="brand-logo" />
+          )}
+          {!sidebarCollapsed && (
+            <button
+              aria-label="Collapse sidebar"
+              className="sidebar-collapse-button"
+              type="button"
+              onClick={toggleSidebar}
+            >
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         {canUseOwnerWorkflows && (
