@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.serviceinput.ManualServiceDraftRequest;
-import com.trevora.api.features.serviceinput.MockVoiceExtraction;
 import com.trevora.api.features.serviceinput.ReceiptExtractionResult;
+import com.trevora.api.features.serviceinput.VoiceDraftExtractionResult;
 import com.trevora.api.features.serviceinput.VoiceServiceDraftRequest;
 import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.InputMethod;
@@ -150,7 +150,7 @@ public class ServiceInputService {
     public ServiceDraft createVoiceDraft(VoiceServiceDraftRequest request) {
         requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
-        MockVoiceExtraction extraction = voiceProcessingService.extractServiceFields(request.transcript());
+        VoiceDraftExtractionResult extraction = voiceProcessingService.extractServiceFields(request.transcript());
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(request.vehicleId());
