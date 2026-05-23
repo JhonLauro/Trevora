@@ -2485,6 +2485,44 @@ p {
   width: 100%;
 }
 
+.voice-recorder-card .full-width {
+  align-items: center;
+  display: inline-flex;
+  grid-column: 1 / -1;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+}
+
+.voice-processing-note {
+  color: #536472;
+  font-size: 0.9rem;
+  grid-column: 1 / -1;
+  margin: -0.35rem 0 0;
+}
+
+.voice-source-transcript {
+  border-top: 1px solid #dce4eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+}
+
+.voice-source-transcript strong {
+  color: #071526;
+  display: block;
+  font-size: 0.9rem;
+}
+
+.voice-source-transcript span {
+  color: #536472;
+  display: block;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 @keyframes voicePulse {
   0% {
     box-shadow: 0 0 0 0 rgba(217, 43, 43, 0.22);
