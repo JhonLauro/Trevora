@@ -5681,7 +5681,7 @@ p {
 }
 
 .history-summary-grid {
-  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   overflow-x: auto;
   padding-bottom: 0.15rem;
 }
@@ -7437,6 +7437,327 @@ p {
   .receipt-source-facts div {
     border-right: 0;
     border-top: 1px solid #dce4eb;
+  }
+}
+
+@media (max-width: 600px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: 1.85rem;
+    line-height: 1.12;
+  }
+
+  h2 {
+    font-size: 1.18rem;
+    line-height: 1.2;
+  }
+
+  button,
+  .button-link,
+  .secondary-link {
+    min-height: 44px;
+  }
+
+  .app-sidebar {
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+  }
+
+  .brand-mark,
+  .active-vehicle-panel,
+  .sidebar-user-panel {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .sidebar-collapse-button {
+    display: none;
+  }
+
+  .active-vehicle-panel {
+    border-bottom: 0;
+    padding-bottom: 0.2rem;
+  }
+
+  .active-vehicle-panel > span {
+    display: none;
+  }
+
+  .active-vehicle-card {
+    min-height: 44px;
+  }
+
+  .side-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: -0.1rem;
+    overflow-x: auto;
+    padding: 0.15rem 0 0.25rem;
+    scrollbar-width: none;
+  }
+
+  .side-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .side-nav a,
+  .sidebar-nav-link,
+  .nav-placeholder {
+    flex: 0 0 auto;
+    grid-template-columns: auto minmax(0, auto) auto;
+    min-height: 42px;
+    padding: 0.55rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  .sidebar-user-panel {
+    display: none;
+  }
+
+  .page-shell {
+    padding: 0.85rem;
+  }
+
+  .page-header,
+  .panel,
+  .record-panel,
+  .helper-card,
+  .dashboard-panel,
+  .dashboard-summary-card,
+  .history-summary-card,
+  .history-insights-panel,
+  .history-table-shell,
+  .figma-component-panel,
+  .figma-rail-card,
+  .figma-next-action,
+  .figma-insight-dark,
+  .figma-coverage-empty {
+    border-radius: 10px;
+  }
+
+  .panel,
+  .record-panel,
+  .helper-card,
+  .dashboard-panel {
+    padding: 1rem;
+  }
+
+  .auth-brand-panel {
+    gap: 1rem;
+    padding: 1.15rem;
+  }
+
+  .auth-brand-copy h1 {
+    font-size: 1.8rem;
+  }
+
+  .auth-feature-list {
+    display: none;
+  }
+
+  .auth-form-panel {
+    padding: 1rem;
+  }
+
+  .auth-card {
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .dashboard-summary-grid,
+  .history-summary-grid,
+  .vehicle-stat-grid,
+  .dashboard-vehicle-facts,
+  .figma-component-facts,
+  .receipt-source-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-summary-grid {
+    overflow-x: visible;
+  }
+
+  .history-summary-card {
+    gap: 0.55rem;
+    padding: 0.8rem;
+  }
+
+  .history-summary-card > span,
+  .dashboard-summary-icon {
+    height: 38px;
+    width: 38px;
+  }
+
+  .history-summary-card strong,
+  .dashboard-summary-card strong {
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  .dashboard-mid-grid,
+  .content-two,
+  .record-detail-layout,
+  .receipt-review-grid,
+  .correction-layout,
+  .figma-parts-map,
+  .figma-secondary-layout,
+  .history-two-column,
+  .figma-warranty-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-header,
+  .dashboard-panel-heading,
+  .service-history-header,
+  .service-history-actions,
+  .record-detail-topbar,
+  .receipt-mode-tabs,
+  .receipt-page-section-heading,
+  .receipt-review-footer,
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .receipt-mode-tabs,
+  .figma-history-tabs,
+  .history-view-toggle,
+  .history-view-toggle-wide {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+  }
+
+  .receipt-mode-tabs::-webkit-scrollbar,
+  .figma-history-tabs::-webkit-scrollbar,
+  .history-view-toggle::-webkit-scrollbar,
+  .history-view-toggle-wide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .receipt-mode-tabs button,
+  .figma-history-tabs button,
+  .history-view-toggle button,
+  .history-view-toggle-wide button {
+    flex: 0 0 auto;
+  }
+
+  .rich-history-toolbar,
+  .service-history-toolbar,
+  .rich-history-filter-panel,
+  .history-filter-panel,
+  .figma-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .history-table-shell,
+  .dashboard-table-wrap,
+  .refined-history-table,
+  .receipt-parts-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .history-table,
+  .dashboard-table {
+    min-width: 720px;
+  }
+
+  .history-record-card,
+  .record-field-row,
+  .receipt-page-card {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-page-card > button:first-child {
+    width: 100%;
+  }
+
+  .receipt-page-actions {
+    justify-content: flex-start;
+  }
+
+  .figma-section-hero {
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 1rem;
+  }
+
+  .figma-section-hero strong {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .figma-car-canvas {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .figma-car-svg-wrap {
+    min-width: 560px;
+  }
+
+  .figma-component-panel {
+    position: static;
+  }
+
+  .figma-components-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-drawer {
+    max-width: none;
+    right: 0.75rem;
+    width: calc(100vw - 1.5rem);
+  }
+
+  .history-drawer-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .image-preview-overlay {
+    padding: 0.75rem;
+  }
+
+  .image-preview-overlay img {
+    max-height: 86vh;
+    max-width: 100%;
+  }
+
+  .stored-receipt-page-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .receipt-processing-card {
+    border-radius: 14px;
+    padding: 1.15rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .dashboard-summary-grid,
+  .history-summary-grid,
+  .vehicle-stat-grid,
+  .dashboard-vehicle-facts,
+  .figma-component-facts,
+  .receipt-source-facts,
+  .stored-receipt-page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav a,
+  .sidebar-nav-link,
+  .nav-placeholder {
+    max-width: 86vw;
   }
 }
 
@@ -9658,6 +9979,111 @@ p {
   color: #536472;
 }
 
+.receipt-processing-overlay {
+  align-items: center;
+  background: rgba(7, 21, 38, 0.66);
+  backdrop-filter: blur(10px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 80;
+}
+
+.receipt-processing-card {
+  background: #ffffff;
+  border: 1px solid rgba(219, 231, 245, 0.9);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(7, 21, 38, 0.28);
+  display: grid;
+  gap: 1.1rem;
+  max-width: 480px;
+  padding: 1.6rem;
+  text-align: center;
+  width: min(100%, 480px);
+}
+
+.receipt-processing-card h2 {
+  color: #071526;
+  margin-bottom: 0.45rem;
+}
+
+.receipt-processing-card p {
+  color: #536472;
+  margin-bottom: 0;
+}
+
+.receipt-processing-orbit {
+  align-items: center;
+  display: flex;
+  height: 78px;
+  justify-content: center;
+  justify-self: center;
+  position: relative;
+  width: 78px;
+}
+
+.receipt-processing-orbit span {
+  animation: receiptPulse 1.5s ease-in-out infinite;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 24px;
+  height: 58px;
+  position: absolute;
+  width: 48px;
+}
+
+.receipt-processing-orbit i {
+  animation: receiptSpin 1s linear infinite;
+  border: 3px solid #dbeafe;
+  border-top-color: #2657e8;
+  border-radius: 50%;
+  height: 78px;
+  position: absolute;
+  width: 78px;
+}
+
+.receipt-processing-steps {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.receipt-processing-steps span {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #64748b;
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  justify-content: center;
+  padding: 0.45rem 0.7rem;
+}
+
+.receipt-processing-steps span.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+@keyframes receiptSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes receiptPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 .stored-receipt-preview,
 .stored-receipt-card {
   display: grid;
@@ -9684,6 +10110,12 @@ p {
   font-size: 0.88rem;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.stored-receipt-page-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 .stored-receipt-preview-button {

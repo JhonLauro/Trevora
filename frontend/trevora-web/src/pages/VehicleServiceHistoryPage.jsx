@@ -14,6 +14,7 @@ import {
   Gauge,
   History,
   LayoutGrid,
+  Lightbulb,
   List,
   Plus,
   Search,
@@ -798,9 +799,8 @@ export default function VehicleServiceHistoryPage() {
       <section className="history-summary-grid">
         <SummaryCard icon={FileText} label="Total Records" value={records.length} sub="all sources" tone="blue" />
         <SummaryCard icon={Calendar} label="Last Service" value={latestRecord ? formatDate(latestRecord.serviceDate) : 'None yet'} sub={latestRecord?.serviceType} tone="cyan" />
-        <SummaryCard icon={Gauge} label="Current Odometer" value={odometer != null ? Number(odometer).toLocaleString() : '-'} sub="km" tone="purple" />
+        <SummaryCard icon={Gauge} label="Odometer" value={odometer != null ? Number(odometer).toLocaleString() : '-'} sub="km" tone="purple" />
         <SummaryCard icon={Share2} label="Total Spent" value={formatMoney(totalCost).replace('.00', '')} sub="saved records" tone="green" />
-        <SummaryCard icon={Wrench} label="Most Serviced Area" value={topComponent(records)} sub="from saved records" tone="green" />
         <SummaryCard icon={AlertTriangle} label="Needs Review" value={needsReviewCount} sub={needsReviewCount === 1 ? 'record' : 'records'} tone={needsReviewCount ? 'orange' : 'gray'} />
       </section>
 
@@ -827,7 +827,7 @@ export default function VehicleServiceHistoryPage() {
         <button className={activeTab === 'upcoming' ? 'active' : ''} type="button" onClick={() => setActiveTab('upcoming')}>
           <CalendarClock size={16} aria-hidden="true" />
           Upcoming & Reminders
-          <span>{Math.max(suggestions.length, 3)}</span>
+          {suggestions.length > 0 && <span>{suggestions.length}</span>}
         </button>
         <button className={activeTab === 'warranty' ? 'active' : ''} type="button" onClick={() => setActiveTab('warranty')}>
           <ShieldCheck size={16} aria-hidden="true" />

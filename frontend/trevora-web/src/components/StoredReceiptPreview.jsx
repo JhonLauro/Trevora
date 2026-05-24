@@ -2,26 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { createReceiptSignedUrl } from '../api/receiptStorage';
 
 export default function StoredReceiptPreview({ source, title = 'Saved receipt' }) {
-  const [receiptUrl, setReceiptUrl] = useState('');
+  const [receiptPages, setReceiptPages] = useState([]);
   const [receiptError, setReceiptError] = useState('');
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
+  const [previewPage, setPreviewPage] = useState(null);
+  const [loadedPages, setLoadedPages] = useState({});
 
   useEffect(() => {
     let active = true;
-    setReceiptUrl('');
+    setReceiptPages([]);
     setReceiptError('');
-    setThumbnailLoaded(false);
+    setLoadedPages({});
 
-    if (!source?.receiptStoragePath) {
+    const storedPages = storedReceiptPages(source);
+    if (storedPages.length === 0) {
       return () => {
         active = false;
       };
     }
 
-    createReceiptSignedUrl(source)
-      .then((url) => {
-        if (active) setReceiptUrl(url);
+    Promise.all(
+      storedPages.map((page) => (
+        createReceiptSignedUrl({
+          receiptStorageBucket: page.bucket,
+          receiptStoragePath: page.path,
+        }).then((url) => ({ ...page, url }))
+      )),
+    )
+      .then((pages) => {
+        if (active) setReceiptPages(pages.filter((page) => page.url));
       })
       .catch((error) => {
         if (active) setReceiptError(error.message);
@@ -32,7 +40,7 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
     };
   }, [source]);
 
-  if (!source?.receiptStoragePath) {
+  if (storedReceiptPages(source).length === 0) {
     return null;
   }
 
@@ -40,20 +48,24 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
     <>
       <section className="stored-receipt-card">
         <h2>{title}</h2>
-        <p>{source.receiptOriginalFilename || 'Original uploaded receipt'}</p>
-        {receiptUrl ? (
-          <button className="stored-receipt-preview-button" type="button" onClick={() => setPreviewOpen(true)}>
-            <span className="stored-receipt-image-wrap">
-              {!thumbnailLoaded && <span className="stored-receipt-loading">Loading preview...</span>}
-              <img
-                src={receiptUrl}
-                alt="Uploaded receipt preview"
-                onLoad={() => setThumbnailLoaded(true)}
-                onError={() => setReceiptError('Preview could not load. Click to open the saved receipt.')}
-              />
-            </span>
-            <span className="stored-receipt-action-label">View receipt</span>
-          </button>
+        <p>{receiptPages.length > 1 ? `${receiptPages.length} receipt pages` : source.receiptOriginalFilename || 'Original uploaded receipt'}</p>
+        {receiptPages.length > 0 ? (
+          <div className="stored-receipt-page-grid">
+            {receiptPages.map((page) => (
+              <button className="stored-receipt-preview-button" type="button" onClick={() => setPreviewPage(page)} key={page.path}>
+                <span className="stored-receipt-image-wrap">
+                  {!loadedPages[page.path] && <span className="stored-receipt-loading">Loading preview...</span>}
+                  <img
+                    src={page.url}
+                    alt={`Uploaded receipt page ${page.pageNumber}`}
+                    onLoad={() => setLoadedPages((current) => ({ ...current, [page.path]: true }))}
+                    onError={() => setReceiptError('One receipt preview could not load.')}
+                  />
+                </span>
+                <span className="stored-receipt-action-label">Page {page.pageNumber}</span>
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="stored-receipt-empty">
             {receiptError || 'Loading receipt image...'}
@@ -61,19 +73,46 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
         )}
       </section>
 
-      {previewOpen && receiptUrl && (
+      {previewPage && (
         <div className="image-preview-overlay" role="dialog" aria-modal="true" aria-label="Stored receipt preview">
           <button
             className="image-preview-close"
             type="button"
             aria-label="Close receipt preview"
-            onClick={() => setPreviewOpen(false)}
+            onClick={() => setPreviewPage(null)}
           >
-            ×
+            x
           </button>
-          <img src={receiptUrl} alt="Full-size uploaded receipt" />
+          <img src={previewPage.url} alt={`Full-size uploaded receipt page ${previewPage.pageNumber}`} />
         </div>
       )}
     </>
   );
+}
+
+function storedReceiptPages(source) {
+  const pages = source?.fieldMetadata?.storedReceiptPages;
+  if (Array.isArray(pages) && pages.length > 0) {
+    return pages
+      .filter((page) => page?.path)
+      .map((page, index) => ({
+        pageNumber: page.pageNumber ?? index + 1,
+        bucket: page.bucket || source.receiptStorageBucket,
+        path: page.path,
+        originalFilename: page.originalFilename,
+        contentType: page.contentType,
+      }));
+  }
+
+  if (!source?.receiptStoragePath) {
+    return [];
+  }
+
+  return [{
+    pageNumber: 1,
+    bucket: source.receiptStorageBucket,
+    path: source.receiptStoragePath,
+    originalFilename: source.receiptOriginalFilename,
+    contentType: source.receiptContentType,
+  }];
 }

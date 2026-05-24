@@ -22,8 +22,8 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
   const formData = new FormData();
   formData.append('vehicleId', vehicleId);
   formData.append('receiptInputMode', receiptInputMode || 'UPLOAD');
-  const firstFile = pages[0]?.file ?? pages[0];
-  if (firstFile) {
+  if (pages.length === 1) {
+    const firstFile = pages[0]?.file ?? pages[0];
     formData.append('receiptImage', firstFile);
   }
   pages.forEach((page) => {

@@ -264,6 +264,14 @@ export default function ReceiptUploadPage() {
 
   return (
     <main className="page-shell">
+      {saving && (
+        <ReceiptProcessingOverlay
+          step={processingStep || 'Creating draft'}
+          pageCount={activePages.length}
+          mode={activeMode}
+        />
+      )}
+
       <section className="page-header">
         <p className="eyebrow">
           <Link className="inline-link" to="/vehicles">
@@ -476,6 +484,36 @@ export default function ReceiptUploadPage() {
         </aside>
       </section>
     </main>
+  );
+}
+
+function ReceiptProcessingOverlay({ step, pageCount, mode }) {
+  const steps = ['Preparing pages', 'Running OCR', 'Analyzing service details', 'Creating draft'];
+  const activeIndex = Math.max(0, steps.findIndex((item) => item === step));
+
+  return (
+    <div className="receipt-processing-overlay" role="status" aria-live="polite">
+      <section className="receipt-processing-card">
+        <div className="receipt-processing-orbit" aria-hidden="true">
+          <span />
+          <i />
+        </div>
+        <div>
+          <p className="eyebrow">Receipt analysis</p>
+          <h2>{step}</h2>
+          <p>
+            Trevora is reading {pageCount} {pageCount === 1 ? 'page' : 'pages'} from {mode === 'SCAN' ? 'your scan' : 'your upload'} and preparing a reviewable service draft.
+          </p>
+        </div>
+        <div className="receipt-processing-steps">
+          {steps.map((item, index) => (
+            <span className={index <= activeIndex ? 'active' : ''} key={item}>
+              {item}
+            </span>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
