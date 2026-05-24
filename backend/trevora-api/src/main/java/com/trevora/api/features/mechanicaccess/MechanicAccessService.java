@@ -8,6 +8,8 @@ import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSession;
+import com.trevora.api.features.serviceinput.ServiceDraft;
+import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.sharing.MechanicAccessRepository;
 import com.trevora.api.features.sharing.MechanicAccessRequest;
@@ -33,6 +35,7 @@ public class MechanicAccessService {
 
     private final MechanicAccessSessionRepository mechanicAccessSessionRepository;
     private final MechanicAccessRepository mechanicAccessRepository;
+    private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceRecordRepository serviceRecordRepository;
     private final VehicleRepository vehicleRepository;
     private final CurrentUserService currentUserService;
@@ -40,12 +43,14 @@ public class MechanicAccessService {
     public MechanicAccessService(
             MechanicAccessSessionRepository mechanicAccessSessionRepository,
             MechanicAccessRepository mechanicAccessRepository,
+            ServiceDraftRepository serviceDraftRepository,
             ServiceRecordRepository serviceRecordRepository,
             VehicleRepository vehicleRepository,
             CurrentUserService currentUserService
     ) {
         this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
         this.mechanicAccessRepository = mechanicAccessRepository;
+        this.serviceDraftRepository = serviceDraftRepository;
         this.serviceRecordRepository = serviceRecordRepository;
         this.vehicleRepository = vehicleRepository;
         this.currentUserService = currentUserService;
@@ -154,7 +159,10 @@ public class MechanicAccessService {
     }
 
     MechanicSharedServiceRecordResponse toSharedRecord(ServiceRecord record) {
-        return MechanicSharedServiceRecordResponse.from(record, categoryFor(record.getServiceType()));
+        ServiceDraft sourceDraft = serviceDraftRepository
+                .findByDraftIdAndOwnerId(record.getDraftId(), record.getOwnerId())
+                .orElse(null);
+        return MechanicSharedServiceRecordResponse.from(record, categoryFor(record.getServiceType()), sourceDraft);
     }
 
     String vehicleLabel(UUID vehicleId) {

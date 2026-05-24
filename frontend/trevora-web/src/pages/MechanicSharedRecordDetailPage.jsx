@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getMechanicSessionRecord } from '../api/mechanicAccess';
 
 function formatMoney(value) {
@@ -28,6 +29,13 @@ const detailFields = [
   ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
   ['remarks', 'Remarks', (record) => record.remarks || 'Not provided'],
 ];
+
+function hasStoredReceipt(record) {
+  return Boolean(
+    record?.receiptStoragePath
+      || record?.fieldMetadata?.storedReceiptPages?.some((page) => page?.path),
+  );
+}
 
 export default function MechanicSharedRecordDetailPage() {
   const { sessionId, recordId } = useParams();
@@ -61,11 +69,8 @@ export default function MechanicSharedRecordDetailPage() {
   return (
     <main className="page-shell mechanic-shared-page">
       <div className="mechanic-detail-nav">
-        <Link className="inline-link" to={`/mechanic/access/${sessionId}`}>
+        <Link className="button-link-secondary mechanic-back-button" to={`/mechanic/access/${sessionId}`}>
           Back to shared records
-        </Link>
-        <Link className="owner-return-link owner-return-link-inline" to="/login">
-          Back to owner sign in
         </Link>
       </div>
 
@@ -92,32 +97,71 @@ export default function MechanicSharedRecordDetailPage() {
             </div>
           </section>
 
-          <article className="record-detail-card mechanic-detail-card">
-            <div className="record-detail-card-header">
-              <h2>Record Details</h2>
-              <span>Temporary read-only access</span>
-            </div>
-            <div className="record-field-list">
-              <div className="record-field-row">
-                <span className="record-field-icon">V</span>
-                <div>
-                  <span>Vehicle</span>
-                  <strong>{detail.vehicleLabel}</strong>
-                </div>
-                <span className="field-confidence-badge field-confidence-high">Shared</span>
+          <section className="record-detail-layout mechanic-detail-layout">
+            <article className="record-detail-card mechanic-detail-card">
+              <div className="record-detail-card-header">
+                <h2>Record Details</h2>
+                <span>Temporary read-only access</span>
               </div>
-              {detailFields.map(([key, label, getValue]) => (
-                <div className="record-field-row" key={key}>
-                  <span className="record-field-icon">{label.charAt(0)}</span>
+
+              <div className="record-field-list">
+                <div className="record-field-row">
+                  <span className="record-field-icon">V</span>
                   <div>
-                    <span>{label}</span>
-                    <strong>{getValue(record)}</strong>
+                    <span>Vehicle</span>
+                    <strong>{detail.vehicleLabel}</strong>
                   </div>
-                  <span className="field-confidence-badge field-confidence-high">Read-only</span>
+                  <span className="field-confidence-badge field-confidence-high">Shared</span>
                 </div>
-              ))}
-            </div>
-          </article>
+
+                {detailFields.map(([key, label, getValue]) => (
+                  <div className="record-field-row" key={key}>
+                    <span className="record-field-icon">{label.charAt(0)}</span>
+                    <div>
+                      <span>{label}</span>
+                      <strong>{getValue(record)}</strong>
+                    </div>
+                    <span className="field-confidence-badge field-confidence-high">Read-only</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <aside className="record-detail-side mechanic-detail-side">
+              {hasStoredReceipt(record) ? (
+                <section className="record-source-card">
+                  <StoredReceiptPreview source={record} title="Stored receipt" />
+                </section>
+              ) : (
+                <section className="record-source-card">
+                  <h2>Receipt</h2>
+                  <p>No receipt image is attached to this shared record.</p>
+                </section>
+              )}
+
+              <section className="record-source-card">
+                <h2>Source Reference</h2>
+                <dl className="compact-facts">
+                  <div>
+                    <dt>Source</dt>
+                    <dd>{record.sourceInputMethod || 'Service record'}</dd>
+                  </div>
+                  <div>
+                    <dt>Permission</dt>
+                    <dd>{detail.permission}</dd>
+                  </div>
+                  <div>
+                    <dt>Record ID</dt>
+                    <dd>{record.recordId}</dd>
+                  </div>
+                  <div>
+                    <dt>Access expires</dt>
+                    <dd>{detail.expiresAt ? new Date(detail.expiresAt).toLocaleString() : 'Not provided'}</dd>
+                  </div>
+                </dl>
+              </section>
+            </aside>
+          </section>
         </>
       )}
     </main>
@@ -129,8 +173,8 @@ function BlockedAccessMessage({ message }) {
     <section className="history-empty-state mechanic-blocked-state">
       <h2>Access unavailable</h2>
       <p>{message}</p>
-      <Link className="button-link-secondary" to="/login">
-        Back to owner sign in
+      <Link className="button-link-secondary" to="/">
+        Back
       </Link>
     </section>
   );

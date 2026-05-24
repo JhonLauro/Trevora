@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Car, Copy, ExternalLink, QrCode, Shield } from 'lucide-react';
-import { createQRAccessRequest, getVehicleQRAccessRequests } from '../api/qrAccess';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { AlertTriangle, Car, Clock3, Copy, ExternalLink, QrCode, Shield } from 'lucide-react';
+import {
+  createQRAccessRequest,
+  getOwnerMechanicAccessSessions,
+  getVehicleQRAccessRequests,
+  revokeOwnerMechanicAccessSession,
+} from '../api/qrAccess';
 import { getVehicle, getVehicles } from '../api/vehicles';
 
 function vehicleName(vehicle) {
@@ -26,17 +31,32 @@ function statusClass(status) {
   return `access-status access-status-${String(status || '').toLowerCase()}`;
 }
 
+function minutesRemaining(value) {
+  if (!value) return 'Expiration unavailable';
+  const minutes = Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 60000));
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${hours}h${remainder ? ` ${remainder}m` : ''} remaining`;
+  }
+  return `${minutes} min remaining`;
+}
+
 const LATEST_QR_TOKEN_KEY = 'trevora.mechanic.latestQrToken';
 
 export default function QRSharingPage() {
   const { vehicleId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [currentRequest, setCurrentRequest] = useState(null);
+  const [activeView, setActiveView] = useState('generate');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [revokingId, setRevokingId] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,16 +65,31 @@ export default function QRSharingPage() {
   }, [vehicleId]);
 
   useEffect(() => {
+    const view = new URLSearchParams(location.search).get('view');
+    if (view === 'sessions') {
+      setActiveView('sessions');
+    } else if (view === 'generate') {
+      setActiveView('generate');
+    }
+  }, [location.search]);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
 
-    Promise.all([getVehicle(vehicleId), getVehicleQRAccessRequests(vehicleId), getVehicles()])
-      .then(([vehicleData, requestData, vehicleList]) => {
+    Promise.all([
+      getVehicle(vehicleId),
+      getVehicleQRAccessRequests(vehicleId),
+      getVehicles(),
+      getOwnerMechanicAccessSessions('APPROVED'),
+    ])
+      .then(([vehicleData, requestData, vehicleList, sessionData]) => {
         if (!active) return;
         setVehicle(vehicleData);
         setVehicles(vehicleList);
         setRequests(requestData);
+        setSessions(sessionData);
         setCurrentRequest(requestData[0] ?? null);
         window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(vehicleData));
         window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(vehicleData));
@@ -102,6 +137,19 @@ export default function QRSharingPage() {
     }
   }
 
+  async function revokeSession(sessionId) {
+    setRevokingId(sessionId);
+    setError('');
+    try {
+      await revokeOwnerMechanicAccessSession(sessionId);
+      setSessions((current) => current.filter((session) => session.mechanicAccessSessionId !== sessionId));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRevokingId('');
+    }
+  }
+
   async function copyLink() {
     if (!currentRequest?.accessUrl) return;
     await navigator.clipboard.writeText(currentRequest.accessUrl);
@@ -112,6 +160,10 @@ export default function QRSharingPage() {
     if (!currentRequest?.accessToken) return;
     window.localStorage.setItem(LATEST_QR_TOKEN_KEY, currentRequest.accessToken);
   }
+
+  const activeSessions = sessions.filter((session) =>
+    session.status === 'APPROVED' && session.vehicleProfileId === vehicleId
+  );
 
   return (
     <main className="page-shell module-four-page">
@@ -138,14 +190,27 @@ export default function QRSharingPage() {
         </section>
 
         <nav className="shared-access-tabs" aria-label="Shared access views">
-          <span className="shared-access-tab active">Generate QR</span>
+          <button
+            className={activeView === 'generate' ? 'shared-access-tab active' : 'shared-access-tab'}
+            type="button"
+            onClick={() => setActiveView('generate')}
+          >
+            Generate QR
+          </button>
           <Link className="shared-access-tab" to="/access/requests">
             Requests ({requests.filter((request) => request.status === 'REQUESTED').length})
           </Link>
-          <span className="shared-access-tab disabled">Active Sessions</span>
+          <button
+            className={activeView === 'sessions' ? 'shared-access-tab active' : 'shared-access-tab'}
+            type="button"
+            onClick={() => setActiveView('sessions')}
+          >
+            Active Sessions ({activeSessions.length})
+          </button>
         </nav>
 
-        <section className="shared-access-layout">
+        {activeView === 'generate' ? (
+          <section className="shared-access-layout">
           <article className="access-card">
             <div className="access-card-title-row">
               <div>
@@ -292,7 +357,63 @@ export default function QRSharingPage() {
               </div>
             )}
           </article>
-        </section>
+          </section>
+        ) : (
+          <section className="access-card access-card-wide shared-session-panel">
+            <div className="access-card-title-row">
+              <div>
+                <h2>Active Shared Sessions</h2>
+                <p>Approved mechanics with temporary read-only access to {vehicleName(vehicle)}.</p>
+              </div>
+              <span>
+                <Clock3 size={20} aria-hidden="true" />
+              </span>
+            </div>
+
+            {activeSessions.length === 0 ? (
+              <section className="history-empty-state compact-empty-state">
+                <h2>No active shared sessions</h2>
+                <p>Approved mechanic sessions for this vehicle will appear here until they expire or are revoked.</p>
+                <button className="button-secondary" type="button" onClick={() => setActiveView('generate')}>
+                  Generate a QR request
+                </button>
+              </section>
+            ) : (
+              <div className="active-session-list">
+                {activeSessions.map((session) => (
+                  <article className="active-session-card shared-access-session-card" key={session.mechanicAccessSessionId}>
+                    <span className="session-clock">
+                      <Clock3 size={16} aria-hidden="true" />
+                    </span>
+                    <div className="shared-session-main">
+                      <strong>
+                        {session.mechanicName || 'Mechanic'}
+                        {session.shopName ? ` - ${session.shopName}` : ''}
+                      </strong>
+                      <small>{session.contactInfo || 'No contact provided'}</small>
+                      <small>{session.vehicleLabel} · {session.permission} · {minutesRemaining(session.expiresAt)}</small>
+                    </div>
+                    <span className={statusClass(session.status)}>{session.status}</span>
+                    <div className="access-action-row shared-session-actions">
+                      <Link className="button-link-secondary" to={`/mechanic/access/${session.mechanicAccessSessionId}`}>
+                        <ExternalLink size={15} aria-hidden="true" />
+                        View
+                      </Link>
+                      <button
+                        className="button-secondary danger"
+                        type="button"
+                        disabled={revokingId === session.mechanicAccessSessionId}
+                        onClick={() => revokeSession(session.mechanicAccessSessionId)}
+                      >
+                        {revokingId === session.mechanicAccessSessionId ? 'Revoking...' : 'Revoke'}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
         </>
       )}
     </main>

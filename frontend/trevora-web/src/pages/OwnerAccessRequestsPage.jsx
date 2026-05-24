@@ -88,7 +88,9 @@ export default function OwnerAccessRequestsPage() {
           Generate QR
         </Link>
         <span className="shared-access-tab active">Requests ({requests.length})</span>
-        <span className="shared-access-tab disabled">Active Sessions</span>
+        <Link className="shared-access-tab" to={`${generateQrPath}?view=sessions`}>
+          Active Sessions
+        </Link>
       </nav>
 
       {error && <div className="alert">{error}</div>}

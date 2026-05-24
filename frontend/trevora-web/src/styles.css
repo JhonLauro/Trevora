@@ -3455,12 +3455,16 @@ p {
 .shared-access-tab {
   align-items: center;
   background: transparent;
+  border: 0;
   border-radius: 8px;
   color: #607089;
+  cursor: pointer;
   display: flex;
+  font: inherit;
   font-weight: 800;
   justify-content: center;
   min-height: 44px;
+  padding: 0.6rem 1rem;
   text-decoration: none;
 }
 
@@ -7155,6 +7159,49 @@ p {
   background: transparent;
   color: #dc2626;
   padding: 0.3rem 0.5rem;
+}
+
+.shared-session-panel {
+  max-width: 960px;
+}
+
+.shared-access-session-card {
+  align-items: flex-start;
+  color: #071526;
+}
+
+.shared-session-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.shared-session-actions {
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.active-session-card .shared-session-actions a,
+.active-session-card .shared-session-actions button {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.9rem;
+  gap: 0.35rem;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.45rem 0.7rem;
+}
+
+.active-session-card .shared-session-actions button.danger {
+  background: #fff1f1;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.compact-empty-state {
+  box-shadow: none;
+  margin: 0;
 }
 
 .settings-footnote {
