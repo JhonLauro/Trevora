@@ -233,6 +233,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
                 serviceType should be a concise service label only when a service is explicitly described.
+                shopName should capture a named repair shop, garage, service center, dealership, or auto shop only when the speaker explicitly names it.
+                Examples of explicit support include phrases like "at Superior Auto Repairs", "from Midas", "the shop name is Quick Fix Motors", or "serviced at Toyota Service Center".
+                Return null for shopName when the transcript only says a generic mechanic, technician, or shop without a specific business name.
                 partsReplaced should include only explicit parts.
                 laborPerformed should include only explicit work performed.
                 remarks should include only explicit notes that do not fit another field.

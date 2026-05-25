@@ -10,7 +10,7 @@ const labels = [
   ['serviceType', 'Service type'],
   ['odometer', 'Odometer'],
   ['totalCost', 'Total cost'],
-  ['shopName', 'Shop / mechanic'],
+  ['shopName', 'Shop Name'],
   ['location', 'Location'],
   ['partsReplaced', 'Parts replaced'],
   ['laborPerformed', 'Labor performed'],
@@ -79,19 +79,21 @@ function fieldEvidence(metadata = {}, fieldName) {
   return null;
 }
 
-function evidenceLabel(evidence, value) {
+function evidenceLabel(evidence, value, draft) {
   if (!value || value === 'Not provided') return 'Missing';
   if (!evidence) return '';
   if (evidence.sourceType === 'CONFLICTING') return 'Conflicting values found';
   if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Extracted from source';
   if (evidence.confidence === 'not_found') return 'Missing';
   if (evidence.confidence === 'low' || evidence.needsReview) return 'Needs review';
-  if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') return 'Extracted from receipt';
+  if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') {
+    return draft?.inputMethod === 'VOICE' ? 'Extracted from transcript' : 'Extracted from receipt';
+  }
   return '';
 }
 
 function evidenceClass(label) {
-  if (label === 'Extracted from source') return 'field-confidence-source';
+  if (label === 'Extracted from source' || label === 'Extracted from transcript') return 'field-confidence-source';
   if (label === 'Extracted from receipt') return 'field-confidence-high';
   if (label === 'Missing' || label === 'Needs review' || label === 'Low confidence' || label === 'Conflicting values found') return 'field-confidence-low';
   return '';
@@ -205,7 +207,7 @@ export default function StructuredServiceDraftPage() {
                   ? formatServiceText(draft[key])
                   : draft[key] || 'Not provided';
                 const evidence = fieldEvidence(draft.fieldMetadata, key);
-                const labelText = evidenceLabel(evidence, value);
+                const labelText = evidenceLabel(evidence, value, draft);
                 const lowConfidence = evidence?.confidence === 'low' && labelText !== 'Needs review' ? 'Low confidence' : '';
                 return (
                   <div key={key}>

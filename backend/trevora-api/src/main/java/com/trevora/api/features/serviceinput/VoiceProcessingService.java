@@ -1,14 +1,30 @@
 package com.trevora.api.features.serviceinput;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class VoiceProcessingService {
+    private static final Pattern LABELED_SHOP_NAME_PATTERN = Pattern.compile(
+            "\\b(?:(?:shop name|repair shop name|service center name|garage name|dealership name)\\s+(?:is|was|called|named)?|(?:shop|repair shop|service center|garage|dealership|dealer)\\s+(?:is|was|at|from|called|named))\\s+(.+?)(?=\\s+(?:and|for|cost|costs|charged|on|with|because|then|where)\\b|[.,;\\n]|$)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern CUED_SHOP_NAME_PATTERN = Pattern.compile(
+            "\\b(?:at|from|by|with|to)\\s+(.+?(?:auto(?:motive)?|motors|garage|repair(?:s)?|service(?:\\s+center)?|shop|dealership|dealer|car care|tire(?:s)?|vulcanizing)[^.,;\\n]*?)(?=\\s+(?:and|for|cost|costs|charged|on|with|because|then|where)\\b|[.,;\\n]|$)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern SHOP_NAME_KEYWORD_PATTERN = Pattern.compile(
+            "\\b(?:auto(?:motive)?|motors|garage|repair(?:s)?|service(?:\\s+center)?|shop|dealership|dealer|car care|tire(?:s)?|vulcanizing)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
     private final ServiceClassificationService classificationService;
     private final String aiProvider;
@@ -45,6 +61,20 @@ public class VoiceProcessingService {
     }
 
     private VoiceDraftExtractionResult extractedVoiceDraft(ReceiptDraftFields fields, String transcript) {
+        ShopMention fallbackShopName = blankToNull(fields.shopName()) == null
+                ? extractMentionedShopName(transcript)
+                : null;
+        String shopName = fallbackShopName == null ? fields.shopName() : fallbackShopName.value();
+        Map<String, Object> fieldSources = new LinkedHashMap<>(fields.fieldSources() == null ? Map.of() : fields.fieldSources());
+        Map<String, String> fieldConfidence = new LinkedHashMap<>(fields.fieldConfidence() == null ? Map.of() : fields.fieldConfidence());
+        List<String> confidenceNotes = new ArrayList<>(fields.confidenceNotes() == null ? List.of() : fields.confidenceNotes());
+
+        if (fallbackShopName != null) {
+            fieldSources.put("shopName", shopNameEvidence(fallbackShopName));
+            fieldConfidence.put("shopName", "medium");
+            confidenceNotes.add("Shop name was captured from an explicit spoken phrase. Review the spelling before saving.");
+        }
+
         ServiceClassification classification = classificationService.classifyAiOrFallback(
                 fields.classification(),
                 transcript,
@@ -59,7 +89,7 @@ public class VoiceProcessingService {
                 fields.serviceType(),
                 fields.odometer(),
                 fields.totalCost(),
-                fields.shopName(),
+                shopName,
                 fields.location(),
                 fields.partsReplaced(),
                 fields.laborPerformed(),
@@ -68,9 +98,9 @@ public class VoiceProcessingService {
                         "openai_voice_extraction",
                         transcript,
                         false,
-                        fields.confidenceNotes(),
-                        fields.fieldSources(),
-                        fields.fieldConfidence(),
+                        confidenceNotes,
+                        fieldSources,
+                        fieldConfidence,
                         fields.aiSuggestedFields(),
                         classification,
                         fields.warnings()
@@ -102,6 +132,62 @@ public class VoiceProcessingService {
                         extractionErrors == null || extractionErrors.isEmpty() ? warnings : mergeLists(warnings, extractionErrors)
                 )
         );
+    }
+
+    private Map<String, Object> shopNameEvidence(ShopMention mention) {
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("value", mention.value());
+        evidence.put("confidence", "medium");
+        evidence.put("sourceType", "EXTRACTED_FROM_TEXT");
+        evidence.put("sourceText", mention.sourceText());
+        evidence.put("needsReview", true);
+        return evidence;
+    }
+
+    private ShopMention extractMentionedShopName(String transcript) {
+        ShopMention labeledMention = findMention(transcript, LABELED_SHOP_NAME_PATTERN, true);
+        if (labeledMention != null) {
+            return labeledMention;
+        }
+        return findMention(transcript, CUED_SHOP_NAME_PATTERN, false);
+    }
+
+    private ShopMention findMention(String transcript, Pattern pattern, boolean labeled) {
+        if (transcript == null || transcript.isBlank()) {
+            return null;
+        }
+
+        Matcher matcher = pattern.matcher(transcript);
+        while (matcher.find()) {
+            String value = cleanShopName(matcher.group(1));
+            if (isUsableShopName(value, labeled)) {
+                return new ShopMention(value, matcher.group(0).trim());
+            }
+        }
+        return null;
+    }
+
+    private boolean isUsableShopName(String value, boolean labeled) {
+        if (value == null || value.length() < 2) {
+            return false;
+        }
+        if (labeled) {
+            return true;
+        }
+        return SHOP_NAME_KEYWORD_PATTERN.matcher(value).find();
+    }
+
+    private String cleanShopName(String value) {
+        String cleaned = blankToNull(value);
+        if (cleaned == null) {
+            return null;
+        }
+        cleaned = cleaned
+                .replaceAll("^[\"'\\s]+|[\"'\\s]+$", "")
+                .replaceAll("^(?i:the|a|an)\\s+", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return blankToNull(cleaned);
     }
 
     private Map<String, Object> metadata(
@@ -144,5 +230,15 @@ public class VoiceProcessingService {
             return fallback;
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private record ShopMention(String value, String sourceText) {
     }
 }
