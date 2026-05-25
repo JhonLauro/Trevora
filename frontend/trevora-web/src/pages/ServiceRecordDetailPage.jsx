@@ -4,6 +4,7 @@ import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
 import AIExplanationPanel from '../components/AIExplanationPanel';
+import { formatServiceText } from '../utils/serviceText';
 
 function vehicleName(vehicle, record) {
   if (vehicle) return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
@@ -46,10 +47,10 @@ function relatedComponents(record) {
 const detailFields = [
   ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
   ['odometer', 'Odometer at Service', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
-  ['serviceType', 'Service Type', (record) => record.serviceType],
+  ['serviceType', 'Service Type', (record) => record.serviceType || 'Not provided'],
   ['category', 'Category', (record) => record.category],
-  ['partsReplaced', 'Parts Replaced', (record) => record.partsReplaced || 'Not provided'],
-  ['laborPerformed', 'Work Performed', (record) => record.laborPerformed || 'Not provided'],
+  ['partsReplaced', 'Parts Replaced', (record) => formatServiceText(record.partsReplaced)],
+  ['laborPerformed', 'Work Performed', (record) => formatServiceText(record.laborPerformed)],
   ['shopName', 'Shop / Mechanic', (record) => record.shopName || 'Not provided'],
   ['location', 'Shop Location', (record) => record.location || 'Not provided'],
   ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
@@ -111,7 +112,7 @@ export default function ServiceRecordDetailPage() {
         <>
           <section className="record-detail-header">
             <div>
-              <h1>{record.serviceType}</h1>
+              <h1>{record.serviceType || 'Service record'}</h1>
               <p>
                 {vehicleName(vehicle, record)} · {formatDate(record.serviceDate)}
               </p>

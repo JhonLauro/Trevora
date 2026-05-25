@@ -47,7 +47,7 @@ public class ServiceRecordService {
         ValidationResult validation = serviceDraftValidationService.validateDraft(draft);
         if (!validation.valid()) {
             throw new InvalidServiceRecordConfirmationException(
-                    "Complete vehicle, service date, service type, and total cost before confirming this record."
+                    "Complete vehicle, service date, and total cost before confirming this record."
             );
         }
 
@@ -74,7 +74,7 @@ public class ServiceRecordService {
         record.setOwnerId(draft.getOwnerId());
         record.setSourceInputMethod(draft.getInputMethod());
         record.setServiceDate(draft.getServiceDate());
-        record.setServiceType(draft.getServiceType().trim());
+        record.setServiceType(blankToNull(draft.getServiceType()));
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());
         record.setShopName(draft.getShopName());
@@ -87,5 +87,12 @@ public class ServiceRecordService {
         record.setReceiptStoragePath(draft.getReceiptStoragePath());
         record.setReceiptOriginalFilename(draft.getReceiptOriginalFilename());
         record.setReceiptContentType(draft.getReceiptContentType());
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

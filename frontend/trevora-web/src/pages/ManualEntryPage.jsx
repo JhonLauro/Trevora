@@ -124,7 +124,6 @@ export default function ManualEntryPage() {
                 value={form.serviceType}
                 onChange={updateField}
                 placeholder="Oil change, brake repair, tune-up"
-                required
               />
             </label>
             <label>
@@ -181,7 +180,6 @@ export default function ManualEntryPage() {
             <h2>Required for manual</h2>
             <ul className="check-list">
               <li>Service date</li>
-              <li>Service type</li>
               <li>Total cost</li>
             </ul>
           </section>

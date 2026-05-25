@@ -25,7 +25,6 @@ public class ServiceDraftValidationService {
     private static final List<FieldValidationRule> REQUIRED_RULES = List.of(
             new FieldValidationRule("vehicleId", "Vehicle profile", ServiceDraft::getVehicleId),
             new FieldValidationRule("serviceDate", "Service date", ServiceDraft::getServiceDate),
-            new FieldValidationRule("serviceType", "Service type", ServiceDraft::getServiceType),
             new FieldValidationRule("totalCost", "Total cost", ServiceDraft::getTotalCost)
     );
 
@@ -128,6 +127,9 @@ public class ServiceDraftValidationService {
                 if (confidence == null) {
                     continue;
                 }
+                if (isOptionalMissingField(draft, fieldName)) {
+                    continue;
+                }
 
                 boolean lowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
                 issues.add(new FieldValidationIssue(
@@ -153,6 +155,9 @@ public class ServiceDraftValidationService {
                 String fieldName = String.valueOf(entry.getKey());
                 String confidence = String.valueOf(entry.getValue()).toLowerCase(Locale.ROOT);
                 if (containsAnyIssue(issues, fieldName)) {
+                    continue;
+                }
+                if (isOptionalMissingField(draft, fieldName)) {
                     continue;
                 }
                 switch (confidence) {
@@ -203,6 +208,9 @@ public class ServiceDraftValidationService {
                 }
                 String sourceType = evidence.get("sourceType") == null ? "" : String.valueOf(evidence.get("sourceType"));
                 boolean needsReview = Boolean.parseBoolean(String.valueOf(evidence.get("needsReview")));
+                if (isOptionalMissingField(draft, fieldName)) {
+                    continue;
+                }
                 if ("CONFLICTING".equalsIgnoreCase(sourceType) && !containsIssue(issues, fieldName, "UNCERTAIN")) {
                     issues.add(fieldMetadataIssue(
                             draft,
@@ -301,6 +309,9 @@ public class ServiceDraftValidationService {
             if (containsIssue(issues, fieldName, category)) {
                 continue;
             }
+            if (isOptionalMissingField(draft, fieldName)) {
+                continue;
+            }
             issues.add(new FieldValidationIssue(
                     fieldName,
                     labelFor(fieldName),
@@ -327,6 +338,10 @@ public class ServiceDraftValidationService {
             return List.of(value);
         }
         return List.of();
+    }
+
+    private boolean isOptionalMissingField(ServiceDraft draft, String fieldName) {
+        return "serviceType".equals(fieldName) && isMissing(draft.getServiceType());
     }
 
     private List<String> buildReviewSummary(

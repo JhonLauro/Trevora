@@ -518,7 +518,7 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
                 {records.map((record) => (
                   <button key={record.recordId} type="button" onClick={() => onSelectRecord(record)}>
                     <div>
-                      <strong>{record.serviceType}</strong>
+                      <strong>{record.serviceType || 'Service record'}</strong>
                       <span><Building2 size={13} aria-hidden="true" /> {record.shopName || 'Shop not provided'}</span>
                       <small>{formatDate(record.serviceDate)} · {record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'No odometer'}</small>
                     </div>

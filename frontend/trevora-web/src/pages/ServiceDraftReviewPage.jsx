@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getServiceDraftReview, validateServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import { formatServiceText } from '../utils/serviceText';
 
 const reviewFields = [
   ['serviceDate', 'Service date', 'date'],
@@ -16,7 +17,7 @@ const reviewFields = [
   ['remarks', 'Remarks', 'textarea'],
 ];
 
-const requiredFieldNames = new Set(['vehicleId', 'serviceDate', 'serviceType', 'totalCost']);
+const requiredFieldNames = new Set(['vehicleId', 'serviceDate', 'totalCost']);
 const receiptPrimaryFields = [
   ['vehicleId', 'Vehicle', 'text'],
   ['serviceDate', 'Service Date', 'date'],
@@ -31,7 +32,9 @@ const receiptPrimaryFields = [
 
 function draftToForm(draft) {
   return reviewFields.reduce((form, [key]) => {
-    form[key] = draft?.[key] ?? '';
+    form[key] = ['partsReplaced', 'laborPerformed'].includes(key)
+      ? formatServiceText(draft?.[key], '')
+      : draft?.[key] ?? '';
     return form;
   }, {});
 }
@@ -122,7 +125,7 @@ function evidenceBadgeText(evidence, value) {
   if ((!value || value === '') && evidence?.confidence === 'not_found') return 'Missing';
   if (!evidence) return '';
   if (evidence.sourceType === 'CONFLICTING') return 'Conflicting values found';
-  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Suggested by AI';
+  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Extracted from source';
   if (evidence.confidence === 'not_found') return 'Missing';
   if (evidence.confidence === 'low') return 'Low confidence';
   if (evidence.needsReview) return 'Needs review';
@@ -305,14 +308,13 @@ function ClassificationBadges({ draft }) {
     <section className="classification-badges-panel">
       <div>
         <strong>Draft classification</strong>
-        <span>AI-assisted suggestions. Review before saving.</span>
+        <span>Review category and related components before saving.</span>
       </div>
       <div className="classification-badge-row">
         <span className="field-confidence-badge field-confidence-source">{classification.serviceCategory || 'Other'}</span>
         {components.slice(0, 5).map((component) => (
           <span className="field-confidence-badge field-confidence-high" key={component}>{component}</span>
         ))}
-        {classification.source && <span className="field-confidence-badge field-confidence-source">Suggested by {classification.source}</span>}
         {classification.needsOwnerReview && <span className="field-confidence-badge field-confidence-low">Needs review</span>}
       </div>
     </section>
@@ -333,7 +335,7 @@ function ReceiptPreview({ draft }) {
         <span>{receiptProviderLabel(draft)}</span>
       </div>
       <StoredReceiptPreview source={draft} title="Saved receipt" />
-      <p className="receipt-ai-reminder">AI suggestions are draft values. Please review before saving.</p>
+      <p className="receipt-ai-reminder">Extracted draft values should be reviewed before saving.</p>
       <details className="ocr-source-panel">
         <summary>View extracted text/source details</summary>
         <div>
@@ -593,7 +595,7 @@ function SourceReviewLayout(props) {
         {isVoice && (
           <div className="voice-transcript-card">
             <strong>Voice transcript</strong>
-            <p>{draft.fieldMetadata?.transcript || draft.laborPerformed || 'No transcript was stored with this draft.'}</p>
+            <p>{draft.fieldMetadata?.transcript || formatServiceText(draft.laborPerformed, 'No transcript was stored with this draft.')}</p>
           </div>
         )}
 
@@ -663,7 +665,7 @@ function ValidationSidebar({ validation, reviewFlags, sourceFlags, canContinueTo
             ))}
           </ul>
         ) : (
-          <p>Vehicle profile, service date, service type, and total cost are present.</p>
+          <p>Vehicle profile, service date, and total cost are present.</p>
         )}
       </section>
 

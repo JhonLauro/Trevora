@@ -29,6 +29,7 @@ import {
 import PartsMap from '../components/PartsMap';
 import { getVehicleServiceHistory } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
+import { formatServiceText, formatServiceTextInline, serviceTextLines } from '../utils/serviceText';
 
 const COMPONENT_RULES = [
   ['brakes', /\bbrake|rotor|pad|caliper|fluid flush/i],
@@ -103,24 +104,11 @@ function normalizeText(value, fallback = '-') {
 }
 
 function partsArray(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.filter(Boolean).map(String);
-  const text = String(value).trim();
-  if (!text) return [];
-  if (text.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
-    } catch {
-      return [text];
-    }
-  }
-  return text.split(/[,;\n]/).map((part) => part.trim()).filter(Boolean);
+  return serviceTextLines(value).flatMap((line) => line.split(/[,;\n]/).map((part) => part.trim()).filter(Boolean));
 }
 
 function formatParts(value) {
-  const parts = partsArray(value);
-  return parts.length ? parts.join(', ') : '-';
+  return formatServiceTextInline(value);
 }
 
 function recordSearchText(record) {
@@ -264,7 +252,7 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
         <div className="history-drawer-top">
           <div>
             <span>Record #{record.recordId}</span>
-            <h2>{record.serviceType}</h2>
+            <h2>{record.serviceType || 'Service record'}</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close record preview">
             <X size={17} aria-hidden="true" />
@@ -288,7 +276,7 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
           </section>
           <section>
             <h3>Work Performed</h3>
-            <p>{normalizeText(record.laborPerformed || record.remarks, 'No notes provided')}</p>
+            <p>{formatServiceText(record.laborPerformed || record.remarks, 'No notes provided')}</p>
           </section>
         </div>
         <div className="history-drawer-actions">
@@ -989,7 +977,7 @@ export default function VehicleServiceHistoryPage() {
                       <div className="timeline-card-header">
                         <div>
                           <span className="history-date">{formatDate(record.serviceDate)}</span>
-                          <h2>{record.serviceType}</h2>
+                          <h2>{record.serviceType || 'Service record'}</h2>
                           <p>{normalizeText(record.shopName, 'Shop not provided')}</p>
                         </div>
                         <div className="history-badge-row">
@@ -1048,7 +1036,7 @@ export default function VehicleServiceHistoryPage() {
                   <tr key={record.recordId} onClick={() => setSelectedRecord(record)}>
                     <td>{formatDate(record.serviceDate)}</td>
                     <td>
-                      <strong>{record.serviceType}</strong>
+                      <strong>{record.serviceType || 'Service record'}</strong>
                     </td>
                     <td>{record.referenceNumber || record.orNumber || '—'}</td>
                     <td>

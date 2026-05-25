@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import { formatServiceText } from '../utils/serviceText';
 
 const summaryFields = [
   ['serviceDate', 'Service date'],
@@ -20,6 +21,7 @@ function displayValue(key, value) {
   if (value === null || value === undefined || value === '') return 'Not provided';
   if (key === 'totalCost') return `PHP ${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (key === 'odometer') return `${Number(value).toLocaleString()} km`;
+  if (key === 'partsReplaced' || key === 'laborPerformed') return formatServiceText(value);
   return String(value);
 }
 
@@ -126,14 +128,14 @@ export default function ServiceRecordConfirmationPage() {
         <section className="confirmation-shell">
           {!validation?.valid && (
             <div className="alert">
-              Complete required fields before confirmation. Vehicle, service date, service type, and total cost are required.
+              Complete required fields before confirmation. Vehicle, service date, and total cost are required.
             </div>
           )}
 
           <section className="confirmation-card">
             <div className="confirmation-header">
               <div>
-                <h2>Final record summary</h2>
+                <h2>Summary</h2>
                 <p>Will be saved to {vehicleName(vehicle, draft)} service records.</p>
               </div>
               <span className="badge">{draft.inputMethod}</span>
