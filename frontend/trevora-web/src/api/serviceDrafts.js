@@ -78,24 +78,64 @@ export function getServiceDraft(draftId) {
 }
 
 export function getServiceDraftReview(draftId) {
-  return apiRequest(`/service-drafts/${draftId}/review`);
+  return apiRequest(`/service-drafts/${draftId}/review`).then(normalizeDraftValidationPayload);
 }
 
 export function validateServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}/validate`, {
     method: 'POST',
-  });
+  }).then(normalizeDraftValidationPayload);
 }
 
 export function updateServiceDraftCorrections(draftId, corrections) {
   return apiRequest(`/service-drafts/${draftId}/corrections`, {
     method: 'PATCH',
     body: JSON.stringify(corrections),
-  });
+  }).then(normalizeDraftValidationPayload);
 }
 
 export function confirmServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}/confirm`, {
     method: 'POST',
-  });
+  }).then(normalizeDraftValidationPayload);
+}
+
+function normalizeDraftValidationPayload(payload) {
+  if (!payload) return payload;
+  if (payload.validation) {
+    return {
+      ...payload,
+      validation: normalizeValidation(payload.validation),
+    };
+  }
+  if (Array.isArray(payload.missingRequiredFields) || Array.isArray(payload.flaggedFields)) {
+    return normalizeValidation(payload);
+  }
+  return payload;
+}
+
+function normalizeValidation(validation) {
+  const missingRequiredFields = (validation.missingRequiredFields ?? []).filter((issue) => !isOptionalBlankServiceTypeIssue(issue));
+  const flaggedFields = (validation.flaggedFields ?? []).filter((issue) => !isOptionalBlankServiceTypeIssue(issue));
+  const reviewSummary = Array.isArray(validation.reviewSummary)
+    ? validation.reviewSummary.map((item) => String(item).replace('service type, ', '').replace(', service type', ''))
+    : validation.reviewSummary;
+
+  return {
+    ...validation,
+    valid: missingRequiredFields.length === 0,
+    missingRequiredFields,
+    flaggedFields,
+    reviewSummary,
+  };
+}
+
+function isOptionalBlankServiceTypeIssue(issue) {
+  if (issue?.fieldName !== 'serviceType') return false;
+  const value = issue.currentValue;
+  return issue.blocksConfirmation
+    || issue.category === 'MISSING_REQUIRED'
+    || value === null
+    || value === undefined
+    || String(value).trim() === '';
 }

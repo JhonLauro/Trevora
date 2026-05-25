@@ -2706,7 +2706,7 @@ p {
 }
 
 .field-status-list li {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   gap: 0.75rem;
   justify-content: space-between;
@@ -2714,10 +2714,29 @@ p {
 
 .field-status-list span {
   color: #536472;
+  line-height: 1.25;
+}
+
+.field-status-list strong {
+  display: grid;
+  justify-items: end;
+  line-height: 1.25;
+  max-width: 9rem;
+  text-align: right;
+}
+
+.field-status-list strong small {
+  color: #8a5b00;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .status-ok {
   color: #008c5f;
+}
+
+.status-not-found {
+  color: #b77900;
 }
 
 .status-needs-review {
@@ -2847,6 +2866,7 @@ p {
 
 .confirmation-list dd strong {
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .confirmation-check {

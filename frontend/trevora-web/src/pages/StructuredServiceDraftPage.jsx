@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import { formatServiceText } from '../utils/serviceText';
 
 const labels = [
   ['serviceDate', 'Service date'],
@@ -82,7 +83,7 @@ function evidenceLabel(evidence, value) {
   if (!value || value === 'Not provided') return 'Missing';
   if (!evidence) return '';
   if (evidence.sourceType === 'CONFLICTING') return 'Conflicting values found';
-  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Suggested by AI';
+  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Extracted from source';
   if (evidence.confidence === 'not_found') return 'Missing';
   if (evidence.confidence === 'low' || evidence.needsReview) return 'Needs review';
   if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') return 'Extracted from receipt';
@@ -90,7 +91,7 @@ function evidenceLabel(evidence, value) {
 }
 
 function evidenceClass(label) {
-  if (label === 'Suggested by AI') return 'field-confidence-source';
+  if (label === 'Extracted from source') return 'field-confidence-source';
   if (label === 'Extracted from receipt') return 'field-confidence-high';
   if (label === 'Missing' || label === 'Needs review' || label === 'Low confidence' || label === 'Conflicting values found') return 'field-confidence-low';
   return '';
@@ -165,14 +166,14 @@ export default function StructuredServiceDraftPage() {
             </div>
             <div className="review-reminder">
               Please review all extracted details before saving.
-              <span>AI suggestions are draft values. Please review before saving.</span>
+              <span>Draft values may need owner confirmation before saving.</span>
             </div>
 
             {classification && (
               <div className="classification-badges-panel">
                 <div>
                   <strong>Draft classification</strong>
-                  <span>Controlled category and component suggestions for service history.</span>
+                  <span>Category and related components for service history.</span>
                 </div>
                 <div className="classification-badge-row">
                   <span className="field-confidence-badge field-confidence-source">{classification.serviceCategory || 'Other'}</span>
@@ -200,7 +201,9 @@ export default function StructuredServiceDraftPage() {
 
             <dl className="draft-list">
               {labels.map(([key, label]) => {
-                const value = draft[key] || 'Not provided';
+                const value = ['partsReplaced', 'laborPerformed'].includes(key)
+                  ? formatServiceText(draft[key])
+                  : draft[key] || 'Not provided';
                 const evidence = fieldEvidence(draft.fieldMetadata, key);
                 const labelText = evidenceLabel(evidence, value);
                 const lowConfidence = evidence?.confidence === 'low' && labelText !== 'Needs review' ? 'Low confidence' : '';

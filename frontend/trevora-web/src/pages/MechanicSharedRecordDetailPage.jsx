@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getMechanicSessionRecord } from '../api/mechanicAccess';
+import { formatServiceText } from '../utils/serviceText';
 
 function formatMoney(value) {
   if (value === null || value === undefined || value === '') return 'Not provided';
@@ -20,10 +21,10 @@ function formatDate(value) {
 const detailFields = [
   ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
   ['odometer', 'Odometer', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
-  ['serviceType', 'Service Type', (record) => record.serviceType],
+  ['serviceType', 'Service Type', (record) => record.serviceType || 'Not provided'],
   ['category', 'Category', (record) => record.category],
-  ['partsReplaced', 'Parts Replaced', (record) => record.partsReplaced || 'Not provided'],
-  ['laborPerformed', 'Work Performed', (record) => record.laborPerformed || 'Not provided'],
+  ['partsReplaced', 'Parts Replaced', (record) => formatServiceText(record.partsReplaced)],
+  ['laborPerformed', 'Work Performed', (record) => formatServiceText(record.laborPerformed)],
   ['shopName', 'Shop / Mechanic', (record) => record.shopName || 'Not provided'],
   ['location', 'Location', (record) => record.location || 'Not provided'],
   ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
@@ -86,7 +87,7 @@ export default function MechanicSharedRecordDetailPage() {
 
           <section className="record-detail-header mechanic-detail-header">
             <div>
-              <h1>{record.serviceType}</h1>
+              <h1>{record.serviceType || 'Service record'}</h1>
               <p>
                 {formatDate(record.serviceDate)} - {detail.vehicleLabel}
               </p>

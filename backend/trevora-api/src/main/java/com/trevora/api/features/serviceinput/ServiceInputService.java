@@ -59,7 +59,7 @@ public class ServiceInputService {
         draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.MANUAL);
         draft.setServiceDate(request.serviceDate());
-        draft.setServiceType(request.serviceType().trim());
+        draft.setServiceType(blankToNull(request.serviceType()));
         draft.setOdometer(request.odometer());
         draft.setTotalCost(request.totalCost());
         draft.setShopName(blankToNull(request.shopName()));
