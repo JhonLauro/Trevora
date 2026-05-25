@@ -10,6 +10,8 @@ public record MechanicSearchResponse(
         String vehicleLabel,
         String query,
         String answer,
+        String recommendedView,
+        String answerSource,
         int resultCount,
         List<MechanicSharedServiceRecordResponse> records,
         Instant generatedAt

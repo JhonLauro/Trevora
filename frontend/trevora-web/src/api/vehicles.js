@@ -14,3 +14,10 @@ export function createVehicle(vehicle) {
 export function getVehicle(vehicleId) {
   return apiRequest(`/vehicles/${vehicleId}`);
 }
+
+export function updateVehicle(vehicleId, vehicle) {
+  return apiRequest(`/vehicles/${encodeURIComponent(vehicleId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(vehicle),
+  });
+}

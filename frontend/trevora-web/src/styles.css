@@ -1129,11 +1129,26 @@ p {
 }
 
 .vehicle-stat-grid span,
-.vehicle-detail-grid span {
+.vehicle-detail-grid span,
+.vehicle-vin-strip span,
+.vehicle-full-detail-grid dt {
   color: #8392a5;
   display: block;
   font-size: 0.78rem;
   margin-bottom: 0.25rem;
+}
+
+.vehicle-vin-strip {
+  background: #f8fbff;
+  border-bottom: 1px solid #e2eaf2;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 1.25rem;
+}
+
+.vehicle-vin-strip strong {
+  color: #071526;
+  overflow-wrap: anywhere;
 }
 
 .vehicle-detail-grid {
@@ -1146,6 +1161,50 @@ p {
 .vehicle-card .card-actions {
   border-top: 1px solid #e2eaf2;
   padding: 1rem 1.25rem;
+}
+
+.vehicle-card .card-actions button,
+.vehicle-card .card-actions .button-secondary {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.vehicle-detail-modal {
+  gap: 1.25rem;
+}
+
+.vehicle-detail-modal-header {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+}
+
+.vehicle-detail-modal-header h2,
+.vehicle-detail-modal-header p {
+  margin-bottom: 0;
+}
+
+.vehicle-full-detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.vehicle-full-detail-grid div {
+  background: #f8fbff;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.vehicle-full-detail-grid dd {
+  color: #071526;
+  font-weight: 900;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .empty-add-card {
@@ -3973,28 +4032,193 @@ p {
 }
 
 .mechanic-related-results {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .mechanic-related-results span {
   color: #607089;
   font-size: 0.85rem;
+  font-weight: 900;
+  grid-column: 1 / -1;
+  text-transform: uppercase;
+}
+
+.mechanic-related-results a {
+  background: #ffffff;
+  border: 1px solid #dfd2ff;
+  border-radius: 10px;
+  color: #071526;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  text-decoration: none;
+}
+
+.mechanic-related-results a:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.12);
 }
 
 .mechanic-related-results strong {
+  color: #071526;
+  font-size: 0.92rem;
+}
+
+.mechanic-related-results small {
   background: #ede9fe;
   border-radius: 999px;
   color: #6d28d9;
+  justify-self: start;
   font-size: 0.82rem;
-  padding: 0.4rem 0.7rem;
+  font-weight: 900;
+  padding: 0.22rem 0.5rem;
 }
 
 .mechanic-record-section {
   display: grid;
   gap: 0.8rem;
+}
+
+.mechanic-context-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mechanic-context-card {
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 14px;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.mechanic-context-card span,
+.mechanic-record-meta-grid small,
+.mechanic-work-card span {
+  color: #607089;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mechanic-context-card strong {
+  color: #071526;
+  font-size: 1.6rem;
+  line-height: 1.05;
+}
+
+.mechanic-context-card small {
+  color: #8aa0b7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mechanic-map-section {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.mechanic-timeline-section {
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 14px;
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.mechanic-service-timeline {
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.mechanic-timeline-card {
+  box-shadow: none;
+}
+
+.mechanic-timeline-components {
+  margin-top: 0;
+}
+
+.mechanic-timeline-components span:first-child {
+  background: #eff6ff;
+  border-color: #c7ddff;
+  color: #1d4ed8;
+}
+
+.mechanic-map-section .figma-parts-map {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.mechanic-map-section .figma-car-canvas {
+  min-height: 330px;
+}
+
+.mechanic-map-header {
+  align-items: flex-end;
+}
+
+.mechanic-view-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.mechanic-result-summary {
+  margin: 0;
+}
+
+.mechanic-view-toggle {
+  flex: 0 0 auto;
+}
+
+.mechanic-history-two-column {
+  align-items: start;
+}
+
+.mechanic-evidence-card {
+  padding: 1rem;
+}
+
+.mechanic-evidence-card h2 {
+  color: #071526;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.mechanic-evidence-components {
+  margin-top: 0;
+}
+
+.mechanic-evidence-components span:first-child {
+  background: #eff6ff;
+  border-color: #c7ddff;
+  color: #1d4ed8;
+}
+
+.mechanic-quick-open-section {
+  border-top: 1px solid #d7e1ec;
+  padding-top: 0.25rem;
+}
+
+.mechanic-quick-open-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mechanic-record-card-compact {
+  padding: 0.85rem 1rem;
+}
+
+.mechanic-record-card-compact p {
+  margin-top: 0.35rem;
 }
 
 .mechanic-record-header {
@@ -4048,6 +4272,62 @@ p {
   margin: 0;
 }
 
+.mechanic-record-meta-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 0.75rem;
+}
+
+.mechanic-record-meta-grid span {
+  background: #f8fbff;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  min-width: 0;
+  padding: 0.65rem;
+}
+
+.mechanic-record-meta-grid small,
+.mechanic-record-meta-grid strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mechanic-record-meta-grid strong {
+  color: #071526;
+  font-size: 0.92rem;
+  margin-top: 0.25rem;
+}
+
+.mechanic-component-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.mechanic-component-chips span {
+  background: #eff6ff;
+  border: 1px solid #c7ddff;
+  border-radius: 999px;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 0.3rem 0.55rem;
+}
+
+.mechanic-component-chips span:first-child {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.mechanic-record-open {
+  white-space: nowrap;
+}
+
 .mechanic-detail-nav {
   align-items: center;
   display: flex;
@@ -4093,6 +4373,85 @@ p {
 
 .mechanic-detail-card {
   max-width: 880px;
+}
+
+.mechanic-detail-summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.mechanic-detail-summary-grid div {
+  background: #f8fbff;
+  border: 1px solid #edf2f7;
+  border-radius: 12px;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.mechanic-detail-summary-grid span {
+  color: #607089;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+
+.mechanic-detail-summary-grid strong {
+  color: #071526;
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.mechanic-detail-components {
+  border-bottom: 1px solid #eef2f6;
+  margin: 0 0 1rem;
+  padding-bottom: 1rem;
+}
+
+.mechanic-detail-focus-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mechanic-work-card {
+  background: #ffffff;
+  border: 1px solid #d7e1ec;
+  border-radius: 12px;
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+}
+
+.mechanic-work-card strong {
+  color: #071526;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.mechanic-work-card-wide {
+  margin-top: 0.85rem;
+}
+
+.mechanic-source-note {
+  align-items: center;
+  background: #eff6ff;
+  border: 1px solid #c7ddff;
+  border-radius: 12px;
+  color: #1d4ed8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+}
+
+.mechanic-source-note span {
+  color: #34434f;
 }
 
 .mechanic-blocked-state {
@@ -7346,6 +7705,12 @@ p {
   .shared-access-tabs,
   .service-vehicle-option,
   .mechanic-dashboard-grid,
+  .mechanic-context-grid,
+  .mechanic-map-section .figma-parts-map,
+  .mechanic-record-meta-grid,
+  .mechanic-detail-summary-grid,
+  .mechanic-detail-focus-grid,
+  .mechanic-quick-open-list,
   .mechanic-request-facts,
   .mechanic-request-card .access-action-row,
   .receipt-review-grid,
@@ -7363,8 +7728,9 @@ p {
   .method-grid,
   .vehicle-list,
   .vehicle-detail-grid,
-    .record-detail-layout,
-    .history-filter-bar {
+  .vehicle-full-detail-grid,
+  .record-detail-layout,
+  .history-filter-bar {
     grid-template-columns: 1fr;
   }
 
@@ -7381,6 +7747,30 @@ p {
 
   .mechanic-request-card .access-card-header {
     grid-template-columns: 1fr;
+  }
+
+  .readonly-access-banner,
+  .mechanic-record-card {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .mechanic-record-open {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .mechanic-map-section .figma-car-canvas {
+    min-height: 280px;
+  }
+
+  .mechanic-view-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mechanic-view-toggle {
+    width: 100%;
   }
 
   .card,
@@ -7642,6 +8032,7 @@ p {
   .dashboard-summary-grid,
   .history-summary-grid,
   .vehicle-stat-grid,
+  .vehicle-full-detail-grid,
   .dashboard-vehicle-facts,
   .figma-component-facts,
   .receipt-source-facts {

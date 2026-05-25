@@ -35,6 +35,10 @@ public class VehicleService {
         return getVehicleForCurrentUser(vehicleId);
     }
 
+    public VehicleProfile updateVehicleForMockOwner(UUID vehicleId, UpdateVehicleRequest request) {
+        return updateVehicleForCurrentUser(vehicleId, request);
+    }
+
     public VehicleProfile verifyVehicleBelongsToMockOwner(UUID vehicleId) {
         return verifyVehicleBelongsToCurrentUser(vehicleId);
     }
@@ -56,6 +60,19 @@ public class VehicleService {
         vehicle.setVinChassisNumber(blankToNull(request.vinChassisNumber()));
         vehicle.setOdometer(request.odometer());
 
+        return vehicleRepository.save(vehicle);
+    }
+
+    public VehicleProfile updateVehicleForCurrentUser(UUID vehicleId, UpdateVehicleRequest request) {
+        requireVehicleOwner();
+        VehicleProfile vehicle = getVehicleForCurrentUser(vehicleId);
+        vehicle.setMake(request.make().trim());
+        vehicle.setModel(request.model().trim());
+        vehicle.setYear(request.year());
+        vehicle.setNickname(blankToNull(request.nickname()));
+        vehicle.setPlateNumber(blankToNull(request.plateNumber()));
+        vehicle.setVinChassisNumber(blankToNull(request.vinChassisNumber()));
+        vehicle.setOdometer(request.odometer());
         return vehicleRepository.save(vehicle);
     }
 

@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,5 +41,10 @@ public class VehicleController {
     @GetMapping("/{vehicleId}")
     public VehicleResponse getVehicle(@PathVariable UUID vehicleId) {
         return VehicleResponse.from(vehicleService.getVehicleForMockOwner(vehicleId));
+    }
+
+    @PutMapping("/{vehicleId}")
+    public VehicleResponse updateVehicle(@PathVariable UUID vehicleId, @Valid @RequestBody UpdateVehicleRequest request) {
+        return VehicleResponse.from(vehicleService.updateVehicleForMockOwner(vehicleId, request));
     }
 }

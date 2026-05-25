@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { searchMechanicSessionHistory } from '../api/mechanicAccess';
 
 const suggestions = [
@@ -24,10 +25,10 @@ export default function MechanicAISearchPanel({ sessionId, onSearch }) {
     try {
       const response = await searchMechanicSessionHistory(sessionId, trimmed);
       setResult(response);
-      onSearch?.(response);
+      onSearch?.(response, trimmed);
     } catch (err) {
       setResult(null);
-      onSearch?.(null);
+      onSearch?.(null, trimmed);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -43,7 +44,16 @@ export default function MechanicAISearchPanel({ sessionId, onSearch }) {
     setQuery('');
     setResult(null);
     setError('');
-    onSearch?.(null);
+    onSearch?.(null, '');
+  }
+
+  function formatDate(value) {
+    if (!value) return 'No date';
+    return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   }
 
   return (
@@ -87,15 +97,21 @@ export default function MechanicAISearchPanel({ sessionId, onSearch }) {
       {result && (
         <div className="mechanic-ai-answer">
           <div className="mechanic-ai-answer-heading">
-            <span>AI Answer</span>
-            <small>{result.resultCount} record{result.resultCount === 1 ? '' : 's'} matched</small>
+            <span>{result.answerSource === 'AI' ? 'AI Answer' : 'Search Answer'}</span>
+            <small>
+              {result.recommendedView ? `${result.recommendedView.replace('-', ' ')} · ` : ''}
+              {result.resultCount} record{result.resultCount === 1 ? '' : 's'} matched
+            </small>
           </div>
           <p>{result.answer}</p>
           {result.records.length > 0 && (
             <div className="mechanic-related-results">
-              <span>Related:</span>
+              <span>Open matching records</span>
               {result.records.map((record) => (
-                <strong key={record.recordId}>{record.serviceDate} - {record.serviceType}</strong>
+                <Link key={record.recordId} to={`/mechanic/access/${sessionId}/history/${record.recordId}`}>
+                  <strong>{record.serviceType || 'Service record'}</strong>
+                  <small>{formatDate(record.serviceDate)}</small>
+                </Link>
               ))}
             </div>
           )}

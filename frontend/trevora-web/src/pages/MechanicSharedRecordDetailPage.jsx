@@ -18,24 +18,29 @@ function formatDate(value) {
   });
 }
 
-const detailFields = [
-  ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
-  ['odometer', 'Odometer', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
-  ['serviceType', 'Service Type', (record) => record.serviceType || 'Not provided'],
-  ['category', 'Category', (record) => record.category],
-  ['partsReplaced', 'Parts Replaced', (record) => formatServiceText(record.partsReplaced)],
-  ['laborPerformed', 'Work Performed', (record) => formatServiceText(record.laborPerformed)],
-  ['shopName', 'Shop / Mechanic', (record) => record.shopName || 'Not provided'],
-  ['location', 'Location', (record) => record.location || 'Not provided'],
-  ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
-  ['remarks', 'Remarks', (record) => record.remarks || 'Not provided'],
-];
-
 function hasStoredReceipt(record) {
   return Boolean(
     record?.receiptStoragePath
       || record?.fieldMetadata?.storedReceiptPages?.some((page) => page?.path),
   );
+}
+
+function sourceLabel(value) {
+  if (!value) return 'Manual';
+  return String(value).toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function classificationFor(record) {
+  const metadataClassification = record?.fieldMetadata?.classification;
+  if (metadataClassification && typeof metadataClassification === 'object') return metadataClassification;
+  if (record?.classification && typeof record.classification === 'object') return record.classification;
+  return {};
+}
+
+function relatedComponentsFor(record, classification) {
+  if (Array.isArray(record?.relatedComponents) && record.relatedComponents.length) return record.relatedComponents;
+  if (Array.isArray(classification?.relatedComponents) && classification.relatedComponents.length) return classification.relatedComponents;
+  return [];
 }
 
 export default function MechanicSharedRecordDetailPage() {
@@ -66,6 +71,10 @@ export default function MechanicSharedRecordDetailPage() {
   }, [sessionId, recordId]);
 
   const record = detail?.record;
+  const classification = record ? classificationFor(record) : {};
+  const relatedComponents = relatedComponentsFor(record, classification);
+  const category = record?.category || classification.serviceCategory || 'Service';
+  const source = sourceLabel(record?.sourceInputMethod);
 
   return (
     <main className="page-shell mechanic-shared-page">
@@ -93,7 +102,9 @@ export default function MechanicSharedRecordDetailPage() {
               </p>
               <div className="record-detail-badges">
                 <span className="badge">Verified</span>
-                <span className="badge subtle">{record.sourceInputMethod}</span>
+                <span className="badge subtle">{source}</span>
+                <span className="badge subtle">{category}</span>
+                {classification.source && <span className="badge subtle">{classification.source} classified</span>}
               </div>
             </div>
           </section>
@@ -101,30 +112,57 @@ export default function MechanicSharedRecordDetailPage() {
           <section className="record-detail-layout mechanic-detail-layout">
             <article className="record-detail-card mechanic-detail-card">
               <div className="record-detail-card-header">
-                <h2>Record Details</h2>
-                <span>Temporary read-only access</span>
+                <h2>Service snapshot</h2>
+                <span>Read-only</span>
               </div>
 
-              <div className="record-field-list">
-                <div className="record-field-row">
-                  <span className="record-field-icon">V</span>
-                  <div>
-                    <span>Vehicle</span>
-                    <strong>{detail.vehicleLabel}</strong>
-                  </div>
-                  <span className="field-confidence-badge field-confidence-high">Shared</span>
+              <div className="mechanic-detail-summary-grid">
+                <div>
+                  <span>Date</span>
+                  <strong>{formatDate(record.serviceDate)}</strong>
                 </div>
+                <div>
+                  <span>Odometer</span>
+                  <strong>{record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided'}</strong>
+                </div>
+                <div>
+                  <span>Total cost</span>
+                  <strong>{formatMoney(record.totalCost)}</strong>
+                </div>
+                <div>
+                  <span>Shop</span>
+                  <strong>{record.shopName || 'Not provided'}</strong>
+                </div>
+              </div>
 
-                {detailFields.map(([key, label, getValue]) => (
-                  <div className="record-field-row" key={key}>
-                    <span className="record-field-icon">{label.charAt(0)}</span>
-                    <div>
-                      <span>{label}</span>
-                      <strong>{getValue(record)}</strong>
-                    </div>
-                    <span className="field-confidence-badge field-confidence-high">Read-only</span>
-                  </div>
+              <div className="mechanic-component-chips mechanic-detail-components">
+                <span>{category}</span>
+                {relatedComponents.map((component) => (
+                  <span key={component}>{component}</span>
                 ))}
+                {relatedComponents.length === 0 && <span>No component label yet</span>}
+              </div>
+
+              <div className="mechanic-detail-focus-grid">
+                <section className="mechanic-work-card">
+                  <span>Work performed</span>
+                  <strong>{formatServiceText(record.laborPerformed)}</strong>
+                </section>
+                <section className="mechanic-work-card">
+                  <span>Parts replaced</span>
+                  <strong>{formatServiceText(record.partsReplaced)}</strong>
+                </section>
+              </div>
+
+              <section className="mechanic-work-card mechanic-work-card-wide">
+                <span>Customer / technician notes</span>
+                <strong>{record.remarks || 'No notes provided'}</strong>
+              </section>
+
+              <div className="mechanic-source-note">
+                <strong>Vehicle</strong>
+                <span>{detail.vehicleLabel}</span>
+                {record.location && <span>{record.location}</span>}
               </div>
             </article>
 
@@ -145,7 +183,7 @@ export default function MechanicSharedRecordDetailPage() {
                 <dl className="compact-facts">
                   <div>
                     <dt>Source</dt>
-                    <dd>{record.sourceInputMethod || 'Service record'}</dd>
+                    <dd>{source || 'Service record'}</dd>
                   </div>
                   <div>
                     <dt>Permission</dt>

@@ -536,9 +536,11 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
         <button type="button" disabled={!last} onClick={() => last && onOpenRecord(last.recordId)}>
           <Eye size={15} aria-hidden="true" /> View Related Records
         </button>
-        <button type="button" onClick={onShare}>
-          <Share2 size={15} aria-hidden="true" /> Share Record
-        </button>
+        {onShare && (
+          <button type="button" onClick={onShare}>
+            <Share2 size={15} aria-hidden="true" /> Share Record
+          </button>
+        )}
         <button type="button" disabled={!last} onClick={() => last && onSelectRecord(last)}>
           <FileText size={15} aria-hidden="true" /> Source Docs
         </button>
