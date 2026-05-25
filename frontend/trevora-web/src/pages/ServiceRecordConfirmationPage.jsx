@@ -9,7 +9,7 @@ const summaryFields = [
   ['serviceDate', 'Service date'],
   ['serviceType', 'Service type'],
   ['totalCost', 'Total cost'],
-  ['shopName', 'Shop / mechanic'],
+  ['shopName', 'Shop Name'],
   ['partsReplaced', 'Parts'],
   ['laborPerformed', 'Labor / work performed'],
   ['odometer', 'Odometer'],

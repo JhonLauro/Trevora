@@ -428,7 +428,7 @@ public class ServiceDraftValidationService {
             case "serviceType" -> "Service type";
             case "odometer" -> "Odometer";
             case "totalCost", "cost" -> "Total cost";
-            case "shopName" -> "Shop / mechanic";
+            case "shopName" -> "Shop Name";
             case "location" -> "Location";
             case "partsReplaced" -> "Parts replaced";
             case "laborPerformed" -> "Labor performed";

@@ -266,7 +266,7 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
             <div><span>Source</span><strong>{sourceLabel(record.sourceInputMethod)}</strong></div>
           </div>
           <section>
-            <h3>Shop / Mechanic</h3>
+            <h3>Shop Name</h3>
             <p>{normalizeText(record.shopName, 'Shop not provided')}</p>
             {record.location && <small>{record.location}</small>}
           </section>

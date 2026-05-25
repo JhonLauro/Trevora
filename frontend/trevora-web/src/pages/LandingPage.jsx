@@ -48,7 +48,7 @@ const confidenceRows = [
   ['Vehicle', 'Verified', 100, 'verified'],
   ['Service Date', 'High', 94, 'high'],
   ['Total Cost', 'High', 91, 'high'],
-  ['Shop / Mechanic', 'Medium', 76, 'medium'],
+  ['Shop Name', 'Medium', 76, 'medium'],
   ['Parts Replaced', 'Medium', 63, 'medium'],
   ['Work Performed', 'Low', 38, 'low'],
   ['Odometer at Service', 'Not found', 0, 'missing'],

@@ -143,7 +143,7 @@ export default function ManualEntryPage() {
               />
             </label>
             <label>
-              Shop / mechanic name
+              Shop Name
               <input name="shopName" value={form.shopName} onChange={updateField} />
             </label>
             <label>

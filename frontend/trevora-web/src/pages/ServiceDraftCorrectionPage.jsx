@@ -9,7 +9,7 @@ const correctionFields = [
   ['serviceType', 'Service type', 'text', false],
   ['totalCost', 'Total cost', 'number', true],
   ['odometer', 'Odometer at service', 'number', false],
-  ['shopName', 'Shop / mechanic', 'text', false],
+  ['shopName', 'Shop Name', 'text', false],
   ['location', 'Shop location', 'text', false],
   ['partsReplaced', 'Parts replaced', 'textarea', false],
   ['laborPerformed', 'Labor / work performed', 'textarea', false],
