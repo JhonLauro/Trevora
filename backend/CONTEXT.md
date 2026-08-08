@@ -120,24 +120,22 @@ Module 3 MVP is complete and verified. The backend exposes:
 
 Both endpoints use confirmed `service_records`, verify selected vehicle ownership through `VehicleService`, and scope records by vehicle and owner.
 
-## Module 4 Backend Starting Point
+## Module 4 Backend Status
 
-Module 4 should build AI explanation and mechanic handoff behavior on top of confirmed `service_records` and the existing history APIs. Preserve Controller -> Service -> Repository -> Entity layering, vehicle/owner scoping, and the invariant that incomplete `service_drafts` are not service history.
+Project was paused for ~3 months (resumed 2026-08-08). Module 4 backend is implemented, not just planned:
+
+- `AIController` / `AIExplanationService` — `GET /api/service-records/{recordId}/ai-explanation`
+- `QRAccessController` / `QRAccessService` / `AccessApprovalService` — `/api/qr-access/requests*`
+- `MechanicAccessController` / `MechanicAccessService` / `MechanicSearchService` — `/api/mechanic-access/*`
+- `AuthController` / `AuthService` / `SupabaseAuthService` / `CurrentUserService` — `/api/auth/*`
+
+Verify current behavior against the code before assuming anything below is still outstanding.
 
 ## Module 4 Backend Scope
 
 Module 4 uses confirmed `service_records` and selected `vehicle_profiles`.
 
 It must not expose incomplete `service_drafts`.
-
-## Module 4 Backend Ownership
-
-| Person | Backend Scope |
-|---|---|
-| Person A | Supabase Auth signup/sign-in, profile sync, current user context, role handling, mock owner fallback |
-| Person B | AIController, AIExplanationService, AI explanation persistence/retrieval |
-| Person C | QRAccessController, QRAccessService, AccessApprovalService, QR/access request entities |
-| Person D | MechanicAccessController, MechanicAccessService, MechanicSearchService, mechanic read-only history/search |
 
 ## Module 4 Backend Rules
 

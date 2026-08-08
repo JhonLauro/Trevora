@@ -51,42 +51,19 @@ Each feature package owns its controller, service, repository, entity, DTO, and 
 
 Keep the internal responsibility split intact: controllers handle HTTP, services hold business rules, repositories handle persistence, and entities preserve table/column mappings. Do not change endpoint URLs or database migrations as part of package-only refactors.
 
-| Work on Module 4 planning | /planning | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
-| Work on authentication/access foundation | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
-| Work on AI explanation | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
-| Work on QR/access approval | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
-| Work on mechanic read-only access/search | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
-
-
-## Module 4 Starting Point
-
-Module 4 may build on the verified Module 3 service history list and detail routes. Keep using confirmed `service_records`, preserve vehicle/owner scoping, and do not regress Module 1 input, Module 2 validation/confirmation, or Module 3 history behavior.
-
-| Work on Module 3 service history | /planning | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
-| Build Module 3 backend | /backend | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
-| Build Module 3 frontend | /frontend | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
-| Update Module 3 database docs | /database | CONTEXT.md, module-plans/module-3-unified-vehicle-service-history.md |
+| Work on history, AI explanation, QR sharing, or mechanic access | /backend and /frontend | CONTEXT.md, module-plans/module-4-ai-service-understanding-mechanic-handoff.md |
 
 ## Current Development Status
 
-Module 1 MVP is complete and pushed.
-Module 2 MVP is complete and pushed.
-Module 3 MVP is complete and pushed.
+**Project was paused for ~3 months; resuming as of 2026-08-08. Treat status below as verified against actual code, not aspirational.**
 
-## Current Priority
+Modules 1–4 are all implemented in code:
+- Module 1 (vehicle profiles, manual/receipt/voice service draft input) — complete.
+- Module 2 (draft review, validation, correction, confirmation into `service_records`) — complete.
+- Module 3 (confirmed vehicle service history APIs/UI) — complete.
+- Module 4 (Supabase Auth foundation, AI/template explanation, QR/share access + owner approval, mechanic read-only access/search) — implemented; controllers/services/entities exist for all of `auth`, `ai`, `sharing`, `mechanicaccess`. Treat as needing a fresh correctness/regression pass rather than as unbuilt.
 
-Build Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
-
-Authentication/access foundation is part of Module 4 Person A because Module 4 requires owner/mechanic role separation. The MVP foundation now includes Supabase Auth signup/sign-in, backend profile sync, and legacy login/register fallback, while preserving the existing mock owner fallback for development safety.
-
-## Module 4 Ownership
-
-| Person | Scope | Main Responsibility |
-|---|---|---|
-| Person A | Authentication / Access Foundation | Supabase Auth signup/sign-in, profile sync, current user context, roles, mock owner compatibility |
-| Person B | 4.1 AI Explanation | AI/template explanation for confirmed service records |
-| Person C | 4.2, 4.3, 4.4 | QR/share access request, expiration, owner approval |
-| Person D | 4.5, 4.6 | Mechanic read-only access and mechanic search |
+Before starting new work, verify current behavior by running the app and reading the actual controllers/pages rather than trusting older planning docs, since ownership/status notes below predate the pause.
 
 ## Module 4 Rules
 

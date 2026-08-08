@@ -106,22 +106,20 @@ Module 3 MVP is complete and verified. The frontend includes:
 - Standalone service record detail page
 - View History actions from vehicle cards and the saved-record page
 
-## Module 4 Frontend Starting Point
+## Module 4 Frontend Status
 
-Module 4 may add AI explanation and mechanic handoff experiences from the verified Module 3 history/detail pages. Keep the current deterministic history filters available and do not show incomplete service drafts as history.
+Project was paused for ~3 months (resumed 2026-08-08). Module 4 frontend is implemented, not just planned — routes and pages exist in `App.jsx`/`src/pages`:
+
+- Auth: `LoginPage`, `RegisterPage`, `AccountSettingsPage`
+- AI explanation: `AIExplanationPanel` component (used from service record detail pages)
+- Sharing/approval: `QRSharingPage` (`/vehicles/:vehicleId/share`), `OwnerAccessRequestsPage` (`/access/requests`)
+- Mechanic-facing: `MechanicAccessRequestPage` (`/access/request/:token`), `MechanicAccessSessionPlaceholderPage` and `MechanicSharedRecordDetailPage` (`/mechanic/access/:sessionId*`), `MechanicAISearchPanel` component
+
+Verify current behavior against the code/running app before assuming anything below is still outstanding.
 
 ## Module 4 Frontend Scope
 
 Module 4 provides owner-facing AI explanation and sharing screens, plus mechanic-facing read-only access screens.
-
-## Module 4 Frontend Ownership
-
-| Person | Frontend Scope |
-|---|---|
-| Person A | Login/register, logout, demo user selector fallback, role context, current user handling |
-| Person B | AIExplanationPanel and service record explanation UI |
-| Person C | QRSharingPage, access request page, owner approval/denial UI |
-| Person D | MechanicReadOnlyHistoryPage and MechanicAISearchPanel |
 
 ## Module 4 Frontend Rules
 
@@ -133,21 +131,20 @@ Module 4 provides owner-facing AI explanation and sharing screens, plus mechanic
 - AI-assisted search may be keyword-based/mock for MVP.
 - Do not break existing Module 1, 2, or 3 routes.
 
-## Suggested Module 4 Routes
+## Actual Module 4 Routes (as implemented)
 
 Owner:
-- `/service-records/:recordId`
 - `/vehicles/:vehicleId/share`
 - `/access/requests`
 
 Mechanic:
 - `/access/request/:token`
 - `/mechanic/access/:sessionId`
-- `/mechanic/access/:sessionId/search`
+- `/mechanic/access/:sessionId/history/:recordId`
 
 ## Module 4 Auth Foundation Frontend Scope
 
-Module 4 Person A owns MVP Supabase Auth signup/sign-in, backend profile sync, and current-user state. Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
+MVP Supabase Auth signup/sign-in, backend profile sync, and current-user state are implemented. Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
 
 Add `LoginPage`, `RegisterPage`, and a logout action. The frontend signs users in through Supabase Auth, sends the Supabase bearer token to `/api/auth/sync`, stores the synced Trevora profile locally for the MVP, and includes both `Authorization: Bearer ...` plus demo-compatible `X-User-Id` and `X-User-Role` headers on authenticated API requests. If no logged-in user exists, the app may keep a demo fallback so the existing mock owner development flow remains usable.
 
