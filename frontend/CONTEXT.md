@@ -35,16 +35,7 @@ The UI does not need to exactly match the high-fidelity design yet, but it must 
 
 ## Design References
 
-Frontend UI screenshots are stored in:
-
-`/frontend/design-reference`
-
-Before changing frontend layout or routes, read:
-
-- `/frontend/design-reference/README.md`
-- `/frontend/design-reference/routes.md`
-
-Use the screenshots as visual references. The implementation does not need to be pixel-perfect, but it should preserve the same flow, page purpose, and main UI elements.
+The old `/frontend/design-reference` screenshots (May 2026) have been removed as outdated. A UI refresh is in progress targeting a modern look suited to middle-age car-owner users; there is no current design reference directory — check with the user or recent commits for the active design direction before making layout changes.
 
 ## Module 2 Frontend Scope
 

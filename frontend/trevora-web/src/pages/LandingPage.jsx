@@ -1,5 +1,23 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  Camera,
+  Check,
+  ChevronDown,
+  Cpu,
+  Download,
+  Eye,
+  History,
+  Lock,
+  Mic,
+  QrCode,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  TriangleAlert,
+} from 'lucide-react';
 import { isLoggedIn } from '../api/currentUser.js';
 
 const vehicleFields = [
@@ -12,35 +30,35 @@ const vehicleFields = [
 ];
 
 const featureCards = [
-  ['R', 'Receipt OCR', 'Point your camera at any shop receipt. Trevora extracts line items, totals, dates, and shop info automatically.'],
-  ['V', 'Voice Capture', 'Speak your record on the way home. AI transcribes and structures it into a clean record instantly.'],
-  ['C', 'Confidence Scoring', 'Every field is rated Verified, High, Medium, Low, or Not Found so there is no silent guessing.'],
-  ['Q', 'Mechanic QR Access', 'Share a time-limited QR link with your mechanic. Full history, read-only, no app needed.'],
-  ['S', 'Resale Ready', 'Prove your car history to buyers with a verified service timeline they can trust.'],
-  ['A', 'AI Explanations', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
+  [ScanLine, 'Receipt OCR', 'Point your camera at any shop receipt. Trevora extracts line items, totals, dates, and shop info automatically.'],
+  [Mic, 'Voice Capture', 'Speak your record on the way home. AI transcribes and structures it into a clean record instantly.'],
+  [ShieldCheck, 'Confidence Scoring', 'Every field is rated Verified, High, Medium, Low, or Not Found so there is no silent guessing.'],
+  [QrCode, 'Mechanic QR Access', 'Share a time-limited QR link with your mechanic. Full history, read-only, no app needed.'],
+  [TrendingUp, 'Resale Ready', 'Prove your car history to buyers with a verified service timeline they can trust.'],
+  [Sparkles, 'AI Explanations', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
 ];
 
 const howCards = [
   {
     number: '01',
+    icon: Camera,
     title: 'Capture Your Receipt',
     text: 'Snap a photo of your service receipt, record a voice memo at the shop, or type it in manually.',
     tags: ['Receipt OCR', 'Voice memo', 'Manual entry'],
-    image: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=900&h=520&fit=crop&auto=format',
   },
   {
     number: '02',
+    icon: Cpu,
     title: 'AI Extracts Every Detail',
     text: 'Trevora pulls out service type, cost, parts, shop info, and confidence ratings for review.',
     tags: ['Field extraction', 'Confidence scoring', 'Auto-categorized'],
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=900&h=520&fit=crop&auto=format',
   },
   {
     number: '03',
+    icon: History,
     title: 'Your History, Forever',
     text: 'Every confirmed record is searchable, shareable, and ready for mechanic handoff.',
     tags: ['Searchable', 'Mechanic QR', 'PDF export'],
-    image: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=900&h=520&fit=crop&auto=format',
   },
 ];
 
@@ -54,12 +72,46 @@ const confidenceRows = [
   ['Odometer at Service', 'Not found', 0, 'missing'],
 ];
 
+const confidenceBadges = [
+  ['Verified', 1, 'verified'],
+  ['High', 2, 'high'],
+  ['Medium', 2, 'medium'],
+  ['Low', 1, 'low'],
+  ['Not found', 1, 'missing'],
+];
+
+const trustPoints = [
+  [Check, 'No credit card required'],
+  [Lock, 'Bank-level encryption'],
+  [ShieldCheck, 'Private by default'],
+  [Download, 'Export anytime'],
+];
+
+const aiPoints = [
+  'Verified fields backed by OCR cross-reference',
+  'Low-confidence fields highlighted for quick review',
+  'Missing data clearly shown, never silently dropped',
+];
+
+const mechanicPoints = [
+  'No app download required for the mechanic',
+  'Access expires automatically, you control the duration',
+  'Read-only: mechanics can browse, never edit',
+  'Built-in AI assistant helps them find what they need',
+];
+
 const faqs = [
   ['How accurate is the AI extraction from receipts?', 'Trevora works best with clear receipt photos. Every extracted field includes a confidence score so owners can quickly verify uncertain details before saving.'],
   ['What receipt formats are supported?', 'The MVP is designed around common auto shop receipts, itemized service slips, and owner-entered references. Manual entry remains available when a receipt is unclear.'],
   ['Is my vehicle data private and secure?', 'Owner workflows stay tied to the signed-in account. Mechanic access is temporary, read-only, and limited to the vehicle approved by the owner.'],
   ['Can I manage multiple vehicles?', 'Yes. Vehicle profiles keep separate service histories, record counts, costs, and mechanic access sessions.'],
   ['Does my mechanic need to install anything?', 'No. Mechanics use a shared access link or QR flow and only see approved read-only records.'],
+];
+
+const aiPaneRows = [
+  [Check, 'What was done'],
+  [Sparkles, 'Why it matters'],
+  [TriangleAlert, 'Watch for'],
 ];
 
 const qrCells = Array.from({ length: 196 }, (_, index) => {
@@ -73,12 +125,6 @@ const qrCells = Array.from({ length: 196 }, (_, index) => {
 function AppMockup() {
   return (
     <div className="fig-mockup">
-      <div className="fig-browserbar">
-        <span />
-        <span />
-        <span />
-        <div>trevora.app/history/r1</div>
-      </div>
       <div className="fig-appframe">
         <aside className="fig-mini-sidebar">
           <img src="/logo/tr.png" alt="" />
@@ -105,11 +151,14 @@ function AppMockup() {
           ))}
         </section>
         <section className="fig-ai-pane">
-          <small>AI EXPLANATION</small>
+          <small>AI Explanation</small>
           <p>Regular oil changes prevent sludge buildup and protect your engine from long-term wear.</p>
-          <div>What was done</div>
-          <div>Why it matters</div>
-          <div>Watch for</div>
+          {aiPaneRows.map(([Icon, label]) => (
+            <div key={label}>
+              <Icon size={15} aria-hidden="true" />
+              {label}
+            </div>
+          ))}
         </section>
       </div>
     </div>
@@ -142,11 +191,17 @@ export default function LandingPage() {
 
       <section className="fig-hero">
         <div className="fig-hero-copy">
-          <span className="fig-pill">AI-Powered Vehicle Intelligence</span>
-          <h1>Every Service.<br />Every Detail.<br /><strong>Never Forgotten.</strong></h1>
+          <span className="fig-pill">
+            <Sparkles size={15} aria-hidden="true" />
+            AI-Powered Vehicle Intelligence
+          </span>
+          <h1>Every service.<br />Every detail.<br /><strong>Never forgotten.</strong></h1>
           <p>Trevora turns your receipts, voice memos, and manual notes into a complete, AI-verified vehicle maintenance record: searchable, shareable, and built to last.</p>
           <div className="fig-actions">
-            <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>Get Started Free <span>→</span></Link>
+            <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>
+              Get Started Free
+              <ArrowRight size={19} aria-hidden="true" />
+            </Link>
             <a className="fig-secondary fig-large" href="#workflow">See it in action</a>
           </div>
         </div>
@@ -154,10 +209,12 @@ export default function LandingPage() {
       </section>
 
       <section className="fig-trust" aria-label="Trust details">
-        <span>No credit card required</span>
-        <span>Bank-level encryption</span>
-        <span>Private by default</span>
-        <span>Export anytime</span>
+        {trustPoints.map(([Icon, label]) => (
+          <span key={label}>
+            <Icon size={17} aria-hidden="true" />
+            {label}
+          </span>
+        ))}
       </section>
 
       <section id="workflow" className="fig-how">
@@ -167,15 +224,16 @@ export default function LandingPage() {
           <p>Capture right after your service visit. Trevora handles the rest automatically.</p>
         </div>
         <div className="fig-how-grid">
-          {howCards.map((card) => (
-            <article className="fig-how-card" key={card.number}>
-              <div className="fig-how-image" style={{ backgroundImage: `url(${card.image})` }}>
-                <span>{card.number}</span>
+          {howCards.map(({ number, icon: Icon, title, text, tags }) => (
+            <article className="fig-how-card" key={number}>
+              <div className="fig-how-figure">
+                <Icon size={30} strokeWidth={1.6} aria-hidden="true" />
+                <span>{number}</span>
               </div>
               <div className="fig-how-body">
-                <h3>{card.title}</h3>
-                <p>{card.text}</p>
-                <div>{card.tags.map((tag) => <small key={tag}>{tag}</small>)}</div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+                <div>{tags.map((tag) => <small key={tag}>{tag}</small>)}</div>
               </div>
             </article>
           ))}
@@ -188,9 +246,9 @@ export default function LandingPage() {
           <h2>Everything your service history actually deserves</h2>
         </div>
         <div className="fig-feature-grid">
-          {featureCards.map(([icon, title, text]) => (
+          {featureCards.map(([Icon, title, text]) => (
             <article className="fig-feature-card" key={title}>
-              <span>{icon}</span>
+              <span><Icon size={22} aria-hidden="true" /></span>
               <h3>{title}</h3>
               <p>{text}</p>
             </article>
@@ -200,56 +258,111 @@ export default function LandingPage() {
 
       <section className="fig-ai-section">
         <div className="fig-confidence-card">
-          <div className="fig-confidence-head"><span /> AI Extraction · receipt_may07.jpg <strong>Complete</strong></div>
-          <div className="fig-confidence-badges"><span>Verified:1</span><span>High:2</span><span>Medium:2</span><span>Low:1</span><span>Not found:1</span></div>
+          <div className="fig-confidence-head">
+            <span />
+            AI Extraction · receipt_may07.jpg
+            <strong>Complete</strong>
+          </div>
+          <div className="fig-confidence-badges">
+            {confidenceBadges.map(([label, count, tone]) => (
+              <span className={`fig-badge-${tone}`} key={label}>{label}: {count}</span>
+            ))}
+          </div>
           {confidenceRows.map(([label, status, percent, tone]) => (
             <div className="fig-confidence-row" key={label}>
-              <div><span>{label}</span><strong>{status}</strong></div>
-              <div><i className={`fig-bar-${tone}`} style={{ width: `${percent}%` }} /></div>
+              <div>
+                <span>{label}</span>
+                <strong className={`fig-row-${tone}`}>{status}</strong>
+              </div>
+              <div>
+                <i className={`fig-bar-${tone}`} style={{ width: `${percent}%` }} />
+              </div>
             </div>
           ))}
         </div>
         <div className="fig-ai-copy">
-          <span className="fig-pill violet">AI-powered extraction</span>
+          <span className="fig-pill violet">
+            <Sparkles size={15} aria-hidden="true" />
+            AI-powered extraction
+          </span>
           <h2>You always know how confident the AI is</h2>
           <p>Every extracted field carries a live confidence rating. Trevora tells you when it is certain and flags when it needs your help.</p>
           <ul>
-            <li>Verified fields backed by OCR cross-reference</li>
-            <li>Low-confidence fields highlighted for quick review</li>
-            <li>Missing data clearly shown, never silently dropped</li>
+            {aiPoints.map((point) => (
+              <li key={point}>
+                <Check size={19} aria-hidden="true" />
+                {point}
+              </li>
+            ))}
           </ul>
         </div>
       </section>
 
       <section className="fig-mechanic">
         <div className="fig-mechanic-copy">
-          <span className="fig-pill amber">Instant Mechanic Access</span>
+          <span className="fig-pill amber">
+            <QrCode size={15} aria-hidden="true" />
+            Instant Mechanic Access
+          </span>
           <h2>Your mechanic sees exactly what they need to</h2>
           <p>Generate a time-limited QR code that gives your mechanic read-only access to your full service history. No login, no app, no friction.</p>
           <ul>
-            <li>No app download required for the mechanic</li>
-            <li>Access expires automatically, you control the duration</li>
-            <li>Read-only: mechanics can browse, never edit</li>
-            <li>Built-in AI assistant helps them find what they need</li>
+            {mechanicPoints.map((point) => (
+              <li key={point}>
+                <Check size={19} aria-hidden="true" />
+                {point}
+              </li>
+            ))}
           </ul>
-          <a className="fig-primary fig-large" href="#faq">Try mechanic view <span>→</span></a>
+          <a className="fig-primary fig-large" href="#faq">
+            Try mechanic view
+            <ArrowRight size={19} aria-hidden="true" />
+          </a>
         </div>
         <div className="fig-qr-card">
-          <div className="fig-qr-head"><span>Trevora · Mechanic View<small>Toyota Vios 2021 · ABC 1234</small></span><em>Read-only</em></div>
-          <div className="fig-qr-grid">{qrCells.map((on, index) => <i className={on ? 'on' : ''} key={index} />)}</div>
-          <div className="fig-qr-foot"><span>Expires in<strong>1h 47m</strong></span><span>Records<strong>5</strong></span><button>Share QR</button></div>
+          <div className="fig-qr-head">
+            <span>
+              Trevora · Mechanic View
+              <small>Toyota Vios 2021 · ABC 1234</small>
+            </span>
+            <em><Eye size={13} aria-hidden="true" /> Read-only</em>
+          </div>
+          <div className="fig-qr-grid" aria-hidden="true">
+            {qrCells.map((on, index) => <i className={on ? 'on' : ''} key={index} />)}
+          </div>
+          <div className="fig-qr-foot">
+            <span>
+              Expires in
+              <strong>1h 47m</strong>
+            </span>
+            <span>Records<strong>5</strong></span>
+            <button type="button">Share QR</button>
+          </div>
         </div>
       </section>
 
       <section id="faq" className="fig-faq">
         <h2>Frequently asked</h2>
         <div className="fig-faq-list">
-          {faqs.map(([question, answer], index) => (
-            <button className={`fig-faq-item ${openFaq === index ? 'open' : ''}`} key={question} type="button" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
-              <strong>{question}<span>{openFaq === index ? '⌃' : '⌄'}</span></strong>
-              {openFaq === index && <p>{answer}</p>}
-            </button>
-          ))}
+          {faqs.map(([question, answer], index) => {
+            const open = openFaq === index;
+            const panelId = `fig-faq-panel-${index}`;
+            return (
+              <div className={`fig-faq-item ${open ? 'open' : ''}`} key={question}>
+                <button
+                  className="fig-faq-question"
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() => setOpenFaq(open ? -1 : index)}
+                >
+                  {question}
+                  <ChevronDown size={20} aria-hidden="true" />
+                </button>
+                {open && <p id={panelId}>{answer}</p>}
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -257,15 +370,21 @@ export default function LandingPage() {
         <div>
           <h2>Start building your vehicle's permanent service record today</h2>
           <p>Free to start. No credit card required.</p>
-          <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>Get Started Free <span>→</span></Link>
+          <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>
+            Get Started Free
+            <ArrowRight size={19} aria-hidden="true" />
+          </Link>
         </div>
       </section>
 
       <footer className="fig-footer">
-        <div><strong>Trevora</strong><p>The intelligent vehicle service record companion for car owners who care about their investment.</p></div>
-        <div><strong>Product</strong><a>Features</a><a>How It Works</a><a>Roadmap</a></div>
-        <div><strong>Company</strong><a>About</a><a>Blog</a><a>Contact</a></div>
-        <div><strong>Legal</strong><a>Privacy Policy</a><a>Terms of Service</a><a>Security</a></div>
+        <div>
+          <strong>Trevora</strong>
+          <p>The intelligent vehicle service record companion for car owners who care about their investment.</p>
+        </div>
+        <div><strong>Product</strong><a href="#features">Features</a><a href="#workflow">How It Works</a><a href="#faq">FAQ</a></div>
+        <div><strong>Company</strong><a href="#faq">About</a><a href="#faq">Contact</a></div>
+        <div><strong>Legal</strong><a href="#faq">Privacy Policy</a><a href="#faq">Terms of Service</a><a href="#faq">Security</a></div>
       </footer>
     </main>
   );

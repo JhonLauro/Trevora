@@ -36,7 +36,7 @@ Each top-level workspace has its own `CONTEXT.md` with rules and current module 
 
 - `/planning` — SRS, SDD, module plans, architecture decisions (`planning/module-plans/`)
 - `/backend` — Spring Boot API (`backend/CONTEXT.md`, code in `backend/trevora-api`)
-- `/frontend` — React app (`frontend/CONTEXT.md`, code in `frontend/trevora-web`; design references and route reference in `frontend/design-reference`)
+- `/frontend` — React app (`frontend/CONTEXT.md`, code in `frontend/trevora-web`)
 - `/database` — schema/migrations (`database/CONTEXT.md`)
 - `/docs` — API contracts and implementation notes
 
