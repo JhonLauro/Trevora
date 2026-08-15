@@ -10207,6 +10207,90 @@ p {
   width: 100%;
 }
 
+.receipt-upload-tips {
+  background: #f8fbff;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.85rem 1rem;
+}
+
+.receipt-upload-tips li {
+  align-items: center;
+  color: #34434f;
+  display: flex;
+  font-size: 0.9rem;
+  gap: 0.55rem;
+}
+
+.receipt-upload-tips svg {
+  color: #1e8a5f;
+  flex-shrink: 0;
+}
+
+.receipt-camera-guide {
+  inset: 8% 16%;
+  pointer-events: none;
+  position: absolute;
+}
+
+.receipt-camera-corner {
+  border-color: rgba(255, 255, 255, 0.9);
+  border-style: solid;
+  border-width: 0;
+  height: 28px;
+  position: absolute;
+  width: 28px;
+}
+
+.receipt-camera-corner-tl {
+  border-left-width: 3px;
+  border-top-left-radius: 6px;
+  border-top-width: 3px;
+  left: 0;
+  top: 0;
+}
+
+.receipt-camera-corner-tr {
+  border-right-width: 3px;
+  border-top-right-radius: 6px;
+  border-top-width: 3px;
+  right: 0;
+  top: 0;
+}
+
+.receipt-camera-corner-bl {
+  border-bottom-left-radius: 6px;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  bottom: 0;
+  left: 0;
+}
+
+.receipt-camera-corner-br {
+  border-bottom-right-radius: 6px;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+  bottom: 0;
+  right: 0;
+}
+
+.receipt-camera-lighting-hint {
+  background: rgba(179, 68, 24, 0.92);
+  border-radius: 999px;
+  bottom: 14px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  left: 50%;
+  padding: 0.4rem 0.95rem;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
 .receipt-camera-empty {
   align-items: center;
   color: #cfe2f5;

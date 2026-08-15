@@ -98,56 +98,43 @@ fieldSources
 
 Uploaded Supabase Storage references for all pages are stored in `storedReceiptPages`. The existing top-level receipt storage columns keep the first page as the primary display image.
 
+## Noise Filtering
+
+Receipts come from many different shops with no fixed layout, so two layers work together to keep irrelevant content out of the extracted fields:
+
+- **OCR-level block filtering** (`GoogleVisionOCRProvider`): Google Cloud Vision classifies each detected text region into a block type. Blocks typed `BARCODE`, `PICTURE`, or `RULER`, and any block Vision itself is under 35% confident about, are dropped before the text ever reaches AI extraction. This removes barcodes, logos, and stray marks structurally instead of relying on the AI to recognize them as noise.
+- **Extraction-prompt filtering** (`OpenAIServiceDraftExtractionProvider`): the system prompt explicitly instructs the model to ignore marketing/promotional text, loyalty program blurbs, generic greetings, legal/warranty boilerplate, and unrelated registration numbers, rather than copying anything present in the OCR text into a field.
+
+If a shop's receipt still leaks unwanted text into a field, check which layer let it through: block-level noise (visual artifacts) belongs in `GoogleVisionOCRProvider`'s filtering; textual boilerplate (that OCR correctly read but shouldn't have been extracted) belongs in the prompt's ignore-list.
+
 ## Environment Variables
 
 Set these in `.env`, your shell, or deployment environment:
 
 ```properties
-OCR_PROVIDER=tesseract
-TESSERACT_PATH=tesseract
-TESSDATA_PATH=
+OCR_PROVIDER=google-vision
+GOOGLE_CLOUD_VISION_API_KEY=AIza...
 AI_EXTRACTION_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-`TESSERACT_PATH` is optional when `tesseract` is already on `PATH`. `TESSDATA_PATH` is optional unless your local Tesseract install needs an explicit tessdata directory.
-
 Do not commit `.env`, API keys, Supabase secrets, receipt images, or real customer receipt text.
 
-## Installing Tesseract Locally
+## Setting up Google Cloud Vision
 
-Windows:
+1. In the Google Cloud Console, create or select a project and enable the **Cloud Vision API**.
+2. Create an API key (APIs & Services > Credentials > Create Credentials > API key).
+3. Optionally restrict the key to the Cloud Vision API for security.
+4. Set `GOOGLE_CLOUD_VISION_API_KEY` in `.env` to that key.
 
-1. Install Tesseract OCR from the UB Mannheim Windows builds or another trusted package source.
-2. Add the install directory, for example `C:\Program Files\Tesseract-OCR`, to `PATH`.
-3. Or set `TESSERACT_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe`.
-4. If language data is not found, set `TESSDATA_PATH=C:\Program Files\Tesseract-OCR\tessdata`.
-
-macOS:
-
-```bash
-brew install tesseract
-```
-
-Linux:
-
-```bash
-sudo apt-get update
-sudo apt-get install tesseract-ocr
-```
-
-Verify:
-
-```bash
-tesseract --version
-```
+No local binary or system install is required — OCR requests go to the Cloud Vision REST API (`images:annotate` with `DOCUMENT_TEXT_DETECTION`) over HTTPS using the API key as a query parameter.
 
 ## Fallback Behavior
 
 Fallback is intentionally kept for demo reliability:
 
-- If `OCR_PROVIDER` is not `tesseract`, mock receipt extraction is used.
+- If `OCR_PROVIDER` is not `google-vision`, mock receipt extraction is used.
 - If every page fails OCR or returns empty text, mock receipt extraction is used.
 - If some pages fail OCR, successful page text still proceeds to AI extraction.
 - If OpenAI is unavailable, not configured, or returns invalid JSON after successful OCR, a draft is still created with combined raw OCR text in `remarks`.
@@ -158,6 +145,7 @@ Fallback is intentionally kept for demo reliability:
 - OCR quality depends on image lighting, angle, focus, and receipt print quality.
 - Scan mode uses browser camera capture through file input; fully live camera scanning/cropping is not implemented yet.
 - Page reordering is not implemented in the MVP; page order follows selection/capture order.
-- The executable wrapper currently uses English OCR (`eng`).
+- Google Cloud Vision's document text detection auto-detects language, which is broader than the prior English-only OCR but is not tuned per-locale.
 - AI confidence is advisory and Module 2 review remains required.
 - Raw OCR text is stored in draft metadata for review/debugging, so avoid uploading sensitive receipts outside trusted environments.
+- Cloud Vision usage is billed by Google beyond its free tier; monitor API usage/quotas in the Google Cloud Console.

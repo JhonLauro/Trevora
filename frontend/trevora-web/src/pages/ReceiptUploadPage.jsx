@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, FileImage, Plus, RotateCcw, Trash2, Video, X } from 'lucide-react';
+import { Camera, CheckCircle2, FileImage, Plus, RotateCcw, Trash2, Video, X } from 'lucide-react';
 import StepIndicator from '../components/StepIndicator';
 import { createReceiptPagesServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
 
 export default function ReceiptUploadPage() {
   const { vehicleId } = useParams();
@@ -12,6 +13,7 @@ export default function ReceiptUploadPage() {
   const scanInputRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const analysisCanvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
   const uploadPagesRef = useRef([]);
   const scanPagesRef = useRef([]);
@@ -27,6 +29,9 @@ export default function ReceiptUploadPage() {
   const [processingStep, setProcessingStep] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [preparingUpload, setPreparingUpload] = useState(false);
+  const [qualityNotice, setQualityNotice] = useState('');
+  const [lightingHint, setLightingHint] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -79,6 +84,7 @@ export default function ReceiptUploadPage() {
   }, []);
 
   useEffect(() => {
+    setQualityNotice('');
     if (activeMode === 'UPLOAD') {
       stopCamera();
     }
@@ -95,17 +101,71 @@ export default function ReceiptUploadPage() {
     }
   }, [cameraActive]);
 
+  useEffect(() => {
+    if (!cameraActive) {
+      setLightingHint(null);
+      return undefined;
+    }
+
+    const canvas = analysisCanvasRef.current;
+    if (!canvas) return undefined;
+    canvas.width = 48;
+    canvas.height = 48;
+    const context = canvas.getContext('2d');
+
+    const interval = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) return;
+      try {
+        context.drawImage(video, 0, 0, 48, 48);
+        const { data } = context.getImageData(0, 0, 48, 48);
+        let total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          total += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        }
+        const averageLuminance = total / (data.length / 4);
+        if (averageLuminance < 60) {
+          setLightingHint('dark');
+        } else if (averageLuminance > 225) {
+          setLightingHint('bright');
+        } else {
+          setLightingHint('good');
+        }
+      } catch {
+        // Transient frame read errors (video not ready yet) are safe to ignore.
+      }
+    }, 700);
+
+    return () => window.clearInterval(interval);
+  }, [cameraActive]);
+
   const activePages = activeMode === 'UPLOAD' ? uploadPages : scanPages;
   const isScanMode = activeMode === 'SCAN';
 
-  function addUploadFiles(fileList) {
+  async function addUploadFiles(fileList) {
     const files = Array.from(fileList || []).filter(isSupportedReceiptFile);
     if (files.length === 0) {
       setError('Choose supported receipt image files.');
       return;
     }
-    setUploadPages((current) => renumberPages([...current, ...files.map(toPage)]));
+
     setError('');
+    setQualityNotice('');
+    setPreparingUpload(true);
+    try {
+      const prepared = await Promise.all(files.map(prepareReceiptFile));
+      setUploadPages((current) => renumberPages([...current, ...prepared.map((result) => toPage(result.file))]));
+      const blurryCount = prepared.filter((result) => result.isBlurry).length;
+      if (blurryCount > 0) {
+        setQualityNotice(
+          blurryCount === 1
+            ? '1 page looks blurry. Consider replacing it with a clearer photo for better OCR accuracy.'
+            : `${blurryCount} pages look blurry. Consider replacing them with clearer photos for better OCR accuracy.`
+        );
+      }
+    } finally {
+      setPreparingUpload(false);
+    }
   }
 
   function addScanFile(fileList) {
@@ -144,6 +204,7 @@ export default function ReceiptUploadPage() {
       }
       setCameraActive(true);
       setCameraUnavailable(false);
+      setCameraMessage('Align the receipt within the guide, then capture.');
     } catch {
       setCameraActive(false);
       setCameraUnavailable(true);
@@ -183,9 +244,14 @@ export default function ReceiptUploadPage() {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, width, height);
 
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    const { blob, isBlurry } = await prepareCanvasCapture(canvas);
     if (!blob) {
       setError('The camera frame could not be captured. Please try again or upload receipt images instead.');
+      return;
+    }
+
+    if (isBlurry) {
+      setCameraMessage('That page looks blurry. Hold steady and make sure the receipt is in focus, then capture again.');
       return;
     }
 
@@ -321,6 +387,20 @@ export default function ReceiptUploadPage() {
                 <strong>Upload existing service documents</strong>
                 <p>Use this for saved photos of receipt pages, invoices, job orders, or official receipts for the same service visit.</p>
               </div>
+              <ul className="receipt-upload-tips">
+                <li>
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>Flat surface, good lighting, no glare or shadows</span>
+                </li>
+                <li>
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>All four corners of the page visible in frame</span>
+                </li>
+                <li>
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>Sharp focus — hold steady before taking the photo</span>
+                </li>
+              </ul>
               <input
                 ref={uploadInputRef}
                 className="sr-only"
@@ -332,11 +412,12 @@ export default function ReceiptUploadPage() {
                   event.target.value = '';
                 }}
               />
-              <button className="receipt-input-cta" type="button" onClick={() => uploadInputRef.current?.click()}>
+              <button className="receipt-input-cta" type="button" onClick={() => uploadInputRef.current?.click()} disabled={preparingUpload}>
                 <FileImage size={24} aria-hidden="true" />
-                <strong>{uploadPages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
+                <strong>{preparingUpload ? 'Preparing images...' : uploadPages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
                 <span>Select multiple images at once or drag them into this panel.</span>
               </button>
+              {qualityNotice && <div className="receipt-camera-message">{qualityNotice}</div>}
             </section>
           ) : (
             <section className="receipt-input-panel">
@@ -356,10 +437,26 @@ export default function ReceiptUploadPage() {
                 }}
               />
               <canvas ref={canvasRef} className="sr-only" aria-hidden="true" />
+              <canvas ref={analysisCanvasRef} className="sr-only" aria-hidden="true" />
 
               <div className="receipt-camera-stage">
                 {cameraActive ? (
-                  <video ref={videoRef} className="receipt-camera-preview" playsInline muted autoPlay />
+                  <>
+                    <video ref={videoRef} className="receipt-camera-preview" playsInline muted autoPlay />
+                    <div className="receipt-camera-guide" aria-hidden="true">
+                      <span className="receipt-camera-corner receipt-camera-corner-tl" />
+                      <span className="receipt-camera-corner receipt-camera-corner-tr" />
+                      <span className="receipt-camera-corner receipt-camera-corner-bl" />
+                      <span className="receipt-camera-corner receipt-camera-corner-br" />
+                    </div>
+                    {lightingHint && lightingHint !== 'good' && (
+                      <div className="receipt-camera-lighting-hint" role="status">
+                        {lightingHint === 'dark'
+                          ? 'Low light — move to a brighter area'
+                          : 'Too bright — reduce glare or backlight'}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="receipt-camera-empty">
                     <Camera size={30} aria-hidden="true" />

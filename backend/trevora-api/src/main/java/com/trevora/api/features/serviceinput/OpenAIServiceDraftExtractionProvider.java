@@ -171,6 +171,21 @@ public class OpenAIServiceDraftExtractionProvider {
                 Use only the OCR text and page/source metadata. Do not use outside knowledge.
                 Return strict JSON only. Do not include markdown or explanation.
 
+                Receipts come from many different shops with no fixed layout. The OCR text may still contain
+                content that is not part of the service transaction itself. Ignore the following entirely -
+                do not copy it into any field, do not let it influence classification, and do not mention it
+                in confidenceNotes or warnings unless it is directly conflicting with a real field value:
+                - Barcodes, QR code strings, or long alphanumeric codes with no surrounding label or context.
+                - Marketing slogans, promotions, loyalty program text, social media handles or hashtags.
+                - Generic greetings or sign-offs ("Thank you for your business", "Please come again").
+                - Printed legal boilerplate, warranty disclaimers, or terms-and-conditions paragraphs.
+                - Tax registration numbers, business permit numbers, or accreditation numbers that are not the total cost.
+                - Cashier names, queue numbers, or POS system metadata unrelated to the vehicle or service.
+                Example: OCR text containing "Follow us @shopname for promos!" or "All sales are final, see terms
+                on back" must not appear in remarks, partsReplaced, laborPerformed, or any other field.
+                When in doubt whether a line is transaction content or boilerplate, prefer leaving it out rather
+                than including it in a field or in confidenceNotes/warnings.
+
                 Factual values must be directly supported by visible OCR text. Do not invent or infer factual values.
                 Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, and chassis number.
                 If a factual value is missing or uncertain, return null for that field.

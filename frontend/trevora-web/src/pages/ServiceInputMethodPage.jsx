@@ -17,7 +17,7 @@ const methods = [
     title: 'Receipt / Photo',
     badge: 'Recommended',
     icon: 'R',
-    description: 'Upload a receipt image. Tesseract OCR and AI extraction create a draft for review.',
+    description: 'Upload a receipt image. Google Cloud Vision OCR and AI extraction create a draft for review.',
     meta: 'Best with clear receipt photos.',
   },
   {

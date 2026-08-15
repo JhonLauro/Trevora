@@ -61,7 +61,7 @@ function receiptExtractionStatus(draft) {
   if (metadata.fallbackUsed) {
     return 'Needs review';
   }
-  if (metadata.source === 'tesseract_openai') {
+  if (metadata.source === 'google_vision_openai') {
     return 'Real OCR + AI used';
   }
   return 'Receipt extraction';

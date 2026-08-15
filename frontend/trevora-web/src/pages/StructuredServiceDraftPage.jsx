@@ -21,7 +21,7 @@ function extractionStatus(draft) {
   const metadata = draft?.fieldMetadata ?? {};
   if (draft?.inputMethod !== 'RECEIPT') return null;
   if (metadata.fallbackUsed) return 'Needs review';
-  if (metadata.source === 'tesseract_openai') return 'Real OCR + AI used';
+  if (metadata.source === 'google_vision_openai') return 'Real OCR + AI used';
   return 'Receipt extraction';
 }
 

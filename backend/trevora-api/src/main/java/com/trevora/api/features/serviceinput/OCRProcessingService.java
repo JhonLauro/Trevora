@@ -15,20 +15,20 @@ import org.springframework.web.multipart.MultipartFile;
 public class OCRProcessingService {
     private static final int OPENAI_SAFE_OCR_CHARS = 12000;
 
-    private final TesseractOCRProvider tesseractOCRProvider;
+    private final GoogleVisionOCRProvider googleVisionOCRProvider;
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
     private final ServiceClassificationService classificationService;
     private final String ocrProvider;
     private final String aiProvider;
 
     public OCRProcessingService(
-            TesseractOCRProvider tesseractOCRProvider,
+            GoogleVisionOCRProvider googleVisionOCRProvider,
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
             ServiceClassificationService classificationService,
             @Value("${trevora.ocr.provider:mock}") String ocrProvider,
             @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
     ) {
-        this.tesseractOCRProvider = tesseractOCRProvider;
+        this.googleVisionOCRProvider = googleVisionOCRProvider;
         this.openAIExtractionProvider = openAIExtractionProvider;
         this.classificationService = classificationService;
         this.ocrProvider = normalizeProvider(ocrProvider, "mock");
@@ -46,8 +46,8 @@ public class OCRProcessingService {
         String inputMode = normalizeInputMode(receiptInputMode);
         String firstFileName = files.isEmpty() ? "uploaded receipt" : fileNameFor(files.get(0));
 
-        if (!"tesseract".equals(ocrProvider)) {
-            return mockReceiptExtraction(firstFileName, inputMode, files.size(), List.of("OCR_PROVIDER is not set to tesseract."));
+        if (!"google-vision".equals(ocrProvider)) {
+            return mockReceiptExtraction(firstFileName, inputMode, files.size(), List.of("OCR_PROVIDER is not set to google-vision."));
         }
 
         List<String> extractionErrors = new ArrayList<>();
@@ -65,13 +65,13 @@ public class OCRProcessingService {
             page.put("ocrProvider", ocrProvider);
 
             try {
-                String rawText = tesseractOCRProvider.extractText(file);
+                String rawText = googleVisionOCRProvider.extractText(file);
                 page.put("rawText", rawText);
                 page.put("textLength", rawText.length());
                 if (rawText.isBlank()) {
                     page.put("ocrStatus", "EMPTY");
-                    page.put("errorMessage", "Tesseract OCR returned empty text.");
-                    extractionErrors.add("Page " + pageNumber + " (" + fileName + "): Tesseract OCR returned empty text.");
+                    page.put("errorMessage", "Google Cloud Vision OCR returned empty text.");
+                    extractionErrors.add("Page " + pageNumber + " (" + fileName + "): Google Cloud Vision OCR returned empty text.");
                 } else {
                     page.put("ocrStatus", "SUCCESS");
                     combinedSections.add(pageHeader(pageNumber, inputMode, fileName) + "\n" + rawText);
@@ -134,7 +134,7 @@ public class OCRProcessingService {
                 fields.laborPerformed(),
                 fields.remarks(),
                 metadata(
-                        "tesseract_openai",
+                        "google_vision_openai",
                         rawOcrText,
                         receiptInputMode,
                         pages,
@@ -175,7 +175,7 @@ public class OCRProcessingService {
                 null,
                 rawOcrText,
                 metadata(
-                        "tesseract_raw_text",
+                        "google_vision_raw_text",
                         rawOcrText,
                         receiptInputMode,
                         pages,
