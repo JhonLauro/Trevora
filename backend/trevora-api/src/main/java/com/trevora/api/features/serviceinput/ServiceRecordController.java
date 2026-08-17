@@ -54,7 +54,8 @@ public class ServiceRecordController {
     @PostMapping("/manual")
     @ResponseStatus(HttpStatus.CREATED)
     public ServiceDraftResponse createManualDraft(@Valid @RequestBody ManualServiceDraftRequest request) {
-        return ServiceDraftResponse.from(serviceInputService.createManualDraft(request));
+        ServiceDraft draft = serviceInputService.createManualDraft(request);
+        return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
     }
 
     @PostMapping(value = "/receipt", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -71,7 +72,7 @@ public class ServiceRecordController {
             @RequestParam(required = false) String receiptPagesJson
     ) {
         List<MultipartFile> files = normalizedReceiptFiles(receiptImage, receiptImages);
-        return ServiceDraftResponse.from(serviceInputService.createReceiptDraft(
+        ServiceDraft draft = serviceInputService.createReceiptDraft(
                 vehicleId,
                 files,
                 receiptInputMode,
@@ -80,13 +81,15 @@ public class ServiceRecordController {
                 receiptOriginalFilename,
                 receiptContentType,
                 receiptPagesJson
-        ));
+        );
+        return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
     }
 
     @PostMapping("/voice")
     @ResponseStatus(HttpStatus.CREATED)
     public ServiceDraftResponse createVoiceDraft(@Valid @RequestBody VoiceServiceDraftRequest request) {
-        return ServiceDraftResponse.from(serviceInputService.createVoiceDraft(request));
+        ServiceDraft draft = serviceInputService.createVoiceDraft(request);
+        return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
     }
 
     @PostMapping(value = "/voice/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -104,7 +107,8 @@ public class ServiceRecordController {
 
     @GetMapping("/{draftId}")
     public ServiceDraftResponse getDraft(@PathVariable UUID draftId) {
-        return ServiceDraftResponse.from(serviceInputService.getDraftForMockOwner(draftId));
+        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
     }
 
     @PatchMapping("/{draftId}/corrections")

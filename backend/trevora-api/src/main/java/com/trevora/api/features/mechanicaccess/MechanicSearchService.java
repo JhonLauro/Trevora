@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ServiceRecordItem;
+import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ public class MechanicSearchService {
     private static final Set<String> ALLOWED_VIEWS = Set.of("parts-map", "timeline", "table");
 
     private final MechanicAccessService mechanicAccessService;
+    private final ServiceRecordItemRepository serviceRecordItemRepository;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private final String apiKey;
@@ -36,11 +39,13 @@ public class MechanicSearchService {
 
     public MechanicSearchService(
             MechanicAccessService mechanicAccessService,
+            ServiceRecordItemRepository serviceRecordItemRepository,
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.mechanic-search.openai.model:gpt-4o}") String model
     ) {
         this.mechanicAccessService = mechanicAccessService;
+        this.serviceRecordItemRepository = serviceRecordItemRepository;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.create();
         this.apiKey = blankToNull(apiKey);
@@ -160,27 +165,35 @@ public class MechanicSearchService {
             return records.stream().limit(1).toList();
         }
         return records.stream()
-                .filter(record -> matches(record, lowerQuery))
+                .filter(record -> matches(record, itemsFor(record), lowerQuery))
                 .toList();
     }
 
-    private boolean matches(ServiceRecord record, String lowercaseQuery) {
-        return containsIgnoreCase(record.getServiceType(), lowercaseQuery)
-                || containsIgnoreCase(record.getShopName(), lowercaseQuery)
-                || containsIgnoreCase(record.getPartsReplaced(), lowercaseQuery)
-                || containsIgnoreCase(record.getLaborPerformed(), lowercaseQuery)
-                || containsIgnoreCase(record.getRemarks(), lowercaseQuery)
-                || semanticMatch(record, lowercaseQuery);
+    private List<ServiceRecordItem> itemsFor(ServiceRecord record) {
+        return serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
     }
 
-    private boolean semanticMatch(ServiceRecord record, String lowercaseQuery) {
-        String searchable = String.join(
-                " ",
-                valueOrEmpty(record.getServiceType()),
-                valueOrEmpty(record.getPartsReplaced()),
-                valueOrEmpty(record.getLaborPerformed()),
-                valueOrEmpty(record.getRemarks())
-        ).toLowerCase(Locale.ROOT);
+    private boolean matches(ServiceRecord record, List<ServiceRecordItem> items, String lowercaseQuery) {
+        boolean itemMatch = items.stream().anyMatch(item ->
+                containsIgnoreCase(item.getServiceType(), lowercaseQuery)
+                        || containsIgnoreCase(item.getPartsReplaced(), lowercaseQuery)
+                        || containsIgnoreCase(item.getLaborPerformed(), lowercaseQuery)
+        );
+        return itemMatch
+                || containsIgnoreCase(record.getShopName(), lowercaseQuery)
+                || containsIgnoreCase(record.getRemarks(), lowercaseQuery)
+                || semanticMatch(items, lowercaseQuery);
+    }
+
+    private boolean semanticMatch(List<ServiceRecordItem> items, String lowercaseQuery) {
+        String searchable = items.stream()
+                .flatMap(item -> java.util.stream.Stream.of(
+                        valueOrEmpty(item.getServiceType()),
+                        valueOrEmpty(item.getPartsReplaced()),
+                        valueOrEmpty(item.getLaborPerformed())
+                ))
+                .reduce("", (a, b) -> a + " " + b)
+                .toLowerCase(Locale.ROOT);
 
         if (containsAny(lowercaseQuery, "oil", "filter")) {
             return containsAny(searchable, "oil", "filter");
@@ -203,6 +216,7 @@ public class MechanicSearchService {
         }
 
         ServiceRecord first = matches.get(0);
+        String serviceLabel = serviceLabelFor(first);
         String date = first.getServiceDate() == null
                 ? "an unknown service date"
                 : first.getServiceDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -212,7 +226,7 @@ public class MechanicSearchService {
         String cost = first.getTotalCost() == null ? "cost not provided" : "PHP " + first.getTotalCost();
         if (matches.size() == 1) {
             return "I found 1 approved shared record: "
-                    + first.getServiceType()
+                    + serviceLabel
                     + " on "
                     + date
                     + " at "
@@ -224,12 +238,24 @@ public class MechanicSearchService {
         return "I found "
                 + matches.size()
                 + " approved shared records. The most recent match is "
-                + first.getServiceType()
+                + serviceLabel
                 + " on "
                 + date
                 + " at "
                 + shop
                 + ".";
+    }
+
+    private String serviceLabelFor(ServiceRecord record) {
+        List<ServiceRecordItem> items = itemsFor(record);
+        if (items.isEmpty()) {
+            return "service work";
+        }
+        String first = items.get(0).getServiceType();
+        if (items.size() == 1) {
+            return first;
+        }
+        return first + " (+" + (items.size() - 1) + " more)";
     }
 
     private String mechanicSearchSystemPrompt() {
@@ -272,31 +298,28 @@ public class MechanicSearchService {
     }
 
     private Map<String, Object> recordSummary(ServiceRecord record) {
+        List<ServiceRecordItem> items = itemsFor(record);
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("recordId", record.getRecordId());
         summary.put("serviceDate", record.getServiceDate());
-        summary.put("serviceType", record.getServiceType());
-        summary.put("category", mechanicAccessService.toSharedRecord(record).category());
+        summary.put("services", items.stream().map(this::itemSummary).toList());
         summary.put("odometer", record.getOdometer());
         summary.put("totalCost", record.getTotalCost());
         summary.put("shopName", record.getShopName());
         summary.put("location", record.getLocation());
-        summary.put("partsReplaced", record.getPartsReplaced());
-        summary.put("laborPerformed", record.getLaborPerformed());
         summary.put("remarks", record.getRemarks());
         summary.put("sourceInputMethod", record.getSourceInputMethod());
-        summary.put("classification", classificationMetadata(record.getFieldMetadata()));
         summary.put("hasReceipt", record.getReceiptStoragePath() != null && !record.getReceiptStoragePath().isBlank());
         return summary;
     }
 
-    @SuppressWarnings("unchecked")
-    private Object classificationMetadata(Map<String, Object> metadata) {
-        if (metadata == null) {
-            return null;
-        }
-        Object classification = metadata.get("classification");
-        return classification instanceof Map<?, ?> ? classification : null;
+    private Map<String, Object> itemSummary(ServiceRecordItem item) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("serviceType", item.getServiceType());
+        summary.put("serviceCategory", item.getServiceCategory());
+        summary.put("partsReplaced", item.getPartsReplaced());
+        summary.put("laborPerformed", item.getLaborPerformed());
+        return summary;
     }
 
     private String sanitizeRecommendedView(String value, String query) {

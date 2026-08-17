@@ -10449,6 +10449,26 @@ p {
   min-height: 40px;
 }
 
+.receipt-page-card-blurry {
+  background: #fef6e7;
+  border-color: #d97706;
+}
+
+.receipt-page-blur-flag {
+  color: #b45309 !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.receipt-page-replace-flagged {
+  border-color: #d97706;
+  color: #b45309;
+}
+
 @media (min-width: 720px) {
   .receipt-camera-actions {
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -10706,6 +10726,107 @@ p {
   justify-content: center;
   position: absolute;
   z-index: 0;
+}
+
+/* Service line items (services array editor + read-only list) */
+.service-items-editor {
+  display: grid;
+  gap: 1rem;
+}
+
+.service-item-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.service-item-row-header {
+  align-items: center;
+  color: #475569;
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 700;
+  justify-content: space-between;
+}
+
+.service-item-remove {
+  background: none;
+  border: none;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+.service-item-add {
+  justify-self: start;
+}
+
+.service-items-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.service-item-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+}
+
+.service-item-card-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.service-item-card-header h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.service-item-cost {
+  color: #071526;
+  font-weight: 700;
+}
+
+.service-item-detail {
+  color: #334155;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.service-items-empty {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.draft-services-section,
+.confirmation-services-section {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.record-field-row-services {
+  align-items: flex-start;
+}
+
+.record-field-row-services .service-items-list {
+  margin-top: 0.4rem;
+}
+
+.mechanic-detail-services {
+  display: grid;
+  gap: 0.6rem;
 }
 
 .stored-receipt-empty {

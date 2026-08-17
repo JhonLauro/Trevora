@@ -42,9 +42,6 @@ public class ServiceDraft {
     @Column(name = "service_date")
     private LocalDate serviceDate;
 
-    @Column(name = "service_type")
-    private String serviceType;
-
     private Integer odometer;
 
     @Column(name = "total_cost", precision = 12, scale = 2)
@@ -54,12 +51,6 @@ public class ServiceDraft {
     private String shopName;
 
     private String location;
-
-    @Column(name = "parts_replaced", columnDefinition = "text")
-    private String partsReplaced;
-
-    @Column(name = "labor_performed", columnDefinition = "text")
-    private String laborPerformed;
 
     @Column(columnDefinition = "text")
     private String remarks;
@@ -128,14 +119,6 @@ public class ServiceDraft {
         this.serviceDate = serviceDate;
     }
 
-    public String getServiceType() {
-        return serviceType;
-    }
-
-    public void setServiceType(String serviceType) {
-        this.serviceType = serviceType;
-    }
-
     public Integer getOdometer() {
         return odometer;
     }
@@ -166,22 +149,6 @@ public class ServiceDraft {
 
     public void setLocation(String location) {
         this.location = location;
-    }
-
-    public String getPartsReplaced() {
-        return partsReplaced;
-    }
-
-    public void setPartsReplaced(String partsReplaced) {
-        this.partsReplaced = partsReplaced;
-    }
-
-    public String getLaborPerformed() {
-        return laborPerformed;
-    }
-
-    public void setLaborPerformed(String laborPerformed) {
-        this.laborPerformed = laborPerformed;
     }
 
     public String getRemarks() {

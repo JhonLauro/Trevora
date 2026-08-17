@@ -27,9 +27,16 @@ import {
   X,
 } from 'lucide-react';
 import PartsMap from '../components/PartsMap';
+import ServiceItemsList from '../components/ServiceItemsList';
 import { getVehicleServiceHistory } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
-import { formatServiceText, formatServiceTextInline, serviceTextLines } from '../utils/serviceText';
+import {
+  recordHasServiceType,
+  serviceItemsArray,
+  serviceItemsPartsInline,
+  serviceItemsSummaryLabel,
+  uniqueServiceTypes,
+} from '../utils/serviceText';
 
 const COMPONENT_RULES = [
   ['brakes', /\bbrake|rotor|pad|caliper|fluid flush/i],
@@ -103,23 +110,25 @@ function normalizeText(value, fallback = '-') {
   return String(value);
 }
 
-function partsArray(value) {
-  return serviceTextLines(value).flatMap((line) => line.split(/[,;\n]/).map((part) => part.trim()).filter(Boolean));
+function partsArray(record) {
+  return serviceItemsArray(record.services)
+    .flatMap((item) => String(item.partsReplaced || '').split(/[,;\n]/).map((part) => part.trim()).filter(Boolean));
 }
 
-function formatParts(value) {
-  return formatServiceTextInline(value);
+function formatParts(record) {
+  return serviceItemsPartsInline(record.services);
 }
 
 function recordSearchText(record) {
+  const itemsText = serviceItemsArray(record.services)
+    .map((item) => [item.serviceType, item.serviceCategory, item.partsReplaced, item.laborPerformed].filter(Boolean).join(' '))
+    .join(' ');
   return [
-    record.serviceType,
+    itemsText,
     record.category,
     record.shopName,
     record.location,
     record.remarks,
-    record.laborPerformed,
-    formatParts(record.partsReplaced),
   ].filter(Boolean).join(' ');
 }
 
@@ -218,13 +227,13 @@ function dueSuggestions(records) {
     },
     latestTires && {
       title: 'Tire rotation or alignment',
-      basedOn: `Based on ${latestTires.serviceType}`,
+      basedOn: `Based on ${serviceItemsSummaryLabel(latestTires.services)}`,
       due: latestTires.odometer ? `Check near ${(Number(latestTires.odometer) + 5000).toLocaleString()} km` : 'Check on next visit',
       kind: 'Due soon',
     },
     latestBrakes && {
       title: 'Brake inspection',
-      basedOn: `Based on ${latestBrakes.serviceType}`,
+      basedOn: `Based on ${serviceItemsSummaryLabel(latestBrakes.services)}`,
       due: 'Review pads and fluid at the next scheduled service',
       kind: 'Upcoming',
     },
@@ -252,7 +261,7 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
         <div className="history-drawer-top">
           <div>
             <span>Record #{record.recordId}</span>
-            <h2>{record.serviceType || 'Service record'}</h2>
+            <h2>{serviceItemsSummaryLabel(record.services)}</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close record preview">
             <X size={17} aria-hidden="true" />
@@ -271,13 +280,15 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
             {record.location && <small>{record.location}</small>}
           </section>
           <section>
-            <h3>Parts</h3>
-            <p>{formatParts(record.partsReplaced)}</p>
+            <h3>Services</h3>
+            <ServiceItemsList services={record.services} />
           </section>
-          <section>
-            <h3>Work Performed</h3>
-            <p>{formatServiceText(record.laborPerformed || record.remarks, 'No notes provided')}</p>
-          </section>
+          {record.remarks && (
+            <section>
+              <h3>Remarks</h3>
+              <p>{record.remarks}</p>
+            </section>
+          )}
         </div>
         <div className="history-drawer-actions">
           <Link className="button-link" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
@@ -295,7 +306,7 @@ function MiniRecordDrawer({ record, vehicleId, onClose }) {
 function InsightsRail({ records, suggestions, vehicleId }) {
   const oilRecord = records.find((record) => /oil|filter/i.test(recordSearchText(record)));
   const brakeRecord = records.find((record) => /brake/i.test(recordSearchText(record)));
-  const parts = records.flatMap((record) => partsArray(record.partsReplaced));
+  const parts = records.flatMap((record) => partsArray(record));
   const partCounts = parts.reduce((counts, part) => ({ ...counts, [part]: (counts[part] || 0) + 1 }), {});
   const topParts = Object.entries(partCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const next = suggestions[0];
@@ -643,7 +654,7 @@ export default function VehicleServiceHistoryPage() {
       const matchesQuery = !query.trim() || haystack.includes(query.trim().toLowerCase());
       const matchesSource = sourceFilter === 'all'
         || String(record.sourceInputMethod || '').toLowerCase() === sourceFilter;
-      const matchesServiceType = serviceTypeFilter === 'all' || record.serviceType === serviceTypeFilter;
+      const matchesServiceType = serviceTypeFilter === 'all' || recordHasServiceType(record, serviceTypeFilter);
       const matchesCategory = categoryFilter === 'all' || record.category === categoryFilter;
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
       const matchesShop = shopFilter === 'all' || record.shopName === shopFilter;
@@ -705,7 +716,7 @@ export default function VehicleServiceHistoryPage() {
 
   const serviceTypes = history?.serviceTypes?.length
     ? history.serviceTypes
-    : [...new Set(records.map((record) => record.serviceType).filter(Boolean))];
+    : uniqueServiceTypes(records);
   const sources = [...new Set(records.map((record) => String(record.sourceInputMethod || '').toLowerCase()).filter(Boolean))];
   const categories = [...new Set(records.map((record) => record.category).filter(Boolean))];
   const statuses = [...new Set(records.map((record) => record.status).filter(Boolean))];
@@ -786,7 +797,7 @@ export default function VehicleServiceHistoryPage() {
 
       <section className="history-summary-grid">
         <SummaryCard icon={FileText} label="Total Records" value={records.length} sub="all sources" tone="blue" />
-        <SummaryCard icon={Calendar} label="Last Service" value={latestRecord ? formatDate(latestRecord.serviceDate) : 'None yet'} sub={latestRecord?.serviceType} tone="cyan" />
+        <SummaryCard icon={Calendar} label="Last Service" value={latestRecord ? formatDate(latestRecord.serviceDate) : 'None yet'} sub={latestRecord ? serviceItemsSummaryLabel(latestRecord.services) : undefined} tone="cyan" />
         <SummaryCard icon={Gauge} label="Odometer" value={odometer != null ? Number(odometer).toLocaleString() : '-'} sub="km" tone="purple" />
         <SummaryCard icon={Share2} label="Total Spent" value={formatMoney(totalCost).replace('.00', '')} sub="saved records" tone="green" />
         <SummaryCard icon={AlertTriangle} label="Needs Review" value={needsReviewCount} sub={needsReviewCount === 1 ? 'record' : 'records'} tone={needsReviewCount ? 'orange' : 'gray'} />
@@ -977,7 +988,7 @@ export default function VehicleServiceHistoryPage() {
                       <div className="timeline-card-header">
                         <div>
                           <span className="history-date">{formatDate(record.serviceDate)}</span>
-                          <h2>{record.serviceType || 'Service record'}</h2>
+                          <h2>{serviceItemsSummaryLabel(record.services)}</h2>
                           <p>{normalizeText(record.shopName, 'Shop not provided')}</p>
                         </div>
                         <div className="history-badge-row">
@@ -985,7 +996,7 @@ export default function VehicleServiceHistoryPage() {
                           <span className={badgeClass(record.status)}>{record.status}</span>
                         </div>
                       </div>
-                      <p className="history-record-description">{formatParts(record.partsReplaced)}</p>
+                      <p className="history-record-description">{formatParts(record)}</p>
                       <div className="history-facts">
                         <span>{record.category || 'General'}</span>
                         <span>{record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'No odometer'}</span>
@@ -1036,7 +1047,7 @@ export default function VehicleServiceHistoryPage() {
                   <tr key={record.recordId} onClick={() => setSelectedRecord(record)}>
                     <td>{formatDate(record.serviceDate)}</td>
                     <td>
-                      <strong>{record.serviceType || 'Service record'}</strong>
+                      <strong>{serviceItemsSummaryLabel(record.services)}</strong>
                     </td>
                     <td>{record.referenceNumber || record.orNumber || '—'}</td>
                     <td>

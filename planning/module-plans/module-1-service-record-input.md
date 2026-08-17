@@ -47,11 +47,13 @@ Services:
 Repositories:
 - VehicleRepository
 - ServiceDraftRepository
+- ServiceDraftItemRepository
 
 Domain Models / Entities:
 - User
 - VehicleProfile
 - ServiceDraft
+- ServiceDraftItem
 - ReceiptInput
 - VoiceInput
 - ManualInput
@@ -63,21 +65,36 @@ Enums:
 
 ## Required ServiceDraft Fields
 
+A ServiceDraft is one visit/transaction. `serviceType`, `partsReplaced`, and `laborPerformed`
+are no longer flat fields on the draft itself — a visit can include multiple distinct services
+(e.g. an oil change and a tire rotation from the same receipt), so those fields live on a
+`services` list of `ServiceDraftItem` rows instead (see `database/migrations/007_service_line_items.sql`).
+
+ServiceDraft (header/visit-level):
 - draftId
 - vehicleId
 - ownerId
 - inputMethod
 - serviceDate
-- serviceType
 - odometer
 - totalCost
 - shopName
 - location
-- partsReplaced
-- laborPerformed
 - remarks
 - status
 - createdAt
+
+ServiceDraftItem (one row per service performed during the visit):
+- itemId
+- draftId
+- serviceType
+- serviceCategory
+- partsReplaced
+- laborPerformed
+- lineCost
+- sortOrder
+
+At least one ServiceDraftItem is required before a draft can be confirmed.
 
 ## MVP Endpoints
 

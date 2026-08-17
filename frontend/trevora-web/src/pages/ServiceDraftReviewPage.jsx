@@ -1,19 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import ServiceItemsEditor from '../components/ServiceItemsEditor';
 import { getServiceDraftReview, validateServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
-import { formatServiceText } from '../utils/serviceText';
-
 const reviewFields = [
   ['serviceDate', 'Service date', 'date'],
-  ['serviceType', 'Service type', 'text'],
   ['odometer', 'Odometer', 'number'],
   ['totalCost', 'Total cost', 'number'],
   ['shopName', 'Shop Name', 'text'],
   ['location', 'Location', 'text'],
-  ['partsReplaced', 'Parts replaced', 'textarea'],
-  ['laborPerformed', 'Labor performed', 'textarea'],
   ['remarks', 'Remarks', 'textarea'],
 ];
 
@@ -21,22 +17,19 @@ const requiredFieldNames = new Set(['vehicleId', 'serviceDate', 'totalCost']);
 const receiptPrimaryFields = [
   ['vehicleId', 'Vehicle', 'text'],
   ['serviceDate', 'Service Date', 'date'],
-  ['serviceType', 'Service Type', 'text'],
   ['totalCost', 'Total Cost', 'number'],
   ['shopName', 'Shop Name', 'text'],
   ['location', 'Location', 'text'],
-  ['partsReplaced', 'Parts Replaced', 'textarea'],
-  ['laborPerformed', 'Labor Performed', 'textarea'],
   ['remarks', 'Remarks', 'textarea'],
 ];
 
 function draftToForm(draft) {
-  return reviewFields.reduce((form, [key]) => {
-    form[key] = ['partsReplaced', 'laborPerformed'].includes(key)
-      ? formatServiceText(draft?.[key], '')
-      : draft?.[key] ?? '';
-    return form;
+  const form = reviewFields.reduce((accumulator, [key]) => {
+    accumulator[key] = draft?.[key] ?? '';
+    return accumulator;
   }, {});
+  form.services = Array.isArray(draft?.services) ? draft.services : [];
+  return form;
 }
 
 function formatValue(value) {
@@ -228,21 +221,16 @@ function sourceHint(fieldName, draft) {
     return {
       vehicleId: 'Pre-selected vehicle',
       serviceDate: 'Extracted from OCR text when present',
-      serviceType: 'Mapped by AI from receipt text',
       totalCost: 'Mapped from total or amount paid',
       shopName: 'Mapped from receipt header when present',
       location: 'Mapped from address text when present',
-      partsReplaced: 'Mapped from itemized parts when present',
-      laborPerformed: 'Mapped from service or labor lines',
       remarks: 'Raw OCR text appears here if AI extraction fails',
     }[fieldName];
   }
   if (draft?.inputMethod === 'VOICE') {
     return {
       serviceDate: 'Inferred from spoken date',
-      serviceType: 'Inferred from service keywords',
       totalCost: 'Inferred from spoken cost',
-      laborPerformed: 'Original transcript preserved',
     }[fieldName];
   }
   return draft?.inputMethod === 'MANUAL' ? 'Owner-entered value' : undefined;
@@ -439,6 +427,10 @@ export default function ServiceDraftReviewPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function updateServices(services) {
+    setForm((current) => ({ ...current, services }));
+  }
+
   async function runValidation() {
     setValidating(true);
     setError('');
@@ -465,6 +457,7 @@ export default function ServiceDraftReviewPage() {
     validating,
     runValidation,
     updateField,
+    updateServices,
     draftId,
   };
 
@@ -502,6 +495,7 @@ function ReceiptReviewLayout({
   validating,
   runValidation,
   updateField,
+  updateServices,
   draftId,
 }) {
   const stats = confidenceStats(validation);
@@ -543,6 +537,12 @@ function ReceiptReviewLayout({
               />
             ))}
           </div>
+          <div className="review-field extraction-field-card">
+            <span className="field-label-row">
+              <span>Services</span>
+            </span>
+            <ServiceItemsEditor value={form.services} onChange={updateServices} />
+          </div>
           <ClassificationBadges draft={draft} />
           <ReviewFooter
             canContinueToConfirmation={canContinueToConfirmation}
@@ -570,6 +570,7 @@ function SourceReviewLayout(props) {
     validating,
     runValidation,
     updateField,
+    updateServices,
     draftId,
     mode,
   } = props;
@@ -595,7 +596,7 @@ function SourceReviewLayout(props) {
         {isVoice && (
           <div className="voice-transcript-card">
             <strong>Voice transcript</strong>
-            <p>{draft.fieldMetadata?.transcript || formatServiceText(draft.laborPerformed, 'No transcript was stored with this draft.')}</p>
+            <p>{draft.fieldMetadata?.transcript || 'No transcript was stored with this draft.'}</p>
           </div>
         )}
 
@@ -612,6 +613,13 @@ function SourceReviewLayout(props) {
               updateField={updateField}
             />
           ))}
+        </div>
+
+        <div className="review-field">
+          <span className="field-label-row">
+            <span>Services</span>
+          </span>
+          <ServiceItemsEditor value={form.services} onChange={updateServices} />
         </div>
 
         <ClassificationBadges draft={draft} />

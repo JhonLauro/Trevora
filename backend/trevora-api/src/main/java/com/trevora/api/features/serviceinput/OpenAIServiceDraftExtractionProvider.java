@@ -114,6 +114,7 @@ public class OpenAIServiceDraftExtractionProvider {
             }
 
             JsonNode fieldsNode = objectMapper.readTree(stripMarkdownFence(contentNode.asText()));
+            List<ServiceItemFields> services = asServiceItems(fieldsNode.get("services"));
             Map<String, Object> fieldSources = asObjectMap(fieldsNode.get("fieldSources"));
             Map<String, String> fieldConfidence = fieldConfidence(fieldsNode.get("fieldConfidence"), fieldSources);
             List<String> aiSuggestedFields = aiSuggestedFields(fieldsNode.get("aiSuggestedFields"), fieldSources);
@@ -145,13 +146,11 @@ public class OpenAIServiceDraftExtractionProvider {
             }
             return new ReceiptDraftFields(
                     serviceDate,
-                    asText(fieldsNode.get("serviceType")),
+                    services,
                     odometer,
                     totalCost,
                     shopName,
                     location,
-                    asText(fieldsNode.get("partsReplaced")),
-                    asText(fieldsNode.get("laborPerformed")),
                     asText(fieldsNode.get("remarks")),
                     asStringList(fieldsNode.get("confidenceNotes")),
                     fieldSources,
@@ -191,8 +190,15 @@ public class OpenAIServiceDraftExtractionProvider {
                 If a factual value is missing or uncertain, return null for that field.
                 If multiple possible factual values exist, choose the clearest source-supported value only and add a warning.
 
-                You may classify or infer only these draft fields from OCR text:
-                serviceType, laborPerformed, partsReplaced, remarks.
+                A single visit/receipt can include multiple distinct services (for example an oil change
+                and a tire rotation on the same receipt). Return each distinct service performed as a
+                separate entry in the "services" array, each with its own serviceType, partsReplaced,
+                and laborPerformed. If only one service was performed, return a single-entry array.
+                If the receipt truly has no identifiable services, return an empty array.
+
+                You may classify or infer these per-service fields from OCR text:
+                serviceType, laborPerformed, partsReplaced.
+                Also infer the visit-level "remarks" field (notes that are not specific to one service).
                 These inferred or summarized values must be labeled as AI-suggested with sourceType INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED, confidence medium or low unless the source text is explicit, and needsReview true.
 
                 Field-level evidence is required for every returned field, including missing fields.
@@ -221,9 +227,11 @@ public class OpenAIServiceDraftExtractionProvider {
                 source documents are multi-page, or classification is uncertain.
 
                 Return exactly these keys:
-                serviceDate, serviceType, odometer, totalCost, shopName, location,
-                partsReplaced, laborPerformed, remarks, classification, confidenceNotes, fieldSources,
+                serviceDate, services, odometer, totalCost, shopName, location,
+                remarks, classification, confidenceNotes, fieldSources,
                 fieldConfidence, aiSuggestedFields, warnings.
+                services must be an array of objects, each with exactly these keys:
+                serviceType, partsReplaced, laborPerformed.
                 classification must be an object with exactly these keys:
                 normalizedServiceType, serviceCategory, relatedComponents, recordTags,
                 confidence, source, needsOwnerReview, notes.
@@ -247,13 +255,18 @@ public class OpenAIServiceDraftExtractionProvider {
                 Dates should be ISO format yyyy-MM-dd when possible.
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
+                A single spoken description can mention multiple distinct services (for example an oil
+                change and a tire rotation in the same visit). Return each distinct service performed as
+                a separate entry in the "services" array, each with its own serviceType, partsReplaced,
+                and laborPerformed. If only one service was mentioned, return a single-entry array. If no
+                service is clearly described, return an empty array.
                 serviceType should be a concise service label only when a service is explicitly described.
                 shopName should capture a named repair shop, garage, service center, dealership, or auto shop only when the speaker explicitly names it.
                 Examples of explicit support include phrases like "at Superior Auto Repairs", "from Midas", "the shop name is Quick Fix Motors", or "serviced at Toyota Service Center".
                 Return null for shopName when the transcript only says a generic mechanic, technician, or shop without a specific business name.
-                partsReplaced should include only explicit parts.
-                laborPerformed should include only explicit work performed.
-                remarks should include only explicit notes that do not fit another field.
+                partsReplaced should include only explicit parts, attributed to the correct service entry.
+                laborPerformed should include only explicit work performed, attributed to the correct service entry.
+                remarks should include only explicit visit-level notes that do not fit another field.
                 Classification must use only these serviceCategory values:
                 Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
                 Classification relatedComponents must use only these values:
@@ -265,9 +278,11 @@ public class OpenAIServiceDraftExtractionProvider {
                 Mark inferred classification as AI-suggested and set needsOwnerReview true.
 
                 Return exactly these keys:
-                serviceDate, serviceType, odometer, totalCost, shopName, location,
-                partsReplaced, laborPerformed, remarks, classification, confidenceNotes, fieldSources,
+                serviceDate, services, odometer, totalCost, shopName, location,
+                remarks, classification, confidenceNotes, fieldSources,
                 fieldConfidence, aiSuggestedFields, warnings.
+                services must be an array of objects, each with exactly these keys:
+                serviceType, partsReplaced, laborPerformed.
                 classification must be an object with exactly these keys:
                 normalizedServiceType, serviceCategory, relatedComponents, recordTags,
                 confidence, source, needsOwnerReview, notes.
@@ -360,6 +375,27 @@ public class OpenAIServiceDraftExtractionProvider {
         }
         String value = asText(node);
         return value == null ? List.of() : List.of(value);
+    }
+
+    private List<ServiceItemFields> asServiceItems(JsonNode node) {
+        List<ServiceItemFields> services = new ArrayList<>();
+        if (node == null || node.isNull() || !node.isArray()) {
+            return services;
+        }
+        for (JsonNode itemNode : node) {
+            String serviceType = asText(itemNode.get("serviceType"));
+            if (serviceType == null) {
+                continue;
+            }
+            services.add(new ServiceItemFields(
+                    serviceType,
+                    asText(itemNode.get("partsReplaced")),
+                    asText(itemNode.get("laborPerformed")),
+                    asBigDecimal(itemNode.get("lineCost")),
+                    null
+            ));
+        }
+        return services;
     }
 
     private Map<String, Object> asObjectMap(JsonNode node) {

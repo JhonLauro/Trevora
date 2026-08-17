@@ -7,13 +7,11 @@ import java.util.Map;
 
 public record ReceiptDraftFields(
         LocalDate serviceDate,
-        String serviceType,
+        List<ServiceItemFields> services,
         Integer odometer,
         BigDecimal totalCost,
         String shopName,
         String location,
-        String partsReplaced,
-        String laborPerformed,
         String remarks,
         List<String> confidenceNotes,
         Map<String, Object> fieldSources,

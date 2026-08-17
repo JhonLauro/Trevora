@@ -2,6 +2,7 @@ package com.trevora.api.features.servicerecord;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.serviceinput.ServiceDraftItem;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.validation.ServiceDraftValidationService;
 import com.trevora.api.features.serviceinput.ServiceDraftResponse;
@@ -14,6 +15,7 @@ import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class ServiceRecordService {
     private final ServiceInputService serviceInputService;
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceRecordRepository serviceRecordRepository;
+    private final ServiceRecordItemRepository serviceRecordItemRepository;
     private final ServiceDraftValidationService serviceDraftValidationService;
     private final CurrentUserService currentUserService;
 
@@ -30,12 +33,14 @@ public class ServiceRecordService {
             ServiceInputService serviceInputService,
             ServiceDraftRepository serviceDraftRepository,
             ServiceRecordRepository serviceRecordRepository,
+            ServiceRecordItemRepository serviceRecordItemRepository,
             ServiceDraftValidationService serviceDraftValidationService,
             CurrentUserService currentUserService
     ) {
         this.serviceInputService = serviceInputService;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceRecordRepository = serviceRecordRepository;
+        this.serviceRecordItemRepository = serviceRecordItemRepository;
         this.serviceDraftValidationService = serviceDraftValidationService;
         this.currentUserService = currentUserService;
     }
@@ -44,10 +49,11 @@ public class ServiceRecordService {
     public ServiceRecordConfirmationResponse confirmDraft(UUID draftId) {
         currentUserService.requireVehicleOwner();
         ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
-        ValidationResult validation = serviceDraftValidationService.validateDraft(draft);
+        List<ServiceDraftItem> draftItems = serviceInputService.getItemsForDraft(draft.getDraftId());
+        ValidationResult validation = serviceDraftValidationService.validateDraft(draft, draftItems);
         if (!validation.valid()) {
             throw new InvalidServiceRecordConfirmationException(
-                    "Complete vehicle, service date, and total cost before confirming this record."
+                    "Complete vehicle, service date, total cost, and at least one service before confirming this record."
             );
         }
 
@@ -57,15 +63,33 @@ public class ServiceRecordService {
         copyDraftToRecord(draft, record);
 
         ServiceRecord savedRecord = serviceRecordRepository.save(record);
+        List<ServiceRecordItem> recordItems = promoteItems(draftItems, savedRecord.getRecordId());
         draft.setStatus(DraftStatus.CONFIRMED);
         ServiceDraft savedDraft = serviceDraftRepository.save(draft);
 
         return new ServiceRecordConfirmationResponse(
-                ServiceRecordResponse.from(savedRecord),
-                ServiceDraftResponse.from(savedDraft),
+                ServiceRecordResponse.from(savedRecord, recordItems),
+                ServiceDraftResponse.from(savedDraft, draftItems),
                 validation,
                 "Service record saved."
         );
+    }
+
+    private List<ServiceRecordItem> promoteItems(List<ServiceDraftItem> draftItems, UUID recordId) {
+        serviceRecordItemRepository.deleteByRecordId(recordId);
+        for (ServiceDraftItem draftItem : draftItems) {
+            ServiceRecordItem recordItem = new ServiceRecordItem();
+            recordItem.setRecordId(recordId);
+            recordItem.setServiceType(draftItem.getServiceType());
+            recordItem.setServiceCategory(draftItem.getServiceCategory());
+            recordItem.setPartsReplaced(draftItem.getPartsReplaced());
+            recordItem.setLaborPerformed(draftItem.getLaborPerformed());
+            recordItem.setLineCost(draftItem.getLineCost());
+            recordItem.setSortOrder(draftItem.getSortOrder());
+            recordItem.setFieldMetadata(draftItem.getFieldMetadata());
+            serviceRecordItemRepository.save(recordItem);
+        }
+        return serviceRecordItemRepository.findByRecordIdOrderBySortOrder(recordId);
     }
 
     private void copyDraftToRecord(ServiceDraft draft, ServiceRecord record) {
@@ -74,25 +98,15 @@ public class ServiceRecordService {
         record.setOwnerId(draft.getOwnerId());
         record.setSourceInputMethod(draft.getInputMethod());
         record.setServiceDate(draft.getServiceDate());
-        record.setServiceType(blankToNull(draft.getServiceType()));
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());
         record.setShopName(draft.getShopName());
         record.setLocation(draft.getLocation());
-        record.setPartsReplaced(draft.getPartsReplaced());
-        record.setLaborPerformed(draft.getLaborPerformed());
         record.setRemarks(draft.getRemarks());
         record.setFieldMetadata(draft.getFieldMetadata());
         record.setReceiptStorageBucket(draft.getReceiptStorageBucket());
         record.setReceiptStoragePath(draft.getReceiptStoragePath());
         record.setReceiptOriginalFilename(draft.getReceiptOriginalFilename());
         record.setReceiptContentType(draft.getReceiptContentType());
-    }
-
-    private String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
     }
 }

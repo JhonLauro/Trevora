@@ -1,17 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import ServiceItemsList from '../components/ServiceItemsList';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
-import { formatServiceText } from '../utils/serviceText';
 
 const summaryFields = [
   ['serviceDate', 'Service date'],
-  ['serviceType', 'Service type'],
   ['totalCost', 'Total cost'],
   ['shopName', 'Shop Name'],
-  ['partsReplaced', 'Parts'],
-  ['laborPerformed', 'Labor / work performed'],
   ['odometer', 'Odometer'],
   ['location', 'Location'],
   ['remarks', 'Remarks'],
@@ -21,7 +18,6 @@ function displayValue(key, value) {
   if (value === null || value === undefined || value === '') return 'Not provided';
   if (key === 'totalCost') return `PHP ${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (key === 'odometer') return `${Number(value).toLocaleString()} km`;
-  if (key === 'partsReplaced' || key === 'laborPerformed') return formatServiceText(value);
   return String(value);
 }
 
@@ -139,6 +135,11 @@ export default function ServiceRecordConfirmationPage() {
                 <p>Will be saved to {vehicleName(vehicle, draft)} service records.</p>
               </div>
               <span className="badge">{draft.inputMethod}</span>
+            </div>
+
+            <div className="confirmation-services-section">
+              <h3>Services</h3>
+              <ServiceItemsList services={draft.services} />
             </div>
 
             <dl className="confirmation-list">

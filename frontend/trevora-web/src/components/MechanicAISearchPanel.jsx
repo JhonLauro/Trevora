@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { searchMechanicSessionHistory } from '../api/mechanicAccess';
+import { serviceItemsSummaryLabel } from '../utils/serviceText';
 
 const suggestions = [
   'What is the most recent service?',
@@ -109,7 +110,7 @@ export default function MechanicAISearchPanel({ sessionId, onSearch }) {
               <span>Open matching records</span>
               {result.records.map((record) => (
                 <Link key={record.recordId} to={`/mechanic/access/${sessionId}/history/${record.recordId}`}>
-                  <strong>{record.serviceType || 'Service record'}</strong>
+                  <strong>{serviceItemsSummaryLabel(record.services)}</strong>
                   <small>{formatDate(record.serviceDate)}</small>
                 </Link>
               ))}

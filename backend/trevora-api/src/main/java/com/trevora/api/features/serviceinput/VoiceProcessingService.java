@@ -75,24 +75,36 @@ public class VoiceProcessingService {
             confidenceNotes.add("Shop name was captured from an explicit spoken phrase. Review the spelling before saving.");
         }
 
-        ServiceClassification classification = classificationService.classifyAiOrFallback(
+        List<ServiceItemFields> classifiedServices = new ArrayList<>();
+        List<ServiceItemFields> rawServices = fields.services() == null ? List.of() : fields.services();
+        for (ServiceItemFields item : rawServices) {
+            ServiceClassification itemClassification = classificationService.classifyAiOrFallback(
+                    fields.classification(),
+                    transcript,
+                    item.serviceType(),
+                    item.partsReplaced(),
+                    item.laborPerformed(),
+                    fields.remarks(),
+                    1
+            );
+            classifiedServices.add(item.withClassification(itemClassification));
+        }
+        ServiceClassification overallClassification = classificationService.classifyAiOrFallback(
                 fields.classification(),
                 transcript,
-                fields.serviceType(),
-                fields.partsReplaced(),
-                fields.laborPerformed(),
+                null,
+                null,
+                null,
                 fields.remarks(),
                 1
         );
         return new VoiceDraftExtractionResult(
                 fields.serviceDate(),
-                fields.serviceType(),
+                classifiedServices,
                 fields.odometer(),
                 fields.totalCost(),
                 shopName,
                 fields.location(),
-                fields.partsReplaced(),
-                fields.laborPerformed(),
                 fields.remarks(),
                 metadata(
                         "openai_voice_extraction",
@@ -102,7 +114,7 @@ public class VoiceProcessingService {
                         fieldSources,
                         fieldConfidence,
                         fields.aiSuggestedFields(),
-                        classification,
+                        overallClassification,
                         fields.warnings()
                 )
         );
@@ -112,9 +124,7 @@ public class VoiceProcessingService {
         List<String> warnings = List.of("Draft needs manual review because structured voice extraction was unavailable or incomplete.");
         return new VoiceDraftExtractionResult(
                 null,
-                null,
-                null,
-                null,
+                List.of(),
                 null,
                 null,
                 null,

@@ -2,6 +2,7 @@ package com.trevora.api.features.validation;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.serviceinput.ServiceDraftItem;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.validation.FieldValidationIssue;
@@ -45,16 +46,18 @@ public class ServiceDraftValidationService {
     public ServiceDraftReviewResponse getDraftReview(UUID draftId) {
         currentUserService.requireVehicleOwner();
         ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
-        return new ServiceDraftReviewResponse(ServiceDraftResponse.from(draft), validateDraft(draft));
+        List<ServiceDraftItem> items = serviceInputService.getItemsForDraft(draftId);
+        return new ServiceDraftReviewResponse(ServiceDraftResponse.from(draft, items), validateDraft(draft, items));
     }
 
     public ValidationResult validateDraftForMockOwner(UUID draftId) {
         currentUserService.requireVehicleOwner();
-        return validateDraft(serviceInputService.getDraftForMockOwner(draftId));
+        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        return validateDraft(draft, serviceInputService.getItemsForDraft(draftId));
     }
 
-    public ValidationResult validateDraft(ServiceDraft draft) {
-        List<FieldValidationIssue> missingRequiredFields = findMissingRequiredFields(draft);
+    public ValidationResult validateDraft(ServiceDraft draft, List<ServiceDraftItem> items) {
+        List<FieldValidationIssue> missingRequiredFields = findMissingRequiredFields(draft, items);
         List<FieldValidationIssue> flaggedFields = draft.getInputMethod() == InputMethod.MANUAL
                 ? List.of()
                 : findMetadataFlags(draft);
@@ -69,7 +72,7 @@ public class ServiceDraftValidationService {
         );
     }
 
-    private List<FieldValidationIssue> findMissingRequiredFields(ServiceDraft draft) {
+    private List<FieldValidationIssue> findMissingRequiredFields(ServiceDraft draft, List<ServiceDraftItem> items) {
         List<FieldValidationIssue> issues = new ArrayList<>();
 
         for (FieldValidationRule rule : REQUIRED_RULES) {
@@ -88,6 +91,21 @@ public class ServiceDraftValidationService {
                         true
                 ));
             }
+        }
+
+        if (items == null || items.isEmpty()) {
+            issues.add(new FieldValidationIssue(
+                    "services",
+                    "Services performed",
+                    "MISSING_REQUIRED",
+                    "ERROR",
+                    "At least one service performed must be added before confirmation.",
+                    null,
+                    null,
+                    metadataSource(draft),
+                    true,
+                    true
+            ));
         }
 
         if (draft.getVehicleId() != null) {
@@ -127,9 +145,6 @@ public class ServiceDraftValidationService {
                 if (confidence == null) {
                     continue;
                 }
-                if (isOptionalMissingField(draft, fieldName)) {
-                    continue;
-                }
 
                 boolean lowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
                 issues.add(new FieldValidationIssue(
@@ -155,9 +170,6 @@ public class ServiceDraftValidationService {
                 String fieldName = String.valueOf(entry.getKey());
                 String confidence = String.valueOf(entry.getValue()).toLowerCase(Locale.ROOT);
                 if (containsAnyIssue(issues, fieldName)) {
-                    continue;
-                }
-                if (isOptionalMissingField(draft, fieldName)) {
                     continue;
                 }
                 switch (confidence) {
@@ -208,9 +220,6 @@ public class ServiceDraftValidationService {
                 }
                 String sourceType = evidence.get("sourceType") == null ? "" : String.valueOf(evidence.get("sourceType"));
                 boolean needsReview = Boolean.parseBoolean(String.valueOf(evidence.get("needsReview")));
-                if (isOptionalMissingField(draft, fieldName)) {
-                    continue;
-                }
                 if ("CONFLICTING".equalsIgnoreCase(sourceType) && !containsIssue(issues, fieldName, "UNCERTAIN")) {
                     issues.add(fieldMetadataIssue(
                             draft,
@@ -309,9 +318,6 @@ public class ServiceDraftValidationService {
             if (containsIssue(issues, fieldName, category)) {
                 continue;
             }
-            if (isOptionalMissingField(draft, fieldName)) {
-                continue;
-            }
             issues.add(new FieldValidationIssue(
                     fieldName,
                     labelFor(fieldName),
@@ -338,10 +344,6 @@ public class ServiceDraftValidationService {
             return List.of(value);
         }
         return List.of();
-    }
-
-    private boolean isOptionalMissingField(ServiceDraft draft, String fieldName) {
-        return "serviceType".equals(fieldName) && isMissing(draft.getServiceType());
     }
 
     private List<String> buildReviewSummary(
@@ -425,13 +427,11 @@ public class ServiceDraftValidationService {
         return switch (fieldName) {
             case "vehicleId", "vehicleProfileId" -> "Vehicle profile";
             case "serviceDate" -> "Service date";
-            case "serviceType" -> "Service type";
+            case "services", "serviceType" -> "Services performed";
             case "odometer" -> "Odometer";
             case "totalCost", "cost" -> "Total cost";
             case "shopName" -> "Shop Name";
             case "location" -> "Location";
-            case "partsReplaced" -> "Parts replaced";
-            case "laborPerformed" -> "Labor performed";
             case "remarks" -> "Remarks";
             default -> titleCase(fieldName);
         };
@@ -449,13 +449,10 @@ public class ServiceDraftValidationService {
         return switch (fieldName) {
             case "vehicleId", "vehicleProfileId" -> draft.getVehicleId();
             case "serviceDate" -> draft.getServiceDate();
-            case "serviceType" -> draft.getServiceType();
             case "odometer" -> draft.getOdometer();
             case "totalCost", "cost" -> draft.getTotalCost();
             case "shopName" -> draft.getShopName();
             case "location" -> draft.getLocation();
-            case "partsReplaced" -> draft.getPartsReplaced();
-            case "laborPerformed" -> draft.getLaborPerformed();
             case "remarks" -> draft.getRemarks();
             default -> null;
         };

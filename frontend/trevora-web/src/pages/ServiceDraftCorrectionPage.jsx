@@ -1,58 +1,48 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import ServiceItemsEditor from '../components/ServiceItemsEditor';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
-import { formatServiceText } from '../utils/serviceText';
 
 const correctionFields = [
   ['serviceDate', 'Service date', 'date', true],
-  ['serviceType', 'Service type', 'text', false],
   ['totalCost', 'Total cost', 'number', true],
   ['odometer', 'Odometer at service', 'number', false],
   ['shopName', 'Shop Name', 'text', false],
   ['location', 'Shop location', 'text', false],
-  ['partsReplaced', 'Parts replaced', 'textarea', false],
-  ['laborPerformed', 'Labor / work performed', 'textarea', false],
   ['remarks', 'Remarks', 'textarea', false],
 ];
 
 function draftToForm(draft) {
-  return correctionFields.reduce((form, [key]) => {
-    form[key] = ['partsReplaced', 'laborPerformed'].includes(key)
-      ? formatServiceText(draft?.[key], '')
-      : draft?.[key] ?? '';
-    return form;
+  const form = correctionFields.reduce((accumulator, [key]) => {
+    accumulator[key] = draft?.[key] ?? '';
+    return accumulator;
   }, {});
+  form.services = Array.isArray(draft?.services) ? draft.services : [];
+  return form;
 }
 
 function issueMapFor(validation) {
   const issueMap = new Map();
   for (const issue of validation?.flaggedFields ?? []) {
-    if (!isOptionalServiceTypeIssue(issue)) issueMap.set(issue.fieldName, issue);
+    issueMap.set(issue.fieldName, issue);
   }
   for (const issue of validation?.missingRequiredFields ?? []) {
-    if (!isOptionalServiceTypeIssue(issue)) issueMap.set(issue.fieldName, issue);
+    issueMap.set(issue.fieldName, issue);
   }
   return issueMap;
 }
 
-function isOptionalServiceTypeIssue(issue) {
-  return issue?.fieldName === 'serviceType'
-    && (issue.blocksConfirmation || issue.category === 'MISSING_REQUIRED');
-}
-
 function isBlankOptionalFieldIssue(issue, form = {}) {
-  if (isOptionalServiceTypeIssue(issue)) return true;
   return issue?.fieldName === 'odometer' && !String(form.odometer ?? issue.currentValue ?? '').trim();
 }
 
 function canProceedToConfirmation(validation) {
-  return !(validation?.missingRequiredFields ?? []).some((issue) => !isOptionalServiceTypeIssue(issue));
+  return (validation?.missingRequiredFields ?? []).length === 0;
 }
 
 function correctionSummary(validation, form = {}) {
-  const missingRequiredCount = (validation?.missingRequiredFields ?? [])
-    .filter((issue) => !isOptionalServiceTypeIssue(issue)).length;
+  const missingRequiredCount = (validation?.missingRequiredFields ?? []).length;
   const reviewCount = (validation?.flaggedFields ?? [])
     .filter((issue) => !isBlankOptionalFieldIssue(issue, form) && issue.requiresReview).length;
 
@@ -79,14 +69,20 @@ function vehicleName(vehicle, draft) {
 function serializeCorrections(form) {
   return {
     serviceDate: form.serviceDate || null,
-    serviceType: form.serviceType.trim() || null,
     odometer: form.odometer === '' ? null : Number(form.odometer),
     totalCost: form.totalCost === '' ? null : Number(form.totalCost),
     shopName: form.shopName.trim() || null,
     location: form.location.trim() || null,
-    partsReplaced: form.partsReplaced.trim() || null,
-    laborPerformed: form.laborPerformed.trim() || null,
     remarks: form.remarks.trim() || null,
+    services: (form.services || []).map((item, index) => ({
+      ...item,
+      serviceType: item.serviceType?.trim() || '',
+      serviceCategory: item.serviceCategory?.trim() || null,
+      partsReplaced: item.partsReplaced?.trim() || null,
+      laborPerformed: item.laborPerformed?.trim() || null,
+      lineCost: item.lineCost === '' || item.lineCost === undefined || item.lineCost === null ? null : Number(item.lineCost),
+      sortOrder: index,
+    })),
   };
 }
 
@@ -114,13 +110,6 @@ function fieldStatusFor(key, issue, form) {
     return {
       className: 'status-needs-review',
       label: badgeFor(issue),
-    };
-  }
-
-  if (key === 'serviceType' && !String(form.serviceType ?? '').trim()) {
-    return {
-      className: 'status-not-found',
-      label: 'Not found',
     };
   }
 
@@ -181,7 +170,7 @@ export default function ServiceDraftCorrectionPage() {
   }, [draftId]);
 
   const issueMap = useMemo(() => issueMapFor(validation), [validation]);
-  const attentionCount = (validation?.missingRequiredFields?.filter((issue) => !isOptionalServiceTypeIssue(issue)).length ?? 0)
+  const attentionCount = (validation?.missingRequiredFields?.length ?? 0)
     + (validation?.flaggedFields?.filter((issue) => !isBlankOptionalFieldIssue(issue, form) && issue.requiresReview).length ?? 0);
   const readyForConfirmation = canProceedToConfirmation(validation);
 
@@ -296,7 +285,6 @@ export default function ServiceDraftCorrectionPage() {
                       <span>
                         {label}
                         {required ? ' *' : ''}
-                        {key === 'serviceType' ? <span className="badge subtle">Optional</span> : null}
                         {key === 'odometer' ? <span className="badge subtle">Optional</span> : null}
                       </span>
                       {blankOptional ? (
@@ -321,6 +309,19 @@ export default function ServiceDraftCorrectionPage() {
                   </label>
                 );
               })}
+            </div>
+
+            <div className="correction-field-stack">
+              <div className="correction-field">
+                <span className="field-label-row">
+                  <span>Services</span>
+                  <span className="badge subtle">Optional</span>
+                </span>
+                <ServiceItemsEditor
+                  value={form.services}
+                  onChange={(services) => setForm((current) => ({ ...current, services }))}
+                />
+              </div>
             </div>
           </form>
         </section>

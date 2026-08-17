@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import ServiceItemsList from '../components/ServiceItemsList';
 import { getMechanicSessionRecord } from '../api/mechanicAccess';
-import { formatServiceText } from '../utils/serviceText';
+import { serviceItemsSummaryLabel } from '../utils/serviceText';
 
 function formatMoney(value) {
   if (value === null || value === undefined || value === '') return 'Not provided';
@@ -96,7 +97,7 @@ export default function MechanicSharedRecordDetailPage() {
 
           <section className="record-detail-header mechanic-detail-header">
             <div>
-              <h1>{record.serviceType || 'Service record'}</h1>
+              <h1>{serviceItemsSummaryLabel(record.services)}</h1>
               <p>
                 {formatDate(record.serviceDate)} - {detail.vehicleLabel}
               </p>
@@ -143,15 +144,9 @@ export default function MechanicSharedRecordDetailPage() {
                 {relatedComponents.length === 0 && <span>No component label yet</span>}
               </div>
 
-              <div className="mechanic-detail-focus-grid">
-                <section className="mechanic-work-card">
-                  <span>Work performed</span>
-                  <strong>{formatServiceText(record.laborPerformed)}</strong>
-                </section>
-                <section className="mechanic-work-card">
-                  <span>Parts replaced</span>
-                  <strong>{formatServiceText(record.partsReplaced)}</strong>
-                </section>
+              <div className="mechanic-detail-focus-grid mechanic-detail-services">
+                <span>Services</span>
+                <ServiceItemsList services={record.services} />
               </div>
 
               <section className="mechanic-work-card mechanic-work-card-wide">

@@ -3,9 +3,12 @@ package com.trevora.api.features.mechanicaccess;
 import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ServiceRecordItem;
+import com.trevora.api.shared.dto.ServiceItemResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,14 +17,11 @@ public record MechanicSharedServiceRecordResponse(
         UUID vehicleId,
         InputMethod sourceInputMethod,
         LocalDate serviceDate,
-        String serviceType,
-        String category,
+        List<ServiceItemResponse> services,
         Integer odometer,
         BigDecimal totalCost,
         String shopName,
         String location,
-        String partsReplaced,
-        String laborPerformed,
         String remarks,
         Map<String, Object> fieldMetadata,
         String receiptStorageBucket,
@@ -30,24 +30,21 @@ public record MechanicSharedServiceRecordResponse(
         String receiptContentType,
         Instant createdAt
 ) {
-    public static MechanicSharedServiceRecordResponse from(ServiceRecord record, String category) {
-        return from(record, category, null);
+    public static MechanicSharedServiceRecordResponse from(ServiceRecord record, List<ServiceRecordItem> items) {
+        return from(record, items, null);
     }
 
-    public static MechanicSharedServiceRecordResponse from(ServiceRecord record, String category, ServiceDraft sourceDraft) {
+    public static MechanicSharedServiceRecordResponse from(ServiceRecord record, List<ServiceRecordItem> items, ServiceDraft sourceDraft) {
         return new MechanicSharedServiceRecordResponse(
                 record.getRecordId(),
                 record.getVehicleId(),
                 record.getSourceInputMethod(),
                 record.getServiceDate(),
-                record.getServiceType(),
-                category,
+                items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
                 record.getOdometer(),
                 record.getTotalCost(),
                 record.getShopName(),
                 record.getLocation(),
-                record.getPartsReplaced(),
-                record.getLaborPerformed(),
                 record.getRemarks(),
                 preferredMetadata(record, sourceDraft),
                 firstPresent(record.getReceiptStorageBucket(), sourceDraft == null ? null : sourceDraft.getReceiptStorageBucket()),

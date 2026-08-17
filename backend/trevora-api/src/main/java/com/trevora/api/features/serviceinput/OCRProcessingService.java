@@ -114,24 +114,24 @@ public class OCRProcessingService {
             List<Map<String, Object>> pages,
             List<String> extractionErrors
     ) {
-        ServiceClassification classification = classificationService.classifyAiOrFallback(
+        int pageCount = pages == null ? 0 : pages.size();
+        List<ServiceItemFields> classifiedServices = classifyItems(fields.services(), fields.classification(), rawOcrText, fields.remarks(), pageCount);
+        ServiceClassification overallClassification = classificationService.classifyAiOrFallback(
                 fields.classification(),
                 rawOcrText,
-                fields.serviceType(),
-                fields.partsReplaced(),
-                fields.laborPerformed(),
+                servicesHaystack(fields.services()),
+                null,
+                null,
                 fields.remarks(),
-                pages == null ? 0 : pages.size()
+                pageCount
         );
         return new ReceiptExtractionResult(
                 fields.serviceDate(),
-                fields.serviceType(),
+                classifiedServices,
                 fields.odometer(),
                 fields.totalCost(),
                 fields.shopName(),
                 fields.location(),
-                fields.partsReplaced(),
-                fields.laborPerformed(),
                 fields.remarks(),
                 metadata(
                         "google_vision_openai",
@@ -143,11 +143,48 @@ public class OCRProcessingService {
                         fields.fieldSources(),
                         fields.fieldConfidence(),
                         fields.aiSuggestedFields(),
-                        classification,
+                        overallClassification,
                         fields.warnings(),
                         extractionErrors
                 )
         );
+    }
+
+    private List<ServiceItemFields> classifyItems(
+            List<ServiceItemFields> rawItems,
+            ServiceClassification aiClassificationHint,
+            String rawText,
+            String remarks,
+            int pageCount
+    ) {
+        if (rawItems == null || rawItems.isEmpty()) {
+            return List.of();
+        }
+        List<ServiceItemFields> classified = new ArrayList<>();
+        for (ServiceItemFields item : rawItems) {
+            ServiceClassification itemClassification = classificationService.classifyAiOrFallback(
+                    aiClassificationHint,
+                    rawText,
+                    item.serviceType(),
+                    item.partsReplaced(),
+                    item.laborPerformed(),
+                    remarks,
+                    pageCount
+            );
+            classified.add(item.withClassification(itemClassification));
+        }
+        return classified;
+    }
+
+    private String servicesHaystack(List<ServiceItemFields> items) {
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        return items.stream()
+                .map(ServiceItemFields::serviceType)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> first + ", " + second)
+                .orElse(null);
     }
 
     private ReceiptExtractionResult rawOcrDraft(
@@ -166,9 +203,7 @@ public class OCRProcessingService {
         );
         return new ReceiptExtractionResult(
                 null,
-                null,
-                null,
-                null,
+                List.of(),
                 null,
                 null,
                 null,
@@ -197,15 +232,28 @@ public class OCRProcessingService {
             int pageCount,
             List<String> extractionErrors
     ) {
+        ServiceClassification classification = classificationService.keywordFallback(
+                "",
+                "Receipt-based service",
+                "Mock extracted parts from " + fileName,
+                "Mock extracted labor from receipt image",
+                "",
+                Math.max(1, pageCount)
+        );
+        List<ServiceItemFields> services = List.of(new ServiceItemFields(
+                "Receipt-based service",
+                "Mock extracted parts from " + fileName,
+                "Mock extracted labor from receipt image",
+                null,
+                classification
+        ));
         return new ReceiptExtractionResult(
                 LocalDate.now(),
-                "Receipt-based service",
+                services,
                 null,
                 BigDecimal.valueOf(1500.00),
                 "Mock OCR Auto Shop",
                 null,
-                "Mock extracted parts from " + fileName,
-                "Mock extracted labor from receipt image",
                 "Mock OCR extraction for MVP. Replace OCRProcessingService with a real provider later.",
                 mockMetadata(fileName, receiptInputMode, pageCount, extractionErrors)
         );

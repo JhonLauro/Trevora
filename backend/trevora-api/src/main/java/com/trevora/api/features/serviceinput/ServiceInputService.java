@@ -20,11 +20,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ServiceInputService {
     private final ServiceDraftRepository serviceDraftRepository;
+    private final ServiceDraftItemRepository serviceDraftItemRepository;
     private final VehicleService vehicleService;
     private final OCRProcessingService ocrProcessingService;
     private final VoiceProcessingService voiceProcessingService;
@@ -34,6 +36,7 @@ public class ServiceInputService {
 
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
+            ServiceDraftItemRepository serviceDraftItemRepository,
             VehicleService vehicleService,
             OCRProcessingService ocrProcessingService,
             VoiceProcessingService voiceProcessingService,
@@ -42,6 +45,7 @@ public class ServiceInputService {
             ServiceClassificationService classificationService
     ) {
         this.serviceDraftRepository = serviceDraftRepository;
+        this.serviceDraftItemRepository = serviceDraftItemRepository;
         this.vehicleService = vehicleService;
         this.ocrProcessingService = ocrProcessingService;
         this.voiceProcessingService = voiceProcessingService;
@@ -50,6 +54,7 @@ public class ServiceInputService {
         this.classificationService = classificationService;
     }
 
+    @Transactional
     public ServiceDraft createManualDraft(ManualServiceDraftRequest request) {
         requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
@@ -59,30 +64,20 @@ public class ServiceInputService {
         draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.MANUAL);
         draft.setServiceDate(request.serviceDate());
-        draft.setServiceType(blankToNull(request.serviceType()));
         draft.setOdometer(request.odometer());
         draft.setTotalCost(request.totalCost());
         draft.setShopName(blankToNull(request.shopName()));
         draft.setLocation(blankToNull(request.location()));
-        draft.setPartsReplaced(blankToNull(request.partsReplaced()));
-        draft.setLaborPerformed(blankToNull(request.laborPerformed()));
         draft.setRemarks(blankToNull(request.remarks()));
         draft.setStatus(DraftStatus.DRAFT);
-        ServiceClassification classification = classificationService.keywordFallback(
-                null,
-                draft.getServiceType(),
-                draft.getPartsReplaced(),
-                draft.getLaborPerformed(),
-                draft.getRemarks(),
-                1
-        );
         Map<String, Object> manualMetadata = new LinkedHashMap<>();
         manualMetadata.put("inputMethod", "MANUAL");
         manualMetadata.put("source", "owner_entered");
-        manualMetadata.put("classification", classification.toMetadata());
         draft.setFieldMetadata(manualMetadata);
 
-        return serviceDraftRepository.save(draft);
+        ServiceDraft savedDraft = serviceDraftRepository.save(draft);
+        saveManualItems(savedDraft.getDraftId(), request.services(), draft.getRemarks());
+        return savedDraft;
     }
 
     public ServiceDraft createReceiptDraft(
@@ -105,6 +100,7 @@ public class ServiceInputService {
         );
     }
 
+    @Transactional
     public ServiceDraft createReceiptDraft(
             UUID vehicleId,
             List<MultipartFile> receiptImages,
@@ -124,13 +120,10 @@ public class ServiceInputService {
         draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.RECEIPT);
         draft.setServiceDate(extraction.serviceDate());
-        draft.setServiceType(extraction.serviceType());
         draft.setOdometer(extraction.odometer());
         draft.setTotalCost(extraction.totalCost());
         draft.setShopName(blankToNull(extraction.shopName()));
         draft.setLocation(blankToNull(extraction.location()));
-        draft.setPartsReplaced(blankToNull(extraction.partsReplaced()));
-        draft.setLaborPerformed(blankToNull(extraction.laborPerformed()));
         draft.setRemarks(blankToNull(extraction.remarks()));
         draft.setStatus(DraftStatus.DRAFT);
         draft.setFieldMetadata(enrichReceiptMetadata(extraction.fieldMetadata(), receiptPagesJson));
@@ -139,7 +132,9 @@ public class ServiceInputService {
         draft.setReceiptOriginalFilename(blankToNull(receiptOriginalFilename));
         draft.setReceiptContentType(blankToNull(receiptContentType));
 
-        return serviceDraftRepository.save(draft);
+        ServiceDraft savedDraft = serviceDraftRepository.save(draft);
+        saveExtractedItems(savedDraft.getDraftId(), extraction.services());
+        return savedDraft;
     }
 
     private Map<String, Object> enrichReceiptMetadata(Map<String, Object> metadata, String receiptPagesJson) {
@@ -162,6 +157,7 @@ public class ServiceInputService {
         }
     }
 
+    @Transactional
     public ServiceDraft createVoiceDraft(VoiceServiceDraftRequest request) {
         requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
@@ -172,18 +168,17 @@ public class ServiceInputService {
         draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.VOICE);
         draft.setServiceDate(extraction.serviceDate());
-        draft.setServiceType(extraction.serviceType());
         draft.setOdometer(extraction.odometer());
         draft.setTotalCost(extraction.totalCost());
         draft.setShopName(blankToNull(extraction.shopName()));
         draft.setLocation(blankToNull(extraction.location()));
-        draft.setPartsReplaced(blankToNull(extraction.partsReplaced()));
-        draft.setLaborPerformed(blankToNull(extraction.laborPerformed()));
         draft.setRemarks(blankToNull(extraction.remarks()));
         draft.setStatus(DraftStatus.DRAFT);
         draft.setFieldMetadata(extraction.fieldMetadata());
 
-        return serviceDraftRepository.save(draft);
+        ServiceDraft savedDraft = serviceDraftRepository.save(draft);
+        saveExtractedItems(savedDraft.getDraftId(), extraction.services());
+        return savedDraft;
     }
 
     public ServiceDraft getDraftForMockOwner(UUID draftId) {
@@ -193,6 +188,74 @@ public class ServiceInputService {
     public ServiceDraft getDraftForCurrentUser(UUID draftId) {
         return serviceDraftRepository.findByDraftIdAndOwnerId(draftId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service draft was not found."));
+    }
+
+    public List<ServiceDraftItem> getItemsForDraft(UUID draftId) {
+        return serviceDraftItemRepository.findByDraftIdOrderBySortOrder(draftId);
+    }
+
+    @Transactional
+    public List<ServiceDraftItem> replaceDraftItems(UUID draftId, List<ServiceItemRequest> items, String remarksContext) {
+        serviceDraftItemRepository.deleteByDraftId(draftId);
+        saveManualItems(draftId, items, remarksContext);
+        return getItemsForDraft(draftId);
+    }
+
+    private void saveManualItems(UUID draftId, List<ServiceItemRequest> items, String remarksContext) {
+        if (items == null) {
+            return;
+        }
+        int order = 0;
+        for (ServiceItemRequest itemRequest : items) {
+            String serviceType = blankToNull(itemRequest.serviceType());
+            if (serviceType == null) {
+                continue;
+            }
+            ServiceDraftItem item = new ServiceDraftItem();
+            item.setDraftId(draftId);
+            item.setServiceType(serviceType);
+            item.setPartsReplaced(blankToNull(itemRequest.partsReplaced()));
+            item.setLaborPerformed(blankToNull(itemRequest.laborPerformed()));
+            item.setLineCost(itemRequest.lineCost());
+            item.setSortOrder(order++);
+            ServiceClassification classification = classificationService.keywordFallback(
+                    null,
+                    item.getServiceType(),
+                    item.getPartsReplaced(),
+                    item.getLaborPerformed(),
+                    remarksContext,
+                    1
+            );
+            item.setServiceCategory(classification.serviceCategory());
+            item.setFieldMetadata(classification.toMetadata());
+            serviceDraftItemRepository.save(item);
+        }
+    }
+
+    private void saveExtractedItems(UUID draftId, List<ServiceItemFields> items) {
+        if (items == null) {
+            return;
+        }
+        int order = 0;
+        for (ServiceItemFields itemFields : items) {
+            String serviceType = blankToNull(itemFields.serviceType());
+            if (serviceType == null) {
+                continue;
+            }
+            ServiceDraftItem item = new ServiceDraftItem();
+            item.setDraftId(draftId);
+            item.setServiceType(serviceType);
+            item.setPartsReplaced(blankToNull(itemFields.partsReplaced()));
+            item.setLaborPerformed(blankToNull(itemFields.laborPerformed()));
+            item.setLineCost(itemFields.lineCost());
+            item.setSortOrder(order++);
+            ServiceClassification classification = itemFields.classification();
+            if (classification != null) {
+                item.setServiceCategory(classification.serviceCategory());
+                item.setFieldMetadata(classification.toMetadata());
+            }
+            serviceDraftItemRepository.save(item);
+        }
     }
 
     private String blankToNull(String value) {

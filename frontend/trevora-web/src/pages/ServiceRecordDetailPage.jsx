@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import ServiceItemsList from '../components/ServiceItemsList';
 import { getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
 import AIExplanationPanel from '../components/AIExplanationPanel';
-import { formatServiceText } from '../utils/serviceText';
+import { serviceItemsSummaryLabel } from '../utils/serviceText';
 
 function vehicleName(vehicle, record) {
   if (vehicle) return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
@@ -47,15 +48,18 @@ function relatedComponents(record) {
 const detailFields = [
   ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
   ['odometer', 'Odometer at Service', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
-  ['serviceType', 'Service Type', (record) => record.serviceType || 'Not provided'],
-  ['category', 'Category', (record) => record.category],
-  ['partsReplaced', 'Parts Replaced', (record) => formatServiceText(record.partsReplaced)],
-  ['laborPerformed', 'Work Performed', (record) => formatServiceText(record.laborPerformed)],
   ['shopName', 'Shop Name', (record) => record.shopName || 'Not provided'],
   ['location', 'Shop Location', (record) => record.location || 'Not provided'],
   ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
   ['remarks', 'Remarks', (record) => record.remarks || 'Not provided'],
 ];
+
+function serviceCategories(record) {
+  const categories = (record?.services ?? [])
+    .map((item) => item.serviceCategory)
+    .filter(Boolean);
+  return [...new Set(categories)];
+}
 
 export default function ServiceRecordDetailPage() {
   const { vehicleId, recordId } = useParams();
@@ -112,13 +116,15 @@ export default function ServiceRecordDetailPage() {
         <>
           <section className="record-detail-header">
             <div>
-              <h1>{record.serviceType || 'Service record'}</h1>
+              <h1>{serviceItemsSummaryLabel(record.services)}</h1>
               <p>
                 {vehicleName(vehicle, record)} · {formatDate(record.serviceDate)}
               </p>
               <div className="record-detail-badges">
                 <span className="badge">Validated</span>
-                <span className="badge subtle">{record.category || 'Other'}</span>
+                {serviceCategories(record).map((category) => (
+                  <span className="badge subtle" key={category}>{category}</span>
+                ))}
                 {relatedComponents(record).slice(0, 4).map((component) => (
                   <span className="badge subtle" key={component}>{component}</span>
                 ))}
@@ -144,6 +150,14 @@ export default function ServiceRecordDetailPage() {
                     {vehicleSubtitle(vehicle) && <small>{vehicleSubtitle(vehicle)}</small>}
                   </div>
                   <span className="field-confidence-badge field-confidence-high">Verified</span>
+                </div>
+
+                <div className="record-field-row record-field-row-services">
+                  <span className="record-field-icon">S</span>
+                  <div>
+                    <span>Services</span>
+                    <ServiceItemsList services={record.services} />
+                  </div>
                 </div>
 
                 {detailFields.map(([key, label, getValue]) => (

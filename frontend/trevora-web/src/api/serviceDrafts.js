@@ -115,27 +115,14 @@ function normalizeDraftValidationPayload(payload) {
 }
 
 function normalizeValidation(validation) {
-  const missingRequiredFields = (validation.missingRequiredFields ?? []).filter((issue) => !isOptionalBlankServiceTypeIssue(issue));
-  const flaggedFields = (validation.flaggedFields ?? []).filter((issue) => !isOptionalBlankServiceTypeIssue(issue));
-  const reviewSummary = Array.isArray(validation.reviewSummary)
-    ? validation.reviewSummary.map((item) => String(item).replace('service type, ', '').replace(', service type', ''))
-    : validation.reviewSummary;
+  const missingRequiredFields = validation.missingRequiredFields ?? [];
+  const flaggedFields = validation.flaggedFields ?? [];
 
   return {
     ...validation,
     valid: missingRequiredFields.length === 0,
     missingRequiredFields,
     flaggedFields,
-    reviewSummary,
   };
 }
 
-function isOptionalBlankServiceTypeIssue(issue) {
-  if (issue?.fieldName !== 'serviceType') return false;
-  const value = issue.currentValue;
-  return issue.blocksConfirmation
-    || issue.category === 'MISSING_REQUIRED'
-    || value === null
-    || value === undefined
-    || String(value).trim() === '';
-}

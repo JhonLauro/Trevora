@@ -6,6 +6,8 @@ import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.ai.AIExplanationResponse;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ServiceRecordItem;
+import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -25,15 +27,18 @@ public class AIExplanationService {
     private static final String DISCLAIMER = "This explanation is for understanding only and does not replace professional mechanic judgment.";
 
     private final ServiceRecordRepository serviceRecordRepository;
+    private final ServiceRecordItemRepository serviceRecordItemRepository;
     private final CurrentUserService currentUserService;
     private final VehicleService vehicleService;
 
     public AIExplanationService(
             ServiceRecordRepository serviceRecordRepository,
+            ServiceRecordItemRepository serviceRecordItemRepository,
             CurrentUserService currentUserService,
             VehicleService vehicleService
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
+        this.serviceRecordItemRepository = serviceRecordItemRepository;
         this.currentUserService = currentUserService;
         this.vehicleService = vehicleService;
     }
@@ -44,24 +49,25 @@ public class AIExplanationService {
                 .findByRecordIdAndOwnerId(recordId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
         vehicleService.verifyVehicleBelongsToCurrentUser(record.getVehicleId());
+        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
 
         try {
-            return generateTemplateExplanation(record);
+            return generateTemplateExplanation(record, items);
         } catch (RuntimeException exception) {
             return fallbackExplanation(record);
         }
     }
 
-    private AIExplanationResponse generateTemplateExplanation(ServiceRecord record) {
-        String serviceType = valueOrDefault(record.getServiceType(), "service work");
+    private AIExplanationResponse generateTemplateExplanation(ServiceRecord record, List<ServiceRecordItem> items) {
+        String serviceSummary = valueOrDefault(serviceSummaryFor(items), "service work");
         String shop = blankToNull(record.getShopName());
         String date = formatDate(record.getServiceDate());
-        String parts = blankToNull(record.getPartsReplaced());
-        String labor = blankToNull(record.getLaborPerformed());
+        String parts = blankToNull(joinItemField(items, ServiceRecordItem::getPartsReplaced));
+        String labor = blankToNull(joinItemField(items, ServiceRecordItem::getLaborPerformed));
         String remarks = blankToNull(record.getRemarks());
 
         StringBuilder whatWasDone = new StringBuilder("This confirmed record shows ")
-                .append(serviceType)
+                .append(serviceSummary)
                 .append(" completed on ")
                 .append(date);
         if (shop != null) {
@@ -78,8 +84,8 @@ public class AIExplanationService {
             whatWasDone.append(" Total recorded cost: ").append(formatMoney(record.getTotalCost())).append(".");
         }
 
-        String whyItMatters = buildWhyItMatters(serviceType, parts, labor);
-        List<String> watchFor = buildWatchFor(record);
+        String whyItMatters = buildWhyItMatters(serviceSummary, parts, labor);
+        List<String> watchFor = buildWatchFor(items, record.getOdometer());
         if (remarks != null) {
             watchFor.add("Keep the saved remarks in mind: " + remarks);
         }
@@ -132,17 +138,42 @@ public class AIExplanationService {
         return "Keeping this service documented helps the owner understand what was done, track recurring issues, and plan future maintenance with better context.";
     }
 
-    private List<String> buildWatchFor(ServiceRecord record) {
+    private String serviceSummaryFor(List<ServiceRecordItem> items) {
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        String joined = items.stream()
+                .map(ServiceRecordItem::getServiceType)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> first + " and " + second)
+                .orElse(null);
+        return joined;
+    }
+
+    private String joinItemField(List<ServiceRecordItem> items, java.util.function.Function<ServiceRecordItem, String> extractor) {
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        return items.stream()
+                .map(extractor)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> first + "; " + second)
+                .orElse(null);
+    }
+
+    private List<String> buildWatchFor(List<ServiceRecordItem> items, Integer odometer) {
         List<String> watchFor = new ArrayList<>();
-        String text = String.join(
-                        " ",
-                        valueOrDefault(record.getServiceType(), ""),
-                        valueOrDefault(record.getPartsReplaced(), ""),
-                        valueOrDefault(record.getLaborPerformed(), ""))
+        String text = (items == null ? List.<ServiceRecordItem>of() : items).stream()
+                .flatMap(item -> java.util.stream.Stream.of(
+                        valueOrDefault(item.getServiceType(), ""),
+                        valueOrDefault(item.getPartsReplaced(), ""),
+                        valueOrDefault(item.getLaborPerformed(), "")
+                ))
+                .reduce("", (a, b) -> a + " " + b)
                 .toLowerCase(Locale.ROOT);
 
         if (containsAny(text, "oil", "filter")) {
-            watchFor.add(nextOilInterval(record.getOdometer()));
+            watchFor.add(nextOilInterval(odometer));
             watchFor.add("Watch for oil leaks, burning smells, warning lights, or faster-than-usual oil loss.");
         }
         if (containsAny(text, "brake", "pad", "rotor")) {

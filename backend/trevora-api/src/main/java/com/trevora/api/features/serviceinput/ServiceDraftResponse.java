@@ -3,6 +3,7 @@ package com.trevora.api.features.serviceinput;
 import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.features.serviceinput.ServiceDraft;
+import com.trevora.api.shared.dto.ServiceItemResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,13 +18,11 @@ public record ServiceDraftResponse(
         UUID ownerId,
         InputMethod inputMethod,
         LocalDate serviceDate,
-        String serviceType,
+        List<ServiceItemResponse> services,
         Integer odometer,
         BigDecimal totalCost,
         String shopName,
         String location,
-        String partsReplaced,
-        String laborPerformed,
         String remarks,
         DraftStatus status,
         Map<String, Object> fieldMetadata,
@@ -33,11 +32,14 @@ public record ServiceDraftResponse(
         String receiptContentType,
         Instant createdAt
 ) {
-    public static ServiceDraftResponse from(ServiceDraft draft) {
+    public static ServiceDraftResponse from(ServiceDraft draft, List<ServiceDraftItem> items) {
         boolean legacyMockVoiceDraft = isLegacyMockVoiceDraft(draft);
         Map<String, Object> fieldMetadata = legacyMockVoiceDraft
                 ? legacyVoiceMetadata(draft.getFieldMetadata())
                 : draft.getFieldMetadata();
+        List<ServiceItemResponse> services = legacyMockVoiceDraft || items == null
+                ? List.of()
+                : items.stream().map(ServiceItemResponse::from).toList();
 
         return new ServiceDraftResponse(
                 draft.getDraftId(),
@@ -45,13 +47,11 @@ public record ServiceDraftResponse(
                 draft.getOwnerId(),
                 draft.getInputMethod(),
                 legacyMockVoiceDraft ? null : draft.getServiceDate(),
-                legacyMockVoiceDraft ? null : draft.getServiceType(),
+                services,
                 legacyMockVoiceDraft ? null : draft.getOdometer(),
                 legacyMockVoiceDraft ? null : draft.getTotalCost(),
                 legacyMockVoiceDraft ? null : draft.getShopName(),
                 legacyMockVoiceDraft ? null : draft.getLocation(),
-                legacyMockVoiceDraft ? null : draft.getPartsReplaced(),
-                legacyMockVoiceDraft ? null : draft.getLaborPerformed(),
                 legacyMockVoiceDraft ? null : draft.getRemarks(),
                 draft.getStatus(),
                 fieldMetadata,

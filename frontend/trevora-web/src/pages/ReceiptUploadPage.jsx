@@ -17,6 +17,8 @@ export default function ReceiptUploadPage() {
   const cameraStreamRef = useRef(null);
   const uploadPagesRef = useRef([]);
   const scanPagesRef = useRef([]);
+  const replaceInputRef = useRef(null);
+  const replacingPageIdRef = useRef(null);
   const [activeMode, setActiveMode] = useState('UPLOAD');
   const [vehicle, setVehicle] = useState(null);
   const [uploadPages, setUploadPages] = useState([]);
@@ -30,7 +32,7 @@ export default function ReceiptUploadPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preparingUpload, setPreparingUpload] = useState(false);
-  const [qualityNotice, setQualityNotice] = useState('');
+  const [replacingPageId, setReplacingPageId] = useState(null);
   const [lightingHint, setLightingHint] = useState(null);
   const [error, setError] = useState('');
 
@@ -84,7 +86,6 @@ export default function ReceiptUploadPage() {
   }, []);
 
   useEffect(() => {
-    setQualityNotice('');
     if (activeMode === 'UPLOAD') {
       stopCamera();
     }
@@ -150,21 +151,48 @@ export default function ReceiptUploadPage() {
     }
 
     setError('');
-    setQualityNotice('');
     setPreparingUpload(true);
     try {
       const prepared = await Promise.all(files.map(prepareReceiptFile));
-      setUploadPages((current) => renumberPages([...current, ...prepared.map((result) => toPage(result.file))]));
-      const blurryCount = prepared.filter((result) => result.isBlurry).length;
-      if (blurryCount > 0) {
-        setQualityNotice(
-          blurryCount === 1
-            ? '1 page looks blurry. Consider replacing it with a clearer photo for better OCR accuracy.'
-            : `${blurryCount} pages look blurry. Consider replacing them with clearer photos for better OCR accuracy.`
-        );
-      }
+      setUploadPages((current) => renumberPages([
+        ...current,
+        ...prepared.map((result) => toPage(result.file, result.isBlurry)),
+      ]));
     } finally {
       setPreparingUpload(false);
+    }
+  }
+
+  function requestReplaceUploadPage(pageId) {
+    replacingPageIdRef.current = pageId;
+    replaceInputRef.current?.click();
+  }
+
+  async function handleReplaceFileSelected(fileList) {
+    const pageId = replacingPageIdRef.current;
+    const file = Array.from(fileList || []).find(isSupportedReceiptFile);
+    if (!pageId || !file) {
+      setError('Choose a supported receipt image to replace this page.');
+      return;
+    }
+
+    setError('');
+    setReplacingPageId(pageId);
+    try {
+      const result = await prepareReceiptFile(file);
+      setUploadPages((current) => current.map((page) => {
+        if (page.id !== pageId) return page;
+        URL.revokeObjectURL(page.previewUrl);
+        return {
+          ...page,
+          file: result.file,
+          isBlurry: result.isBlurry,
+          previewUrl: URL.createObjectURL(result.file),
+        };
+      }));
+    } finally {
+      setReplacingPageId(null);
+      replacingPageIdRef.current = null;
     }
   }
 
@@ -417,7 +445,16 @@ export default function ReceiptUploadPage() {
                 <strong>{preparingUpload ? 'Preparing images...' : uploadPages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
                 <span>Select multiple images at once or drag them into this panel.</span>
               </button>
-              {qualityNotice && <div className="receipt-camera-message">{qualityNotice}</div>}
+              <input
+                ref={replaceInputRef}
+                className="sr-only"
+                type="file"
+                accept="image/*,.heic,.heif"
+                onChange={(event) => {
+                  handleReplaceFileSelected(event.target.files);
+                  event.target.value = '';
+                }}
+              />
             </section>
           ) : (
             <section className="receipt-input-panel">
@@ -527,6 +564,8 @@ export default function ReceiptUploadPage() {
             onPreview={setPreviewPage}
             onRemove={removePage}
             onRetake={retakeScanPage}
+            onReplace={requestReplaceUploadPage}
+            replacingPageId={replacingPageId}
           />
 
           {saving && (
@@ -614,7 +653,7 @@ function ReceiptProcessingOverlay({ step, pageCount, mode }) {
   );
 }
 
-function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake }) {
+function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake, onReplace, replacingPageId }) {
   if (pages.length === 0) {
     return (
       <div className="receipt-pages-empty">
@@ -631,7 +670,7 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake }) {
   return (
     <div className="receipt-page-grid">
       {pages.map((page) => (
-        <article className="receipt-page-card" key={page.id}>
+        <article className={`receipt-page-card${page.isBlurry ? ' receipt-page-card-blurry' : ''}`} key={page.id}>
           <button type="button" onClick={() => onPreview(page)}>
             <img src={page.previewUrl} alt={`Receipt page ${page.pageNumber}`} />
           </button>
@@ -639,11 +678,24 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake }) {
             <strong>Page {page.pageNumber}</strong>
             <span>{page.file.name}</span>
             <small>{Math.round(page.file.size / 1024)} KB</small>
+            {page.isBlurry && (
+              <span className="receipt-page-blur-flag">Looks blurry — replace for better accuracy</span>
+            )}
           </div>
           <div className="receipt-page-actions">
             {mode === 'SCAN' && (
               <button className="button-secondary" type="button" onClick={() => onRetake(page.id)}>
                 Retake
+              </button>
+            )}
+            {mode === 'UPLOAD' && (
+              <button
+                className={`button-secondary${page.isBlurry ? ' receipt-page-replace-flagged' : ''}`}
+                type="button"
+                onClick={() => onReplace(page.id)}
+                disabled={replacingPageId === page.id}
+              >
+                {replacingPageId === page.id ? 'Replacing...' : 'Replace'}
               </button>
             )}
             <button className="button-secondary danger-lite" type="button" onClick={() => onRemove(mode, page.id)} aria-label={`Remove page ${page.pageNumber}`}>
@@ -656,12 +708,13 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake }) {
   );
 }
 
-function toPage(file) {
+function toPage(file, isBlurry = false) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     file,
     pageNumber: 1,
     previewUrl: URL.createObjectURL(file),
+    isBlurry,
   };
 }
 

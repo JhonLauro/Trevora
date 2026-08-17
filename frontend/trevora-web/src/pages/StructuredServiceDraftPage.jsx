@@ -1,19 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import ServiceItemsList from '../components/ServiceItemsList';
 import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
-import { formatServiceText } from '../utils/serviceText';
 
 const labels = [
   ['serviceDate', 'Service date'],
-  ['serviceType', 'Service type'],
   ['odometer', 'Odometer'],
   ['totalCost', 'Total cost'],
   ['shopName', 'Shop Name'],
   ['location', 'Location'],
-  ['partsReplaced', 'Parts replaced'],
-  ['laborPerformed', 'Labor performed'],
   ['remarks', 'Remarks'],
 ];
 
@@ -201,11 +198,14 @@ export default function StructuredServiceDraftPage() {
               </div>
             </div>
 
+            <div className="draft-services-section">
+              <h2>Services</h2>
+              <ServiceItemsList services={draft.services} />
+            </div>
+
             <dl className="draft-list">
               {labels.map(([key, label]) => {
-                const value = ['partsReplaced', 'laborPerformed'].includes(key)
-                  ? formatServiceText(draft[key])
-                  : draft[key] || 'Not provided';
+                const value = draft[key] || 'Not provided';
                 const evidence = fieldEvidence(draft.fieldMetadata, key);
                 const labelText = evidenceLabel(evidence, value, draft);
                 const lowConfidence = evidence?.confidence === 'low' && labelText !== 'Needs review' ? 'Low confidence' : '';

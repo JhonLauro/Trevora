@@ -21,8 +21,9 @@ Module 2 receives:
 
 - ServiceDraft created from Module 1
 - inputMethod: MANUAL, RECEIPT, or VOICE
-- draft fields such as serviceDate, serviceType, odometer, totalCost, shopName, partsReplaced, laborPerformed, remarks
-- field_metadata from mock OCR or mock voice processing when available
+- header-level draft fields: serviceDate, odometer, totalCost, shopName, location, remarks
+- a `services` list of ServiceDraftItem rows (serviceType, serviceCategory, partsReplaced, laborPerformed, lineCost per service performed during the visit)
+- field_metadata from OCR/AI or voice processing when available
 
 ## Module 2 Output
 
@@ -41,8 +42,8 @@ Before confirmation, the system should require:
 
 - vehicle profile
 - service date
-- service type
 - total cost
+- at least one service performed (the `services` list must not be empty; each service requires its own serviceType)
 
 Other fields may remain optional.
 
@@ -102,7 +103,9 @@ Repositories:
 
 Entities / Models:
 - ServiceDraft
+- ServiceDraftItem
 - ServiceRecord, if final validated records are implemented in Module 2
+- ServiceRecordItem
 - ValidationResult DTO or value object
 - FieldValidationRule helper/rule object
 
@@ -119,7 +122,7 @@ If service_records is not added yet, document that confirmation updates ServiceD
 ## Validation Rules
 
 - If serviceDate is missing, block confirmation.
-- If serviceType is missing, block confirmation.
+- If the services list is empty (no service performed has been recorded), block confirmation.
 - If totalCost is missing, block confirmation.
 - If vehicleId is missing or invalid, block confirmation.
 - Low-confidence fields should be shown to the user but should not block confirmation if the owner reviews/corrects them.
@@ -219,3 +222,20 @@ This disables server-side prepared statements for the Supabase pooler connection
 - No backend unit/integration tests exist yet for the new services and endpoints.
 - Real authentication is still not implemented; mock owner scoping is still used.
 - Module 3 service history remains out of scope, so final records are saved but not yet listed in a service history page.
+
+## Update: Service Line Items Schema Split (2026-08-17)
+
+The sections above describe the state as of the Person B checkpoint (May 17, 2026) and are kept
+as a historical record. Since then, `serviceType`/`partsReplaced`/`laborPerformed` were split out
+of `service_drafts`/`service_records` into new child tables so a single visit can record multiple
+distinct services instead of one flat `service_type` string:
+
+- `database/migrations/007_service_line_items.sql` adds `service_draft_items` and
+  `service_record_items`, backfills existing rows, and drops the old scalar columns.
+- Validation's "service type is required" rule became "the services list must not be empty";
+  each individual `ServiceDraftItem`/`ServiceRecordItem` still requires its own `serviceType`.
+- Confirmation now promotes each `ServiceDraftItem` into its own `ServiceRecordItem`, in addition
+  to the existing header-field copy.
+- `Required Fields for Confirmation` and `Validation Rules` above reflect this current behavior;
+  the Person B checkpoint's own field lists were written before this split and describe the
+  contract as it stood at that time.

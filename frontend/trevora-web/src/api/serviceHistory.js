@@ -3,6 +3,8 @@ import { apiRequest } from './http';
 export function getVehicleServiceHistory(vehicleId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.sort) params.set('sort', filters.sort);
+  // `serviceType` now matches against any item in a record's `services` array
+  // (a visit can have multiple distinct services), not a single flat field.
   if (filters.serviceType) params.set('serviceType', filters.serviceType);
   if (filters.keyword) params.set('keyword', filters.keyword);
 

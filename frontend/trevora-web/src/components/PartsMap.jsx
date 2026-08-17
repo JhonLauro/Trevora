@@ -32,6 +32,7 @@ import {
   Wind,
   Wrench,
 } from 'lucide-react';
+import { serviceItemsArray, serviceItemsSummaryLabel } from '../utils/serviceText';
 
 const COMPONENT_META = {
   engine: { label: 'Engine', icon: Cog },
@@ -454,7 +455,8 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
   const last = records[0];
   const totalCost = records.reduce((sum, record) => sum + Number(record.totalCost || 0), 0);
   const sources = [...new Set(records.map((record) => String(record.sourceInputMethod || 'MANUAL').toUpperCase()))];
-  const replacement = records.find((record) => record.partsReplaced && String(record.partsReplaced).length > 2) || last;
+  const replacement = records.find((record) => serviceItemsArray(record.services)
+    .some((item) => item.partsReplaced && String(item.partsReplaced).length > 2)) || last;
 
   return (
     <aside className="figma-component-panel">
@@ -488,7 +490,7 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
             {replacement && (
               <div className="figma-component-callout">
                 <CheckCircle2 size={16} aria-hidden="true" />
-                <p><strong>Last replacement</strong>{replacement.serviceType} on {formatDate(replacement.serviceDate)}</p>
+                <p><strong>Last replacement</strong>{serviceItemsSummaryLabel(replacement.services)} on {formatDate(replacement.serviceDate)}</p>
               </div>
             )}
 
@@ -518,7 +520,7 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
                 {records.map((record) => (
                   <button key={record.recordId} type="button" onClick={() => onSelectRecord(record)}>
                     <div>
-                      <strong>{record.serviceType || 'Service record'}</strong>
+                      <strong>{serviceItemsSummaryLabel(record.services)}</strong>
                       <span><Building2 size={13} aria-hidden="true" /> {record.shopName || 'Shop not provided'}</span>
                       <small>{formatDate(record.serviceDate)} · {record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'No odometer'}</small>
                     </div>

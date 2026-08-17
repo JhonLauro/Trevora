@@ -8,10 +8,14 @@ import com.trevora.api.features.history.ServiceRecordDetailResponse;
 import com.trevora.api.features.history.ServiceRecordSummaryResponse;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ServiceRecordItem;
+import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,15 +26,18 @@ public class ServiceHistoryService {
     private static final String SORT_LATEST = "latest";
 
     private final ServiceRecordRepository serviceRecordRepository;
+    private final ServiceRecordItemRepository serviceRecordItemRepository;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
 
     public ServiceHistoryService(
             ServiceRecordRepository serviceRecordRepository,
+            ServiceRecordItemRepository serviceRecordItemRepository,
             VehicleService vehicleService,
             CurrentUserService currentUserService
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
+        this.serviceRecordItemRepository = serviceRecordItemRepository;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
     }
@@ -49,18 +56,25 @@ public class ServiceHistoryService {
                 .findByVehicleIdAndOwnerId(vehicleId, currentUserService.getCurrentUserId(), repositorySortFor(normalizedSort))
                 .stream()
                 .toList();
+
+        Map<UUID, List<ServiceRecordItem>> itemsByRecord = new LinkedHashMap<>();
+        for (ServiceRecord record : allRecords) {
+            itemsByRecord.put(record.getRecordId(), serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId()));
+        }
+
         List<ServiceRecord> records = allRecords
                 .stream()
-                .filter(record -> matchesServiceType(record, serviceType))
-                .filter(record -> matchesKeyword(record, keyword))
+                .filter(record -> matchesServiceType(itemsByRecord.get(record.getRecordId()), serviceType))
+                .filter(record -> matchesKeyword(record, itemsByRecord.get(record.getRecordId()), keyword))
                 .sorted(comparatorFor(normalizedSort))
                 .toList();
 
         List<ServiceRecordSummaryResponse> summaries = records.stream()
-                .map(record -> ServiceRecordSummaryResponse.from(record, categoryFor(record.getServiceType())))
+                .map(record -> ServiceRecordSummaryResponse.from(record, itemsByRecord.get(record.getRecordId())))
                 .toList();
-        List<String> serviceTypes = allRecords.stream()
-                .map(ServiceRecord::getServiceType)
+        List<String> serviceTypes = itemsByRecord.values().stream()
+                .flatMap(List::stream)
+                .map(ServiceRecordItem::getServiceType)
                 .filter(value -> value != null && !value.isBlank())
                 .distinct()
                 .sorted(String.CASE_INSENSITIVE_ORDER)
@@ -84,7 +98,8 @@ public class ServiceHistoryService {
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
-        return ServiceRecordDetailResponse.from(record, categoryFor(record.getServiceType()));
+        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
+        return ServiceRecordDetailResponse.from(record, items);
     }
 
     private Sort repositorySortFor(String sort) {
@@ -106,43 +121,33 @@ public class ServiceHistoryService {
         return SORT_LATEST;
     }
 
-    private boolean matchesServiceType(ServiceRecord record, String serviceType) {
+    private boolean matchesServiceType(List<ServiceRecordItem> items, String serviceType) {
         String filter = blankToNull(serviceType);
         if (filter == null) {
             return true;
         }
-        return record.getServiceType() != null && record.getServiceType().equalsIgnoreCase(filter);
+        return items != null && items.stream()
+                .anyMatch(item -> item.getServiceType() != null && item.getServiceType().equalsIgnoreCase(filter));
     }
 
-    private boolean matchesKeyword(ServiceRecord record, String keyword) {
+    private boolean matchesKeyword(ServiceRecord record, List<ServiceRecordItem> items, String keyword) {
         String filter = blankToNull(keyword);
         if (filter == null) {
             return true;
         }
         String needle = filter.toLowerCase(Locale.ROOT);
-        return containsIgnoreCase(record.getServiceType(), needle)
-                || containsIgnoreCase(record.getShopName(), needle)
-                || containsIgnoreCase(record.getPartsReplaced(), needle)
-                || containsIgnoreCase(record.getLaborPerformed(), needle)
-                || containsIgnoreCase(record.getRemarks(), needle);
+        if (containsIgnoreCase(record.getShopName(), needle) || containsIgnoreCase(record.getRemarks(), needle)) {
+            return true;
+        }
+        return items != null && items.stream().anyMatch(item ->
+                containsIgnoreCase(item.getServiceType(), needle)
+                        || containsIgnoreCase(item.getPartsReplaced(), needle)
+                        || containsIgnoreCase(item.getLaborPerformed(), needle)
+        );
     }
 
     private boolean containsIgnoreCase(String value, String lowercaseNeedle) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(lowercaseNeedle);
-    }
-
-    private String categoryFor(String serviceType) {
-        String value = serviceType == null ? "" : serviceType.toLowerCase(Locale.ROOT);
-        if (value.contains("oil") || value.contains("filter") || value.contains("tire") || value.contains("tyre")) {
-            return "Maintenance";
-        }
-        if (value.contains("brake") || value.contains("battery") || value.contains("repair") || value.contains("replace")) {
-            return "Repair";
-        }
-        if (value.contains("inspect") || value.contains("diagnostic") || value.contains("check")) {
-            return "Inspection";
-        }
-        return "Other";
     }
 
     private String blankToNull(String value) {

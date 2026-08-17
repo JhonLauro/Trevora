@@ -22,6 +22,7 @@ import {
 import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js';
 import { getVehicleServiceHistory } from '../api/serviceHistory.js';
 import { getVehicles } from '../api/vehicles.js';
+import { serviceItemsSummaryLabel } from '../utils/serviceText';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -304,7 +305,7 @@ export default function DashboardPage() {
                     <td>{formatDate(record.serviceDate)}</td>
                     <td>{displayVehicleName(activeVehicle)}</td>
                     <td>
-                      <strong>{record.serviceType}</strong>
+                      <strong>{serviceItemsSummaryLabel(record.services)}</strong>
                     </td>
                     <td>{record.shopName || 'Not provided'}</td>
                     <td>

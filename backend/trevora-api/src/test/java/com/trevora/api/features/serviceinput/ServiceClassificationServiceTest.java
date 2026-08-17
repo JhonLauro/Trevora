@@ -57,4 +57,30 @@ class ServiceClassificationServiceTest {
         assertThat(result.confidence()).isEqualTo("medium");
         assertThat(result.source()).isEqualTo("KEYWORD_FALLBACK");
     }
+
+    @Test
+    void classifiesEachLineItemIndependentlyWhenLoopedOverAVisitWithMultipleServices() {
+        // Simulates how OCRProcessingService/VoiceProcessingService/ServiceInputService now call this
+        // service once per service_draft_items / service_record_items row (a single visit can have
+        // multiple distinct services), instead of once per whole draft.
+        List<ServiceItemRequest> visitServices = List.of(
+                new ServiceItemRequest("Oil Change", "Engine oil, oil filter", "Drain and refill", null),
+                new ServiceItemRequest("Tire Rotation", null, "Rotated all four tires", null),
+                new ServiceItemRequest("Brake Pad Replacement", "Front brake pads", "Replaced worn pads", null)
+        );
+
+        List<ServiceClassification> classifications = visitServices.stream()
+                .map(item -> service.keywordFallback(null, item.serviceType(), item.partsReplaced(), item.laborPerformed(), null, 1))
+                .toList();
+
+        assertThat(classifications).hasSize(3);
+        assertThat(classifications.get(0).serviceCategory()).isEqualTo("Maintenance");
+        assertThat(classifications.get(1).serviceCategory()).isEqualTo("Maintenance");
+        assertThat(classifications.get(2).serviceCategory()).isEqualTo("Repair");
+        // Each item is classified independently: the brake item's category must not leak into the
+        // oil change or tire rotation items just because they were processed in the same loop.
+        assertThat(classifications.get(0).relatedComponents()).contains("Engine Oil", "Oil Filter");
+        assertThat(classifications.get(2).relatedComponents()).contains("Brakes");
+        assertThat(classifications.get(0).relatedComponents()).doesNotContain("Brakes");
+    }
 }

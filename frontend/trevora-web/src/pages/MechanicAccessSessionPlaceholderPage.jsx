@@ -4,7 +4,7 @@ import { Car, LayoutGrid, Table2 } from 'lucide-react';
 import { getMechanicSessionHistory } from '../api/mechanicAccess';
 import MechanicAISearchPanel from '../components/MechanicAISearchPanel';
 import PartsMap from '../components/PartsMap';
-import { formatServiceTextInline } from '../utils/serviceText';
+import { serviceItemsPartsInline, serviceItemsSearchText, serviceItemsSummaryLabel } from '../utils/serviceText';
 
 const COMPONENT_RULES = [
   ['brakes', /\bbrake|rotor|pad|caliper|brake fluid/i],
@@ -78,13 +78,11 @@ function classificationFor(record) {
 
 function recordSearchText(record) {
   return [
-    record.serviceType,
+    serviceItemsSearchText(record.services),
     record.category,
     record.shopName,
     record.location,
     record.remarks,
-    record.laborPerformed,
-    record.partsReplaced,
   ].filter(Boolean).join(' ');
 }
 
@@ -238,7 +236,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
                 <article className="mechanic-context-card">
                   <span>Last service</span>
                   <strong>{lastRecord ? formatDate(lastRecord.serviceDate) : 'No date'}</strong>
-                  <small>{lastRecord?.serviceType || 'No service yet'}</small>
+                  <small>{lastRecord ? serviceItemsSummaryLabel(lastRecord.services) : 'No service yet'}</small>
                 </article>
                 <article className="mechanic-context-card">
                   <span>Latest odometer</span>
@@ -311,7 +309,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
                               <div className="timeline-card-header">
                                 <div>
                                   <span className="history-date">{formatDate(record.serviceDate)}</span>
-                                  <h2>{record.serviceType || 'Service record'}</h2>
+                                  <h2>{serviceItemsSummaryLabel(record.services)}</h2>
                                   <p>{record.shopName || 'Shop not provided'}</p>
                                 </div>
                                 <div className="history-badge-row">
@@ -319,7 +317,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
                                   <span className={badgeClass(record.status)}>{record.status}</span>
                                 </div>
                               </div>
-                              <p className="history-record-description">{formatServiceTextInline(record.partsReplaced, 'No parts listed')}</p>
+                              <p className="history-record-description">{serviceItemsPartsInline(record.services, 'No parts listed')}</p>
                               <div className="history-facts">
                                 <span>{record.category || 'Service'}</span>
                                 <span>{record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'No odometer'}</span>
@@ -365,7 +363,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
                         {visibleRecords.map((record) => (
                           <tr key={record.recordId} onClick={() => openRecord(record.recordId)}>
                             <td>{formatDate(record.serviceDate)}</td>
-                            <td><strong>{record.serviceType || 'Service record'}</strong></td>
+                            <td><strong>{serviceItemsSummaryLabel(record.services)}</strong></td>
                             <td>
                               <span className={badgeClass(record.category)}>{record.category || 'Service'}</span>
                               {Array.isArray(record.relatedComponents) && record.relatedComponents[0] && (
@@ -399,7 +397,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
                       >
                         <div>
                           <div className="mechanic-record-title">
-                            <strong>{record.serviceType || 'Service record'}</strong>
+                            <strong>{serviceItemsSummaryLabel(record.services)}</strong>
                             <span className={badgeClass(record.category)}>{record.category || 'Service'}</span>
                             {matchedIds.has(record.recordId) && <span className={badgeClass('ai-match')}>AI match</span>}
                           </div>

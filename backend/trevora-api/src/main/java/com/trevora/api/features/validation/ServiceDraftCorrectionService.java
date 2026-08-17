@@ -4,12 +4,14 @@ package com.trevora.api.features.validation;
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.validation.ServiceDraftCorrectionRequest;
+import com.trevora.api.features.serviceinput.ServiceDraftItem;
 import com.trevora.api.features.serviceinput.ServiceDraftResponse;
 import com.trevora.api.features.validation.ServiceDraftReviewResponse;
 import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -40,21 +42,22 @@ public class ServiceDraftCorrectionService {
         ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
 
         draft.setServiceDate(request.serviceDate());
-        draft.setServiceType(blankToNull(request.serviceType()));
         draft.setOdometer(request.odometer());
         draft.setTotalCost(request.totalCost());
         draft.setShopName(blankToNull(request.shopName()));
         draft.setLocation(blankToNull(request.location()));
-        draft.setPartsReplaced(blankToNull(request.partsReplaced()));
-        draft.setLaborPerformed(blankToNull(request.laborPerformed()));
         draft.setRemarks(blankToNull(request.remarks()));
         draft.setStatus(DraftStatus.READY_FOR_REVIEW);
         draft.setFieldMetadata(withCorrectionMetadata(draft.getFieldMetadata()));
 
         ServiceDraft savedDraft = serviceDraftRepository.save(draft);
+        List<ServiceDraftItem> items = request.services() == null
+                ? serviceInputService.getItemsForDraft(savedDraft.getDraftId())
+                : serviceInputService.replaceDraftItems(savedDraft.getDraftId(), request.services(), savedDraft.getRemarks());
+
         return new ServiceDraftReviewResponse(
-                ServiceDraftResponse.from(savedDraft),
-                serviceDraftValidationService.validateDraft(savedDraft)
+                ServiceDraftResponse.from(savedDraft, items),
+                serviceDraftValidationService.validateDraft(savedDraft, items)
         );
     }
 

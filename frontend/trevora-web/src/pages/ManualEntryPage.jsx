@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import StepIndicator from '../components/StepIndicator';
+import ServiceItemsEditor from '../components/ServiceItemsEditor';
 import { createManualServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
 const emptyDraft = {
   serviceDate: '',
-  serviceType: '',
   odometer: '',
   totalCost: '',
   shopName: '',
   location: '',
-  partsReplaced: '',
-  laborPerformed: '',
   remarks: '',
+  services: [],
 };
 
 export default function ManualEntryPage() {
@@ -52,6 +51,10 @@ export default function ManualEntryPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function updateServices(services) {
+    setForm((current) => ({ ...current, services }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
@@ -63,6 +66,14 @@ export default function ManualEntryPage() {
         vehicleId,
         odometer: form.odometer ? Number(form.odometer) : null,
         totalCost: Number(form.totalCost),
+        services: (form.services || []).map((item, index) => ({
+          ...item,
+          serviceType: item.serviceType?.trim() || '',
+          partsReplaced: item.partsReplaced?.trim() || '',
+          laborPerformed: item.laborPerformed?.trim() || '',
+          lineCost: item.lineCost === '' || item.lineCost === undefined ? null : Number(item.lineCost),
+          sortOrder: index,
+        })),
       });
       navigate(`/service-drafts/${draft.draftId}`);
     } catch (err) {
@@ -118,15 +129,6 @@ export default function ManualEntryPage() {
               />
             </label>
             <label>
-              Service type
-              <input
-                name="serviceType"
-                value={form.serviceType}
-                onChange={updateField}
-                placeholder="Oil change, brake repair, tune-up"
-              />
-            </label>
-            <label>
               Odometer
               <input name="odometer" type="number" min="0" value={form.odometer} onChange={updateField} />
             </label>
@@ -152,14 +154,14 @@ export default function ManualEntryPage() {
             </label>
           </div>
 
-          <label>
-            Parts replaced
-            <textarea name="partsReplaced" value={form.partsReplaced} onChange={updateField} rows="3" />
-          </label>
-          <label>
-            Labor performed
-            <textarea name="laborPerformed" value={form.laborPerformed} onChange={updateField} rows="3" />
-          </label>
+          <div className="panel-heading">
+            <div>
+              <h2>Services performed</h2>
+              <p>Add every distinct service rendered during this visit (e.g. oil change and tire rotation).</p>
+            </div>
+          </div>
+          <ServiceItemsEditor value={form.services} onChange={updateServices} />
+
           <label>
             Remarks
             <textarea name="remarks" value={form.remarks} onChange={updateField} rows="3" />
