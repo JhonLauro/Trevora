@@ -582,6 +582,44 @@ p {
   text-align: center;
 }
 
+.auth-oauth-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dbe5ef;
+  color: #1f2937;
+  display: flex;
+  font-weight: 700;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1rem;
+  width: 100%;
+}
+
+.auth-oauth-button:hover:not(:disabled) {
+  background: #f7faff;
+}
+
+.auth-divider {
+  align-items: center;
+  color: #8fa0b8;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 700;
+  gap: 0.75rem;
+  letter-spacing: 0.04em;
+  margin: 1.1rem 0;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  background: #dbe5ef;
+  content: '';
+  flex: 1;
+  height: 1px;
+}
+
 .auth-status-notice {
   align-items: flex-start;
   background: #edf6ff;

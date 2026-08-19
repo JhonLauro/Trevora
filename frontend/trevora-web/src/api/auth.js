@@ -57,6 +57,39 @@ export async function loginUser(payload) {
   return user;
 }
 
+export async function signInWithGoogle() {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
+}
+
+export async function completeOAuthSignIn() {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.auth.getSession();
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
+
+  const session = data.session;
+  if (!session) {
+    throw new Error('Sign-in did not complete. Please try again.');
+  }
+
+  const profile = profileFromSupabaseUser(session.user);
+  const user = await syncSupabaseProfile(profile, session.access_token);
+  setLoggedInUser(user, session);
+  return user;
+}
+
 export async function verifyRegistrationOtp(payload) {
   const client = requireSupabaseClient();
   const { data, error } = await client.auth.verifyOtp({

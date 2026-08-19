@@ -1,13 +1,26 @@
 import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
-import { loginUser } from '../api/auth.js';
+import { loginUser, signInWithGoogle } from '../api/auth.js';
 import AuthLayout from '../components/AuthLayout.jsx';
+import GoogleIcon from '../components/GoogleIcon.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [saving, setSaving] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err.message || 'Unable to start Google sign-in.');
+      setGoogleLoading(false);
+    }
+  }
 
   function updateField(event) {
     const { name, type, checked, value } = event.target;
@@ -53,6 +66,20 @@ export default function LoginPage() {
         <p className="muted">Sign in to your account to continue</p>
 
         {error && <div className="alert">{error}</div>}
+
+        <button
+          type="button"
+          className="auth-oauth-button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || saving}
+        >
+          <GoogleIcon />
+          {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
+        </button>
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <label>

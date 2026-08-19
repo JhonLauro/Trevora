@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
-import { registerUser, verifyRegistrationOtp } from '../api/auth.js';
+import { registerUser, signInWithGoogle, verifyRegistrationOtp } from '../api/auth.js';
 import AuthLayout from '../components/AuthLayout.jsx';
 import AuthToast from '../components/AuthToast.jsx';
+import GoogleIcon from '../components/GoogleIcon.jsx';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -15,11 +16,25 @@ export default function RegisterPage() {
   });
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [verificationNotice, setVerificationNotice] = useState('');
   const [pendingVerification, setPendingVerification] = useState(null);
   const [otpCode, setOtpCode] = useState('');
   const [toast, setToast] = useState(null);
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setToast(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err.message || 'Unable to start Google sign-in.');
+      setToast({ type: 'error', message: err.message || 'Unable to start Google sign-in.' });
+      setGoogleLoading(false);
+    }
+  }
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -182,6 +197,20 @@ export default function RegisterPage() {
             <span>{verificationNotice}</span>
           </div>
         )}
+
+        <button
+          type="button"
+          className="auth-oauth-button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || saving}
+        >
+          <GoogleIcon />
+          {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
+        </button>
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
 
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <div className="auth-name-grid">

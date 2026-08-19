@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import { isLoggedIn } from './api/currentUser.js';
 import AppShell from './components/AppShell.jsx';
 import AccountSettingsPage from './pages/AccountSettingsPage.jsx';
+import AuthCallbackPage from './pages/AuthCallbackPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -82,6 +83,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/access/request/:token" element={<MechanicAccessRequestPage />} />
       <Route path="/mechanic/access/:sessionId" element={<MechanicAccessSessionPlaceholderPage />} />
       <Route path="/mechanic/access/:sessionId/history/:recordId" element={<MechanicSharedRecordDetailPage />} />
