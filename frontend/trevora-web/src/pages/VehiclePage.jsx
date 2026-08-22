@@ -6,7 +6,7 @@ import RecordsTable from '../components/ink/RecordsTable.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import Timeline from '../components/ink/Timeline.jsx';
 import { deleteVehicle, getVehicle } from '../api/vehicles';
-import { deleteVehicleServiceRecord, getVehicleServiceHistory } from '../api/serviceHistory';
+import { deleteVehicleServiceRecord, getVehicleServiceHistory, markServiceRecordReviewed } from '../api/serviceHistory';
 import { componentStatuses } from '../utils/componentStatus';
 import { historyCompleteness, listYears } from '../utils/completeness';
 import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/format';
@@ -124,6 +124,23 @@ export default function VehiclePage() {
       setPendingRecord(null);
     },
   );
+
+  /* Optimistic: the request either succeeds or the reload on the next visit
+     puts the badge back. A spinner on a badge is more disruption than the
+     rare failure costs. */
+  async function markReviewed(record) {
+    setRecords((current) => current.map((r) => (
+      r.recordId === record.recordId ? { ...r, validationStatus: 'VALIDATED' } : r
+    )));
+    try {
+      await markServiceRecordReviewed(vehicleId, record.recordId);
+    } catch (err) {
+      setError(err.message);
+      setRecords((current) => current.map((r) => (
+        r.recordId === record.recordId ? { ...r, validationStatus: record.validationStatus ?? null } : r
+      )));
+    }
+  }
 
   function askDeleteRecord(record) {
     setPendingRecord(record);
@@ -288,7 +305,12 @@ export default function VehiclePage() {
                 <p className="ink-empty__body">Try a shop name, a part, or the kind of service.</p>
               </section>
             ) : view === 'timeline' ? (
-              <Timeline records={filtered} vehicleId={vehicleId} onDelete={askDeleteRecord} />
+              <Timeline
+                records={filtered}
+                vehicleId={vehicleId}
+                onDelete={askDeleteRecord}
+                onMarkReviewed={markReviewed}
+              />
             ) : view === 'components' ? (
               <PartsView entries={components} vehicleId={vehicleId} vehicleClass={vehicleClassFor(vehicle?.bodyType)} />
             ) : (

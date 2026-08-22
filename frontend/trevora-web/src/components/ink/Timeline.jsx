@@ -49,7 +49,7 @@ function groupByYear(records) {
   return groups;
 }
 
-export default function Timeline({ records, vehicleId, onDelete }) {
+export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed }) {
   const groups = groupByYear(records);
 
   return (
@@ -87,6 +87,16 @@ export default function Timeline({ records, vehicleId, onDelete }) {
                     <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
                       Open
                     </Link>
+                    {onMarkReviewed && status === 'warn' && (
+                      <button
+                        className="ink-link-button"
+                        type="button"
+                        aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
+                        onClick={() => onMarkReviewed(record)}
+                      >
+                        Mark reviewed
+                      </button>
+                    )}
                     {onDelete && (
                       <button
                         className="ink-link-button ink-link-button--danger"

@@ -41,6 +41,15 @@ public class ServiceRecord {
     @Column(name = "source_input_method", nullable = false)
     private InputMethod sourceInputMethod;
 
+    /**
+     * Defaults to NEEDS_REVIEW rather than null: a record with no evidence of
+     * review is unverified, and the absence of evidence must not read as
+     * validation.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "validation_status", nullable = false)
+    private ValidationStatus validationStatus = ValidationStatus.NEEDS_REVIEW;
+
     @Column(name = "service_date", nullable = false)
     private LocalDate serviceDate;
 
@@ -115,6 +124,14 @@ public class ServiceRecord {
 
     public void setSourceInputMethod(InputMethod sourceInputMethod) {
         this.sourceInputMethod = sourceInputMethod;
+    }
+
+    public ValidationStatus getValidationStatus() {
+        return validationStatus;
+    }
+
+    public void setValidationStatus(ValidationStatus validationStatus) {
+        this.validationStatus = validationStatus;
     }
 
     public LocalDate getServiceDate() {

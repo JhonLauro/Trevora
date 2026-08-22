@@ -23,3 +23,14 @@ export function deleteVehicleServiceRecord(vehicleId, recordId) {
     { method: 'DELETE' },
   );
 }
+
+/**
+ * The owner states they have checked this record's fields. One-way: there is
+ * no un-reviewing something that has been looked at.
+ */
+export function markServiceRecordReviewed(vehicleId, recordId) {
+  return apiRequest(
+    `/vehicles/${encodeURIComponent(vehicleId)}/history/${encodeURIComponent(recordId)}/reviewed`,
+    { method: 'POST' },
+  );
+}

@@ -10,6 +10,7 @@ import com.trevora.api.features.servicerecord.ServiceRecordConfirmationResponse;
 import com.trevora.api.features.servicerecord.ServiceRecordResponse;
 import com.trevora.api.features.validation.ValidationResult;
 import com.trevora.api.features.serviceinput.DraftStatus;
+import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.shared.exception.InvalidServiceRecordConfirmationException;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
@@ -75,6 +76,33 @@ public class ServiceRecordService {
         );
     }
 
+    /**
+     * Decides whether a human is accountable for this record's fields.
+     *
+     * Two things count as accountability, and both are things that actually
+     * happened rather than things we hope happened:
+     *
+     * - **Manual entry.** Nothing was extracted; the owner is the source.
+     * - **A correction pass.** ServiceDraftCorrectionService moves a draft to
+     *   READY_FOR_REVIEW, so that status is evidence the owner opened the
+     *   fields and edited them.
+     *
+     * Everything else — a receipt or voice note confirmed straight off the
+     * extraction — is NEEDS_REVIEW. That will mark some genuinely fine records
+     * as unverified, and that is the right direction to be wrong in: the owner
+     * can clear it in one click, whereas a wrongly validated record is a claim
+     * nobody ever revisits.
+     */
+    private ValidationStatus validationStatusFor(ServiceDraft draft) {
+        if (draft.getInputMethod() == InputMethod.MANUAL) {
+            return ValidationStatus.VALIDATED;
+        }
+        if (draft.getStatus() == DraftStatus.READY_FOR_REVIEW) {
+            return ValidationStatus.VALIDATED;
+        }
+        return ValidationStatus.NEEDS_REVIEW;
+    }
+
     private List<ServiceRecordItem> promoteItems(List<ServiceDraftItem> draftItems, UUID recordId) {
         serviceRecordItemRepository.deleteByRecordId(recordId);
         for (ServiceDraftItem draftItem : draftItems) {
@@ -97,6 +125,7 @@ public class ServiceRecordService {
         record.setVehicleId(draft.getVehicleId());
         record.setOwnerId(draft.getOwnerId());
         record.setSourceInputMethod(draft.getInputMethod());
+        record.setValidationStatus(validationStatusFor(draft));
         record.setServiceDate(draft.getServiceDate());
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());

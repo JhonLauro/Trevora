@@ -8,6 +8,7 @@ import com.trevora.api.features.history.ServiceRecordDetailResponse;
 import com.trevora.api.features.history.ServiceRecordSummaryResponse;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ValidationStatus;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
@@ -124,6 +125,32 @@ public class ServiceHistoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
         serviceRecordRepository.delete(record);
+    }
+
+    /**
+     * The owner states they have checked this record's fields.
+     *
+     * Needed because every record predating the column backfilled to
+     * NEEDS_REVIEW, and without a way to clear it the attention strip cries
+     * wolf forever — which trains people to ignore it, destroying the value
+     * of the flag entirely.
+     *
+     * Deliberately one-way. There is no "un-review": once someone has looked,
+     * that happened, and letting it be taken back would make the field a
+     * preference rather than a record of events.
+     */
+    @Transactional
+    public ServiceRecordDetailResponse markRecordReviewed(UUID vehicleId, UUID recordId) {
+        currentUserService.requireVehicleOwner();
+        vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
+        ServiceRecord record = serviceRecordRepository
+                .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
+
+        record.setValidationStatus(ValidationStatus.VALIDATED);
+        ServiceRecord saved = serviceRecordRepository.save(record);
+        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(saved.getRecordId());
+        return ServiceRecordDetailResponse.from(saved, items);
     }
 
     private Sort repositorySortFor(String sort) {

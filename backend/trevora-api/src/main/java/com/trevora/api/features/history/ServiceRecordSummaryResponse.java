@@ -2,6 +2,7 @@ package com.trevora.api.features.history;
 
 import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ValidationStatus;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.shared.dto.ServiceItemResponse;
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ public record ServiceRecordSummaryResponse(
         UUID draftId,
         UUID vehicleId,
         InputMethod sourceInputMethod,
+        ValidationStatus validationStatus,
         LocalDate serviceDate,
         List<ServiceItemResponse> services,
         Integer odometer,
@@ -28,6 +30,7 @@ public record ServiceRecordSummaryResponse(
                 record.getDraftId(),
                 record.getVehicleId(),
                 record.getSourceInputMethod(),
+                record.getValidationStatus(),
                 record.getServiceDate(),
                 items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
                 record.getOdometer(),
