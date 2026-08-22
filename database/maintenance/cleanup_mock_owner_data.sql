@@ -24,38 +24,52 @@
 -- This mirrors VehicleService.deleteVehicleForCurrentUser exactly; keep the
 -- two in step if either changes.
 --
--- Run with:  psql "$SUPABASE_DB_URL" -f database/maintenance/cleanup_mock_owner_data.sql
--- Re-runnable. Wrapped in a transaction, so a failure anywhere rolls it all back.
+-- HOW TO RUN — paste the whole file into the Supabase SQL Editor and press
+-- Run. Plain SQL only, so it works there as well as in psql; there is no
+-- client-side syntax and no temp tables. Re-runnable, and wrapped in a
+-- transaction so a failure anywhere rolls all of it back.
 
 begin;
 
-create temporary table doomed_vehicles on commit drop as
-select vehicle_id
+-- Look before you leap: what is about to go.
+select count(*) as vehicles_to_delete
 from public.vehicle_profiles
 where owner_id = '00000000-0000-0000-0000-000000000001';
 
--- Look before you leap: this prints what is about to go.
-select count(*) as vehicles_to_delete from doomed_vehicles;
-
 delete from public.mechanic_access_sessions
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where vehicle_id in (
+    select vehicle_id from public.vehicle_profiles
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+);
 
 delete from public.mechanic_access_requests
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where vehicle_id in (
+    select vehicle_id from public.vehicle_profiles
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+);
 
 delete from public.qr_access_requests
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where vehicle_id in (
+    select vehicle_id from public.vehicle_profiles
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+);
 
 delete from public.service_records
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where vehicle_id in (
+    select vehicle_id from public.vehicle_profiles
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+);
 
 delete from public.service_drafts
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where vehicle_id in (
+    select vehicle_id from public.vehicle_profiles
+    where owner_id = '00000000-0000-0000-0000-000000000001'
+);
 
 delete from public.vehicle_profiles
-where vehicle_id in (select vehicle_id from doomed_vehicles);
+where owner_id = '00000000-0000-0000-0000-000000000001';
 
--- Should return zero rows.
+-- Should return 0.
 select count(*) as vehicles_remaining_for_mock_owner
 from public.vehicle_profiles
 where owner_id = '00000000-0000-0000-0000-000000000001';
