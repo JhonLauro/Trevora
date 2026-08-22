@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import PartsView from '../components/ink/PartsView.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import Timeline from '../components/ink/Timeline.jsx';
-import { getVehicle } from '../api/vehicles';
-import { getVehicleServiceHistory } from '../api/serviceHistory';
+import { deleteVehicle, getVehicle } from '../api/vehicles';
+import { deleteVehicleServiceRecord, getVehicleServiceHistory } from '../api/serviceHistory';
 import { componentStatuses } from '../utils/componentStatus';
 import { historyCompleteness, listYears } from '../utils/completeness';
 import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/format';
@@ -98,6 +99,7 @@ function WarrantyPanel() {
 
 export default function VehiclePage() {
   const { vehicleId } = useParams();
+  const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,28 @@ export default function VehiclePage() {
   const [tab, setTab] = useState('records');
   const [view, setView] = useState('timeline');
   const [query, setQuery] = useState('');
+  const [pendingRecord, setPendingRecord] = useState(null);
+
+  const vehicleDelete = useDeleteAction(
+    () => deleteVehicle(vehicleId),
+    () => {
+      window.dispatchEvent(new Event('trevora:vehicles-changed'));
+      navigate('/', { replace: true });
+    },
+  );
+
+  const recordDelete = useDeleteAction(
+    () => deleteVehicleServiceRecord(vehicleId, pendingRecord.recordId),
+    () => {
+      setRecords((current) => current.filter((r) => r.recordId !== pendingRecord.recordId));
+      setPendingRecord(null);
+    },
+  );
+
+  function askDeleteRecord(record) {
+    setPendingRecord(record);
+    recordDelete.ask();
+  }
 
   useEffect(() => {
     let active = true;
@@ -197,6 +221,13 @@ export default function VehiclePage() {
           </div>
         </div>
         <div className="vehicle-identity__actions">
+          <button
+            className="ink-button ink-button--outline ink-button--quiet"
+            type="button"
+            onClick={vehicleDelete.ask}
+          >
+            Delete vehicle
+          </button>
           <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}/share`}>Share history</Link>
           <Link className="ink-button" to={`/service-input/${vehicleId}`}>Add record</Link>
         </div>
@@ -257,7 +288,7 @@ export default function VehiclePage() {
                 <p className="ink-empty__body">Try a shop name, a part, or the kind of service.</p>
               </section>
             ) : view === 'timeline' ? (
-              <Timeline records={filtered} vehicleId={vehicleId} />
+              <Timeline records={filtered} vehicleId={vehicleId} onDelete={askDeleteRecord} />
             ) : view === 'components' ? (
               <PartsView entries={components} vehicleId={vehicleId} vehicleClass={vehicleClassFor(vehicle?.bodyType)} />
             ) : (
@@ -266,6 +297,7 @@ export default function VehiclePage() {
                   records={filtered}
                   showVehicle={false}
                   ariaLabel={`Service records for ${name}`}
+                  onDelete={askDeleteRecord}
                 />
               </section>
             )}
@@ -274,6 +306,54 @@ export default function VehiclePage() {
 
         {tab === 'warranty' && <WarrantyPanel />}
       </div>
+
+      <ConfirmDialog
+        open={vehicleDelete.open}
+        busy={vehicleDelete.busy}
+        error={vehicleDelete.error}
+        title={`Delete ${name}?`}
+        confirmLabel="Delete vehicle"
+        onCancel={vehicleDelete.cancel}
+        onConfirm={vehicleDelete.confirm}
+        body={(
+          <>
+            {/* The count is the fact that changes minds, so it leads — but
+                "deletes 0 service records" is a strange thing to warn about,
+                and an empty vehicle deserves the easier sentence. */}
+            {records.length > 0 ? (
+              <p>
+                This also deletes {pluralize(records.length, 'service record')} filed against it,
+                along with any drafts and shared access.
+              </p>
+            ) : (
+              <p>Nothing has been filed against it yet, so only the vehicle goes.</p>
+            )}
+            <p>There is no undo.</p>
+          </>
+        )}
+      />
+
+      <ConfirmDialog
+        open={recordDelete.open}
+        busy={recordDelete.busy}
+        error={recordDelete.error}
+        title="Delete this record?"
+        confirmLabel="Delete record"
+        onCancel={() => { recordDelete.cancel(); setPendingRecord(null); }}
+        onConfirm={recordDelete.confirm}
+        body={pendingRecord && (
+          <>
+            <p>
+              <strong>{serviceItemsSummaryLabel(pendingRecord.services)}</strong>
+              {pendingRecord.serviceDate && <> &mdash; {formatDate(pendingRecord.serviceDate)}</>}
+            </p>
+            <p>
+              It disappears from this vehicle's history and from everything worked out from it.
+              There is no undo.
+            </p>
+          </>
+        )}
+      />
     </main>
   );
 }

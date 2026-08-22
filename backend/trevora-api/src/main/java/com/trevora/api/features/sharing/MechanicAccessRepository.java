@@ -16,4 +16,6 @@ public interface MechanicAccessRepository extends JpaRepository<MechanicAccessRe
     Optional<MechanicAccessRequest> findFirstByQrAccessRequestIdOrderByRequestedAtDesc(UUID qrAccessRequestId);
 
     boolean existsByQrAccessRequestIdAndStatus(UUID qrAccessRequestId, String status);
+
+    long deleteByVehicleId(UUID vehicleId);
 }

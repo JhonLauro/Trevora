@@ -10,4 +10,6 @@ public interface QRAccessRepository extends JpaRepository<QRAccessRequest, UUID>
     Optional<QRAccessRequest> findByAccessToken(String accessToken);
 
     List<QRAccessRequest> findByVehicleIdAndOwnerIdOrderByCreatedAtDesc(UUID vehicleId, UUID ownerId);
+
+    long deleteByVehicleId(UUID vehicleId);
 }

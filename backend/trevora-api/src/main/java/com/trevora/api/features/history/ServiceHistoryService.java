@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ServiceHistoryService {
@@ -100,6 +101,29 @@ public class ServiceHistoryService {
 
         List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
         return ServiceRecordDetailResponse.from(record, items);
+    }
+
+    /**
+     * Removes one confirmed service record.
+     *
+     * `service_record_items` cascades at the database level, so only the
+     * record itself is deleted here. The originating `service_draft` is left
+     * alone: it is the provenance of the entry, not part of it, and dropping
+     * it would erase how the record was captured as well as the record.
+     *
+     * A hard delete, deliberately — the alternative is a hidden row that
+     * still counts in nothing and shows in nothing. But the history is the
+     * product, so the caller has to confirm first.
+     */
+    @Transactional
+    public void deleteVehicleHistoryRecord(UUID vehicleId, UUID recordId) {
+        currentUserService.requireVehicleOwner();
+        vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
+        ServiceRecord record = serviceRecordRepository
+                .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
+
+        serviceRecordRepository.delete(record);
     }
 
     private Sort repositorySortFor(String sort) {

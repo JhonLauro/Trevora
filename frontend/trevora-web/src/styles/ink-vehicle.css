@@ -1125,3 +1125,164 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ------------------------------------------------------ destructive actions
+
+   Red is otherwise reserved for a component being overdue on the parts map.
+   Deletion earns it: it is the one action in the product that destroys
+   something, and it should not look like the others. */
+
+.ink-button--danger {
+  background: var(--status-bad-text);
+  border-color: var(--status-bad-text);
+  color: var(--surface);
+}
+
+.ink-button--danger:hover {
+  background: #741a13;
+  border-color: #741a13;
+  color: var(--surface);
+}
+
+.ink-button--danger-outline {
+  background: var(--surface);
+  border-color: var(--status-bad-border);
+  color: var(--status-bad-text);
+}
+
+.ink-button--danger-outline:hover {
+  background: var(--status-bad-bg);
+  border-color: var(--status-bad-text);
+  color: var(--status-bad-text);
+}
+
+/* "Delete vehicle" sits beside two things people use daily, so it is quieter
+   than either — present, but not competing for the same attention. */
+.ink-button--quiet {
+  border-color: var(--rule);
+  color: var(--ink-muted);
+}
+
+.ink-button--quiet:hover {
+  border-color: var(--status-bad-text);
+  color: var(--status-bad-text);
+}
+
+.ink-link-button {
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  min-height: 0;
+  padding: 4px 2px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ink-link-button--danger {
+  color: var(--status-bad-text);
+}
+
+.ink-link-button--danger:hover:not(:disabled) {
+  background: none;
+  color: #741a13;
+}
+
+.ink-table__actions {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.ink-record-card__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.ink-record-card__actions .ink-button {
+  flex: 1;
+}
+
+.vehicle-timeline__card-side .ink-link-button {
+  font-size: 15px;
+}
+
+/* ----------------------------------------------------------------- modal
+
+   The only place in Ink with a scrim and a shadow: it has to read as
+   detached from, and blocking, everything under it. */
+
+.ink-modal__backdrop {
+  align-items: center;
+  background: rgba(15, 14, 13, 0.55);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 60;
+}
+
+.ink-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(15, 14, 13, 0.3);
+  max-width: 468px;
+  padding: 26px 28px 24px;
+  width: 100%;
+}
+
+.ink-modal h2 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.ink-modal__body {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin-top: 12px;
+}
+
+.ink-modal__body p {
+  margin: 0 0 10px;
+}
+
+.ink-modal__body p:last-child {
+  margin-bottom: 0;
+}
+
+.ink-modal__body strong {
+  color: var(--ink);
+}
+
+.ink-modal__error {
+  background: var(--status-bad-bg);
+  border: 1px solid var(--status-bad-border);
+  border-radius: var(--radius);
+  color: var(--status-bad-text);
+  font-size: 15px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+}
+
+.ink-modal__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+@media (max-width: 560px) {
+  .ink-modal__actions {
+    flex-direction: column-reverse;
+  }
+
+  .ink-modal__actions .ink-button {
+    width: 100%;
+  }
+}

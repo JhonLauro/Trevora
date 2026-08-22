@@ -16,4 +16,6 @@ public interface MechanicAccessSessionRepository extends JpaRepository<MechanicA
     List<MechanicAccessSession> findByOwnerIdAndStatusOrderByApprovedAtDesc(UUID ownerId, String status);
 
     Optional<MechanicAccessSession> findBySessionToken(String sessionToken);
+
+    long deleteByVehicleId(UUID vehicleId);
 }

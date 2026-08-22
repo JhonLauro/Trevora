@@ -40,8 +40,10 @@ function subLine(record) {
   return `${record.shopName || 'Shop not provided'} · ${sourceLabel(record.sourceInputMethod)}`;
 }
 
-export default function RecordsTable({ records, ariaLabel, showVehicle = true }) {
-  const columns = showVehicle ? CROSS_VEHICLE_COLUMNS : SINGLE_VEHICLE_COLUMNS;
+export default function RecordsTable({ records, ariaLabel, showVehicle = true, onDelete }) {
+  /* The action column widens when it holds two controls rather than one. */
+  const columns = (showVehicle ? CROSS_VEHICLE_COLUMNS : SINGLE_VEHICLE_COLUMNS)
+    .replace(/ 60px$/, onDelete ? ' 132px' : ' 60px');
 
   return (
     <>
@@ -73,8 +75,18 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true })
                   {recordStatusLabel(record)}
                 </span>
               </td>
-              <td>
+              <td className="ink-table__actions">
                 <Link className="ink-table__action" to={recordHref(record)}>View</Link>
+                {onDelete && (
+                  <button
+                    className="ink-link-button ink-link-button--danger"
+                    type="button"
+                    aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
+                    onClick={() => onDelete(record)}
+                  >
+                    Delete
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -99,9 +111,20 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true })
                 {showVehicle ? `${record.vehicleName} · ${subLine(record)}` : subLine(record)}
               </div>
             </div>
-            <Link className="ink-button ink-button--outline ink-button--sm" to={recordHref(record)}>
-              View record
-            </Link>
+            <div className="ink-record-card__actions">
+              <Link className="ink-button ink-button--outline ink-button--sm" to={recordHref(record)}>
+                View record
+              </Link>
+              {onDelete && (
+                <button
+                  className="ink-button ink-button--outline ink-button--sm ink-button--danger-outline"
+                  type="button"
+                  onClick={() => onDelete(record)}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
           </article>
         ))}
       </div>

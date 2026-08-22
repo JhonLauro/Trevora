@@ -17,4 +17,7 @@ public interface ServiceRecordRepository extends JpaRepository<ServiceRecord, UU
     Optional<ServiceRecord> findByRecordIdAndVehicleIdAndOwnerId(UUID recordId, UUID vehicleId, UUID ownerId);
 
     long countByVehicleIdAndOwnerId(UUID vehicleId, UUID ownerId);
+
+    /** Items cascade at the database level; only the records need deleting here. */
+    long deleteByVehicleId(UUID vehicleId);
 }

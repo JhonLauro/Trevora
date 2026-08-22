@@ -4,6 +4,8 @@ import com.trevora.api.features.history.ServiceHistoryResponse;
 import com.trevora.api.features.history.ServiceRecordDetailResponse;
 import com.trevora.api.features.history.ServiceHistoryService;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,5 +37,14 @@ public class HistoryController {
             @PathVariable UUID recordId
     ) {
         return serviceHistoryService.getVehicleHistoryRecord(vehicleId, recordId);
+    }
+
+    @DeleteMapping("/{recordId}")
+    public ResponseEntity<Void> deleteVehicleHistoryRecord(
+            @PathVariable UUID vehicleId,
+            @PathVariable UUID recordId
+    ) {
+        serviceHistoryService.deleteVehicleHistoryRecord(vehicleId, recordId);
+        return ResponseEntity.noContent().build();
     }
 }

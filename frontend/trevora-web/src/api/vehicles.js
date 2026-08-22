@@ -21,3 +21,11 @@ export function updateVehicle(vehicleId, vehicle) {
     body: JSON.stringify(vehicle),
   });
 }
+
+/**
+ * Deletes the vehicle and everything filed under it — records, drafts and any
+ * sharing that pointed at it. There is no undo, so callers confirm first.
+ */
+export function deleteVehicle(vehicleId) {
+  return apiRequest(`/vehicles/${encodeURIComponent(vehicleId)}`, { method: 'DELETE' });
+}

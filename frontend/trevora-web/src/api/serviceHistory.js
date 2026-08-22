@@ -15,3 +15,11 @@ export function getVehicleServiceHistory(vehicleId, filters = {}) {
 export function getVehicleServiceRecord(vehicleId, recordId) {
   return apiRequest(`/vehicles/${vehicleId}/history/${recordId}`);
 }
+
+/** Removes one confirmed record. The draft it came from is left in place. */
+export function deleteVehicleServiceRecord(vehicleId, recordId) {
+  return apiRequest(
+    `/vehicles/${encodeURIComponent(vehicleId)}/history/${encodeURIComponent(recordId)}`,
+    { method: 'DELETE' },
+  );
+}
