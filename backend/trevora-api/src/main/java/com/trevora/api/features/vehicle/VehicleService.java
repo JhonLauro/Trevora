@@ -54,6 +54,7 @@ public class VehicleService {
         vehicle.setOwnerId(currentUserService.getCurrentUserId());
         vehicle.setMake(request.make().trim());
         vehicle.setModel(request.model().trim());
+        vehicle.setBodyType(blankToNull(request.bodyType()));
         vehicle.setYear(request.year());
         vehicle.setNickname(blankToNull(request.nickname()));
         vehicle.setPlateNumber(blankToNull(request.plateNumber()));
@@ -68,6 +69,7 @@ public class VehicleService {
         VehicleProfile vehicle = getVehicleForCurrentUser(vehicleId);
         vehicle.setMake(request.make().trim());
         vehicle.setModel(request.model().trim());
+        vehicle.setBodyType(blankToNull(request.bodyType()));
         vehicle.setYear(request.year());
         vehicle.setNickname(blankToNull(request.nickname()));
         vehicle.setPlateNumber(blankToNull(request.plateNumber()));

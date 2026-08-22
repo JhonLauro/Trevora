@@ -1,0 +1,1156 @@
+/* ----------------------------------------------------------------------
+   Trevora "Ink" — app shell, Garage dashboard, Records.
+
+   Loaded after ink-app.css. Kept as its own file because the legacy
+   `dashboard-*` and `figma-*` rules are still live for the pages that have
+   not been redesigned yet; nothing here should touch them.
+
+   Audience: vehicle owners, many middle-aged, on mixed-quality phones and
+   monitors. Reading text stays at 15px, tap targets at 44px. If content does
+   not fit, it reflows — it does not shrink. The only sub-15px type is the
+   11px mono eyebrow, which is a repeated structural label and never carries
+   information the value beneath it does not restate.
+   ---------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------ primitives */
+
+.ink-sr-only {
+  border: 0;
+  table-layout: fixed;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.ink-eyebrow {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ink-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ink-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+
+/* Buttons. ink-app.css already fills every <button> with ink, so the outline
+   and ghost variants have to state their own background. */
+.ink-button {
+  align-items: center;
+  background: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius);
+  color: var(--on-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  gap: 8px;
+  height: var(--button-h);
+  justify-content: center;
+  min-height: 0;
+  padding: 0 22px;
+  text-decoration: none;
+  white-space: nowrap;
+  width: auto;
+}
+
+.ink-button:hover {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
+  color: var(--on-ink);
+}
+
+.ink-button--outline {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.ink-button--outline:hover {
+  background: var(--surface-sunken);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.ink-button--sm {
+  height: 48px;
+}
+
+.ink-button--block {
+  width: 100%;
+}
+
+/* Status is never colour-only: every badge carries its word. */
+.ink-badge {
+  align-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
+.ink-badge--ok {
+  background: var(--status-ok-bg);
+  border-color: var(--status-ok-border);
+  color: var(--status-ok-text);
+}
+
+.ink-badge--warn {
+  background: var(--status-warn-bg);
+  border-color: var(--status-warn-border);
+  color: var(--status-warn-text);
+}
+
+.ink-badge--bad {
+  background: var(--status-bad-bg);
+  border-color: var(--status-bad-border);
+  color: var(--status-bad-text);
+}
+
+.ink-badge--none {
+  background: var(--status-none-bg);
+  border-color: var(--status-none-border);
+  color: var(--status-none-text);
+}
+
+/* ----------------------------------------------------------------- shell */
+
+.ink-app {
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.ink-sidebar {
+  background: var(--ink);
+  color: var(--on-ink);
+  display: flex;
+  flex: 0 0 264px;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding: 26px 0 22px;
+  position: sticky;
+  top: 0;
+  width: 264px;
+}
+
+/* The divider is what makes the wordmark read as a header rather than a
+   floating item. */
+.ink-sidebar__brand {
+  border-bottom: 1px solid var(--on-ink-rule);
+  margin-bottom: 14px;
+  padding: 0 24px 24px;
+}
+
+.ink-sidebar__brand a {
+  color: var(--on-ink);
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.ink-sidebar__spacer {
+  flex: 1;
+}
+
+.ink-sidebar__account {
+  border-top: 1px solid var(--on-ink-rule);
+  padding-top: 14px;
+}
+
+.ink-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+/* One device for active, not three: weight plus a left rule. Filling the row
+   background as well made two elements compete to say the same thing. */
+.ink-nav__item {
+  align-items: center;
+  border-left: 3px solid transparent;
+  color: var(--on-ink-muted);
+  display: flex;
+  font-size: 16px;
+  font-weight: 400;
+  gap: 10px;
+  height: 48px;
+  justify-content: space-between;
+  padding: 0 24px;
+  text-decoration: none;
+}
+
+.ink-nav__item:hover {
+  color: var(--on-ink);
+}
+
+.ink-nav__item.is-active {
+  border-left-color: var(--on-ink);
+  color: var(--on-ink);
+  font-weight: 600;
+  padding-left: 21px;
+}
+
+.ink-nav__count {
+  align-items: center;
+  background: var(--paper);
+  border-radius: 999px;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 6px;
+}
+
+.ink-account-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  height: 48px;
+  padding: 0 24px;
+}
+
+.ink-account-row__avatar {
+  align-items: center;
+  background: var(--on-ink-rule);
+  border-radius: 999px;
+  color: var(--on-ink);
+  display: inline-flex;
+  flex: 0 0 30px;
+  font-size: 13px;
+  font-weight: 700;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.ink-account-row__name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sign out sits on the same 48px rhythm as everything else in the dark
+   column, rather than being an outlined button in a scale of its own. */
+.ink-signout-row {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--on-ink-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 16px;
+  font-weight: 400;
+  height: 48px;
+  min-height: 0;
+  padding: 0 24px;
+  text-align: left;
+  width: 100%;
+}
+
+.ink-signout-row:hover:not(:disabled) {
+  background: none;
+  color: var(--on-ink);
+}
+
+.ink-topbar {
+  display: none;
+}
+
+.ink-app__content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ page frame */
+
+.ink-page {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin: 0 auto;
+  max-width: 1176px;
+  padding: 40px 44px 48px;
+  width: 100%;
+}
+
+.ink-page__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+}
+
+.ink-page__title {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.ink-page__summary {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 6px 0 0;
+}
+
+.ink-section-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.ink-alert {
+  background: var(--status-bad-bg);
+  border: 1px solid var(--status-bad-border);
+  border-radius: var(--radius);
+  color: var(--status-bad-text);
+  font-size: 16px;
+  padding: 14px 18px;
+}
+
+/* -------------------------------------------------------- attention strip */
+
+.garage-attention {
+  align-items: center;
+  background: var(--status-warn-bg);
+  border-radius: 12px;
+  color: var(--status-warn-text);
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 16px 22px;
+}
+
+.garage-attention__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.garage-attention__count {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.garage-attention__item {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* The one place this amber appears — it is the outline of a button sitting
+   inside the amber banner, and it exists nowhere else in the product. */
+.garage-attention__action {
+  background: transparent;
+  border-color: var(--amber-button-border);
+  color: var(--status-warn-text);
+  flex: 0 0 auto;
+  height: 44px;
+}
+
+.garage-attention__action:hover {
+  background: rgba(199, 154, 74, 0.12);
+  border-color: var(--amber-button-border);
+  color: var(--status-warn-text);
+}
+
+/* -------------------------------------------------------------- carousel */
+
+.garage-carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.garage-carousel__head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.garage-carousel__controls {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.garage-carousel__counter {
+  color: var(--ink-muted);
+}
+
+.garage-carousel__arrow {
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  width: 44px;
+}
+
+.garage-carousel__arrow:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: var(--ink);
+}
+
+.garage-carousel__arrow:disabled {
+  background: var(--surface);
+  border-color: var(--rule-faint);
+  color: var(--border);
+  cursor: default;
+}
+
+/* The next card is clipped at the frame edge on purpose: 496×2 + 24 in a
+   1088 track leaves a 72px sliver of card 3, and that sliver says "there is
+   more" better than the counter does. Do not pad it away; do not wrap. */
+.garage-track {
+  overflow: hidden;
+}
+
+.garage-track__row {
+  display: flex;
+  gap: 24px;
+  transition: transform 260ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .garage-track__row {
+    transition: none;
+  }
+}
+
+.garage-dots {
+  display: none;
+  gap: 8px;
+  justify-content: center;
+}
+
+.garage-dots button {
+  background: var(--rule);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 9px;
+  min-height: 0;
+  padding: 0;
+  width: 9px;
+}
+
+.garage-dots button.is-active {
+  background: var(--ink);
+}
+
+/* ---------------------------------------------------------- vehicle card */
+
+.garage-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  display: flex;
+  flex: 0 0 496px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.garage-carousel--single .garage-card {
+  flex: 1 1 auto;
+}
+
+.garage-card__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 20px 22px 18px;
+}
+
+.garage-card__name {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.garage-card__meta {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+.garage-card__stats {
+  border-bottom: 1px solid var(--rule-faint);
+  border-top: 1px solid var(--rule-faint);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.garage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 22px;
+}
+
+.garage-stat + .garage-stat {
+  border-left: 1px solid var(--rule-faint);
+}
+
+.garage-stat__value {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+/* Long values reflow by dropping a step, not by shrinking the label. */
+.garage-stat__value--long {
+  font-size: 20px;
+}
+
+.garage-card__chart {
+  padding: 16px 22px;
+}
+
+.garage-card__due {
+  align-items: baseline;
+  border-top: 1px solid var(--rule-faint);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 22px;
+}
+
+.garage-card__due-label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.garage-card__due-when {
+  color: var(--ink-muted);
+  font-size: 15px;
+  text-align: right;
+}
+
+/* Overdue on a vehicle card is amber, not red. Red is reserved for the parts
+   map, where it means one named component is overdue. */
+.garage-card__due.is-overdue .garage-card__due-label,
+.garage-card__due.is-overdue .garage-card__due-when {
+  color: var(--status-warn-text);
+}
+
+.garage-card__actions {
+  border-top: 1px solid var(--rule-faint);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  padding: 18px 22px;
+}
+
+/* ---------------------------------------------------------------- charts
+
+   Plain divs. No charting library, no SVG, no canvas — twelve flex columns
+   and a percentage height. */
+
+.ink-bars {
+  align-items: flex-end;
+  display: flex;
+  gap: 6px;
+  height: 58px;
+}
+
+.ink-bars__col {
+  align-items: flex-end;
+  display: flex;
+  flex: 1;
+  height: 100%;
+}
+
+.ink-bars__bar {
+  background: var(--ink-muted);
+  border-radius: 2px 2px 0 0;
+  width: 100%;
+}
+
+.ink-bars__bar.is-peak {
+  background: var(--ink);
+}
+
+/* A month with no service is a visible tick, not an empty slot. The gaps are
+   the point of the chart, so they have to read as gaps. */
+.ink-bars__tick {
+  background: var(--rule-faint);
+  height: 3px;
+  width: 100%;
+}
+
+.ink-bars__range {
+  color: var(--ink-muted);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.ink-axis {
+  color: var(--ink-muted);
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ink-axis span {
+  flex: 1;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.garage-panels {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+
+.garage-panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px 24px;
+}
+
+.garage-panel__head {
+  align-items: baseline;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.garage-spend-chart {
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.garage-spend-chart .ink-bars {
+  gap: 8px;
+  height: 112px;
+}
+
+.garage-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.garage-breakdown__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.garage-breakdown__line {
+  display: flex;
+  font-size: 16px;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.garage-breakdown__amount {
+  font-weight: 600;
+}
+
+.garage-breakdown__track {
+  background: var(--surface-sunken);
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+
+/* Fills step down the ink ramp. This is ordering, not category identity —
+   a hue per category would imply a meaning the categories do not have. */
+.garage-breakdown__fill {
+  border-radius: 4px;
+  height: 100%;
+}
+
+.garage-breakdown__row:nth-child(1) .garage-breakdown__fill { background: var(--ink); }
+.garage-breakdown__row:nth-child(2) .garage-breakdown__fill { background: var(--ink-muted); }
+.garage-breakdown__row:nth-child(3) .garage-breakdown__fill { background: var(--ink-faint); }
+.garage-breakdown__row:nth-child(4) .garage-breakdown__fill { background: var(--border); }
+
+/* ----------------------------------------------------------------- table */
+
+.ink-table-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ink-table-card__head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule-faint);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 20px 24px 18px;
+}
+
+.ink-table-card__link {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ink-table {
+  border-collapse: collapse;
+  display: block;
+  width: 100%;
+}
+
+.ink-table thead,
+.ink-table tbody {
+  display: block;
+}
+
+.ink-table tr {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: var(--table-columns);
+}
+
+.ink-table thead tr {
+  background: var(--surface-head);
+  padding: 12px 24px;
+}
+
+.ink-table th {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.ink-table tbody tr {
+  border-bottom: 1px solid var(--rule-hairline);
+  padding: 18px 24px;
+}
+
+.ink-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.ink-table td {
+  font-size: 16px;
+  min-width: 0;
+}
+
+.ink-table .is-muted {
+  color: var(--ink-muted);
+}
+
+.ink-table .is-numeric,
+.ink-table th.is-numeric {
+  font-weight: 600;
+  text-align: right;
+}
+
+.ink-table__service strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shop and source share one line. Neither earned a column: source is
+   provenance rather than a category, and shop names are long enough that a
+   column for them starved the service description, which is what people
+   actually scan. */
+.ink-table__service small {
+  color: var(--ink-muted);
+  display: block;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ink-table__action {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Card fallback for the same data. This table never scrolls horizontally. */
+.ink-record-cards {
+  display: none;
+  flex-direction: column;
+}
+
+.ink-record-card {
+  border-bottom: 1px solid var(--rule-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.ink-record-card:last-child {
+  border-bottom: 0;
+}
+
+.ink-record-card__top {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.ink-record-card__title {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ink-record-card__meta {
+  color: var(--ink-muted);
+  display: flex;
+  font-size: 15px;
+  justify-content: space-between;
+}
+
+.ink-record-card__meta strong {
+  color: var(--ink);
+}
+
+.ink-record-card__sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+/* ---------------------------------------------------------- empty states */
+
+.ink-empty {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 30px 32px 32px;
+}
+
+.ink-empty__title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.ink-empty__body {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 0;
+  max-width: 520px;
+}
+
+.ink-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+/* --------------------------------------------------------------- records */
+
+.records-toolbar {
+  display: flex;
+  gap: 12px;
+}
+
+.records-toolbar input {
+  flex: 1;
+  height: var(--field-h);
+  max-width: 520px;
+}
+
+/* --------------------------------------------------- narrow: table → cards
+
+   The status track is 152px rather than the badge's own width: at 128px the
+   "Needs review" badge fitted to the pixel, touched the action column, and
+   wrapped to two lines under zoom. Below this width the grid stops being
+   honest and the rows become cards instead of scrolling sideways. */
+
+@media (max-width: 900px) {
+  .ink-table {
+    display: none;
+  }
+
+  .ink-record-cards {
+    display: flex;
+  }
+
+  .garage-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------ narrow: the shell */
+
+@media (max-width: 900px) {
+  .ink-app {
+    flex-direction: column;
+  }
+
+  .ink-sidebar {
+    display: none;
+  }
+
+  .ink-topbar {
+    align-items: center;
+    background: var(--ink);
+    color: var(--on-ink);
+    display: flex;
+    justify-content: space-between;
+    padding: 18px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .ink-topbar a {
+    color: var(--on-ink);
+    text-decoration: none;
+  }
+
+  .ink-topbar__actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+  }
+
+  /* The count is a flex sibling of the word, not absolutely positioned over
+     it — positioned, it covered the label it was meant to annotate. */
+  .ink-topbar__button {
+    align-items: center;
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    color: var(--on-ink);
+    cursor: pointer;
+    display: flex;
+    font-size: 16px;
+    font-weight: 600;
+    gap: 7px;
+    height: 44px;
+    min-height: 0;
+    padding: 0 10px;
+  }
+
+  .ink-topbar__button:hover:not(:disabled) {
+    background: var(--on-ink-rule);
+    color: var(--on-ink);
+  }
+
+  .ink-topbar__count {
+    align-items: center;
+    background: var(--paper);
+    border-radius: 999px;
+    color: var(--ink);
+    display: inline-flex;
+    font-size: 13px;
+    font-weight: 700;
+    height: 20px;
+    justify-content: center;
+    min-width: 20px;
+    padding: 0 6px;
+  }
+
+  .ink-sheet__backdrop {
+    background: rgba(15, 14, 13, 0.5);
+    inset: 0;
+    position: fixed;
+    z-index: 40;
+  }
+
+  .ink-sheet {
+    background: var(--ink);
+    color: var(--on-ink);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin-left: auto;
+    max-width: 320px;
+    padding: 18px 0 22px;
+    width: 86%;
+  }
+
+  .ink-sheet__head {
+    align-items: center;
+    border-bottom: 1px solid var(--on-ink-rule);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 0 20px 18px;
+  }
+
+  .ink-sheet__close {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: var(--on-ink-muted);
+    cursor: pointer;
+    display: flex;
+    font-size: 16px;
+    gap: 7px;
+    height: 44px;
+    min-height: 0;
+    padding: 0 8px;
+  }
+
+  .ink-sheet__close:hover:not(:disabled) {
+    background: none;
+    color: var(--on-ink);
+  }
+
+  .ink-sheet__account {
+    border-top: 1px solid var(--on-ink-rule);
+    margin-top: auto;
+    padding-top: 14px;
+  }
+
+  .ink-sheet .ink-account-row,
+  .ink-sheet .ink-signout-row,
+  .ink-sheet .ink-nav__item {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .ink-sheet .ink-nav__item.is-active {
+    padding-left: 17px;
+  }
+}
+
+/* ------------------------------------------------------ narrow: the pages */
+
+@media (max-width: 720px) {
+  .ink-page {
+    gap: 22px;
+    padding: 26px 20px 40px;
+  }
+
+  .ink-page__header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ink-page__title {
+    font-size: 27px;
+  }
+
+  .ink-page__header .ink-button {
+    width: 100%;
+  }
+
+  .garage-attention {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .garage-attention__action {
+    width: 100%;
+  }
+
+  .garage-card {
+    flex: 0 0 318px;
+  }
+
+  /* Three stat cells at 318px starves the number, so the third drops away.
+     Records and Spend are the two the card is actually asked for. */
+  .garage-card__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .garage-card__stats .garage-stat:nth-child(3) {
+    display: none;
+  }
+
+  .garage-card__name {
+    font-size: 21px;
+  }
+
+  .garage-card__chart .ink-bars {
+    gap: 5px;
+    height: 46px;
+  }
+
+  .garage-dots {
+    display: flex;
+  }
+
+  .ink-badge {
+    font-size: 13px;
+  }
+
+  .ink-section-title {
+    font-size: 20px;
+  }
+}
+
+/* Adding a second vehicle used to live on the vehicle-list page, which the
+   Garage replaced. It belongs beside the carousel it adds to. */
+.garage-carousel__add {
+  height: 44px;
+  padding: 0 16px;
+}

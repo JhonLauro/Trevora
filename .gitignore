@@ -9,3 +9,4 @@ target/
 application-local.properties
 .vscode/
 .codex-analysis/
+*.log

@@ -42,6 +42,15 @@ public class VehicleProfile {
 
     private Integer odometer;
 
+    /**
+     * Vehicle silhouette, used by the parts map. Filled in from the make/model
+     * catalogue when the model is known, asked for otherwise. Nullable: rows
+     * created before the picker existed have no honest value, and back-filling
+     * one would be inventing it rather than recording it.
+     */
+    @Column(name = "body_type")
+    private String bodyType;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -112,6 +121,14 @@ public class VehicleProfile {
 
     public Integer getOdometer() {
         return odometer;
+    }
+
+    public String getBodyType() {
+        return bodyType;
+    }
+
+    public void setBodyType(String bodyType) {
+        this.bodyType = bodyType;
     }
 
     public void setOdometer(Integer odometer) {

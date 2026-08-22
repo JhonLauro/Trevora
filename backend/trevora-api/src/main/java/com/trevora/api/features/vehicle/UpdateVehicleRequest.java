@@ -2,10 +2,16 @@ package com.trevora.api.features.vehicle;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public record UpdateVehicleRequest(
         @NotBlank String make,
         @NotBlank String model,
+        @Pattern(
+                regexp = "sedan|hatchback|suv|mpv|pickup|van|motorcycle",
+                message = "Body type must be one of: sedan, hatchback, suv, mpv, pickup, van, motorcycle"
+        )
+        String bodyType,
         @Min(1886) Integer year,
         String nickname,
         String plateNumber,

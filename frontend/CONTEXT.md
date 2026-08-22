@@ -35,7 +35,52 @@ The UI does not need to exactly match the high-fidelity design yet, but it must 
 
 ## Design References
 
-The old `/frontend/design-reference` screenshots (May 2026) have been removed as outdated. A UI refresh is in progress targeting a modern look suited to middle-age car-owner users; there is no current design reference directory — check with the user or recent commits for the active design direction before making layout changes.
+The old `/frontend/design-reference` screenshots (May 2026) have been removed as outdated.
+
+The active design direction is **"Ink"** (handoff bundle `design_handoff_trevora_auth`, Aug 2026). It is intentionally achromatic — there is no brand accent colour, and chroma is reserved exclusively for record status, so a coloured element always means something. Type and target sizes are deliberately larger than SaaS defaults for the middle-age owner audience: no text below 16px, no grey text below 17px. Do not tighten spacing or shrink type when migrating a screen; reflow instead.
+
+Ink tokens now live at `:root` in `src/styles/ink-app.css`, which is loaded globally from `main.jsx`. `src/styles/ink-auth.css` keeps the auth-only rules; `src/styles/ink-garage.css` holds the shell, Garage and Records surfaces. Cascade order is stated once, in `main.jsx`: `styles.css` → `ink-app.css` → `ink-auth.css` → `ink-garage.css`. `.ink-button` is shared across auth and the app, so a rule that only makes sense in one of them must be scoped (see `.ink-auth .ink-button`).
+
+Migrated so far: auth (`LoginPage`, `RegisterPage`, `AuthCallbackPage`, password reset, `RegisterVehiclePage` via `InkAuthShell`), the app shell (`AppShell`), the Garage dashboard (`GaragePage`), the vehicle page (`VehiclePage`) and `RecordsPage`. Still on the older "Calm Professional" tokens in `src/styles.css`: Add Service Record, the record detail page, Shared Access, Notifications, Account Settings.
+
+Shared Ink components live in `src/components/ink/` — `RecordsTable` (cross-vehicle and single-vehicle shapes), `Timeline`, `PartsView`, `Tabs`, `MonthBars`. Derivations live in `src/utils/` and are shared by both pages: `recordStatus`, `serviceComponents`, `componentStatus`, `serviceCategory`, `completeness`, `monthlySeries`, `nextDue`, `format`, `vehicleText`.
+
+### Information architecture (changed Aug 2026)
+
+There is **no global "active vehicle"** any more. It used to live in `localStorage` and the sidebar, and it made every number on every page ambiguous until the user checked a control somewhere else — which this audience does not do. Vehicle identity comes from the route param.
+
+| Route | Page |
+|---|---|
+| `/` | **Garage** — all vehicles, one card each carrying its own numbers. This is the dashboard. |
+| `/vehicles/:vehicleId` | **Vehicle page** — everything about one car. Absorbs the old Service History page; `/vehicles/:id/history` redirects here. Three views: Timeline (default), Components, Table. |
+| `/vehicles/new` | **Add a vehicle** — in-app. Signup's step 2 (`RegisterVehiclePage`) is the same fields on the auth shell. |
+| `/records` | **Records** — cross-vehicle list. |
+
+### Make, model and body type
+
+Free-text make and model produced `Receipt`, `Voice` and `Route` as makes, plus `honda`/`Honda` as separate values. Both add-vehicle forms now share `components/ink/VehicleIdentityFields.jsx`, which pairs two `Combobox` fields against `src/data/vehicleCatalog.js` — a PH-market make → model → body-type table.
+
+The combobox is a picker you can also type into: an unlisted value is kept as typed, so the long tail still works. It is deliberately neither a `<select>` (cannot be typed into; a native wheel past twenty options is miserable on a phone) nor a plain input (the original problem).
+
+**Body type is a lookup, not a guess.** Picking a listed model fills it in — the catalogue knows a Hilux is a pickup — and it stays editable, because a catalogue can be wrong and a value the user never saw is one they can never correct. Changing the make clears a model that belonged to the old one, which is what stops "Toyota Xpander". A model typed under an unknown or misspelt make still resolves via `bodyTypeForModelAnywhere` — someone who types "Toyata Vios" typed a real Vios, and a Vios is a sedan whoever spelled the make.
+
+When nothing can be derived, `BodyTypePicker` asks. It is **not** a `<select>` of "Sedan / Hatchback / MPV": plenty of owners do not know those words, and the people who reach this fallback are exactly the ones least likely to. Each option carries a plain description ("Open cargo bed at the back") and three example models, grouped under "Four wheels" and "Two wheels", so it is answerable by recognition rather than vocabulary.
+
+### Motorcycles are not cars
+
+`vehicleClassFor(bodyType)` returns `car` or `motorcycle`, and that is the **only** distinction anything downstream should branch on — never the body type itself.
+
+`utils/serviceComponents.js` holds one shared rule set plus a per-class extension: `componentRulesFor(vehicleClass)`. Cars get transmission, aircon and body panels; motorcycles get drive chain/CVT and fairings, and never get aircon. `componentStatuses(records, vehicle)` builds its list from the class, so a motorcycle is never offered a part it does not have. Unknown body type falls back to `car` — what every pre-picker row is, and the safer default.
+
+**There is no due-date or interval logic.** It was removed deliberately: the intervals were car conventions applied to every vehicle (telling scooter owners their oil was fine at 5,000 km), and prediction is outside the project's objectives. Component status is two states — has records / no record found. Do not reintroduce interval maths without real per-class intervals; see `planning/DEFERRED.md`.
+
+Adding a model is a one-line change in the catalogue. The table is intentionally not exhaustive.
+
+`/dashboard` and `/vehicles` redirect to `/`. `src/api/activeVehicle.js`, `DashboardPage.jsx`, `VehicleProfileSelectionPage.jsx`, `VehicleServiceHistoryPage.jsx` and `PartsMap.jsx` are unrouted leftovers kept only for comparison; do not build against them. Use `src/utils/vehicleText.js` for vehicle display strings.
+
+The **parts map has no artwork**. The silhouette depends on body type — a pickup, van and sedan are different shapes with components in different places — so the asset is bodyType × view, and there is no `body_type` column. The Components view therefore renders the component list alone with a one-line note, and Timeline is the default view. The list was always the accessible path through that view anyway, since a map of markers has to be a list of buttons for a keyboard or screen reader. `PartsMap.jsx` holds earlier generic SVGs in the old palette; they are not body-type aware and are not wired up.
+
+Nav is five destinations — Garage, Records, Shared access, Notifications, Settings. "Add service record" is not among them: it is an action, not a place, and it is the primary button in each page header.
 
 ## Module 2 Frontend Scope
 

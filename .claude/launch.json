@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend/trevora-web", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "trevora-api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "backend\\trevora-api\\mvnw.cmd",
+        "-f",
+        "backend\\trevora-api\\pom.xml",
+        "spring-boot:run"
+      ],
+      "port": 8080
     }
   ]
 }

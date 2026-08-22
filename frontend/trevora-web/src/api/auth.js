@@ -1,5 +1,5 @@
 import { apiRequest } from './http.js';
-import { setLoggedInUser } from './currentUser.js';
+import { clearLoggedInUser, setLoggedInUser } from './currentUser.js';
 import { requireSupabaseClient } from './supabaseClient.js';
 
 export async function registerUser(payload) {
@@ -167,10 +167,15 @@ function normalizeRole(role) {
 function profileFromSupabaseUser(user) {
   const metadata = user?.user_metadata ?? {};
   const fullName = metadata.full_name || metadata.fullName || metadata.name || '';
-  const fallbackNameParts = fullName.trim().split(/\s+/, 2);
+  // Providers like Google hand back one name string. Take the first token as
+  // the given name and keep ALL remaining tokens as the family name —
+  // split(/\s+/, 2) would drop the tail of a compound surname
+  // ("Maria Dela Cruz" -> "Maria" / "Dela", losing "Cruz").
+  const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+  const [fallbackFirst, ...fallbackRest] = nameParts;
   return {
-    firstName: metadata.first_name || metadata.firstName || fallbackNameParts[0] || 'User',
-    lastName: metadata.last_name || metadata.lastName || fallbackNameParts[1] || 'Account',
+    firstName: metadata.first_name || metadata.firstName || fallbackFirst || 'User',
+    lastName: metadata.last_name || metadata.lastName || fallbackRest.join(' ') || 'Account',
     role: normalizeRole(metadata.role),
   };
 }
@@ -196,6 +201,98 @@ function normalizeSupabaseAuthError(error) {
   }
 
   return new Error(message);
+}
+
+const RECOVERY_LINK_EXPIRED =
+  'This reset link has expired. Request a new one and use the most recent email.';
+
+/**
+ * Step 1 of reset: email the user a recovery link. Always resolves without
+ * revealing whether the address has an account — telling an anonymous caller
+ * which emails are registered is an account-enumeration leak.
+ */
+export async function requestPasswordReset(email) {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  });
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
+}
+
+/**
+ * Step 2 of reset: turn the link the user clicked into a recovery session.
+ * Handles both PKCE (`?code=`) and implicit (`#access_token=`) flows, since
+ * which one arrives depends on the Supabase project's configuration.
+ */
+export async function beginPasswordRecovery() {
+  const client = requireSupabaseClient();
+
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (hashParams.get('error_description') || hashParams.get('error')) {
+    throw new Error(RECOVERY_LINK_EXPIRED);
+  }
+
+  const code = new URL(window.location.href).searchParams.get('code');
+  if (code) {
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (error) {
+      throw new Error(RECOVERY_LINK_EXPIRED);
+    }
+    return true;
+  }
+
+  const { data } = await client.auth.getSession();
+  if (data.session) {
+    return true;
+  }
+
+  // Implicit flow: the client parses the URL hash shortly after load, so the
+  // session may not exist yet on first paint.
+  return waitForRecoverySession(client);
+}
+
+function waitForRecoverySession(client, timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      subscription?.unsubscribe();
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        finish(true);
+      }
+    });
+  });
+}
+
+/**
+ * Step 3 of reset: set the new password, then sign out. The recovery session
+ * never went through `loginUser`, so the app's local profile state was never
+ * populated — leaving it active would strand the user half-authenticated.
+ * Sending them to sign in with the new password is the clean exit.
+ */
+export async function completePasswordReset(newPassword) {
+  const client = requireSupabaseClient();
+  const { error } = await client.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    throw normalizeSupabaseAuthError(error);
+  }
+
+  await client.auth.signOut();
+  clearLoggedInUser();
 }
 
 export function getCurrentUser() {

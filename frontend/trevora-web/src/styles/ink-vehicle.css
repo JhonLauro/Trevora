@@ -1,0 +1,1127 @@
+/* ----------------------------------------------------------------------
+   Trevora "Ink" — vehicle page.
+
+   Loaded after ink-garage.css, whose primitives (.ink-card, .ink-button,
+   .ink-badge, .ink-eyebrow, .ink-table) this file builds on rather than
+   redefining.
+
+   Same audience rules as the Garage: 15px reading floor, 44px targets,
+   reflow instead of shrink, and no chroma except record and component
+   status.
+   ---------------------------------------------------------------------- */
+
+.vehicle-page {
+  gap: 24px;
+  padding-top: 32px;
+}
+
+/* ----------------------------------------------------------- breadcrumb */
+
+.vehicle-crumbs {
+  align-items: center;
+  display: flex;
+  font-size: 15px;
+  gap: 8px;
+}
+
+.vehicle-crumbs a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.vehicle-crumbs span[aria-hidden] {
+  color: var(--border);
+}
+
+.vehicle-crumbs [aria-current] {
+  color: var(--ink-muted);
+}
+
+/* ------------------------------------------------------------- identity */
+
+.vehicle-identity {
+  align-items: flex-start;
+  display: flex;
+  gap: 24px;
+}
+
+/* Holds the space an owner photo will take, so the header does not reflow
+   the day photos start arriving. */
+.vehicle-identity__photo {
+  align-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--ink-faint);
+  display: flex;
+  flex: 0 0 184px;
+  font-size: 15px;
+  height: 124px;
+  justify-content: center;
+}
+
+.vehicle-identity__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.vehicle-identity__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.vehicle-identity__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+/* --------------------------------------------------------- completeness */
+
+.vehicle-completeness {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  padding: 24px 26px 26px;
+}
+
+.vehicle-completeness__head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.vehicle-completeness__since {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.vehicle-years {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+.vehicle-years li {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 64px;
+}
+
+.vehicle-years__block {
+  background: var(--ink);
+  border-radius: 4px;
+  height: 30px;
+}
+
+/* A dashed empty block reads as something missing. A pale solid one reads as
+   something small, which is the wrong answer — an undocumented year is a hole
+   in the history, not a quiet year. */
+.vehicle-years__block.is-empty {
+  background: var(--surface-sunken);
+  border: 1px dashed var(--rule);
+}
+
+.vehicle-years__label {
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.vehicle-years__label.is-empty {
+  color: var(--ink-faint);
+}
+
+.vehicle-completeness__score {
+  border-left: 1px solid var(--rule-faint);
+  padding-left: 32px;
+}
+
+.vehicle-completeness__score strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.vehicle-completeness__score p {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 10px 0 0;
+}
+
+/* ------------------------------------------------------------ stat strip */
+
+.vehicle-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.vehicle-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px;
+}
+
+.vehicle-stat + .vehicle-stat {
+  border-left: 1px solid var(--rule-faint);
+}
+
+.vehicle-stat__value {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.vehicle-stat__value--long {
+  font-size: 20px;
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.ink-tabs {
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 4px;
+}
+
+.ink-tabs__tab {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 16px;
+  font-weight: 600;
+  gap: 8px;
+  height: 48px;
+  margin-bottom: -1px;
+  min-height: 0;
+  padding: 0 16px;
+}
+
+.ink-tabs__tab:hover:not(:disabled) {
+  background: none;
+  color: var(--ink);
+}
+
+.ink-tabs__tab.is-active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.ink-tabs__count {
+  align-items: center;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 7px;
+}
+
+.ink-tabs__tab.is-active .ink-tabs__count {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+[role='tabpanel']:focus {
+  outline: none;
+}
+
+/* --------------------------------------------------------------- toolbar */
+
+.vehicle-records {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.vehicle-toolbar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.vehicle-toolbar input {
+  flex: 1;
+  height: 52px;
+  max-width: 520px;
+}
+
+.ink-segmented {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  overflow: hidden;
+}
+
+.ink-segmented button {
+  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  height: 44px;
+  min-height: 0;
+  padding: 0 18px;
+}
+
+.ink-segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.ink-segmented button:hover:not(.is-active) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.ink-segmented button.is-active {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+/* -------------------------------------------------------------- timeline */
+
+.vehicle-timeline {
+  padding: 26px 28px 30px;
+}
+
+.vehicle-timeline__year + .vehicle-timeline__year {
+  margin-top: 28px;
+}
+
+.vehicle-timeline__year-head {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
+.vehicle-timeline__year-head h3 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.vehicle-timeline__year-rule {
+  background: var(--rule-faint);
+  flex: 1;
+  height: 1px;
+}
+
+.vehicle-timeline__row {
+  display: grid;
+  gap: 0;
+  grid-template-columns: 96px 28px minmax(0, 1fr);
+  padding-top: 16px;
+}
+
+.vehicle-timeline__when {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 14px;
+  text-align: right;
+}
+
+.vehicle-timeline__date {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.vehicle-timeline__odo {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+/* The rule runs the full row height so entries connect into one line; the dot
+   sits at the top, level with the date. */
+.vehicle-timeline__rail {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.vehicle-timeline__rail::before {
+  background: var(--rule-faint);
+  bottom: -16px;
+  content: '';
+  left: 50%;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.vehicle-timeline__row:last-child .vehicle-timeline__rail::before {
+  bottom: 0;
+}
+
+.vehicle-timeline__dot {
+  background: var(--ink);
+  border-radius: 999px;
+  height: 11px;
+  margin-top: 6px;
+  position: relative;
+  width: 11px;
+  z-index: 1;
+}
+
+.vehicle-timeline__dot.is-warn {
+  background: var(--status-warn-text);
+}
+
+.vehicle-timeline__card {
+  border: 1px solid var(--rule-faint);
+  border-radius: 10px;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.vehicle-timeline__card-main {
+  min-width: 0;
+}
+
+.vehicle-timeline__card-main h4 {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.vehicle-timeline__card-main p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+.vehicle-timeline__card-side {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 16px;
+}
+
+/* A fixed, right-aligned box so costs line up down the column even though
+   each card sizes itself to its own content. */
+.vehicle-timeline__cost {
+  font-size: 17px;
+  font-weight: 600;
+  min-width: 74px;
+  text-align: right;
+}
+
+/* ------------------------------------------------------------ components */
+
+.parts-view {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 372px;
+}
+
+.parts-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px 24px;
+}
+
+.parts-panel__sub {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 6px 0 0;
+}
+
+.parts-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.parts-legend li {
+  align-items: center;
+  color: var(--ink-muted);
+  display: flex;
+  font-size: 15px;
+  gap: 8px;
+}
+
+.parts-dot {
+  border: 1px solid;
+  border-radius: 999px;
+  flex: 0 0 10px;
+  height: 10px;
+  width: 10px;
+}
+
+.parts-dot.is-ok { background: var(--status-ok-text); border-color: var(--status-ok-text); }
+.parts-dot.is-warn { background: var(--status-warn-text); border-color: var(--status-warn-text); }
+.parts-dot.is-bad { background: var(--status-bad-text); border-color: var(--status-bad-text); }
+.parts-dot.is-none { background: var(--status-none-border); border-color: var(--status-none-text); }
+
+.parts-panel__note {
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.parts-panel__count {
+  display: flex;
+  justify-content: space-between;
+}
+
+.parts-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.parts-list__row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--rule-faint);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  min-height: 44px;
+  padding: 13px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.parts-list__row:hover:not(.is-selected) {
+  background: var(--surface-sunken);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.parts-list__row.is-selected {
+  background: var(--paper);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+  color: var(--ink);
+}
+
+/* The number keys the row to a map marker once artwork exists; it is
+   decorative until then, which is why it is aria-hidden in the markup. */
+.parts-list__index {
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+}
+
+.parts-list__copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.parts-list__copy strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.parts-list__copy small {
+  font-size: 15px;
+}
+
+.parts-list__copy small.is-ok { color: var(--status-ok-text); }
+.parts-list__copy small.is-warn { color: var(--status-warn-text); }
+.parts-list__copy small.is-bad { color: var(--status-bad-text); }
+.parts-list__copy small.is-none { color: var(--ink-faint); }
+
+/* ------------------------------------------------------------------ rail */
+
+.parts-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.parts-rail__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding: 18px 20px 20px;
+}
+
+.parts-rail__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parts-rail__head--row {
+  align-items: baseline;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.parts-rail__title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.parts-rail__title h3 {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.parts-rail__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.parts-rail__stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 0;
+}
+
+.parts-rail__stats > div:nth-child(odd) {
+  border-right: 1px solid var(--rule-faint);
+  padding-right: 14px;
+}
+
+.parts-rail__stats > div:nth-child(even) {
+  padding-left: 14px;
+}
+
+.parts-rail__stats > div:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.parts-rail__stats strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.parts-rail__records article + article {
+  border-top: 1px solid var(--rule-hairline);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.parts-rail__record-line {
+  display: flex;
+  font-size: 16px;
+  font-weight: 600;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.parts-rail__record-line a {
+  overflow: hidden;
+  text-decoration: underline;
+  text-overflow: ellipsis;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.parts-rail__records p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 8px;
+}
+
+.parts-rail__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.parts-rail__due {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 0;
+}
+
+.parts-rail__due strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.ink-muted-note {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+/* -------------------------------------------------------------- upcoming */
+
+.vehicle-upcoming {
+  margin-top: 20px;
+}
+
+.vehicle-upcoming article {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+
+.vehicle-upcoming article + article {
+  border-top: 1px solid var(--rule-hairline);
+}
+
+.vehicle-upcoming__main h3 {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.vehicle-upcoming__main p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+.vehicle-upcoming__side {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+}
+
+.vehicle-upcoming__when {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.vehicle-page .ink-empty {
+  margin-top: 20px;
+}
+
+/* ------------------------------------------------------- narrow: reflow */
+
+@media (max-width: 1100px) {
+  .parts-view {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vehicle-completeness {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .vehicle-completeness__score {
+    border-left: 0;
+    border-top: 1px solid var(--rule-faint);
+    padding-left: 0;
+    padding-top: 20px;
+  }
+
+  /* Five cells across a tablet width starves every number. Two rows of
+     numbers read; five squeezed columns do not. */
+  .vehicle-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .vehicle-stat:nth-child(4) {
+    border-left: 0;
+  }
+
+  .vehicle-stat:nth-child(n + 4) {
+    border-top: 1px solid var(--rule-faint);
+  }
+}
+
+@media (max-width: 900px) {
+  .vehicle-identity {
+    flex-wrap: wrap;
+  }
+
+  .vehicle-identity__actions {
+    width: 100%;
+  }
+
+  .vehicle-identity__actions .ink-button {
+    flex: 1;
+  }
+
+  .parts-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .vehicle-page {
+    padding-top: 22px;
+  }
+
+  .vehicle-identity__photo {
+    flex: 0 0 100%;
+    height: 160px;
+  }
+
+  .vehicle-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vehicle-stat:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .vehicle-stat:nth-child(n + 3) {
+    border-top: 1px solid var(--rule-faint);
+  }
+
+  /* Tabs scroll rather than wrap: a wrapped tab strip stops looking like one
+     row of choices. The scroll is horizontal on the strip only, never the page. */
+  .ink-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ink-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vehicle-toolbar {
+    flex-direction: column;
+  }
+
+  .vehicle-toolbar input {
+    max-width: none;
+  }
+
+  .ink-segmented button {
+    flex: 1;
+    padding: 0 10px;
+  }
+
+  .vehicle-timeline {
+    padding: 20px 18px 24px;
+  }
+
+  .vehicle-timeline__row {
+    grid-template-columns: 78px 24px minmax(0, 1fr);
+  }
+
+  .vehicle-timeline__card {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .vehicle-timeline__card-side {
+    justify-content: space-between;
+  }
+
+  .vehicle-timeline__cost {
+    min-width: 0;
+  }
+
+  .vehicle-upcoming article {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .vehicle-upcoming__side {
+    flex-wrap: wrap;
+  }
+
+  .vehicle-years li {
+    max-width: none;
+  }
+
+  .vehicle-years__block {
+    height: 24px;
+  }
+}
+
+/* ---------------------------------------------------------- vehicle form */
+
+.vehicle-form-page {
+  max-width: 760px;
+}
+
+.vehicle-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 26px 28px 28px;
+}
+
+.vehicle-form__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------- combobox
+
+   A picker you can also type into. A <select> cannot be typed into and opens
+   a native wheel on a phone that is miserable past twenty options; a plain
+   input is what let `Receipt` and `Koyota` become makes. This is both. */
+
+.ink-combo {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.ink-combo__label {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ink-combo__hint {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+.ink-combo__error {
+  color: var(--status-bad-text);
+  font-size: 15px;
+  margin: 6px 0 0;
+}
+
+.ink-combo__control {
+  display: flex;
+  margin-top: 8px;
+  position: relative;
+}
+
+.ink-combo__control input {
+  flex: 1;
+  padding-right: 46px;
+  width: 100%;
+}
+
+.ink-combo__control.has-error input {
+  border-color: var(--status-bad-text);
+}
+
+/* Not in the tab order: the input already opens the list on focus and the
+   arrow keys already work, so this is a mouse affordance only. */
+.ink-combo__toggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: flex;
+  height: var(--field-h);
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 44px;
+}
+
+.ink-combo__toggle:hover:not(:disabled) {
+  background: none;
+  color: var(--ink);
+}
+
+/* The list floats over the fields below it, so unlike every other surface in
+   Ink it gets a shadow — it has to read as detached, not as the next field. */
+.ink-combo__list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(28, 27, 25, 0.14);
+  list-style: none;
+  margin: 4px 0 0;
+  max-height: 268px;
+  overflow-y: auto;
+  padding: 6px;
+  position: absolute;
+  top: 100%;
+  width: 100%;
+  z-index: 30;
+}
+
+.ink-combo__option {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 11px 12px;
+}
+
+.ink-combo__option.is-highlighted {
+  background: var(--surface-sunken);
+}
+
+.ink-combo__option[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 600;
+}
+
+.ink-combo__empty {
+  color: var(--ink-muted);
+  font-size: 15px;
+  padding: 11px 12px;
+}
+
+.ink-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position: calc(100% - 22px) 22px, calc(100% - 16px) 22px;
+  background-repeat: no-repeat;
+  background-size: 6px 6px, 6px 6px;
+  margin-top: 8px;
+  padding-right: 44px;
+  width: 100%;
+}
+
+/* ------------------------------------------------------- body type picker
+
+   A <select> of "Sedan / Hatchback / MPV" assumes the reader knows those
+   words, and plenty of owners do not. Each option carries a plain description
+   and three example models, so it can be answered by recognition instead. */
+
+.body-picker {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.body-picker__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.body-picker__options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.body-picker__option {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.body-picker__option:hover:not(.is-selected) {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+}
+
+.body-picker__option.is-selected {
+  background: var(--paper);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.body-picker__option input {
+  accent-color: var(--ink);
+  flex: 0 0 auto;
+  height: 20px;
+  margin: 2px 0 0;
+  width: 20px;
+}
+
+.body-picker__option:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.body-picker__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.body-picker__copy strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.body-picker__copy small {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+/* The silhouette answers "which one is mine" faster than a sentence can, but
+   it does not replace the sentence — several of these shapes are close
+   cousins at 72px. Ink-coloured, so it inherits the selected state without
+   needing a palette of its own. */
+.body-glyph {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  height: 38px;
+  margin-top: 2px;
+  width: 72px;
+}
+
+.body-picker__option.is-selected .body-glyph {
+  color: var(--ink);
+}
+
+/* The examples do the real work for anyone who does not know the term, so
+   they stay at reading size rather than shrinking into a footnote. */
+.body-picker__copy em {
+  color: var(--ink-faint);
+  font-size: 15px;
+  font-style: normal;
+}
+
+@media (max-width: 720px) {
+  .body-picker__options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
