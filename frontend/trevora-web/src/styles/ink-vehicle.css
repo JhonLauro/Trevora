@@ -487,6 +487,183 @@
 .parts-dot.is-bad { background: var(--status-bad-text); border-color: var(--status-bad-text); }
 .parts-dot.is-none { background: var(--status-none-border); border-color: var(--status-none-text); }
 
+/* The covered line under a spend figure. Smaller and muted: it qualifies the
+   number above it rather than competing with it, and it renders only when
+   something was actually covered. */
+.vehicle-stat__note,
+.garage-stat__note {
+  color: var(--ink-muted);
+  display: block;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* Per-record cost. The note carries the invoice total when the owner did not
+   pay all of it, so a smaller figure is never mistaken for a cheaper job. */
+.record-cost {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: inherit;
+}
+
+.record-cost__note {
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* "Covered" reads as a word, not a currency figure, so it is not set in the
+   numeric style the amounts beside it use. */
+.record-cost__word {
+  color: var(--status-ok-text);
+  font-weight: 600;
+}
+
+.coverage-toggle {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+}
+
+.coverage-toggle input {
+  height: 20px;
+  width: 20px;
+}
+
+.coverage-amount {
+  margin-top: 12px;
+}
+
+.parts-views {
+  border: 1px solid var(--rule-faint);
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.parts-views__tab {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 36px;
+  padding: 8px 16px;
+}
+
+.parts-views__tab:hover:not(.is-active) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.parts-views__tab.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Parts map. The silhouette is deliberately all-neutral: Ink reserves chroma
+   for record status, so the only colour on the drawing is the status dot in
+   each marker. */
+.vehicle-diagram {
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.vehicle-diagram svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.vd-mass {
+  fill: var(--status-none-bg);
+  stroke: var(--ink-faint);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.vd-glass {
+  fill: var(--surface);
+  stroke: var(--ink-faint);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.vd-line {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 3;
+}
+
+.vd-tyre {
+  fill: var(--rule);
+  stroke: var(--ink-muted);
+  stroke-width: 3;
+}
+
+.vd-hub {
+  fill: var(--surface);
+  stroke: var(--ink-faint);
+  stroke-width: 3;
+}
+
+.vd-marker {
+  cursor: pointer;
+}
+
+.vd-marker circle {
+  fill: var(--surface);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.vd-marker text {
+  dominant-baseline: central;
+  fill: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
+  /* The number is a label on a control, not selectable copy. */
+  user-select: none;
+}
+
+/* Status rides on the marker's fill, the one place chroma is allowed. A
+   documented component is filled; an undocumented one stays hollow, so the
+   two are told apart by weight as well as by hue. */
+.vd-marker.is-ok circle {
+  fill: var(--status-ok-bg);
+  stroke: var(--status-ok-text);
+}
+
+.vd-marker.is-ok text { fill: var(--status-ok-text); }
+
+.vd-marker.is-none circle {
+  fill: var(--surface);
+  stroke: var(--status-none-text);
+}
+
+.vd-marker.is-none text { fill: var(--ink-muted); }
+
+.vd-marker:hover circle {
+  stroke-width: 3.5;
+}
+
+/* Selection is weight and a ring, never a colour change — the colour slot is
+   already spoken for by status. */
+.vd-marker.is-selected circle {
+  paint-order: stroke;
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+
+.vd-marker.is-selected text { fill: var(--ink); }
+
 .parts-panel__note {
   background: var(--surface-sunken);
   border-radius: var(--radius);
@@ -789,6 +966,21 @@
   }
 }
 
+/* Below this the markers are smaller than a fingertip, and a map you cannot
+   reliably tap is worse than no map. The list underneath carries the same
+   information and its rows are already 44px, so nothing is lost by dropping
+   the drawing on a phone.
+
+   The view tabs stay. Without the drawing they stop being a view switcher and
+   become a plain "where on the vehicle" filter over the list, which is still
+   worth having — Side, Front, Rear and Engine bay group the components in a
+   way a single flat list of thirteen does not. */
+@media (max-width: 720px) {
+  .vehicle-diagram {
+    display: none;
+  }
+}
+
 @media (max-width: 720px) {
   .vehicle-page {
     padding-top: 22px;
@@ -910,6 +1102,17 @@
   color: var(--ink);
   font-size: 15px;
   font-weight: 600;
+}
+
+/* A quiet "optional" beside the label rather than in the placeholder, which
+   disappears the moment anyone types. */
+.ink-combo__optional {
+  color: var(--ink-faint);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-left: 6px;
+  text-transform: lowercase;
 }
 
 .ink-combo__hint {

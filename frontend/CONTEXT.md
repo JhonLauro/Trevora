@@ -78,7 +78,11 @@ Adding a model is a one-line change in the catalogue. The table is intentionally
 
 `/dashboard` and `/vehicles` redirect to `/`. `src/api/activeVehicle.js`, `DashboardPage.jsx`, `VehicleProfileSelectionPage.jsx`, `VehicleServiceHistoryPage.jsx` and `PartsMap.jsx` are unrouted leftovers kept only for comparison; do not build against them. Use `src/utils/vehicleText.js` for vehicle display strings.
 
-The **parts map has no artwork**. The silhouette depends on body type — a pickup, van and sedan are different shapes with components in different places — so the asset is bodyType × view, and there is no `body_type` column. The Components view therefore renders the component list alone with a one-line note, and Timeline is the default view. The list was always the accessible path through that view anyway, since a map of markers has to be a list of buttons for a keyboard or screen reader. `PartsMap.jsx` holds earlier generic SVGs in the old palette; they are not body-type aware and are not wired up.
+The **parts map is drawn**, in `components/ink/vehicleShapes.js` and rendered by `components/ink/VehicleDiagram.jsx` above the component list in `PartsView`.
+
+Four views — Side, Front, Rear, Engine bay — each carrying only the components that live in it, so the list under the map is "components in this view" and marker numbering is per view (marker 4 is row 4). A component may appear in more than one view, because some genuinely do live in more than one place: a car has lights at both ends. **Side is per body type; front, rear and engine bay are shared per vehicle class.** A pickup and an MPV differ in profile, which is where the difference shows; head-on and under the bonnet they are close enough that six near-identical drawings would be six places to drift rather than six facts. The engine bay view is why the split exists at all — seven components live under a car's bonnet, and on a single side profile they either collide with the front wheel or have to be moved somewhere less true.
+
+The view tabs are the only real buttons on the map; markers are `aria-hidden`, since each duplicates a list row and putting the same controls in the tab order twice is worse than a pointer-only map. A vehicle with a null `bodyType` gets no drawing and no tabs, just an explanatory note and the full component list — picking a silhouette would assert a fact the row does not carry. The drawing is hidden below 720px where markers fall under a fingertip; the tabs stay, working as a "where on the vehicle" filter. `PartsMap.jsx` holds earlier generic SVGs in the old palette; they are not wired up.
 
 Nav is five destinations — Garage, Records, Shared access, Notifications, Settings. "Add service record" is not among them: it is an action, not a place, and it is the primary button in each page header.
 
@@ -182,7 +186,7 @@ Mechanic:
 
 MVP Supabase Auth signup/sign-in, backend profile sync, and current-user state are implemented. Supported MVP account roles are `VEHICLE_OWNER` and `ADMIN`. Mechanics do not register or sign in; they use owner-approved temporary QR/share links as guests.
 
-Add `LoginPage`, `RegisterPage`, and a logout action. The frontend signs users in through Supabase Auth, sends the Supabase bearer token to `/api/auth/sync`, stores the synced Trevora profile locally for the MVP, and includes both `Authorization: Bearer ...` plus demo-compatible `X-User-Id` and `X-User-Role` headers on authenticated API requests. If no logged-in user exists, the app may keep a demo fallback so the existing mock owner development flow remains usable.
+Add `LoginPage`, `RegisterPage`, and a logout action. The frontend signs users in through Supabase Auth, sends the Supabase bearer token to `/api/auth/sync`, stores the synced Trevora profile locally for the MVP, and includes both `Authorization: Bearer ...` plus demo-compatible `X-User-Id` and `X-User-Role` headers on authenticated API requests. If no logged-in user exists there is no fallback — the backend authenticates on the bearer token alone, so an unauthenticated request is rejected. The `X-User-Id`/`X-User-Role` headers are vestigial.
 
 Runtime environment required for Supabase Auth:
 - `VITE_SUPABASE_URL`

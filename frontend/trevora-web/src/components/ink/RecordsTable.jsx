@@ -1,6 +1,7 @@
 import React from 'react';
+import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
-import { formatAmount, formatDate, formatOdometer } from '../../utils/format';
+import { formatDate, formatOdometer } from '../../utils/format';
 import { recordStatus, recordStatusLabel, sourceLabel } from '../../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../../utils/serviceText';
 
@@ -69,7 +70,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                 <small>{subLine(record)}</small>
               </td>
               {!showVehicle && <td className="is-muted">{formatOdometer(record.odometer, '—')}</td>}
-              <td className="is-numeric">{formatAmount(record.totalCost)}</td>
+              <td className="is-numeric"><RecordCost record={record} /></td>
               <td>
                 <span className={`ink-badge ink-badge--${recordStatus(record)}`}>
                   {recordStatusLabel(record)}
@@ -105,7 +106,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
             <div>
               <div className="ink-record-card__meta">
                 <span>{formatDate(record.serviceDate)}</span>
-                <strong>PHP {formatAmount(record.totalCost)}</strong>
+                <strong>PHP <RecordCost record={record} /></strong>
               </div>
               <div className="ink-record-card__sub">
                 {showVehicle ? `${record.vehicleName} · ${subLine(record)}` : subLine(record)}

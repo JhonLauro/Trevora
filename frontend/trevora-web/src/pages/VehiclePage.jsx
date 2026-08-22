@@ -13,6 +13,7 @@ import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/fo
 import { needsReview } from '../utils/recordStatus';
 import { recordSearchText } from '../utils/serviceComponents';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
+import { spendTotals } from '../utils/spend';
 import { displayVehicleName } from '../utils/vehicleText';
 import { bodyTypeLabel, vehicleClassFor } from '../data/vehicleCatalog';
 
@@ -27,11 +28,14 @@ function statClass(value) {
   return `vehicle-stat__value${String(value).length > 9 ? ' vehicle-stat__value--long' : ''}`;
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, note = null }) {
   return (
     <div className="vehicle-stat">
       <span className="ink-eyebrow">{label}</span>
       <span className={statClass(value)}>{value}</span>
+      {/* Rendered only when there is something to say. An always-present
+          "PHP 0 covered" is noise for the many owners who never claim. */}
+      {note && <span className="vehicle-stat__note">{note}</span>}
     </div>
   );
 }
@@ -84,14 +88,18 @@ function Completeness({ summary }) {
   );
 }
 
-function WarrantyPanel() {
+function WarrantyPanel({ spend }) {
   return (
     <section className="ink-empty">
-      <h2 className="ink-empty__title">Coverage is not tracked yet</h2>
+      <h2 className="ink-empty__title">Policies are not tracked yet</h2>
       <p className="ink-empty__body">
-        Insurance, extended warranty, registration and shop warranty all belong here, with what
-        is still in force and when it lapses. None of it is stored yet, so nothing is shown
-        rather than showing a form that saves to this browser only.
+        {spend?.hasCoverage
+          ? `Individual records already record what was covered — PHP ${formatAmount(spend.covered)} so far on this vehicle. What is still missing is the policies themselves: insurer, cover, premium, and when each one lapses.`
+          : 'What a policy paid can be recorded on each service record, in the review step. What is still missing is the policies themselves: insurer, cover, premium, and when each one lapses.'}
+      </p>
+      <p className="ink-empty__body">
+        None of that is stored yet, so nothing is shown rather than showing a form that saves to
+        this browser only.
       </p>
     </section>
   );
@@ -184,7 +192,11 @@ export default function VehiclePage() {
   const completeness = useMemo(() => historyCompleteness(records, vehicle), [records, vehicle]);
 
   const reviewCount = records.filter(needsReview).length;
-  const totalSpend = records.reduce((sum, record) => sum + Number(record.totalCost || 0), 0);
+  // "Total spent" means what the owner actually paid. Anything insurance or a
+  // warranty absorbed is shown underneath rather than folded in silently —
+  // a spend figure that quietly includes money someone else paid is wrong,
+  // and one that quietly excludes it without saying so is worse.
+  const spend = useMemo(() => spendTotals(records), [records]);
   const name = vehicle ? displayVehicleName(vehicle) : 'Vehicle';
   // Without a nickname the title already is "2018 Toyota Vios", so repeating
   // the model underneath it says the same thing twice.
@@ -256,7 +268,11 @@ export default function VehiclePage() {
         <Stat label="Records" value={String(records.length)} />
         <Stat label="Last service" value={records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'None yet'} />
         <Stat label="Odometer" value={formatOdometer(vehicle?.odometer, 'Not recorded')} />
-        <Stat label="Total spent" value={`PHP ${formatAmount(totalSpend)}`} />
+        <Stat
+          label="Total spent"
+          value={`PHP ${formatAmount(spend.ownerPaid)}`}
+          note={spend.hasCoverage ? `PHP ${formatAmount(spend.covered)} covered` : null}
+        />
         <Stat label="Needs review" value={String(reviewCount)} />
       </section>
 
@@ -312,7 +328,12 @@ export default function VehiclePage() {
                 onMarkReviewed={markReviewed}
               />
             ) : view === 'components' ? (
-              <PartsView entries={components} vehicleId={vehicleId} vehicleClass={vehicleClassFor(vehicle?.bodyType)} />
+              <PartsView
+                entries={components}
+                vehicleId={vehicleId}
+                vehicleClass={vehicleClassFor(vehicle?.bodyType)}
+                bodyType={vehicle?.bodyType ?? null}
+              />
             ) : (
               <section className="ink-table-card">
                 <RecordsTable
@@ -326,7 +347,7 @@ export default function VehiclePage() {
           </div>
         )}
 
-        {tab === 'warranty' && <WarrantyPanel />}
+        {tab === 'warranty' && <WarrantyPanel spend={spend} />}
       </div>
 
       <ConfirmDialog

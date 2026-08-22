@@ -19,6 +19,14 @@ function draftToForm(draft) {
     return accumulator;
   }, {});
   form.services = Array.isArray(draft?.services) ? draft.services : [];
+
+  // Coverage is never extracted — a receipt shows what the service cost, not
+  // what an insurer later paid — so this is only ever whatever the owner has
+  // already entered. The toggle is derived rather than stored: a saved amount
+  // above zero is the only evidence that coverage applies.
+  const covered = Number(draft?.amountCovered ?? 0);
+  form.amountCovered = covered > 0 ? String(covered) : '';
+  form.hasCoverage = covered > 0;
   return form;
 }
 
@@ -66,11 +74,34 @@ function vehicleName(vehicle, draft) {
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 }
 
+/**
+ * Says what the owner will actually be recorded as having paid, so the
+ * consequence of the number is visible while they type it rather than only
+ * once it reaches the spend counter.
+ */
+function coverageHint(form) {
+  const total = Number(form.totalCost);
+  const covered = Number(form.amountCovered);
+  if (!Number.isFinite(total) || form.totalCost === '') {
+    return 'Enter the total cost first, then how much of it was covered.';
+  }
+  if (!Number.isFinite(covered) || form.amountCovered === '' || covered <= 0) {
+    return 'How much of the total someone else paid. Leave blank if you paid all of it.';
+  }
+  if (covered >= total) {
+    return 'Fully covered — this record will show as costing you nothing.';
+  }
+  return `You paid ${(total - covered).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} of ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+}
+
 function serializeCorrections(form) {
   return {
     serviceDate: form.serviceDate || null,
     odometer: form.odometer === '' ? null : Number(form.odometer),
     totalCost: form.totalCost === '' ? null : Number(form.totalCost),
+    // Untick the toggle and the coverage goes back to zero rather than
+    // lingering invisibly on the draft.
+    amountCovered: form.hasCoverage && form.amountCovered !== '' ? Number(form.amountCovered) : 0,
     shopName: form.shopName.trim() || null,
     location: form.location.trim() || null,
     remarks: form.remarks.trim() || null,
@@ -312,6 +343,43 @@ export default function ServiceDraftCorrectionPage() {
             </div>
 
             <div className="correction-field-stack">
+              {/* Off by default and collapsed, because most records have no
+                  coverage at all. A permanent amount field on every entry
+                  would tax the common path to serve the rare one. */}
+              <div className="correction-field">
+                <label className="coverage-toggle">
+                  <input
+                    type="checkbox"
+                    name="hasCoverage"
+                    checked={Boolean(form.hasCoverage)}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      hasCoverage: event.target.checked,
+                      amountCovered: event.target.checked ? current.amountCovered : '',
+                    }))}
+                  />
+                  <span>Insurance or warranty covered part of this</span>
+                </label>
+
+                {form.hasCoverage && (
+                  <div className="coverage-amount">
+                    <span className="field-label-row"><span>Amount covered</span></span>
+                    <input
+                      name="amountCovered"
+                      type="number"
+                      min="0"
+                      max={form.totalCost === '' ? undefined : form.totalCost}
+                      step="0.01"
+                      value={form.amountCovered ?? ''}
+                      onChange={updateField}
+                    />
+                    <small className="field-source-hint">
+                      {coverageHint(form)}
+                    </small>
+                  </div>
+                )}
+              </div>
+
               <div className="correction-field">
                 <span className="field-label-row">
                   <span>Services</span>

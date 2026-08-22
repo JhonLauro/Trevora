@@ -65,7 +65,7 @@ Feature packages under `features.*`:
 
 Shared cross-cutting code lives under `shared.*` (`config`, `exception`, `security`, `util`).
 
-**Current user resolution order** (used across auth-aware endpoints): Supabase bearer token → demo headers `X-User-Id`/`X-User-Role` → mock owner fallback `00000000-0000-0000-0000-000000000001` (role `VEHICLE_OWNER`). Preserve this fallback chain — it's relied on for local/demo development.
+**Current user resolution** (used across auth-aware endpoints): the Supabase bearer token, and nothing else. `CurrentUserService` delegates to `SupabaseAuthService`, which reads only the `Authorization: Bearer ...` header; a request without a valid token is rejected with "Sign in is required for this action." The older demo-header (`X-User-Id`/`X-User-Role`) and mock-owner (`00000000-...-0001`) fallbacks were removed — do not reintroduce them. Local development signs in with a real Supabase account.
 
 ## Frontend architecture
 
@@ -76,7 +76,7 @@ Vite + React Router SPA. Key directories under `frontend/trevora-web/src`:
 - `components/` — shared UI (`AppShell.jsx` is the main layout/sidebar shell; `AuthLayout.jsx` for auth screens).
 - `utils/` — small helpers (e.g. `serviceText.js`).
 
-Authenticated requests should include both the Supabase bearer token (`Authorization: Bearer ...`) and the demo-compatible `X-User-Id`/`X-User-Role` headers, to stay compatible with the backend's fallback resolution order.
+Authenticated requests must carry the Supabase bearer token (`Authorization: Bearer ...`) — that is the only thing the backend authenticates on. The `X-User-Id`/`X-User-Role` headers are still sent but are now ignored server-side; they are vestigial, not a fallback.
 
 ## Core domain model and invariants
 
@@ -97,3 +97,25 @@ Modules 1–4 are all implemented in code, not just planned:
 - Module 4 — Supabase Auth (`features.auth`), AI/template explanation (`features.ai`), QR/share access + owner approval (`features.sharing`), mechanic read-only access/search (`features.mechanicaccess`). Migrations `003`–`005` in `database/migrations` back this.
 
 Since the project sat idle, treat this as needing a regression/correctness pass (run the app, check auth flow, check each module end-to-end) rather than as unfinished greenfield work. Multi-person "ownership" tables in the older docs are stale — this is effectively a solo codebase now.
+
+## Commit messages
+
+Keep them short. A one-line subject is the default, and for most changes it is
+the whole message.
+
+- **Subject only, imperative, under ~60 chars.** "Fix vehicle delete cascade",
+  not "Fix the cascade problem that occurred when deleting a vehicle profile
+  which had associated service records".
+- **Add a body only when the *why* is not obvious from the diff** — a
+  non-obvious tradeoff, a decision someone might otherwise undo, a bug whose
+  cause matters. Two or three lines. Not a changelog of the diff.
+- **Do not narrate small or routine work.** Doc fixes, comment tweaks,
+  formatting, renames, removing dead code, updating `planning/DEFERRED.md` —
+  these get a single line and nothing else. If the change is not a feature or
+  a real fix, it does not deserve a bulleted body explaining itself.
+- **Never list every file or restate what the diff already shows.** The diff is
+  right there.
+- No emoji, no "Summary:" headers, no bullet lists of self-evident points.
+
+Detailed reasoning belongs in `planning/DEFERRED.md` or the relevant
+`CONTEXT.md`, where it stays findable — not in a commit body nobody re-reads.

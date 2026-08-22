@@ -47,6 +47,16 @@ public class ServiceDraft {
     @Column(name = "total_cost", precision = 12, scale = 2)
     private BigDecimal totalCost;
 
+    /**
+     * What insurance or a warranty absorbed of {@link #totalCost}. Zero when
+     * nothing was covered, never null.
+     *
+     * A receipt cannot show this, so it is never extracted — it is only ever
+     * entered by the owner in the review step.
+     */
+    @Column(name = "amount_covered", nullable = false, precision = 12, scale = 2)
+    private BigDecimal amountCovered = BigDecimal.ZERO;
+
     @Column(name = "shop_name")
     private String shopName;
 
@@ -133,6 +143,14 @@ public class ServiceDraft {
 
     public void setTotalCost(BigDecimal totalCost) {
         this.totalCost = totalCost;
+    }
+
+    public BigDecimal getAmountCovered() {
+        return amountCovered == null ? BigDecimal.ZERO : amountCovered;
+    }
+
+    public void setAmountCovered(BigDecimal amountCovered) {
+        this.amountCovered = amountCovered == null ? BigDecimal.ZERO : amountCovered;
     }
 
     public String getShopName() {

@@ -1,23 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatAmount, formatDate, formatOdometer } from '../../utils/format';
 import { recordStatus, recordStatusLabel, sourceLabel } from '../../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../../utils/serviceText';
 import { STATUS_TEXT } from '../../utils/componentStatus';
+import VehicleDiagram from './VehicleDiagram.jsx';
+import { hasVehicleShape, vehicleViews } from './vehicleShapes';
 
 /**
- * Components view.
+ * Components view: the parts map over the component list.
  *
- * The design calls for a diagram of the vehicle with markers over it. There
- * is no artwork yet: the silhouette depends on body type — a pickup, van and
- * sedan are different shapes with parts in different places, and a motorcycle
- * shares none of them — so the asset is bodyType × view.
+ * Four views — side, front, rear, engine bay — each carrying the components
+ * that live in it, so the list underneath is "components in this view" and the
+ * numbering is per view (marker 4 is row 4). A component can appear in more
+ * than one view, because some genuinely live in more than one place: a car has
+ * lights at both ends. See vehicleShapes.js for the geometry and for why the
+ * side view is per body type while the rest are per vehicle class.
  *
- * Rather than ship a dashed placeholder, this renders the component list
- * alone with one line saying why. Nothing is lost: the list was always the
- * accessible path through this view, since a map of markers has to be a list
- * of buttons for a keyboard or a screen reader anyway. When the artwork
- * lands, the map goes above this list and the numbering already matches.
+ * The view tabs are the only real buttons on the map. The markers are
+ * `aria-hidden`, because each one duplicates a list row and putting the same
+ * controls in the tab order twice is worse than a pointer-only map; the tabs
+ * have no equivalent in the list, so they are focusable.
+ *
+ * A vehicle whose `bodyType` is null gets no drawing and no tabs, and the note
+ * says so rather than picking a silhouette on the owner's behalf. Rows created
+ * before the body-type picker existed are all in this state, and they fall
+ * back to the full component list.
  *
  * The list itself is already class-correct — a motorcycle shows a drive chain
  * and no aircon (see utils/serviceComponents.js).
@@ -113,18 +121,32 @@ function Rail({ entry, vehicleId }) {
   );
 }
 
-export default function PartsView({ entries, vehicleId, vehicleClass = 'car' }) {
-  const [selectedKey, setSelectedKey] = useState(entries[0]?.key ?? null);
+export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bodyType = null }) {
+  const views = useMemo(() => vehicleViews(bodyType), [bodyType]);
+  const [viewId, setViewId] = useState('side');
+  const [selectedKey, setSelectedKey] = useState(null);
 
-  // The list re-orders as records change; a selection pointing at a component
-  // that is no longer listed would leave the rail describing nothing.
+  const activeView = views.find((view) => view.id === viewId) ?? views[0] ?? null;
+
+  // Each view carries only the components that live in it, so the list under
+  // the map is "components in this view" rather than the whole taxonomy. With
+  // no drawing at all (unknown body type) the list falls back to everything,
+  // which is what it showed before the map existed.
+  const visible = useMemo(
+    () => (activeView ? entries.filter((entry) => activeView.shape.anchors[entry.key]) : entries),
+    [entries, activeView],
+  );
+
+  // A selection can fall out from under us two ways: records change and
+  // re-sort the list, or the user switches to a view that does not carry the
+  // selected component. Both leave the rail describing nothing.
   useEffect(() => {
-    if (!entries.some((entry) => entry.key === selectedKey)) {
-      setSelectedKey(entries[0]?.key ?? null);
+    if (!visible.some((entry) => entry.key === selectedKey)) {
+      setSelectedKey(visible[0]?.key ?? null);
     }
-  }, [entries, selectedKey]);
+  }, [visible, selectedKey]);
 
-  const selected = entries.find((entry) => entry.key === selectedKey) ?? null;
+  const selected = visible.find((entry) => entry.key === selectedKey) ?? null;
 
   return (
     <div className="parts-view">
@@ -135,6 +157,24 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car' }) 
             <p className="parts-panel__sub">Pick a part to see its full service history.</p>
           </div>
         </div>
+
+        {views.length > 1 && (
+          /* Real buttons, unlike the markers: this is the one control on the
+             map that has no equivalent in the list below it. */
+          <div className="parts-views" role="group" aria-label="Vehicle view">
+            {views.map((view) => (
+              <button
+                key={view.id}
+                type="button"
+                className={`parts-views__tab${view.id === activeView.id ? ' is-active' : ''}`}
+                aria-pressed={view.id === activeView.id}
+                onClick={() => setViewId(view.id)}
+              >
+                {view.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Always visible: it is the key to the whole view, and status is
             never colour-only, so each swatch carries its word. */}
@@ -147,19 +187,28 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car' }) 
           ))}
         </ul>
 
-        <p className="parts-panel__note">
-          The {vehicleClass === 'motorcycle' ? 'motorcycle' : 'car'} diagram is not drawn yet, so
-          every part is listed here instead. The list is the same information the diagram would
-          show.
-        </p>
+        <VehicleDiagram
+          shape={activeView?.shape ?? null}
+          entries={visible}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
+        />
+
+        {!hasVehicleShape(bodyType) && (
+          <p className="parts-panel__note">
+            This {vehicleClass === 'motorcycle' ? 'motorcycle' : 'vehicle'} has no body type on
+            record, so there is no diagram to draw it on — every part is listed below instead.
+            Setting the body type on the vehicle turns the diagram on.
+          </p>
+        )}
 
         <div className="parts-panel__count">
-          <span className="ink-eyebrow">Components</span>
-          <span className="ink-eyebrow">{entries.length} shown</span>
+          <span className="ink-eyebrow">{activeView ? 'Components in this view' : 'Components'}</span>
+          <span className="ink-eyebrow">{visible.length} shown</span>
         </div>
 
         <ul className="parts-list">
-          {entries.map((entry, index) => (
+          {visible.map((entry, index) => (
             <li key={entry.key}>
               <button
                 type="button"

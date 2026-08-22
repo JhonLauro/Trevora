@@ -81,33 +81,62 @@ without a receipt to hand.
 
 ## Backend fields the Garage/Vehicle redesign works around
 
-The Ink dashboard slice (2026-08-22) was built frontend-only by decision. Five
-things the design assumes are not in the schema or the DTOs, and each is
-currently derived in the browser. Derivation is the wrong home for all of
+The Ink dashboard slice (2026-08-22) was built frontend-only by decision. Each
+entry below is something the design assumes but the schema or the DTOs did not
+carry, derived in the browser instead. Derivation is the wrong home for all of
 them — a value re-computed from keywords on every render is a value no user
-can correct.
+can correct. (a) and (b) have since landed; (c)–(f) are still browser-derived.
 
-**a. `service_records.validation_status`** — the one that actually misleads
-people. `service_drafts` has a status; a confirmed `service_record` does not,
-so nothing distinguishes a record whose extracted fields were checked from one
-that was waved through. The old `DashboardPage` printed `Validated` on every
-row unconditionally, which told owners their unverified records were verified.
-`utils/recordStatus.js` now reads `record.validationStatus` and **treats a
-missing value as "Needs review"** — deliberately pessimistic, so the failure
-mode is nagging rather than lying. Add the column, set it on confirm, and
-expose it on `ServiceRecordSummaryResponse` and `ServiceRecordDetailResponse`.
+**a. `service_records.validation_status` — resolved 2026-08-22.** Was: nothing
+distinguished a record whose extracted fields were checked from one that was
+waved through, and the old `DashboardPage` printed `Validated` on every row
+unconditionally, telling owners their unverified records were verified.
+Migration `009_service_record_validation_status.sql` is applied; the column
+defaults to `NEEDS_REVIEW` (absence of evidence is not validation), is set on
+confirm, and is exposed on both `ServiceRecordSummaryResponse` and
+`ServiceRecordDetailResponse`. `utils/recordStatus.js` still treats a missing
+value as "Needs review", so the pessimistic failure mode survives.
 
-**b. `vehicle_profiles.body_type`** — **built, awaiting migration.** SQL is in
-`database/migrations/008_vehicle_body_type.sql` and has not been applied yet.
-The backend (entity, both request DTOs, response, service) already reads and
-writes the column, so **the API will fail until that migration runs.** Both
-add-vehicle forms send it. Values: sedan, hatchback, suv, mpv, pickup, van,
-motorcycle. Existing rows stay null — most are test data whose body type
+**b. `vehicle_profiles.body_type` — resolved 2026-08-22.**
+`database/migrations/008_vehicle_body_type.sql` is applied. The backend
+(entity, both request DTOs, response, service) reads and writes the column and
+both add-vehicle forms send it. Values: sedan, hatchback, suv, mpv, pickup,
+van, motorcycle. Existing rows stay null — most are test data whose body type
 nobody can honestly state, and back-filling would be inventing it.
 
-Still open after the migration: the artwork itself. The parts map needs
-bodyType x view SVGs — and now a motorcycle silhouette too, which shares none
-of the car geometry — so the Components view remains list-only.
+The artwork landed 2026-08-22/23 as well. `components/ink/vehicleShapes.js`
+holds the geometry and `VehicleDiagram.jsx` renders it above the component
+list.
+
+**Four views, as the original design had**: Side, Front, Rear, Engine bay. A
+first pass shipped side-only, on the reasoning that the taxonomy has a single
+`tires` entry rather than one per corner so a second angle had nothing to point
+at. That reasoning was wrong, and the old `PartsMap.jsx` showed why: its views
+were never about per-corner attribution, they were about giving a crowded
+region its own canvas. Seven components live under a car's bonnet. On one side
+profile they collide with the front wheel, and the only way to fit them is to
+move some of them somewhere less true. The engine bay view holds all seven with
+room to spare.
+
+Scoped, deliberately:
+
+- **Side is per body type; the other three are shared per vehicle class.** A
+  pickup and an MPV differ in profile and that is the view where it shows.
+  Head-on and under the bonnet they are close enough that per-body-type copies
+  would be near-duplicates — six more places to drift, not six more facts.
+  Thirteen drawings rather than twenty-eight.
+- **A component may appear in more than one view**, since some genuinely live
+  in more than one place. Marker numbers are therefore per view, not global.
+- **A null `bodyType` gets no drawing and no tabs**, just the full list and a
+  note. Falling back to a sedan would assert a body type the row does not
+  carry — the same invention the migration avoided by not back-filling.
+
+Markers are `aria-hidden`; the list underneath remains the accessible path,
+because putting the same controls in the tab order twice is worse than a
+pointer-only map. The view tabs are focusable, being the one control with no
+equivalent in the list. Below 720px the drawing is hidden — a marker there is
+smaller than a fingertip — and the tabs stay on as a plain "where on the
+vehicle" filter.
 
 **c. Component attribution per record** — which of tires / brakes /
 suspension / body / lights / exhaust / engine / electrical / aircon a record
@@ -160,30 +189,6 @@ something to reconstruct from car defaults.
 
 ---
 
-## Untested paths
-
-## 7. Password reset round trip
-
-Screens, validation and the expired-link state are verified. **The actual
-email round trip is not** — sending a real reset mail, clicking the link, and
-confirming the password changes. Needs a real inbox.
-
-Related: visiting `/auth/reset-password` **while already signed in** shows the
-password form rather than "link expired", because `getSession()` returns the
-existing session. Arguably fine (a signed-in user changing their password),
-but it was not a deliberate decision.
-
-## 8. Vehicle creation POST
-
-Step 2's form logic, validation, focus handling and payload shape are
-verified. The actual `POST /api/vehicles` is **not** — it needs a signed-in
-session and would write test data to the live Supabase.
-
-Also untested: the Google path now routes owners with no vehicle to
-`/register/vehicle`. Never exercised with a genuinely new Google account.
-
----
-
 ## Bugs found, not fixed
 
 ## 9. UI labels leaking in as vehicle makes — resolved 2026-08-22
@@ -211,17 +216,66 @@ test vehicles were removed through the new delete feature. Teammates' rows
 were deliberately left alone — the junk-looking data spanned ten accounts,
 several of them real people.
 
-## 10. Demo header fallback is gone
+## Insurance coverage on spend — added 2026-08-23
 
-`CLAUDE.md` documents a fallback chain: Supabase bearer token → `X-User-Id`/
-`X-User-Role` demo headers → mock owner `00000000-...-0001`.
+`total_cost` was one column with no stated meaning, so owners filled it with
+whichever number they had — the invoice, or what they actually handed over —
+and "Total spent" summed the two together as though they were the same
+quantity. Migration `010` adds `amount_covered` to drafts and records.
 
-`CurrentUserService.getCurrentUser()` now delegates entirely to
-`SupabaseAuthService` and throws if it returns empty. The `MOCK_OWNER_ID`
-constant is still declared but nothing falls back to it. A request with demo
-headers returns 403 "Sign in is required for this action."
+- `total_cost` — what the service cost. The invoice. Meaning unchanged.
+- `amount_covered` — what insurance or a warranty absorbed. 0 when nothing did.
+- **Out-of-pocket is derived, never stored.** A third column could contradict
+  the two it comes from the moment either was edited.
 
-Either the code drifted or the doc is stale — decide which and fix the other.
+A numeric rather than a boolean, because partial coverage (a deductible on an
+otherwise covered repair) is the common case and "covered: yes" can express
+neither that nor "they paid all of it".
+
+Display: "Total spent" is out-of-pocket, with `PHP x covered` on a second line
+that renders only when something actually was. Folding covered money into a
+spend figure silently overstates what a vehicle cost; excluding it without
+saying so is worse. A fully covered record reads **"Covered"**, not "PHP 0" —
+a column of zeroes reads as broken data and buries the good news.
+
+Entered in the review step behind a toggle, off by default. A receipt cannot
+show what an insurer later paid, so it is inherently owner-supplied, and most
+records have no coverage at all.
+
+**Not exposed to mechanics.** `MechanicSharedServiceRecordResponse` and the
+sharing DTOs still carry `totalCost` alone. A handoff needs the value of the
+work, not the owner's insurance arrangements.
+
+Still open: the **policies** themselves — insurer, cover, premium, expiry —
+which is what the Warranty & coverage tab is still empty for. Per-record
+coverage says what a policy paid, not what the policy is.
+
+**Rows predating this are 0**, which is correct arithmetic for them but note
+the caveat above: some existing `total_cost` values may already be
+out-of-pocket amounts rather than invoices, and there is no way to tell which.
+
+## Model year is optional — resolved 2026-08-23
+
+Both add-vehicle forms required a model year. Nothing else did: `model_year` is
+nullable, the DTOs carry `@Min(1886)` with no `@NotNull`, and every display
+path builds its label with `[year, make, model].filter(Boolean)`, so a missing
+year degrades to "Toyota Vios" on its own. Nothing computes anything from it —
+not the parts map, not component status, not the AI explanation.
+
+So the requirement existed only in the two forms, and its effect was to make an
+owner who does not know the year guess. A guessed year is indistinguishable
+from a known one once stored, in the field an owner is least able to check.
+
+Both forms now accept a blank year, and the hint names the document it is on
+("Year Model" on the OR/CR) and the mistake it invites — a secondhand owner
+reaching for a year will reach for the year they bought it. The format checks
+still apply to anything actually typed.
+
+**Existing rows were left alone**, deliberately. There is no way to tell a
+correct year model from an entered purchase year after the fact, and guessing
+which are wrong would be inventing data a second time. Some of the years
+already stored are probably acquisition years; that is not recoverable and
+should not be papered over.
 
 ## 11. Draft → record conversion gap
 

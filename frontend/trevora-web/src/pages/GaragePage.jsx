@@ -9,6 +9,7 @@ import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import { formatAmount, formatMonthYear, pluralize, relativeDays } from '../utils/format';
 import { lastTwelveMonths, peakMonth } from '../utils/monthlySeries';
 import { needsReview } from '../utils/recordStatus';
+import { spendTotals } from '../utils/spend';
 import { spendByCategory } from '../utils/serviceCategory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 
@@ -30,11 +31,12 @@ function statValueClass(value) {
   return `garage-stat__value${String(value).length > 9 ? ' garage-stat__value--long' : ''}`;
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value, note = null }) {
   return (
     <div className="garage-stat">
       <span className="ink-eyebrow">{label}</span>
       <span className={statValueClass(value)}>{value}</span>
+      {note && <span className="garage-stat__note">{note}</span>}
     </div>
   );
 }
@@ -42,7 +44,9 @@ function Stat({ label, value }) {
 function VehicleCard({ vehicle, records }) {
   const vehicleId = vehicle.vehicleId;
   const reviewCount = records.filter(needsReview).length;
-  const totalSpend = records.reduce((sum, record) => sum + Number(record.totalCost || 0), 0);
+  // Out-of-pocket, with anything covered called out underneath rather than
+  // folded in — see utils/spend.js.
+  const spend = spendTotals(records);
   const series = lastTwelveMonths(records);
   const name = displayVehicleName(vehicle);
 
@@ -66,7 +70,11 @@ function VehicleCard({ vehicle, records }) {
 
       <div className="garage-card__stats">
         <Stat label="Records" value={String(records.length)} />
-        <Stat label="Spend, PHP" value={formatAmount(totalSpend)} />
+        <Stat
+          label="Spend, PHP"
+          value={formatAmount(spend.ownerPaid)}
+          note={spend.hasCoverage ? `${formatAmount(spend.covered)} covered` : null}
+        />
         <Stat label="Last service" value={records[0]?.serviceDate ? formatMonthYear(records[0].serviceDate) : 'None yet'} />
       </div>
 

@@ -33,7 +33,11 @@ export function validateVehicleField(name, value) {
     case 'bodyType':
       return trimmed ? '' : 'Choose the body type so Trevora knows where the parts are.';
     case 'year': {
-      if (!trimmed) return 'Enter the model year.';
+      // Optional. A secondhand owner often genuinely does not know the year
+      // model, and the column, the API and every display path already accept
+      // its absence — only this form ever demanded it. Forcing a guess writes
+      // a wrong number that then looks as authoritative as a right one.
+      if (!trimmed) return '';
       if (!/^\d{4}$/.test(trimmed)) return 'Enter the year as four digits, like 2018.';
       const year = Number(trimmed);
       if (year < 1886 || year > CURRENT_YEAR + 1) {
@@ -56,7 +60,7 @@ export function vehiclePayload(form) {
     make: form.make.trim(),
     model: form.model.trim(),
     bodyType: form.bodyType || null,
-    year: Number(form.year),
+    year: form.year.trim() ? Number(form.year.trim()) : null,
     plateNumber: form.plateNumber.trim() || null,
     odometer: form.odometer.trim() ? Number(form.odometer.replace(/[\s,]/g, '')) : null,
   };
@@ -146,7 +150,9 @@ export default function AddVehiclePage() {
         <VehicleIdentityFields form={form} errors={errors} refs={refs} onChange={updateIdentity} />
 
         <div className="ink-combo">
-          <label className="ink-combo__label" htmlFor="vehicle-year">Model year</label>
+          <label className="ink-combo__label" htmlFor="vehicle-year">
+            Model year <span className="ink-combo__optional">optional</span>
+          </label>
           <input
             id="vehicle-year"
             name="year"
@@ -155,10 +161,17 @@ export default function AddVehiclePage() {
             placeholder="2018"
             value={form.year}
             aria-invalid={errors.year ? true : undefined}
-            aria-describedby={errors.year ? 'vehicle-year-error' : undefined}
+            aria-describedby={`vehicle-year-hint${errors.year ? ' vehicle-year-error' : ''}`}
             onChange={updateField}
             onBlur={handleBlur}
           />
+          {/* Names the document it is on and the mistake it invites. "Year
+              Model" on the OR/CR is not the year the vehicle was bought, and
+              a secondhand owner reaching for a year will reach for that one. */}
+          <p className="ink-combo__hint" id="vehicle-year-hint">
+            On your OR/CR as “Year Model”. Not the year you bought it — leave this blank if
+            you are not sure.
+          </p>
           {errors.year && <p className="ink-combo__error" id="vehicle-year-error">{errors.year}</p>}
         </div>
 

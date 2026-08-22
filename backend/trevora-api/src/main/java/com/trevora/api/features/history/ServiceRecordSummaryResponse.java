@@ -21,6 +21,8 @@ public record ServiceRecordSummaryResponse(
         List<ServiceItemResponse> services,
         Integer odometer,
         BigDecimal totalCost,
+        BigDecimal amountCovered,
+        BigDecimal ownerPaid,
         String shopName,
         Instant createdAt
 ) {
@@ -35,6 +37,8 @@ public record ServiceRecordSummaryResponse(
                 items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
                 record.getOdometer(),
                 record.getTotalCost(),
+                record.getAmountCovered(),
+                record.getOwnerPaid(),
                 record.getShopName(),
                 record.getCreatedAt()
         );

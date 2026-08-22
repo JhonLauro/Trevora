@@ -1,6 +1,7 @@
 import React from 'react';
+import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
-import { formatAmount, formatDay, formatOdometer } from '../../utils/format';
+import { formatDay, formatOdometer } from '../../utils/format';
 import { recordStatus, recordStatusLabel, sourceLabel } from '../../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../../utils/serviceText';
 
@@ -83,7 +84,7 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                     <span className={`ink-badge ink-badge--${status}`}>{recordStatusLabel(record)}</span>
                     {/* A fixed-width cost box so figures line up down the column
                         even though each card sizes itself. */}
-                    <span className="vehicle-timeline__cost">{formatAmount(record.totalCost)}</span>
+                    <span className="vehicle-timeline__cost"><RecordCost record={record} /></span>
                     <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
                       Open
                     </Link>

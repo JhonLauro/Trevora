@@ -19,8 +19,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class VehicleService {
-    public static final UUID MOCK_OWNER_ID = CurrentUserService.MOCK_OWNER_ID;
-
     private final VehicleRepository vehicleRepository;
     private final CurrentUserService currentUserService;
     private final ServiceRecordRepository serviceRecordRepository;

@@ -10,7 +10,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 public class CurrentUserService {
-    public static final UUID MOCK_OWNER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private final SupabaseAuthService supabaseAuthService;
 
     public CurrentUserService(SupabaseAuthService supabaseAuthService) {

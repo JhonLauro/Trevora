@@ -53,7 +53,9 @@ export default function RegisterVehiclePage() {
       case 'bodyType':
         return trimmed ? '' : 'Choose the body type so Trevora knows where the parts are.';
       case 'year': {
-        if (!trimmed) return 'Enter the model year.';
+        // Optional — see AddVehiclePage. A secondhand owner often does not
+        // know the year model, and only these two forms ever required it.
+        if (!trimmed) return '';
         if (!/^\d{4}$/.test(trimmed)) return 'Enter the year as four digits, like 2018.';
         const year = Number(trimmed);
         if (year < 1886 || year > CURRENT_YEAR + 1) {
@@ -114,7 +116,7 @@ export default function RegisterVehiclePage() {
       make: form.make.trim(),
       model: form.model.trim(),
       bodyType: form.bodyType || null,
-      year: Number(form.year.trim()),
+      year: form.year.trim() ? Number(form.year.trim()) : null,
       plateNumber: form.plateNumber.trim() || null,
       odometer: odometer ? Number(odometer) : null,
     };
@@ -180,7 +182,7 @@ export default function RegisterVehiclePage() {
 
         <InkField
           inputRef={fieldRefs.year}
-          label="Model year"
+          label="Model year (optional)"
           name="year"
           type="text"
           inputMode="numeric"
@@ -190,6 +192,9 @@ export default function RegisterVehiclePage() {
           value={form.year}
           onChange={updateField}
           onBlur={handleBlur}
+          /* Names the document it is on and the mistake it invites: "Year
+             Model" on the OR/CR is not the year the vehicle was bought. */
+          help="On your OR/CR as “Year Model”. Not the year you bought it — leave blank if you are not sure."
           error={fieldErrors.year}
         />
 

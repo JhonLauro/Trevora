@@ -189,10 +189,12 @@ Auth endpoints:
 - `POST /api/auth/sync`
 - `GET /api/auth/me`
 
-Current user resolution order:
-1. Supabase bearer token verified through Supabase Auth.
-2. Demo request headers `X-User-Id` and `X-User-Role`.
-3. Existing mock owner fallback `00000000-0000-0000-0000-000000000001` with role `VEHICLE_OWNER`.
+Current user resolution: the Supabase bearer token, and nothing else.
+`CurrentUserService` delegates to `SupabaseAuthService`, which verifies the
+`Authorization: Bearer ...` header through Supabase Auth. A request without a
+valid token is rejected. The demo headers `X-User-Id`/`X-User-Role` and the
+mock owner fallback `00000000-0000-0000-0000-000000000001` are gone — the
+frontend still sends the demo headers, but the backend ignores them.
 
 Runtime environment required for Supabase Auth:
 - `SUPABASE_URL`

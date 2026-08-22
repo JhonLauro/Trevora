@@ -58,6 +58,15 @@ public class ServiceRecord {
     @Column(name = "total_cost", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalCost;
 
+    /**
+     * What insurance or a warranty absorbed of {@link #totalCost}. Zero when
+     * nothing was covered, never null.
+     *
+     * Out-of-pocket is deliberately not stored — see {@link #getOwnerPaid()}.
+     */
+    @Column(name = "amount_covered", nullable = false, precision = 12, scale = 2)
+    private BigDecimal amountCovered = BigDecimal.ZERO;
+
     @Column(name = "shop_name")
     private String shopName;
 
@@ -156,6 +165,27 @@ public class ServiceRecord {
 
     public void setTotalCost(BigDecimal totalCost) {
         this.totalCost = totalCost;
+    }
+
+    public BigDecimal getAmountCovered() {
+        return amountCovered == null ? BigDecimal.ZERO : amountCovered;
+    }
+
+    public void setAmountCovered(BigDecimal amountCovered) {
+        this.amountCovered = amountCovered == null ? BigDecimal.ZERO : amountCovered;
+    }
+
+    /**
+     * What the owner actually paid: the invoice less whatever was covered.
+     *
+     * Derived rather than stored, so it cannot drift from the two numbers it
+     * comes from. Never negative — the database constrains coverage to at most
+     * the total, and this clamps rather than trusting that alone, because a
+     * negative here would quietly subtract from the spend counter.
+     */
+    public BigDecimal getOwnerPaid() {
+        BigDecimal paid = getTotalCost().subtract(getAmountCovered());
+        return paid.signum() < 0 ? BigDecimal.ZERO : paid;
     }
 
     public String getShopName() {
