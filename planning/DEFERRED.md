@@ -1,8 +1,8 @@
 # Deferred / Known Gaps
 
 Running record of work consciously postponed, and problems found but not fixed.
-Started 2026-08-21, when scope shifted to a UI overhaul ahead of a 20-person
-MVP validation demo.
+Started 2026-08-21, when scope shifted to a UI overhaul ahead of MVP
+validation testing.
 
 Ordered roughly by how much it matters.
 
@@ -186,7 +186,7 @@ Also untested: the Google path now routes owners with no vehicle to
 
 ## Bugs found, not fixed
 
-## 9. UI labels leaking in as vehicle makes — cause fixed, rows remain
+## 9. UI labels leaking in as vehicle makes — resolved 2026-08-22
 
 `vehicle_profiles.make` contained `Receipt` (×5), `Voice`, `Route`, `sample`,
 `sample 2`, `EFSF`/`Gundam`, `k`/`n`, `s`/`Toyota` and `Koyota`/`Virus`. Not a
@@ -204,13 +204,12 @@ was touched, deliberately.** Two reasons:
   them would destroy the bulk of the test history, and cascade into
   `service_records`.
 
-So this is a decision, not a cleanup task: keep them as test fixtures, or drop
-them and accept a near-empty database. Worth settling before the 20-person
-round, since §11's draft-to-record ratio is computed over exactly these rows.
-
-Also unresolved: `Toyota`/`Camarro` (Camaro is a Chevrolet — make and model
-disagree) and `Mercedes`/`Benz` (the make is Mercedes-Benz; the model is
-missing). Both are single-record rows.
+**Resolved 2026-08-22.** The pre-auth mock owner's rows (13 vehicles, 12
+records, 44 drafts) were deleted via
+`database/maintenance/cleanup_mock_owner_data.sql`, and the remaining owned
+test vehicles were removed through the new delete feature. Teammates' rows
+were deliberately left alone — the junk-looking data spanned ten accounts,
+several of them real people.
 
 ## 10. Demo header fallback is gone
 
@@ -229,7 +228,9 @@ Either the code drifted or the doc is stale — decide which and fix the other.
 100 `service_drafts` versus 31 `service_records` — a 69% drop at the
 validation step. Almost certainly an artefact of development testing, but if
 that ratio held with real users it would matter far more than onboarding.
-Re-check once the 20-person round produces real data.
+
+The counts above predate the 2026-08-22 cleanup and no longer describe the
+database. Re-measure once real usage produces data worth measuring.
 
 ---
 
@@ -280,14 +281,29 @@ Still car-shaped and worth auditing when motorcycles get real usage:
 `utils/serviceCategory.js` ("Tires & brakes" works for both, but chain work
 lands in Maintenance by keyword accident rather than by design), and the
 receipt-extraction prompts, which have not been tested against a 3S-shop
-invoice.
+invoice. See "OCR and extraction quality" below — that work is waiting on
+real receipts, not on a decision.
+
+---
+
+## OCR and extraction quality — deliberately waiting
+
+Receipt OCR and the AI extraction step both need work, and neither is blocked
+on code. They are blocked on **evidence**: a body of real receipts, varied
+enough to show what actually fails — faded thermal paper, handwritten talyer
+receipts, printed casa invoices, motorcycle 3S-shop invoices.
+
+Guessing at improvements before that means tuning against imagined failures.
+Collect the receipts first, study where extraction misses, then change the
+prompts against known cases.
+
+Related and unmeasured: the 85% field-extraction accuracy target in the
+proposal's objectives has never been measured against a real sample.
 
 ---
 
 ## Paper / implementation drift to reconcile
 
-- The proposal's evaluation says **5–10 participants**; the note at the top of
-  this file says a 20-person round. Settle which before a defense.
 - The **parts map, component statuses and the Warranty & coverage tab are not
   in the proposal** at all. They are not harmful now that the prediction is
   gone, but they are unspecified scope — either justify them as part of
