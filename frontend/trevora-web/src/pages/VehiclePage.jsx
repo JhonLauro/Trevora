@@ -245,7 +245,7 @@ export default function VehiclePage() {
                 <h2 className="ink-empty__title">No records for this vehicle yet</h2>
                 <p className="ink-empty__body">
                   One receipt is enough to begin. Everything on this page — the year strip, the
-                  component list, the due dates — is worked out from the records you add.
+                  component list, the totals — is worked out from the records you add.
                 </p>
                 <div className="ink-empty__actions">
                   <Link className="ink-button" to={`/service-input/${vehicleId}`}>Add the first record</Link>

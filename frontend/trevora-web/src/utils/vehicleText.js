@@ -12,13 +12,17 @@ export function displayVehicleName(vehicle) {
     || 'Vehicle';
 }
 
-/** Plate first — it is what an owner recognises their own car by. */
+/**
+ * Plate first — it is what an owner recognises their own car by.
+ *
+ * Never repeats the name: with no nickname the name already *is* the model
+ * line, and printing it again underneath is two lines saying one thing.
+ */
 export function displayVehicleSubtitle(vehicle) {
   const modelLine = [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ');
-  if (vehicle?.nickname) {
-    return [vehicle.plateNumber, modelLine].filter(Boolean).join(' \u00b7 ') || 'Registered vehicle';
-  }
-  return vehicle?.plateNumber || modelLine || 'Registered vehicle';
+  const name = displayVehicleName(vehicle);
+  const parts = [vehicle?.plateNumber, modelLine === name ? null : modelLine].filter(Boolean);
+  return parts.join(' · ') || 'No plate recorded';
 }
 
 export function vehicleInitials(vehicle) {

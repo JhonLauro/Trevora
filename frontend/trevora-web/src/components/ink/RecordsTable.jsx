@@ -23,8 +23,10 @@ import { serviceItemsSummaryLabel } from '../../utils/serviceText';
  * Currency is stated once, in the "Cost (PHP)" header — the cells carry bare
  * numbers rather than repeating "PHP" on every row.
  */
-const CROSS_VEHICLE_COLUMNS = '108px 168px minmax(0, 1fr) 112px 152px 60px';
-const SINGLE_VEHICLE_COLUMNS = '108px minmax(0, 1fr) 116px 112px 152px 60px';
+/* The design specified 108px for Date. Against real records "Aug 15, 2026"
+   does not fit and every row wrapped to two lines, so it is 118px here. */
+const CROSS_VEHICLE_COLUMNS = '118px 168px minmax(0, 1fr) 112px 152px 60px';
+const SINGLE_VEHICLE_COLUMNS = '118px minmax(0, 1fr) 116px 112px 152px 60px';
 
 function recordHref(record) {
   return `/vehicles/${record.vehicleId}/history/${record.recordId}`;
@@ -58,7 +60,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true })
         <tbody>
           {records.map((record) => (
             <tr key={record.recordId}>
-              <td className="is-muted">{formatDate(record.serviceDate)}</td>
+              <td className="is-muted is-date">{formatDate(record.serviceDate)}</td>
               {showVehicle && <td className="is-muted">{record.vehicleName}</td>}
               <td className="ink-table__service">
                 <strong>{serviceItemsSummaryLabel(record.services)}</strong>

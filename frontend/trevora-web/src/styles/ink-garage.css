@@ -795,6 +795,11 @@
   color: var(--ink-muted);
 }
 
+/* A wrapped date reads as two records. It gets the room instead. */
+.ink-table .is-date {
+  white-space: nowrap;
+}
+
 .ink-table .is-numeric,
 .ink-table th.is-numeric {
   font-weight: 600;
