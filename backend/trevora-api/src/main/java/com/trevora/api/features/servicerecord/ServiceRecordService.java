@@ -3,6 +3,7 @@ package com.trevora.api.features.servicerecord;
 
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.serviceinput.ServiceDraftItem;
+import com.trevora.api.features.serviceinput.ServiceDraftLineEntry;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.validation.ServiceDraftValidationService;
 import com.trevora.api.features.serviceinput.ServiceDraftResponse;
@@ -27,6 +28,8 @@ public class ServiceRecordService {
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceRecordRepository serviceRecordRepository;
     private final ServiceRecordItemRepository serviceRecordItemRepository;
+    private final ServiceRecordLineEntryRepository serviceRecordLineEntryRepository;
+    private final ServiceRecordItemReader serviceRecordItemReader;
     private final ServiceDraftValidationService serviceDraftValidationService;
     private final CurrentUserService currentUserService;
 
@@ -35,6 +38,8 @@ public class ServiceRecordService {
             ServiceDraftRepository serviceDraftRepository,
             ServiceRecordRepository serviceRecordRepository,
             ServiceRecordItemRepository serviceRecordItemRepository,
+            ServiceRecordLineEntryRepository serviceRecordLineEntryRepository,
+            ServiceRecordItemReader serviceRecordItemReader,
             ServiceDraftValidationService serviceDraftValidationService,
             CurrentUserService currentUserService
     ) {
@@ -42,6 +47,8 @@ public class ServiceRecordService {
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceRecordItemRepository = serviceRecordItemRepository;
+        this.serviceRecordLineEntryRepository = serviceRecordLineEntryRepository;
+        this.serviceRecordItemReader = serviceRecordItemReader;
         this.serviceDraftValidationService = serviceDraftValidationService;
         this.currentUserService = currentUserService;
     }
@@ -103,8 +110,25 @@ public class ServiceRecordService {
         return ValidationStatus.NEEDS_REVIEW;
     }
 
+    /**
+     * Copies the draft's services onto the confirmed record, receipt lines and
+     * all.
+     *
+     * <p>Confirming is re-runnable, so the previous items are deleted first.
+     * Their line entries go with them by FK cascade, but the delete is issued
+     * explicitly here because the items are removed by a derived delete that
+     * Hibernate may satisfy without loading the children — leaving the cascade
+     * as the only thing standing between a re-confirm and a duplicated receipt.
+     */
     private List<ServiceRecordItem> promoteItems(List<ServiceDraftItem> draftItems, UUID recordId) {
+        List<ServiceRecordItem> existing = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(recordId);
+        if (!existing.isEmpty()) {
+            serviceRecordLineEntryRepository.deleteByItemIdIn(
+                    existing.stream().map(ServiceRecordItem::getItemId).toList()
+            );
+        }
         serviceRecordItemRepository.deleteByRecordId(recordId);
+
         for (ServiceDraftItem draftItem : draftItems) {
             ServiceRecordItem recordItem = new ServiceRecordItem();
             recordItem.setRecordId(recordId);
@@ -115,9 +139,26 @@ public class ServiceRecordService {
             recordItem.setLineCost(draftItem.getLineCost());
             recordItem.setSortOrder(draftItem.getSortOrder());
             recordItem.setFieldMetadata(draftItem.getFieldMetadata());
-            serviceRecordItemRepository.save(recordItem);
+            ServiceRecordItem savedItem = serviceRecordItemRepository.save(recordItem);
+            promoteLineEntries(draftItem.getLineEntries(), savedItem.getItemId());
         }
-        return serviceRecordItemRepository.findByRecordIdOrderBySortOrder(recordId);
+        return serviceRecordItemReader.forRecord(recordId);
+    }
+
+    private void promoteLineEntries(List<ServiceDraftLineEntry> draftEntries, UUID itemId) {
+        for (ServiceDraftLineEntry draftEntry : draftEntries) {
+            ServiceRecordLineEntry entry = new ServiceRecordLineEntry();
+            entry.setItemId(itemId);
+            entry.setKind(draftEntry.getKind());
+            entry.setDescription(draftEntry.getDescription());
+            entry.setPartCode(draftEntry.getPartCode());
+            entry.setQuantity(draftEntry.getQuantity());
+            entry.setUnitPrice(draftEntry.getUnitPrice());
+            entry.setLineTotal(draftEntry.getLineTotal());
+            entry.setSortOrder(draftEntry.getSortOrder());
+            entry.setFieldMetadata(draftEntry.getFieldMetadata());
+            serviceRecordLineEntryRepository.save(entry);
+        }
     }
 
     private void copyDraftToRecord(ServiceDraft draft, ServiceRecord record) {

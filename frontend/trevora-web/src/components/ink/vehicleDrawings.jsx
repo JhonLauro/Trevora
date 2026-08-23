@@ -37,6 +37,7 @@ const TYRE = '#33302b'; /* --ink-hover — the darkest value in the set */
 const PAPER = '#f7f4ef';
 
 export const WHEEL_ID = 'vd-wheel';
+export const BRAKE_ID = 'vd-brake';
 
 /**
  * One wheel, drawn once and reused at scale by every side view, so it cannot
@@ -54,6 +55,17 @@ export function WheelDefs() {
         <path d="M-25 0H25M0 -25V25" stroke={LINE} strokeWidth="3" transform="rotate(20)" />
         <circle r="7" fill={LINE} />
       </g>
+
+      {/* Braking hardware, drawn on the front wheel only. Two identical wheels
+          carrying two different markers left the reader to guess why one was
+          Brakes and the other Tires; a caliper says which is which without a
+          word. Drawn over the rim rather than behind it — a disc hidden behind
+          the spokes explains nothing. */}
+      <g id={BRAKE_ID}>
+        <circle r="30" fill="none" stroke={LINE} strokeWidth="2" strokeDasharray="3 5" />
+        <rect x="-41" y="-16" width="18" height="32" rx="6" fill={PANEL} stroke={EDGE} strokeWidth="2.2" />
+        <path d="M-37 -6 H-27 M-37 2 H-27" stroke={LINE} strokeWidth="1.6" />
+      </g>
     </defs>
   );
 }
@@ -67,6 +79,7 @@ export const SEDAN = (
     <ellipse cx="484" cy="277" rx="52" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(168,230)" />
     <use href={`#${WHEEL_ID}`} transform="translate(484,230)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(168,230)" />
     <path d="M36 246 L118 246 C118 202 132 176 168 176 C204 176 218 202 218 246 L434 246 C434 202 448 176 484 176 C520 176 534 202 534 246 L604 246 C614 246 618 240 618 230 L618 186 C618 172 612 164 598 161 L470 148 L396 86 C388 79 379 76 366 76 L288 76 C274 76 264 80 256 88 L200 146 L62 158 C44 161 34 172 32 190 L30 220 C30 238 34 246 36 246 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M228 226 L434 226 L434 246 L228 246 Z" fill={RECESS} />
     <path d="M212 142 L262 92 C268 86 276 84 288 84 L366 84 C377 84 384 87 390 93 L452 142 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -93,6 +106,7 @@ export const HATCHBACK = (
     <ellipse cx="486" cy="273" rx="52" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(208,226)" />
     <use href={`#${WHEEL_ID}`} transform="translate(486,226)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(208,226)" />
     <path d="M114 242 L158 242 C158 198 172 172 208 172 C244 172 258 198 258 242 L436 242 C436 198 450 172 486 172 C522 172 536 198 536 242 L566 242 C578 242 584 234 584 222 L584 146 C584 136 580 129 572 123 L460 82 C452 77 444 74 432 74 L336 74 C322 74 312 78 304 86 L254 142 L140 154 C122 157 112 168 110 186 L108 214 C108 234 112 242 114 242 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M268 222 L436 222 L436 242 L268 242 Z" fill={RECESS} />
     <path d="M266 138 L306 90 C312 84 320 82 332 82 L428 82 C438 82 445 85 451 90 L534 124 L534 138 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -118,6 +132,7 @@ export const SUV = (
     <ellipse cx="482" cy="309" rx="60" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(176,254) scale(1.174)" />
     <use href={`#${WHEEL_ID}`} transform="translate(482,254) scale(1.174)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(176,254) scale(1.174)" />
     <path d="M40 250 L118 250 C118 200 132 186 176 186 C220 186 234 200 234 250 L424 250 C424 200 438 186 482 186 C526 186 540 200 540 250 L600 250 C612 250 618 242 618 230 L618 120 C618 106 612 98 600 94 L560 78 L280 62 C266 61 256 66 250 76 L210 138 L66 152 C48 155 38 166 36 184 L34 222 C34 244 38 250 40 250 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M244 228 L424 228 L424 250 L244 250 Z" fill={RECESS} />
     <path d="M222 134 L256 84 C260 76 268 72 280 72 L556 86 L556 134 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -144,6 +159,7 @@ export const MPV = (
     <ellipse cx="480" cy="315" rx="54" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(180,266) scale(1.043)" />
     <use href={`#${WHEEL_ID}`} transform="translate(480,266) scale(1.043)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(180,266) scale(1.043)" />
     <path d="M34 258 L126 258 C126 214 140 200 180 200 C220 200 234 214 234 258 L426 258 C426 214 440 200 480 200 C520 200 534 214 534 258 L602 258 C614 258 620 250 620 238 L620 118 C620 104 614 96 602 92 L562 76 L300 62 C286 61 276 64 268 72 L200 146 L62 158 C44 161 34 172 32 190 L30 230 C30 252 34 258 34 258 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M244 236 L426 236 L426 258 L244 258 Z" fill={RECESS} />
     <path d="M212 142 L272 76 C276 70 284 68 296 69 L558 88 L558 142 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -169,6 +185,7 @@ export const PICKUP = (
     <ellipse cx="498" cy="289" rx="58" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(160,236) scale(1.13)" />
     <use href={`#${WHEEL_ID}`} transform="translate(498,236) scale(1.13)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(160,236) scale(1.13)" />
     <path d="M28 234 L104 234 C104 190 118 172 160 172 C202 172 216 190 216 234 L442 234 C442 190 456 172 498 172 C540 172 554 190 554 234 L610 234 C620 234 624 228 624 218 L624 130 L392 130 L392 78 C392 68 386 64 376 64 L280 64 C268 64 258 68 252 78 L198 132 L58 146 C40 149 30 160 28 178 L26 210 C26 228 28 234 28 234 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M226 212 L442 212 L442 234 L226 234 Z" fill={RECESS} />
     <path d="M210 126 L252 82 C256 74 264 70 276 70 L376 70 L376 126 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -194,6 +211,7 @@ export const VAN = (
     <ellipse cx="496" cy="337" rx="56" ry="5" fill={RECESS} />
     <use href={`#${WHEEL_ID}`} transform="translate(160,286) scale(1.087)" />
     <use href={`#${WHEEL_ID}`} transform="translate(496,286) scale(1.087)" />
+    <use href={`#${BRAKE_ID}`} transform="translate(160,286) scale(1.087)" />
     <path d="M30 282 L104 282 C104 238 118 220 160 220 C202 220 216 238 216 282 L440 282 C440 238 454 220 496 220 C538 220 552 238 552 282 L608 282 C620 282 626 274 626 262 L626 84 C626 70 618 62 604 60 L268 44 C252 43 242 48 236 60 L196 148 L58 162 C40 165 30 176 28 194 L26 250 C26 276 30 282 30 282 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
     <path d="M226 260 L440 260 L440 282 L226 282 Z" fill={RECESS} />
     <path d="M206 144 L240 68 C244 60 252 56 264 57 L340 62 L340 144 Z" fill={RECESS} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
@@ -304,33 +322,71 @@ export const CAR_BAY = (
 );
 
 /**
- * Engine and frame, motorcycles. A bike has no bay to look down into, so
- * this is a left-side close-up of the same crowded region instead.
+ * Engine and frame, motorcycles. A bike has no bay to look down into, so this
+ * is a left-side close-up of the same crowded region instead.
+ *
+ * **The parts are carried by something.** The first version drew them floating
+ * — the battery sat past the end of the frame joined only by a hose, the
+ * radiator touched nothing, and the tubes ran off into space. The car bay
+ * reads as a place because its tray encloses everything; a side-on close-up
+ * cannot have a tray, so the equivalent here is a frame that visibly holds
+ * each part, a ground line, and the inner edge of both wheels at the margins.
+ * The wheels do most of the work: they say "this is the middle of a
+ * motorcycle" faster than any label.
  */
 export const MOTORCYCLE_BAY = (
   <>
-    <text x="320" y="26" textAnchor="middle" className="vd-label">LEFT SIDE · FRONT AT LEFT</text>
-    <path d="M210 198 C176 232 172 300 200 344 C232 392 330 412 424 396" fill="none" stroke={LINE} strokeWidth="13" strokeLinecap="round" />
-    <path d="M150 128 L300 110 L474 138 M158 132 L232 254 M466 146 L434 234" stroke={EDGE} strokeWidth="12" strokeLinecap="round" />
-    <path d="M92 176 L166 166 L178 314 L104 324 Z" fill={CAVITY} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
-    <path d="M107 182 L114 318 M121 180 L128 317 M135 178 L142 316 M149 177 L156 315 M163 175 L170 313" stroke={LINE} strokeWidth="1.8" />
-    <path d="M174 222 C198 218 208 226 220 240" fill="none" stroke={LINE} strokeWidth="11" strokeLinecap="round" />
-    <rect x="250" y="88" width="190" height="84" rx="14" fill={NEAR} stroke={EDGE} strokeWidth="3" />
-    <path d="M250 130 H440" stroke={LINE} strokeWidth="1.6" />
-    <path d="M434 152 C458 158 464 178 452 194" fill="none" stroke={LINE} strokeWidth="16" />
-    <path d="M434 152 C458 158 464 178 452 194" fill="none" stroke={PANEL} strokeWidth="12" />
-    <path d="M434 152 C458 158 464 178 452 194" fill="none" stroke={LINE} strokeWidth="12" strokeDasharray="2 6" />
-    <rect x="474" y="118" width="130" height="88" rx="6" fill={NEAR} stroke={EDGE} strokeWidth="3" />
-    <circle cx="496" cy="130" r="9" fill={CAVITY} stroke={EDGE} strokeWidth="2" />
-    <circle cx="582" cy="130" r="9" fill={CAVITY} stroke={EDGE} strokeWidth="2" />
-    <path d="M474 154 H604 M474 180 H604" stroke={LINE} strokeWidth="1.6" />
-    <path d="M208 176 L362 164 L366 190 L212 202 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
-    <path d="M212 198 L364 186 L376 264 L224 276 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
-    <path d="M216 214 L367 202 M218 228 L369 216 M220 242 L371 230 M222 256 L373 244" stroke={LINE} strokeWidth="2" />
-    <path d="M226 268 L378 258 C404 256 420 272 422 298 L424 330 C426 356 410 372 384 374 L266 380 C240 382 224 368 222 344 L218 296 C216 278 216 270 226 268 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
-    <circle cx="366" cy="318" r="46" fill={PANEL} stroke={EDGE} strokeWidth="2.5" />
-    <circle cx="366" cy="318" r="29" fill="none" stroke={LINE} strokeWidth="1.8" />
-    <circle cx="262" cy="344" r="18" fill={PAPER} stroke={EDGE} strokeWidth="2.5" />
-    <path d="M250 344 H274" stroke={EDGE} strokeWidth="2" />
+    <text x="320" y="26" textAnchor="middle" className="vd-label">LEFT SIDE</text>
+
+    {/* Both wheels, mostly out of frame. Scale and orientation in one stroke. */}
+    <circle cx="-26" cy="300" r="104" fill={PAPER} stroke={CAVITY} strokeWidth="3" />
+    <circle cx="666" cy="300" r="104" fill={PAPER} stroke={CAVITY} strokeWidth="3" />
+    <ellipse cx="60" cy="406" rx="46" ry="4" fill={RECESS} />
+    <ellipse cx="580" cy="406" rx="46" ry="4" fill={RECESS} />
+
+    {/* Frame: headstock, main spar, cradle under the engine, subframe out the
+        back. Everything else hangs off one of these. */}
+    <path d="M110 132 L120 174" stroke={EDGE} strokeWidth="19" strokeLinecap="round" />
+    <path d="M110 156 L436 176" stroke={EDGE} strokeWidth="13" strokeLinecap="round" />
+    <path d="M112 162 L176 300 L268 348 L392 352" stroke={EDGE} strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <path d="M430 178 L544 164" stroke={EDGE} strokeWidth="11" strokeLinecap="round" />
+    <path d="M432 182 L470 246" stroke={EDGE} strokeWidth="9" strokeLinecap="round" />
+
+    {/* Radiator, bolted to the down-tube */}
+    <path d="M96 196 L168 186 L180 326 L108 336 Z" fill={CAVITY} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M110 200 L118 330 M124 198 L132 328 M138 196 L146 326 M152 194 L160 324" stroke={LINE} strokeWidth="1.8" />
+    <path d="M168 224 C190 220 200 228 212 242" fill="none" stroke={LINE} strokeWidth="10" strokeLinecap="round" />
+
+    {/* Airbox, sitting in the spine of the frame */}
+    <rect x="248" y="98" width="180" height="74" rx="14" fill={NEAR} stroke={EDGE} strokeWidth="3" />
+    <path d="M248 136 H428" stroke={LINE} strokeWidth="1.6" />
+    <path d="M300 172 C302 190 306 200 312 210" fill="none" stroke={LINE} strokeWidth="14" />
+    <path d="M300 172 C302 190 306 200 312 210" fill="none" stroke={PANEL} strokeWidth="10" />
+
+    {/* Battery, strapped inside the subframe triangle rather than beyond it */}
+    <rect x="440" y="168" width="112" height="80" rx="6" fill={NEAR} stroke={EDGE} strokeWidth="3" />
+    <circle cx="459" cy="180" r="8" fill={CAVITY} stroke={EDGE} strokeWidth="2" />
+    <circle cx="533" cy="180" r="8" fill={CAVITY} stroke={EDGE} strokeWidth="2" />
+    <path d="M440 202 H552 M440 226 H552" stroke={LINE} strokeWidth="1.6" />
+    <path d="M436 232 C416 240 406 248 398 260" fill="none" stroke={LINE} strokeWidth="7" />
+
+    {/* Cylinder and head, then the crankcase under it */}
+    <path d="M214 200 L370 188 L374 214 L218 226 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M218 222 L374 210 L386 284 L232 296 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M222 238 L377 226 M224 252 L379 240 M226 266 L381 254" stroke={LINE} strokeWidth="2" />
+    <path d="M234 288 L388 278 C414 276 430 292 432 318 L434 344 C436 370 420 386 394 388 L276 392 C250 394 234 380 232 356 L228 316 C226 298 224 290 234 288 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <circle cx="372" cy="336" r="44" fill={PANEL} stroke={EDGE} strokeWidth="2.5" />
+    <circle cx="372" cy="336" r="28" fill="none" stroke={LINE} strokeWidth="1.8" />
+
+    {/* Sump plug */}
+    <circle cx="268" cy="362" r="18" fill={PAPER} stroke={EDGE} strokeWidth="2.5" />
+    <path d="M256 362 H280" stroke={EDGE} strokeWidth="2" />
+
+    {/* Header, leaving the head and running back under the cases */}
+    <path d="M212 232 C186 260 184 320 214 356 C246 394 330 404 412 396" fill="none" stroke={LINE} strokeWidth="11" strokeLinecap="round" />
+
+    <path d="M10 408 H630" stroke={GROUND} strokeWidth="1.5" />
+    <text x="12" y="424" className="vd-label">FRONT</text>
+    <text x="628" y="424" textAnchor="end" className="vd-label">REAR</text>
   </>
 );

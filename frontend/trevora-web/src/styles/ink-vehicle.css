@@ -600,6 +600,14 @@
   cursor: pointer;
 }
 
+/* Sits under every marker so the dashed "no record" ring keeps its edge over
+   tread, spokes and radiator fins. Paper rather than surface: it reads as a
+   gap punched in the drawing, not as a white sticker on top of it. */
+.vd-marker__moat {
+  fill: var(--paper);
+  stroke: none;
+}
+
 .vd-marker__dot {
   fill: var(--surface);
   stroke: var(--ink);

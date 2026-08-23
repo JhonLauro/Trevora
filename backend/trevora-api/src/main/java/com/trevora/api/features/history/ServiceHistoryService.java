@@ -10,7 +10,7 @@ import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ValidationStatus;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
-import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
+import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -28,18 +28,18 @@ public class ServiceHistoryService {
     private static final String SORT_LATEST = "latest";
 
     private final ServiceRecordRepository serviceRecordRepository;
-    private final ServiceRecordItemRepository serviceRecordItemRepository;
+    private final ServiceRecordItemReader serviceRecordItemReader;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
 
     public ServiceHistoryService(
             ServiceRecordRepository serviceRecordRepository,
-            ServiceRecordItemRepository serviceRecordItemRepository,
+            ServiceRecordItemReader serviceRecordItemReader,
             VehicleService vehicleService,
             CurrentUserService currentUserService
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
-        this.serviceRecordItemRepository = serviceRecordItemRepository;
+        this.serviceRecordItemReader = serviceRecordItemReader;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
     }
@@ -59,9 +59,11 @@ public class ServiceHistoryService {
                 .stream()
                 .toList();
 
+        Map<UUID, List<ServiceRecordItem>> loaded = serviceRecordItemReader
+                .forRecords(allRecords.stream().map(ServiceRecord::getRecordId).toList());
         Map<UUID, List<ServiceRecordItem>> itemsByRecord = new LinkedHashMap<>();
         for (ServiceRecord record : allRecords) {
-            itemsByRecord.put(record.getRecordId(), serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId()));
+            itemsByRecord.put(record.getRecordId(), loaded.getOrDefault(record.getRecordId(), List.of()));
         }
 
         List<ServiceRecord> records = allRecords
@@ -100,7 +102,7 @@ public class ServiceHistoryService {
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
-        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
+        List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
         return ServiceRecordDetailResponse.from(record, items);
     }
 
@@ -149,7 +151,7 @@ public class ServiceHistoryService {
 
         record.setValidationStatus(ValidationStatus.VALIDATED);
         ServiceRecord saved = serviceRecordRepository.save(record);
-        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(saved.getRecordId());
+        List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(saved.getRecordId());
         return ServiceRecordDetailResponse.from(saved, items);
     }
 

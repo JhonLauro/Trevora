@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
-import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
+import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ public class MechanicSearchService {
     private static final Set<String> ALLOWED_VIEWS = Set.of("parts-map", "timeline", "table");
 
     private final MechanicAccessService mechanicAccessService;
-    private final ServiceRecordItemRepository serviceRecordItemRepository;
+    private final ServiceRecordItemReader serviceRecordItemReader;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
     private final String apiKey;
@@ -39,13 +39,13 @@ public class MechanicSearchService {
 
     public MechanicSearchService(
             MechanicAccessService mechanicAccessService,
-            ServiceRecordItemRepository serviceRecordItemRepository,
+            ServiceRecordItemReader serviceRecordItemReader,
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.mechanic-search.openai.model:gpt-4o}") String model
     ) {
         this.mechanicAccessService = mechanicAccessService;
-        this.serviceRecordItemRepository = serviceRecordItemRepository;
+        this.serviceRecordItemReader = serviceRecordItemReader;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.create();
         this.apiKey = blankToNull(apiKey);
@@ -170,7 +170,7 @@ public class MechanicSearchService {
     }
 
     private List<ServiceRecordItem> itemsFor(ServiceRecord record) {
-        return serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
+        return serviceRecordItemReader.forRecord(record.getRecordId());
     }
 
     private boolean matches(ServiceRecord record, List<ServiceRecordItem> items, String lowercaseQuery) {

@@ -133,8 +133,10 @@ Scoped, deliberately:
   records `motorcycle`, not underbone or big bike, so a sub-type drawing would
   be a guess dressed as a fact. If the field ever gains sub-types this becomes
   three drawings and eleven total.
-- **A component may appear in both views**, since some genuinely live in more
-  than one place.
+- **Each component appears in exactly one view.** The two views partition the
+  taxonomy rather than overlapping — 6 + 7 on a car, 7 + 5 on a bike. The
+  design allows a component in both, and nothing breaks if one ever is, but
+  none is today and the earlier note claiming otherwise was wrong.
 - **Marker numbers are global**, the component's position in its class
   taxonomy, so 5 is Tires on both tabs and every body type. The cost is that
   the list is ordered by taxonomy rather than documented-first, and reads 1–6
@@ -233,6 +235,42 @@ records, 44 drafts) were deleted via
 test vehicles were removed through the new delete feature. Teammates' rows
 were deliberately left alone — the junk-looking data spanned ten accounts,
 several of them real people.
+
+## Attribution reads operations only — 2026-08-23
+
+Migration `011` split a receipt line into OPERATION / PART / MATERIAL / FEE
+because two free-text buckets could not hold three kinds of line, so every
+consumable was stored as a replaced part. The tables landed before the readers
+did, so the bug it was written to fix stayed live: on a Toyota body-and-paint
+job the materials list held a "WASTE PAD", `/pad/` matched it, and the owner
+got a green Brakes marker and AI advice about stopping distance for a scratch
+repair.
+
+All three consumers now read operations and nothing else:
+
+- `utils/serviceComponents.js` gained `componentEvidenceText`, which reads the
+  service type plus OPERATION lines. `inferComponents` uses it.
+- `utils/serviceCategory.js` uses the same text, so a tin of thinner cannot
+  file a repair under "Tires & brakes".
+- `AIExplanationService` matches `buildWatchFor` on operations, and its
+  narrative now names PART lines as parts and MATERIAL lines as materials
+  instead of announcing consumables as parts fitted to the vehicle.
+
+**`recordSearchText` stays deliberately broad** and is now separate. It was
+doing both jobs, which was its own bug — a shop called Brake Masters lit up the
+Brakes marker on every record from it. Search should match the shop, the
+location and the remarks; attribution must not. It also now reads line entries,
+which it did not when they were introduced, so search would have gone blind to
+receipt content once the legacy columns are dropped.
+
+Records written before 011 fall back to `laborPerformed`, which is the same
+claim the backfill made. `partsReplaced` is never read for attribution — it is
+precisely the field that cannot be trusted to name a component.
+
+Still open: the attribution is still *derived* rather than stored, so a wrong
+guess still cannot be corrected by the owner. Narrowing the evidence makes it
+wrong far less often; it does not make it fixable. That is the DEFERRED item
+above this one.
 
 ## Insurance coverage on spend — added 2026-08-23
 

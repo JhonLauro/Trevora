@@ -118,12 +118,63 @@ const COMPONENT_KEY_BY_LABEL = {
   Fluids: 'fluids',
 };
 
+/**
+ * Everything about a record a person might type into the search box: the
+ * services, the shop, where it was, the remarks. Deliberately broad — someone
+ * looking for "Rapide" or "Cebu" should find it.
+ *
+ * **Not for attribution.** This was doing both jobs, and that was the bug: a
+ * shop called Brake Masters lit up the Brakes marker on every record from it.
+ * See `componentEvidenceText`.
+ */
 export function recordSearchText(record) {
   const itemsText = serviceItemsArray(record?.services)
-    .map((item) => [item.serviceType, item.serviceCategory, item.partsReplaced, item.laborPerformed]
-      .filter(Boolean).join(' '))
+    .map((item) => [
+      item.serviceType,
+      item.serviceCategory,
+      item.partsReplaced,
+      item.laborPerformed,
+      // Every printed line regardless of kind. Attribution must not read
+      // these, but search must: once a record carries line entries, they hold
+      // the text an owner would actually search for, and the two legacy
+      // columns above are on their way out.
+      ...(Array.isArray(item.lineEntries) ? item.lineEntries : [])
+        .flatMap((entry) => [entry?.description, entry?.partCode]),
+    ].filter(Boolean).join(' '))
     .join(' ');
   return [itemsText, record?.category, record?.shopName, record?.location, record?.remarks]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * The only text allowed to say which component was serviced: the operation.
+ *
+ * A receipt line is one of four things (migration 011). Only an OPERATION says
+ * what the shop did to the vehicle. A PART is a thing fitted, a MATERIAL is
+ * consumed doing the work, a FEE is neither — and none of them identify a
+ * component on their own. Reading all of them together is what put a green
+ * Brakes marker on a body-and-paint job, because the materials list contained
+ * a "WASTE PAD" and `/pad/` matched it.
+ *
+ * Falls back to `laborPerformed` for records written before 011, which is
+ * exactly the claim the backfill made when it turned that column into
+ * OPERATION rows. `partsReplaced` is never read here: pre-011 it was the
+ * bucket every consumable was wrongly filed into, so it is precisely the
+ * field that cannot be trusted to name a component.
+ */
+export function componentEvidenceText(record) {
+  return serviceItemsArray(record?.services)
+    .map((item) => {
+      const entries = Array.isArray(item?.lineEntries) ? item.lineEntries : [];
+      const operations = entries
+        .filter((entry) => entry?.kind === 'OPERATION')
+        .map((entry) => entry?.description);
+      // No line entries at all means a legacy row the backfill has not reached
+      // (or one with no lines); its labour column is the same claim.
+      const labour = operations.length || entries.length ? operations : [item?.laborPerformed];
+      return [item?.serviceType, ...labour].filter(Boolean).join(' ');
+    })
     .filter(Boolean)
     .join(' ');
 }
@@ -143,7 +194,7 @@ export function inferComponents(record, vehicleClass = 'car') {
   const mapped = controlled.map((component) => COMPONENT_KEY_BY_LABEL[component]).filter(Boolean);
   if (mapped.length) return [...new Set(mapped)];
 
-  const haystack = recordSearchText(record);
+  const haystack = componentEvidenceText(record);
   const matches = componentRulesFor(vehicleClass)
     .filter(([, pattern]) => pattern.test(haystack))
     .map(([key]) => key);

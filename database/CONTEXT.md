@@ -82,3 +82,41 @@ Project was paused for ~3 months (resumed 2026-08-08). Module 4 migrations are a
 - Mechanic access must be scoped to one vehicle.
 - Mechanic search must only search records from the approved vehicle.
 - Do not expose incomplete `service_drafts`.
+
+## Receipt line entries (011)
+
+A visit is three levels deep, not two:
+
+```
+service_records          one shop visit  (date, shop, odometer, total_cost)
+  service_record_items   one service performed  (service_type, service_category)
+    service_record_line_entries   one printed line  (kind, description, part_code, qty, unit_price, line_total)
+```
+
+`service_drafts` mirrors this exactly, one table per level.
+
+`kind` is the column the rest of the product turns on:
+
+| kind | means | may identify a component? |
+|---|---|---|
+| `OPERATION` | labour the shop performed | **yes — only this one** |
+| `PART` | fitted to the vehicle and still on it | no |
+| `MATERIAL` | consumed doing the work (paint, thinner, tape, rags) | no |
+| `FEE` | charged but neither (disposal, shop supplies, towing) | no |
+
+**Component attribution comes from the operation, never from the materials.**
+This is the rule 011 exists to make expressible. Before it there were two
+free-text buckets, `parts_replaced` and `labor_performed`, so a Toyota
+body-and-paint invoice's eleven consumables were all stored as replaced parts —
+and three separate keyword matchers (parts map, AI explanation, spend category)
+read "WASTE PAD" as brake work. The owner was shown a brake service they never
+had. A can of degreaser is not evidence about any part of the car.
+
+`parts_replaced` and `labor_performed` still exist on the item tables and are
+being retired. New readers must use line entries; the columns are dropped once
+review, correction, detail and the explanation have moved over.
+
+`line_total` is what the receipt printed, not `quantity * unit_price`. Where
+the invoice disagrees with the arithmetic, the invoice is the fact.
+
+Both tables are fail-closed RLS with no policies, matching 006 and 007.

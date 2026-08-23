@@ -7,10 +7,12 @@ import com.trevora.api.features.ai.AIExplanationResponse;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
-import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
+import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import com.trevora.api.features.serviceinput.ServiceLineKind;
+import com.trevora.api.features.servicerecord.ServiceRecordLineEntry;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,18 +30,18 @@ public class AIExplanationService {
     private static final String DISCLAIMER = "This explanation is for understanding only and does not replace professional mechanic judgment.";
 
     private final ServiceRecordRepository serviceRecordRepository;
-    private final ServiceRecordItemRepository serviceRecordItemRepository;
+    private final ServiceRecordItemReader serviceRecordItemReader;
     private final CurrentUserService currentUserService;
     private final VehicleService vehicleService;
 
     public AIExplanationService(
             ServiceRecordRepository serviceRecordRepository,
-            ServiceRecordItemRepository serviceRecordItemRepository,
+            ServiceRecordItemReader serviceRecordItemReader,
             CurrentUserService currentUserService,
             VehicleService vehicleService
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
-        this.serviceRecordItemRepository = serviceRecordItemRepository;
+        this.serviceRecordItemReader = serviceRecordItemReader;
         this.currentUserService = currentUserService;
         this.vehicleService = vehicleService;
     }
@@ -49,7 +52,7 @@ public class AIExplanationService {
                 .findByRecordIdAndOwnerId(recordId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
         vehicleService.verifyVehicleBelongsToCurrentUser(record.getVehicleId());
-        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
+        List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
 
         try {
             return generateTemplateExplanation(record, items);
@@ -62,8 +65,18 @@ public class AIExplanationService {
         String serviceSummary = valueOrDefault(serviceSummaryFor(items), "service work");
         String shop = blankToNull(record.getShopName());
         String date = formatDate(record.getServiceDate());
-        String parts = blankToNull(joinItemField(items, ServiceRecordItem::getPartsReplaced));
-        String labor = blankToNull(joinItemField(items, ServiceRecordItem::getLaborPerformed));
+        // Parts and labour come from the tagged lines where a record has them,
+        // so a consumed material is never announced to the owner as a part
+        // fitted to their vehicle. Pre-011 records fall back to the old
+        // columns, which is all they have.
+        boolean tagged = hasLineEntries(items);
+        String parts = blankToNull(tagged
+                ? lineEntriesOfKind(items, ServiceLineKind.PART)
+                : joinItemField(items, ServiceRecordItem::getPartsReplaced));
+        String materials = tagged ? blankToNull(lineEntriesOfKind(items, ServiceLineKind.MATERIAL)) : null;
+        String labor = blankToNull(tagged
+                ? lineEntriesOfKind(items, ServiceLineKind.OPERATION)
+                : joinItemField(items, ServiceRecordItem::getLaborPerformed));
         String remarks = blankToNull(record.getRemarks());
 
         StringBuilder whatWasDone = new StringBuilder("This confirmed record shows ")
@@ -76,6 +89,9 @@ public class AIExplanationService {
         whatWasDone.append(".");
         if (parts != null) {
             whatWasDone.append(" Parts noted: ").append(parts).append(".");
+        }
+        if (materials != null) {
+            whatWasDone.append(" Materials used: ").append(materials).append(".");
         }
         if (labor != null) {
             whatWasDone.append(" Work performed: ").append(labor).append(".");
@@ -161,16 +177,56 @@ public class AIExplanationService {
                 .orElse(null);
     }
 
-    private List<String> buildWatchFor(List<ServiceRecordItem> items, Integer odometer) {
-        List<String> watchFor = new ArrayList<>();
-        String text = (items == null ? List.<ServiceRecordItem>of() : items).stream()
-                .flatMap(item -> java.util.stream.Stream.of(
-                        valueOrDefault(item.getServiceType(), ""),
-                        valueOrDefault(item.getPartsReplaced(), ""),
-                        valueOrDefault(item.getLaborPerformed(), "")
-                ))
+    /**
+     * The operations only, lowercased — the sole evidence allowed to decide
+     * what to advise the owner to watch for.
+     *
+     * Reading parts and materials too is what produced advice about squealing
+     * brakes for a body-and-paint job: the materials list held a "WASTE PAD"
+     * and the brake rule matched on "pad". A consumable says nothing about
+     * which part of the vehicle was serviced.
+     *
+     * Falls back to the pre-011 labour column when an item has no line
+     * entries, which is the same claim the 011 backfill made.
+     */
+    private String operationText(List<ServiceRecordItem> items) {
+        return (items == null ? List.<ServiceRecordItem>of() : items).stream()
+                .flatMap(item -> {
+                    List<String> operations = item.getLineEntries().stream()
+                            .filter(entry -> entry.getKind() == ServiceLineKind.OPERATION)
+                            .map(ServiceRecordLineEntry::getDescription)
+                            .filter(value -> value != null && !value.isBlank())
+                            .toList();
+                    Stream<String> labour = operations.isEmpty() && item.getLineEntries().isEmpty()
+                            ? Stream.of(valueOrDefault(item.getLaborPerformed(), ""))
+                            : operations.stream();
+                    return Stream.concat(Stream.of(valueOrDefault(item.getServiceType(), "")), labour);
+                })
                 .reduce("", (a, b) -> a + " " + b)
                 .toLowerCase(Locale.ROOT);
+    }
+
+    /** Lines of one kind, joined for display. */
+    private String lineEntriesOfKind(List<ServiceRecordItem> items, ServiceLineKind kind) {
+        if (items == null) {
+            return null;
+        }
+        return items.stream()
+                .flatMap(item -> item.getLineEntries().stream())
+                .filter(entry -> entry.getKind() == kind)
+                .map(ServiceRecordLineEntry::getDescription)
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((first, second) -> first + "; " + second)
+                .orElse(null);
+    }
+
+    private boolean hasLineEntries(List<ServiceRecordItem> items) {
+        return items != null && items.stream().anyMatch(item -> !item.getLineEntries().isEmpty());
+    }
+
+    private List<String> buildWatchFor(List<ServiceRecordItem> items, Integer odometer) {
+        List<String> watchFor = new ArrayList<>();
+        String text = operationText(items);
 
         if (containsAny(text, "oil", "filter")) {
             watchFor.add(nextOilInterval(odometer));

@@ -23,8 +23,9 @@
  * ever seen theirs from directly above, so one shared drawing there is honest
  * rather than lazy.
  *
- * **A component may appear in both views** — a car's cooling system is under
- * the bonnet, its brakes are at the wheels. Marker numbers are global (the
+ * **Each component appears in exactly one view** — a car's brakes are at the
+ * wheels, its cooling system is under the bonnet — so the two views partition
+ * the taxonomy rather than overlapping. Marker numbers are global (the
  * component's position in the class taxonomy), not per view, so 5 is Tires on
  * every tab and every body type.
  *
@@ -65,7 +66,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 300',
     anchors: {
       lights: [52, 190], body: [300, 196], suspension: [168, 158],
-      brakes: [168, 230], tires: [484, 230], exhaust: [600, 262],
+      brakes: [168, 230], tires: [455, 257], exhaust: [566, 253],
     },
   },
 
@@ -74,7 +75,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 296',
     anchors: {
       lights: [130, 186], body: [340, 192], suspension: [208, 154],
-      brakes: [208, 226], tires: [486, 226], exhaust: [566, 258],
+      brakes: [208, 226], tires: [457, 253], exhaust: [528, 249],
     },
   },
 
@@ -83,7 +84,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 334',
     anchors: {
       lights: [58, 196], body: [330, 200], suspension: [176, 166],
-      brakes: [176, 254], tires: [482, 254], exhaust: [600, 286],
+      brakes: [176, 254], tires: [449, 285], exhaust: [564, 257],
     },
   },
 
@@ -92,7 +93,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 340',
     anchors: {
       lights: [54, 206], body: [330, 212], suspension: [180, 178],
-      brakes: [180, 266], tires: [480, 266], exhaust: [602, 296],
+      brakes: [180, 266], tires: [450, 294], exhaust: [566, 265],
     },
   },
 
@@ -101,7 +102,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 314',
     anchors: {
       lights: [50, 180], body: [300, 186], suspension: [160, 152],
-      brakes: [160, 236], tires: [498, 236], exhaust: [604, 266],
+      brakes: [160, 236], tires: [466, 266], exhaust: [568, 241],
     },
   },
 
@@ -110,7 +111,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 362',
     anchors: {
       lights: [52, 232], body: [340, 220], suspension: [160, 198],
-      brakes: [160, 286], tires: [496, 286], exhaust: [606, 316],
+      brakes: [160, 286], tires: [465, 315], exhaust: [568, 289],
     },
   },
 
@@ -119,7 +120,7 @@ const SIDE_SHAPES = {
     viewBox: '0 0 640 340',
     anchors: {
       lights: [206, 150], fairings: [330, 156], suspension: [176, 214],
-      brakes: [150, 256], tires: [482, 256], exhaust: [512, 300], drive: [424, 292],
+      brakes: [150, 256], tires: [522, 220], exhaust: [512, 300], drive: [424, 292],
     },
   },
 };
@@ -138,8 +139,8 @@ const BAY_SHAPES = {
     art: MOTORCYCLE_BAY,
     viewBox: '0 0 640 430',
     anchors: {
-      cooling: [134, 244], airFilter: [344, 130], battery: [539, 162],
-      engine: [292, 228], fluids: [262, 344],
+      cooling: [136, 262], airFilter: [336, 132], battery: [496, 206],
+      engine: [300, 330], fluids: [268, 362],
     },
   },
 };

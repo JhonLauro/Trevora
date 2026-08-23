@@ -5,7 +5,7 @@
  * Keyword-derived for now; like component attribution this belongs on the
  * record so it can be corrected (planning/DEFERRED.md).
  */
-import { recordSearchText } from './serviceComponents';
+import { componentEvidenceText } from './serviceComponents';
 
 export const CATEGORY_ORDER = ['Maintenance', 'Repairs', 'Tires & brakes', 'Other'];
 
@@ -16,7 +16,10 @@ const CATEGORY_RULES = [
 ];
 
 export function categoryForRecord(record) {
-  const haystack = recordSearchText(record);
+  // Operations only, same rule as component attribution: a tin of thinner
+  // should not file a scratch repair under "Tires & brakes", and neither
+  // should the shop's name.
+  const haystack = componentEvidenceText(record);
   const match = CATEGORY_RULES.find(([, pattern]) => pattern.test(haystack));
   return match ? match[0] : 'Other';
 }

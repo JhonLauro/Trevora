@@ -39,13 +39,28 @@ Feature packages:
 
 - `features.auth` - Supabase Auth token verification, profile sync, login/register fallback, users, roles, current-user headers, mock owner fallback.
 - `features.vehicle` - vehicle profile controller, service, repository, entity, and DTOs.
-- `features.serviceinput` - Module 1 draft input endpoints/services, draft entity/repository, input DTOs, OCR/voice mocks, `InputMethod`, and `DraftStatus`.
+- `features.serviceinput` - Module 1 draft input endpoints/services, draft entity/repository, input DTOs, OCR/voice extraction, `InputMethod`, `DraftStatus`, and `ServiceLineKind`.
 - `features.validation` - Module 2 draft review, validation, correction services, controller, and validation DTOs.
-- `features.servicerecord` - confirmed `ServiceRecord` entity/repository and draft confirmation service/DTOs.
+- `features.servicerecord` - confirmed `ServiceRecord` entity/repository, `ServiceRecordItemReader`, and draft confirmation service/DTOs.
 - `features.history` - Module 3 confirmed history controller, service, and history DTOs.
 - `features.ai` - Module 4 AI/template explanation controller, service, and DTO.
 - `features.sharing` - QR/share requests, owner approval/denial, access request entities/repositories, and sharing DTOs.
 - `features.mechanicaccess` - temporary read-only mechanic sessions, shared history/detail, mechanic search services, repository, entity, and DTOs.
+
+### Reading a confirmed record's services
+
+Load them through `ServiceRecordItemReader`, never
+`ServiceRecordItemRepository` directly. The reader hydrates each item's
+`lineEntries` — the receipt line by line — which cannot be a lazy JPA relation
+because the app runs with `spring.jpa.open-in-view=false`, and would otherwise
+have to be fetched correctly by each of the five services that read items. One
+of them forgetting would render a record as having no receipt lines, which is
+indistinguishable from a record that genuinely has none. The repository stays
+for writes. `ServiceInputService.getItemsForDraft` is the same single entry
+point on the draft side.
+
+`ServiceLineKind` is the reason the lines exist: only `OPERATION` may be used to
+infer which component was serviced. See `database/CONTEXT.md` and migration 011.
 
 Shared packages:
 

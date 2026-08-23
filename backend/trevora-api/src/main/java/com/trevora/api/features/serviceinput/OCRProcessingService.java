@@ -245,6 +245,7 @@ public class OCRProcessingService {
                 "Mock extracted parts from " + fileName,
                 "Mock extracted labor from receipt image",
                 null,
+                List.of(),
                 classification
         ));
         return new ReceiptExtractionResult(

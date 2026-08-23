@@ -4,7 +4,12 @@
     {
       "name": "trevora-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend/trevora-web", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/trevora-web",
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
@@ -17,7 +22,8 @@
         "backend\\trevora-api\\pom.xml",
         "spring-boot:run"
       ],
-      "port": 8080
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }

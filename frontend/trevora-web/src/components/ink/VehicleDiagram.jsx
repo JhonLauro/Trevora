@@ -61,6 +61,17 @@ export default function VehicleDiagram({ shape, entries, selectedKey, hoverKey, 
                   r={selected ? SELECTED_HALO : HOVER_HALO}
                 />
               )}
+              {/* An opaque disc a little larger than the marker. The dot is
+                  already opaque, but the "no record" dash reads at the same
+                  visual frequency as wheel spokes and tread and dissolves into
+                  them; this gives every marker its own ground regardless of
+                  what it sits on. */}
+              <circle
+                className="vd-marker__moat"
+                cx={x}
+                cy={y}
+                r={(selected ? MARKER_RADIUS + 2 : MARKER_RADIUS + (hovered ? 1 : 0)) + 3}
+              />
               <circle
                 className="vd-marker__dot"
                 cx={x}

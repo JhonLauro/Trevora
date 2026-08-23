@@ -16,7 +16,7 @@ import com.trevora.api.features.sharing.MechanicAccessRequest;
 import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
-import com.trevora.api.features.servicerecord.ServiceRecordItemRepository;
+import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import com.trevora.api.features.vehicle.VehicleRepository;
 import java.time.Instant;
@@ -39,7 +39,7 @@ public class MechanicAccessService {
     private final MechanicAccessRepository mechanicAccessRepository;
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceRecordRepository serviceRecordRepository;
-    private final ServiceRecordItemRepository serviceRecordItemRepository;
+    private final ServiceRecordItemReader serviceRecordItemReader;
     private final VehicleRepository vehicleRepository;
     private final CurrentUserService currentUserService;
 
@@ -48,7 +48,7 @@ public class MechanicAccessService {
             MechanicAccessRepository mechanicAccessRepository,
             ServiceDraftRepository serviceDraftRepository,
             ServiceRecordRepository serviceRecordRepository,
-            ServiceRecordItemRepository serviceRecordItemRepository,
+            ServiceRecordItemReader serviceRecordItemReader,
             VehicleRepository vehicleRepository,
             CurrentUserService currentUserService
     ) {
@@ -56,7 +56,7 @@ public class MechanicAccessService {
         this.mechanicAccessRepository = mechanicAccessRepository;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceRecordRepository = serviceRecordRepository;
-        this.serviceRecordItemRepository = serviceRecordItemRepository;
+        this.serviceRecordItemReader = serviceRecordItemReader;
         this.vehicleRepository = vehicleRepository;
         this.currentUserService = currentUserService;
     }
@@ -167,7 +167,7 @@ public class MechanicAccessService {
         ServiceDraft sourceDraft = serviceDraftRepository
                 .findByDraftIdAndOwnerId(record.getDraftId(), record.getOwnerId())
                 .orElse(null);
-        List<ServiceRecordItem> items = serviceRecordItemRepository.findByRecordIdOrderBySortOrder(record.getRecordId());
+        List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
         return MechanicSharedServiceRecordResponse.from(record, items, sourceDraft);
     }
 

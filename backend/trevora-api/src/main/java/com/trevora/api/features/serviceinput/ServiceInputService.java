@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ServiceInputService {
     private final ServiceDraftRepository serviceDraftRepository;
     private final ServiceDraftItemRepository serviceDraftItemRepository;
+    private final ServiceDraftLineEntryRepository serviceDraftLineEntryRepository;
     private final VehicleService vehicleService;
     private final OCRProcessingService ocrProcessingService;
     private final VoiceProcessingService voiceProcessingService;
@@ -37,6 +39,7 @@ public class ServiceInputService {
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
             ServiceDraftItemRepository serviceDraftItemRepository,
+            ServiceDraftLineEntryRepository serviceDraftLineEntryRepository,
             VehicleService vehicleService,
             OCRProcessingService ocrProcessingService,
             VoiceProcessingService voiceProcessingService,
@@ -46,6 +49,7 @@ public class ServiceInputService {
     ) {
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceDraftItemRepository = serviceDraftItemRepository;
+        this.serviceDraftLineEntryRepository = serviceDraftLineEntryRepository;
         this.vehicleService = vehicleService;
         this.ocrProcessingService = ocrProcessingService;
         this.voiceProcessingService = voiceProcessingService;
@@ -190,8 +194,56 @@ public class ServiceInputService {
                 .orElseThrow(() -> new ResourceNotFoundException("Service draft was not found."));
     }
 
+    /**
+     * The draft's services, each hydrated with its receipt lines.
+     *
+     * <p>Every read path for draft items goes through here, which is what makes
+     * {@link ServiceDraftItem#getLineEntries()} safe to read without checking
+     * whether someone remembered to populate it. Lines are fetched in one query
+     * for the whole draft rather than one per item.
+     */
     public List<ServiceDraftItem> getItemsForDraft(UUID draftId) {
-        return serviceDraftItemRepository.findByDraftIdOrderBySortOrder(draftId);
+        return hydrateLineEntries(serviceDraftItemRepository.findByDraftIdOrderBySortOrder(draftId));
+    }
+
+    private List<ServiceDraftItem> hydrateLineEntries(List<ServiceDraftItem> items) {
+        if (items.isEmpty()) {
+            return items;
+        }
+        Map<UUID, List<ServiceDraftLineEntry>> byItem = serviceDraftLineEntryRepository
+                .findByItemIdInOrderByItemIdAscSortOrderAsc(items.stream().map(ServiceDraftItem::getItemId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(ServiceDraftLineEntry::getItemId));
+        items.forEach(item -> item.setLineEntries(byItem.getOrDefault(item.getItemId(), List.of())));
+        return items;
+    }
+
+    /**
+     * Persists the receipt lines under an item.
+     *
+     * <p>Kind is resolved through {@link ServiceLineKind#fromNullable}, so a
+     * value neither the model nor the client recognises lands on MATERIAL
+     * rather than failing the whole save. A miscategorised line is a correction
+     * the owner can make; a rejected draft is a receipt they have to re-shoot.
+     */
+    private void saveLineEntries(UUID itemId, List<ServiceLineEntryFields> entries) {
+        int order = 0;
+        for (ServiceLineEntryFields fields : entries) {
+            String description = blankToNull(fields.description());
+            if (description == null) {
+                continue;
+            }
+            ServiceDraftLineEntry entry = new ServiceDraftLineEntry();
+            entry.setItemId(itemId);
+            entry.setKind(ServiceLineKind.fromNullable(fields.kind()));
+            entry.setDescription(description);
+            entry.setPartCode(blankToNull(fields.partCode()));
+            entry.setQuantity(fields.quantity());
+            entry.setUnitPrice(fields.unitPrice());
+            entry.setLineTotal(fields.lineTotal());
+            entry.setSortOrder(order++);
+            serviceDraftLineEntryRepository.save(entry);
+        }
     }
 
     @Transactional
@@ -228,7 +280,17 @@ public class ServiceInputService {
             );
             item.setServiceCategory(classification.serviceCategory());
             item.setFieldMetadata(classification.toMetadata());
-            serviceDraftItemRepository.save(item);
+            ServiceDraftItem savedItem = serviceDraftItemRepository.save(item);
+            saveLineEntries(savedItem.getItemId(), itemRequest.lineEntriesOrEmpty().stream()
+                    .map(request -> new ServiceLineEntryFields(
+                            request.kind(),
+                            request.description(),
+                            request.partCode(),
+                            request.quantity(),
+                            request.unitPrice(),
+                            request.lineTotal()
+                    ))
+                    .toList());
         }
     }
 
@@ -254,7 +316,8 @@ public class ServiceInputService {
                 item.setServiceCategory(classification.serviceCategory());
                 item.setFieldMetadata(classification.toMetadata());
             }
-            serviceDraftItemRepository.save(item);
+            ServiceDraftItem savedItem = serviceDraftItemRepository.save(item);
+            saveLineEntries(savedItem.getItemId(), itemFields.lineEntriesOrEmpty());
         }
     }
 

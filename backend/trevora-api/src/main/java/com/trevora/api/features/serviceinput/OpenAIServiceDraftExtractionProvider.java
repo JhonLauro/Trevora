@@ -392,6 +392,7 @@ public class OpenAIServiceDraftExtractionProvider {
                     asText(itemNode.get("partsReplaced")),
                     asText(itemNode.get("laborPerformed")),
                     asBigDecimal(itemNode.get("lineCost")),
+                    List.of(),
                     null
             ));
         }
