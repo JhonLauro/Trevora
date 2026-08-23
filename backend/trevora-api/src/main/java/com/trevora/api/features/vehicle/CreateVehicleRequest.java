@@ -8,8 +8,8 @@ public record CreateVehicleRequest(
         @NotBlank String make,
         @NotBlank String model,
         @Pattern(
-                regexp = "sedan|hatchback|suv|mpv|pickup|van|motorcycle",
-                message = "Body type must be one of: sedan, hatchback, suv, mpv, pickup, van, motorcycle"
+                regexp = "sedan|hatchback|suv|mpv|pickup|van|scooter|underbone|motorcycle",
+                message = "Body type must be one of: sedan, hatchback, suv, mpv, pickup, van, scooter, underbone, motorcycle"
         )
         String bodyType,
         @Min(1886) Integer year,

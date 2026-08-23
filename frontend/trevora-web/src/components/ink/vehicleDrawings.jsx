@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * The parts map artwork: nine drawings across two views.
+ * The parts map artwork: twelve drawings across two views.
  *
  * Split from `vehicleShapes.js`, which owns the viewBoxes, the marker anchors
  * and which views a body type gets. This file is only the picture.
@@ -227,14 +227,14 @@ export const VAN = (
 );
 
 /**
- * Motorcycle — a generic naked standard: exposed frame and engine, upright
- * bars, no leg shield and no step-through.
+ * Big bike — a naked standard: exposed frame and engine, upright bars, no leg
+ * shield and no step-through.
  *
- * Deliberately not a scooter, and deliberately not three sub-type drawings.
- * `bodyType` records `motorcycle`, not underbone or big bike, so a sub-type
- * drawing would be a guess dressed as a fact — the same failure as
- * substituting a default silhouette for an unknown body type. A naked bike
- * claims nothing that a scooter drawing claims.
+ * Also the fallback for any row still carrying the bare `motorcycle` body
+ * type, which is every bike created before `scooter` and `underbone` existed.
+ * Of the three it is the one that can stand in for the others: it claims no
+ * bodywork, so it under-describes a scooter rather than inventing an apron and
+ * a floorboard the vehicle may not have.
  */
 export const MOTORCYCLE = (
   <>
@@ -270,6 +270,73 @@ export const MOTORCYCLE = (
     <path d="M10 316 H630" stroke={GROUND} strokeWidth="1.5" />
     <text x="12" y="334" className="vd-label">FRONT</text>
     <text x="628" y="334" textAnchor="end" className="vd-label">REAR</text>
+  </>
+);
+
+/**
+ * Scooter — step-through with a full front apron, a flat floorboard between
+ * the feet, small wheels, and the CVT unit swinging with the rear wheel.
+ *
+ * The three bike drawings are separated by things an owner can name without
+ * looking, not by proportion: this one has the apron and the floorboard, and
+ * no visible engine at all.
+ */
+export const SCOOTER = (
+  <>
+    <ellipse cx="142" cy="313" rx="48" ry="5" fill={RECESS} /><ellipse cx="490" cy="313" rx="48" ry="5" fill={RECESS} />
+    <path d="M382 234 C382 216 396 206 416 208 L448 214 C482 222 512 244 518 268 C522 288 508 298 488 298 L410 290 C392 288 384 274 382 258 Z" fill={PANEL} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M500 276 L556 270 C570 268 576 275 576 285 L576 295 C576 305 569 310 556 308 L500 302 Z" fill={NEAR} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <use href={`#${WHEEL_ID}`} transform="translate(142,268) scale(0.957)" /><use href={`#${WHEEL_ID}`} transform="translate(490,268) scale(0.957)" />
+    <circle cx="142" cy="268" r="26" fill="none" stroke={LINE} strokeWidth="3" />
+    <path d="M142 268 L196 152" stroke={EDGE} strokeWidth="10" strokeLinecap="round" />
+    <path d="M100 226 C122 208 164 206 188 220 L182 236 C162 225 126 227 108 238 Z" fill={PANEL} stroke={EDGE} strokeWidth="2.2" strokeLinejoin="round" />
+    <path d="M222 92 L288 84" stroke={EDGE} strokeWidth="7" strokeLinecap="round" />
+    <path d="M182 130 C186 112 204 100 226 100 L252 102 C266 104 272 114 270 128 L258 200 L246 246 L198 250 C184 250 178 240 180 226 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M186 138 L210 134 L212 158 L188 162 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.2" strokeLinejoin="round" />
+    <path d="M198 232 L336 228 L338 258 L200 262 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M318 176 C322 156 344 146 372 144 L470 140 C500 138 516 152 520 176 L528 226 C532 250 520 262 496 262 L344 258 C324 257 314 246 316 228 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M334 158 L500 150 C514 150 520 158 518 168 L340 178 C328 178 324 166 334 158 Z" fill={PANEL} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M330 214 L522 208" stroke={LINE} strokeWidth="1.6" />
+    <path d="M10 313 H630" stroke={GROUND} strokeWidth="1.5" />
+    <text x="12" y="326" className="vd-label">FRONT</text>
+    <text x="628" y="326" textAnchor="end" className="vd-label">REAR</text>
+  </>
+);
+
+/**
+ * Underbone — step-through like the scooter, but with a short leg shield
+ * instead of a full apron, a backbone frame, a bare horizontal cylinder and a
+ * visible chain.
+ *
+ * The exposed cylinder and the chain are what tell it from a scooter; the
+ * step-through is what tells it from a big bike.
+ */
+export const UNDERBONE = (
+  <>
+    <ellipse cx="150" cy="313" rx="54" ry="5" fill={RECESS} /><ellipse cx="488" cy="313" rx="54" ry="5" fill={RECESS} />
+    <path d="M266 264 C250 288 268 300 300 302 L468 304" fill="none" stroke={LINE} strokeWidth="10" strokeLinecap="round" />
+    <path d="M460 288 L530 282 C544 281 550 288 550 297 L550 304 C550 312 543 316 530 314 L460 306 Z" fill={NEAR} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M420 250 L488 262" stroke={EDGE} strokeWidth="11" strokeLinecap="round" />
+    <use href={`#${WHEEL_ID}`} transform="translate(150,262) scale(1.087)" /><use href={`#${WHEEL_ID}`} transform="translate(488,262) scale(1.087)" />
+    <circle cx="150" cy="262" r="28" fill="none" stroke={LINE} strokeWidth="3" />
+    <path d="M424 262 L484 262" stroke={EDGE} strokeWidth="3.5" strokeDasharray="5 4" />
+    <path d="M150 262 L206 146" stroke={EDGE} strokeWidth="10" strokeLinecap="round" />
+    <path d="M108 220 C130 202 174 200 198 214 L192 230 C172 219 134 221 116 232 Z" fill={PANEL} stroke={EDGE} strokeWidth="2.2" strokeLinejoin="round" />
+    <path d="M218 90 L284 82" stroke={EDGE} strokeWidth="7" strokeLinecap="round" />
+    <path d="M212 140 L268 186 L330 202" stroke={EDGE} strokeWidth="11" strokeLinecap="round" />
+    <path d="M186 124 C192 106 210 96 232 98 L254 102 C266 106 270 116 266 128 L254 172 L226 178 C210 178 202 168 202 154 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M188 132 L212 128 L214 150 L190 154 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.2" strokeLinejoin="round" />
+    <path d="M254 200 L330 196 L332 224 L256 228 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M330 172 C334 156 352 148 376 148 L470 146 C492 146 504 158 504 176 L504 190 L336 200 C330 198 328 188 330 172 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M488 152 L536 146 C548 145 554 152 552 164 L506 174 Z" fill={PANEL} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M336 200 L446 194 C460 194 466 202 466 212 L466 220 C466 230 458 236 446 236 L350 234 C338 234 332 226 332 216 Z" fill={PANEL} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M258 228 L274 226 L278 270 L262 272 Z" fill={RECESS} stroke={EDGE} strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M270 232 L340 226 L344 262 L274 268 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M274 238 L342 232 M276 246 L344 240 M278 254 L346 248" stroke={LINE} strokeWidth="1.8" />
+    <path d="M336 236 C336 222 348 214 364 216 L400 222 C420 226 430 240 430 258 L430 272 C430 286 420 292 406 290 L354 282 C340 280 332 268 332 254 Z" fill={PANEL} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M10 313 H630" stroke={GROUND} strokeWidth="1.5" />
+    <text x="12" y="326" className="vd-label">FRONT</text>
+    <text x="628" y="326" textAnchor="end" className="vd-label">REAR</text>
   </>
 );
 
@@ -388,5 +455,42 @@ export const MOTORCYCLE_BAY = (
     <path d="M10 408 H630" stroke={GROUND} strokeWidth="1.5" />
     <text x="12" y="424" className="vd-label">FRONT</text>
     <text x="628" y="424" textAnchor="end" className="vd-label">REAR</text>
+  </>
+);
+
+/**
+ * Engine and CVT, scooters. The second view splits on powertrain family
+ * rather than on body type, because a scooter's CVT unit and a chain-driven
+ * engine hung in a frame are not the same object — one drawing could only be
+ * right about one of them.
+ *
+ * The CVT case is the whole point: it carries the rear wheel and swings with
+ * it, which is why `drive` is the one component that appears in both of a
+ * scooter's views. Nothing else in the taxonomy is in two places, and the
+ * label at the foot says why this one is.
+ */
+export const SCOOTER_BAY = (
+  <>
+    <text x="320" y="26" textAnchor="middle" className="vd-label">LEFT SIDE — FRONT AT LEFT</text>
+    <path d="M352 232 C352 210 372 196 402 200 L470 214 C536 228 594 252 600 286 C606 318 578 336 540 332 L404 314 C368 308 352 286 352 262 Z" fill={PANEL} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M368 250 C420 240 520 258 578 288" fill="none" stroke={LINE} strokeWidth="1.8" />
+    <circle cx="392" cy="256" r="30" fill={PAPER} stroke={LINE} strokeWidth="2" />
+    <circle cx="556" cy="292" r="26" fill={PAPER} stroke={LINE} strokeWidth="2" />
+    <path d="M262 208 L352 200 L358 306 L268 314 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <circle cx="322" cy="332" r="15" fill={PAPER} stroke={EDGE} strokeWidth="2.5" /><path d="M312 332 H332" stroke={EDGE} strokeWidth="2" />
+    <path d="M150 214 L266 204 L272 288 L156 298 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M168 210 L174 294 M186 208 L192 292 M204 207 L210 291 M222 205 L228 289 M240 204 L246 288" stroke={LINE} strokeWidth="2" />
+    <path d="M106 218 C90 220 84 232 86 250 L90 274 C92 290 102 298 118 296 L156 292 L150 218 Z" fill={PANEL} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M100 234 L142 230 M102 252 L144 248 M104 270 L146 266" stroke={LINE} strokeWidth="2.5" />
+    <path d="M330 96 L472 84 C494 82 506 94 506 116 L506 158 C506 178 494 188 474 188 L344 178 C326 177 318 166 318 148 L318 118 C318 104 322 98 330 96 Z" fill={NEAR} stroke={EDGE} strokeWidth="3" strokeLinejoin="round" />
+    <path d="M320 140 L504 126" stroke={LINE} strokeWidth="1.6" />
+    <path d="M348 186 C352 208 350 220 348 232" fill="none" stroke={LINE} strokeWidth="14" />
+    <path d="M348 186 C352 208 350 220 348 232" fill="none" stroke={PANEL} strokeWidth="10" />
+    <path d="M348 186 C352 208 350 220 348 232" fill="none" stroke={LINE} strokeWidth="10" strokeDasharray="2 6" />
+    <rect x="146" y="86" width="112" height="78" rx="6" fill={NEAR} stroke={EDGE} strokeWidth="3" />
+    <circle cx="170" cy="98" r="9" fill={CAVITY} stroke={EDGE} strokeWidth="2" /><circle cx="236" cy="98" r="9" fill={CAVITY} stroke={EDGE} strokeWidth="2" />
+    <path d="M146 122 H258 M146 144 H258" stroke={LINE} strokeWidth="1.6" />
+    <path d="M120 176 L560 168" stroke={CAVITY} strokeWidth="7" strokeLinecap="round" />
+    <text x="320" y="418" textAnchor="middle" className="vd-label">CVT CASE SWINGS WITH THE REAR WHEEL</text>
   </>
 );

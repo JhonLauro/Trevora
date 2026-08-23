@@ -74,12 +74,32 @@ export const BODY_TYPES = [
     description: 'Boxy, built for cargo or many passengers',
     examples: 'Hiace, L300, Urvan',
   },
+  /* The three two-wheelers are separated by things an owner can name without
+     looking — an apron and a floorboard, or a bare cylinder and a chain, or
+     neither — rather than by engine size or by the word "scooter", which not
+     everyone uses the same way. All three share `vehicleClass: 'motorcycle'`,
+     so the component taxonomy is identical across them; only the drawing
+     changes. */
+  {
+    id: 'scooter',
+    label: 'Scooter',
+    vehicleClass: 'motorcycle',
+    description: 'Step-through with a floorboard and no visible engine',
+    examples: 'Click, Mio, NMAX',
+  },
+  {
+    id: 'underbone',
+    label: 'Underbone',
+    vehicleClass: 'motorcycle',
+    description: 'Step-through with an exposed engine and a chain',
+    examples: 'Raider, Sniper, XRM',
+  },
   {
     id: 'motorcycle',
-    label: 'Motorcycle',
+    label: 'Big bike',
     vehicleClass: 'motorcycle',
-    description: 'Two wheels — scooter, underbone or big bike',
-    examples: 'Click, Mio, NMAX',
+    description: 'No leg shield, with a fuel tank you sit behind',
+    examples: 'Ninja 400, YZF-R15, Rouser',
   },
 ];
 
@@ -141,14 +161,14 @@ export const VEHICLE_CATALOG = {
     'CR-V': 'suv',
     'WR-V': 'suv',
     Odyssey: 'van',
-    'Click 125i': 'motorcycle',
-    Beat: 'motorcycle',
-    'PCX160': 'motorcycle',
-    'ADV160': 'motorcycle',
-    'XRM125': 'motorcycle',
-    'TMX125': 'motorcycle',
-    'Wave 110': 'motorcycle',
-    Airblade: 'motorcycle',
+    'Click 125i': 'scooter',
+    Beat: 'scooter',
+    'PCX160': 'scooter',
+    'ADV160': 'scooter',
+    'XRM125': 'underbone',
+    'TMX125': 'underbone',
+    'Wave 110': 'underbone',
+    Airblade: 'scooter',
   },
   Nissan: {
     Almera: 'sedan',
@@ -183,10 +203,10 @@ export const VEHICLE_CATALOG = {
     Vitara: 'suv',
     APV: 'van',
     Carry: 'van',
-    'Raider R150': 'motorcycle',
-    'Smash 115': 'motorcycle',
-    Skydrive: 'motorcycle',
-    'Burgman Street': 'motorcycle',
+    'Raider R150': 'underbone',
+    'Smash 115': 'underbone',
+    Skydrive: 'scooter',
+    'Burgman Street': 'scooter',
   },
   Isuzu: {
     'D-Max': 'pickup',
@@ -274,12 +294,12 @@ export const VEHICLE_CATALOG = {
     Transvan: 'van',
   },
   Yamaha: {
-    'Mio i125': 'motorcycle',
-    'Mio Sporty': 'motorcycle',
-    'Mio Gear': 'motorcycle',
-    NMAX: 'motorcycle',
-    Aerox: 'motorcycle',
-    'Sniper 155': 'motorcycle',
+    'Mio i125': 'scooter',
+    'Mio Sporty': 'scooter',
+    'Mio Gear': 'scooter',
+    NMAX: 'scooter',
+    Aerox: 'scooter',
+    'Sniper 155': 'underbone',
     'YZF-R15': 'motorcycle',
   },
   Kawasaki: {

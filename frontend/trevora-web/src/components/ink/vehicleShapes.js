@@ -17,19 +17,22 @@
  * radius 13 with 30 units of clearance they do not fit, and relocating them
  * until they do is the lie the second drawing avoids.
  *
- * **Side is per body type; the bay is per vehicle class.** The side profile is
+ * **Side is per body type; the second view is per powertrain family.** The side profile is
  * the view every owner recognises, so that is where the per-type effort goes.
  * An MPV's bay and a pickup's bay genuinely look alike, and neither owner has
  * ever seen theirs from directly above, so one shared drawing there is honest
  * rather than lazy.
  *
- * **Each component appears in exactly one view** — a car's brakes are at the
- * wheels, its cooling system is under the bonnet — so the two views partition
- * the taxonomy rather than overlapping. Marker numbers are global (the
- * component's position in the class taxonomy), not per view, so 5 is Tires on
- * every tab and every body type.
+ * **Each component appears in one view, with a single deliberate exception** —
+ * a car's brakes are at the wheels, its cooling system is under the bonnet, so
+ * the two views partition the taxonomy rather than overlapping. The exception
+ * is `drive` on a scooter: the CVT case is visible from the side *and* is the
+ * subject of the engine view, because it carries the rear wheel. Marker
+ * numbers are global (the component's position in the class taxonomy), not per
+ * view, so 5 is Tires on every tab and every body type — including the
+ * component that appears twice.
  *
- * All nine drawings are 640 units wide and vary in height, so they render at
+ * All twelve drawings are 640 units wide and vary in height, so they render at
  * one consistent scale in the panel: a van is visibly taller than a sedan, a
  * pickup visibly longer in the wheelbase.
  *
@@ -47,8 +50,11 @@ import {
   MOTORCYCLE_BAY,
   MPV,
   PICKUP,
+  SCOOTER,
+  SCOOTER_BAY,
   SEDAN,
   SUV,
+  UNDERBONE,
   VAN,
 } from './vehicleDrawings.jsx';
 
@@ -115,12 +121,32 @@ const SIDE_SHAPES = {
     },
   },
 
+  /* The bare `motorcycle` id is the big bike, and doubles as the fallback for
+     every bike registered before the split. */
   motorcycle: {
     art: MOTORCYCLE,
     viewBox: '0 0 640 340',
     anchors: {
       lights: [206, 150], fairings: [330, 156], suspension: [176, 214],
       brakes: [150, 256], tires: [522, 220], exhaust: [512, 300], drive: [424, 292],
+    },
+  },
+
+  scooter: {
+    art: SCOOTER,
+    viewBox: '0 0 640 330',
+    anchors: {
+      lights: [196, 146], fairings: [250, 180], suspension: [172, 206],
+      brakes: [142, 268], tires: [490, 268], exhaust: [540, 290], drive: [440, 246],
+    },
+  },
+
+  underbone: {
+    art: UNDERBONE,
+    viewBox: '0 0 640 330',
+    anchors: {
+      lights: [198, 140], fairings: [400, 172], suspension: [178, 200],
+      brakes: [150, 262], tires: [488, 262], exhaust: [516, 296], drive: [452, 282],
     },
   },
 };
@@ -143,6 +169,28 @@ const BAY_SHAPES = {
       engine: [300, 330], fluids: [268, 362],
     },
   },
+
+  scooter: {
+    art: SCOOTER_BAY,
+    viewBox: '0 0 640 430',
+    anchors: {
+      drive: [500, 268], cooling: [118, 256], airFilter: [406, 136],
+      battery: [202, 124], engine: [308, 252], fluids: [322, 332],
+    },
+  },
+};
+
+/* Which second-view drawing a body type gets. Anything absent is a car. */
+const POWERTRAIN = {
+  scooter: 'scooter',
+  underbone: 'motorcycle',
+  motorcycle: 'motorcycle',
+};
+
+const BAY_LABELS = {
+  car: 'Under the bonnet',
+  motorcycle: 'Engine and frame',
+  scooter: 'Engine and CVT',
 };
 
 /**
@@ -155,7 +203,11 @@ export function vehicleViews(bodyType) {
   const side = SIDE_SHAPES[bodyType];
   if (!side) return [];
 
-  const motorcycle = bodyType === 'motorcycle';
+  // The second view splits on powertrain family, not on body type. A scooter's
+  // CVT unit and a chain-driven engine in a frame share nothing, so they get
+  // separate drawings; an underbone and a big bike share both, so they share
+  // one. Cars all share the bay — an MPV's and a pickup's genuinely look alike.
+  const bay = BAY_SHAPES[POWERTRAIN[bodyType]] ?? BAY_SHAPES.car;
 
   return [
     { id: 'side', label: 'Side', shape: side },
@@ -163,8 +215,8 @@ export function vehicleViews(bodyType) {
       id: 'engineBay',
       // A bike has no bay to look down into, so its second drawing is a
       // left-side close-up and the tab has to say something else.
-      label: motorcycle ? 'Engine and frame' : 'Under the bonnet',
-      shape: motorcycle ? BAY_SHAPES.motorcycle : BAY_SHAPES.car,
+      label: BAY_LABELS[POWERTRAIN[bodyType]] ?? BAY_LABELS.car,
+      shape: bay,
     },
   ];
 }

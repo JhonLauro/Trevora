@@ -81,11 +81,13 @@ const SHAPES = {
  * motorcycle from a bicycle in silhouette is **mass**: fat tyres and a solid
  * body filling the space between them, rather than a frame made of lines.
  *
- * Drawn as a scooter, since that is what most riders here are registering —
- * Click, Mio, NMAX. The step-through gap between leg shield and seat is the
- * scooter's own signature.
+ * The three bikes are told apart the same way the six cars are: by the one
+ * trait that survives 72px. The scooter has a tall leg shield closing the
+ * front and an unbroken floorboard; the underbone breaks that floor with a
+ * bare cylinder hanging below it; the big bike has no shield at all and a
+ * tank filling the space the scooter leaves empty.
  */
-function Motorcycle() {
+function Scooter() {
   return (
     <g fill="currentColor">
       <circle cx="16" cy="27" r="8.5" />
@@ -102,11 +104,68 @@ function Motorcycle() {
   );
 }
 
+/**
+ * Underbone — the step-through is still there, but the floor is broken by a
+ * horizontal cylinder slung under it and the leg shield stops low. Those two
+ * things are the whole difference from the scooter at this size.
+ */
+function Underbone() {
+  return (
+    <g fill="currentColor">
+      <circle cx="16" cy="27" r="8.5" />
+      <circle cx="60" cy="27" r="8.5" />
+      {/* Handlebar */}
+      <path d="M17 7 L31 7 C32 7 32.5 7.6 32.5 8.5 L32.5 10 C32.5 10.9 32 11.5 31 11.5 L17 11.5 C16 11.5 15.5 10.9 15.5 10 L15.5 8.5 C15.5 7.6 16 7 17 7 Z" />
+      {/* Short leg shield — stops well above the floor */}
+      <path d="M23 10 L29.5 10 L30 17 L25 17.5 Z" />
+      {/* Backbone spine running back from the headstock */}
+      <path d="M24 12 L38 18 L38 21.5 L24 15.5 Z" />
+      {/* Floor, narrower than the scooter's */}
+      <path d="M26 20 L40 20 L41 24 L27 24 Z" />
+      {/* The tell: a bare horizontal cylinder hanging below the floor line */}
+      <path d="M31 24 L45 24 L47 30.5 L33 30.5 Z" />
+      {/* Seat and rear body */}
+      <path d="M38 20 L41 15 C42 13.8 43.5 13.3 45.5 13.3 L58 13.3 C61 13.3 62.5 14.3 63.5 16.8 L66 24 L60 26 L45 24 L39 22 Z" />
+    </g>
+  );
+}
+
+/**
+ * Big bike — no shield, no step-through. The tank is the mass that fills the
+ * space the other two leave open between the bars and the seat, and the
+ * engine sits high between the wheels rather than under a floor.
+ */
+function BigBike() {
+  return (
+    <g fill="currentColor">
+      <circle cx="15" cy="26" r="9.5" />
+      <circle cx="61" cy="26" r="9.5" />
+      {/* Handlebar, lower and further forward than a scooter's */}
+      <path d="M19 8 L32 8 C33 8 33.5 8.6 33.5 9.5 L33.5 11 C33.5 11.9 33 12.5 32 12.5 L19 12.5 C18 12.5 17.5 11.9 17.5 11 L17.5 9.5 C17.5 8.6 18 8 19 8 Z" />
+      {/* Front fork, left bare — nothing encloses the front of this bike */}
+      <path d="M21 11 L26.5 11 L31 23 L26 23 Z" />
+      {/* Fuel tank: the signature. Swells up between bars and seat. */}
+      <path d="M29 18 C31 14.2 34 12.5 39 12.3 L50 12 L51 19.5 L31 21.5 Z" />
+      {/* Seat and tail, running flat off the back of the tank */}
+      <path d="M48 12.5 L60 12.5 C63 12.5 64.5 13.5 65.5 16 L67 20.5 L60 22 L48 20 Z" />
+      {/* Engine mass, high and exposed between the wheels */}
+      <path d="M31 21 L52 19.5 L54 29 L33 30.5 Z" />
+    </g>
+  );
+}
+
+const BIKE_GLYPHS = {
+  scooter: Scooter,
+  underbone: Underbone,
+  motorcycle: BigBike,
+};
+
 export default function BodyTypeGlyph({ bodyType }) {
-  if (bodyType === 'motorcycle') {
+  const Bike = BIKE_GLYPHS[bodyType];
+  if (Bike) {
     return (
       <svg className="body-glyph" viewBox={VIEW_BOX} aria-hidden="true" focusable="false">
-        <Motorcycle />
+        <Bike />
       </svg>
     );
   }
