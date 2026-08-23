@@ -23,6 +23,8 @@ public class OpenAIServiceDraftExtractionProvider {
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
     private static final int MAX_OCR_CHARS = 12000;
     private static final int MAX_VOICE_TRANSCRIPT_CHARS = 8000;
+    /** Pesos of slack before a lines-versus-total gap is worth reporting: VAT rounding. */
+    private static final BigDecimal RECONCILE_TOLERANCE = new BigDecimal("1.00");
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -41,13 +43,23 @@ public class OpenAIServiceDraftExtractionProvider {
     }
 
     public ReceiptDraftFields extractFields(String rawOcrText) {
+        return extractFields(rawOcrText, VehicleContext.UNKNOWN);
+    }
+
+    /**
+     * @param vehicle what the system already knows about the vehicle. Used to
+     *     disambiguate wording and to choose the component vocabulary the model
+     *     is allowed to answer from; never a source of extracted values.
+     */
+    public ReceiptDraftFields extractFields(String rawOcrText, VehicleContext vehicle) {
         if (apiKey == null) {
             throw new ReceiptProcessingException("OpenAI extraction is enabled but OPENAI_API_KEY is not configured.");
         }
 
+        VehicleContext context = vehicle == null ? VehicleContext.UNKNOWN : vehicle;
         return requestExtraction(
-                systemPrompt(),
-                "OCR text:\n" + truncate(rawOcrText, MAX_OCR_CHARS),
+                systemPrompt(context),
+                context.toPromptBlock() + "\nOCR text:\n" + truncate(rawOcrText, MAX_OCR_CHARS),
                 "OpenAI extraction"
         );
     }
@@ -144,6 +156,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 location = null;
                 warnings.add("Location was not directly supported by receipt text and was left blank.");
             }
+            reconcile(services, totalCost, warnings);
             return new ReceiptDraftFields(
                     serviceDate,
                     services,
@@ -164,11 +177,41 @@ public class OpenAIServiceDraftExtractionProvider {
         }
     }
 
-    private String systemPrompt() {
+    private String systemPrompt(VehicleContext vehicle) {
         return """
                 You are a vehicle service record extraction specialist for service center receipts, invoices, job orders, and official receipts.
                 Use only the OCR text and page/source metadata. Do not use outside knowledge.
+
+                A vehicle description is given above the OCR text. It is context for interpretation
+                only and is NEVER a source of extracted values. Do not copy the make, model, year,
+                plate number or odometer from it into any field: if the receipt does not print a
+                value, that value is missing, no matter what the vehicle block says.
+
+                Use the vehicle for four things and nothing else:
+                1. Disambiguating wording. "CVT" is a transmission on a car and the drive unit on a
+                   scooter or motorcycle. "Chain and sprocket", "roller", "pulley" and "belt" are
+                   drivetrain on a motorcycle. A motorcycle has no air conditioning, so "AC" on a
+                   motorcycle receipt is almost certainly an OCR error or an unrelated line.
+                2. Choosing relatedComponents from the list below, which is already narrowed to the
+                   components this class of vehicle actually has.
+                3. Judging whether an odometer reading is plausible. Odometers only increase. A
+                   reading below the vehicle's last recorded odometer, or implausibly far above it,
+                   should still be extracted as printed but must carry a warning.
+                4. Noticing that the receipt may not belong to this vehicle at all. If the receipt
+                   prints a plate number, make or model that clearly conflicts with the vehicle
+                   above, extract what the receipt says and add a warning naming the conflict. Do
+                   not silently correct either one.
                 Return strict JSON only. Do not include markdown or explanation.
+
+                The OCR text preserves the printed layout where it could be recovered. Each line of
+                the text is one row as it was printed on the paper, and a vertical bar separates
+                columns within that row. So "REPLACE CONDENSER | 350.00" is a single printed row whose
+                description column reads REPLACE CONDENSER and whose amount column reads 350.00, and
+                the amount belongs to that line and no other. Use this: it is the difference between
+                knowing which price goes with which line and guessing.
+                A row may have one column or several. Some receipts recover no layout at all and
+                arrive as plain reading order; when there are no bars, fall back to reading the text
+                as prose and say so in a warning if line amounts become uncertain.
 
                 Receipts come from many different shops with no fixed layout. The OCR text may still contain
                 content that is not part of the service transaction itself. Ignore the following entirely -
@@ -196,6 +239,82 @@ public class OpenAIServiceDraftExtractionProvider {
                 and laborPerformed. If only one service was performed, return a single-entry array.
                 If the receipt truly has no identifiable services, return an empty array.
 
+                LINE ENTRIES - the most important part of this task.
+
+                Every printed, itemised line on the receipt must appear exactly once in the
+                "lineEntries" array of the service it belongs to. A line is one of exactly four kinds,
+                and getting the kind right matters more than getting the wording right:
+
+                OPERATION - labour the shop performed. Verbs and job names: "REPLACE CONDENSER",
+                  "PAINTING JOB", "SRA/FIX", "CHANGE OIL", "WHEEL ALIGNMENT", "CBWS".
+                  This is the ONLY kind that says which part of the vehicle was worked on.
+                PART - a component fitted to the vehicle and still on it when it leaves:
+                  "CONDENSER", "OIL FILTER", "BRAKE PAD SET", "FLOORMAT", "PLASTIC COVER SET".
+                MATERIAL - consumed doing the work, not part of the vehicle: paint, thinner,
+                  masking tape, masking paper, degreaser, rubbing compound, body filler, waste pads,
+                  rags, cleaning cloths, sandpaper, sealant.
+                FEE - charged but neither: shop supplies, disposal, towing, diagnostic fee,
+                  environmental charge, handling.
+
+                Why the distinction matters: a body-and-paint invoice bills a painting job, a floor mat,
+                and eleven consumables including a waste pad. Read as one undifferentiated list, "WASTE
+                PAD" looks like brake work and the owner is shown a brake service that never happened.
+                Materials and fees are evidence of cost only. They never indicate a serviced component.
+
+                The same noun often appears twice, once as a part and once as the labour of fitting it.
+                "CONDENSER 150.00" and "REPLACE CONDENSER 350.00" are two separate lines, one PART and
+                one OPERATION. Do not merge them and do not drop either.
+
+                When you cannot tell which kind a line is, choose MATERIAL. It is the kind that claims
+                least: guessing PART adds a component the vehicle may not have, and guessing OPERATION
+                lets the line be attributed to a part of the vehicle on no evidence.
+
+                COMPLETENESS. Every itemised, priced line printed on the receipt must appear in
+                exactly one service's lineEntries. Before returning, count the lineEntries across all
+                services and compare that count against the number of priced lines on the receipt.
+                They must be equal. A dropped line is money the owner paid that the record will not
+                show, and it makes the totals impossible to reconcile.
+
+                The grouping into services is a convenience; the lines are the record. Never drop a
+                line because it does not fit the service you chose to create. Receipts commonly list
+                all the parts together first and all the labour together afterwards, so a service
+                built around one operation will have parts sitting outside it - attach them to the
+                service they belong to rather than discarding them.
+
+                When in doubt, return FEWER services. One service holding every line is always
+                acceptable and is the right answer whenever the receipt is not clearly divided into
+                separate jobs. Splitting a receipt into one service per operation and losing the
+                part lines is the worst outcome available.
+
+                Do not drop a line because its wording overlaps another line: a receipt billing
+                "CONDENSER 150.00" and "REPLACE CONDENSER 350.00" has two lines, one PART and one
+                OPERATION, and both must be returned.
+
+                Most receipts print one amount per line, with no separate quantity and unit-price
+                columns. When a line shows a single amount, that amount is the lineTotal. Leave
+                unitPrice null unless the receipt actually prints a unit price and a quantity as
+                separate figures. "CONDENSER 150.00" is lineTotal 150.00 with a null unitPrice and a
+                null quantity - not a unit price of 150.00.
+
+                Line prices are factual values and the no-invention rule applies to them in full.
+                Copy quantity, unitPrice and lineTotal only when the number is clearly associated with
+                that line in the OCR text. Receipts are printed as tables, and OCR often separates a
+                column of prices from the descriptions they belong to - when that has happened and you
+                cannot tell which price belongs to which line, return null for those numbers and add a
+                warning. Guessing an amount is worse than omitting it.
+
+                Every lineEntries object must have exactly these keys:
+                kind, description, partCode, quantity, unitPrice, lineTotal.
+                description is the printed text of the line, cleaned of column noise but not reworded.
+                partCode is the shop's own code for the line when one is printed
+                (Toyota OPERATION CODE/PART NO. values such as 72990-YZA12 or TTY-DEGREASER),
+                otherwise null.
+                quantity, unitPrice and lineTotal are numeric or null.
+                If the receipt has no itemised lines at all, return an empty lineEntries array.
+
+                Also return "lineCost" per service: the subtotal for that one service when the receipt
+                prints one, otherwise null. Do not compute it yourself.
+
                 You may classify or infer these per-service fields from OCR text:
                 serviceType, laborPerformed, partsReplaced.
                 Also infer the visit-level "remarks" field (notes that are not specific to one service).
@@ -215,10 +334,12 @@ public class OpenAIServiceDraftExtractionProvider {
                 odometer should be numeric when possible.
                 Classification must use only these serviceCategory values:
                 Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
-                Classification relatedComponents must use only these values:
-                Engine, Engine Oil, Oil Filter, Brakes, Tires, Battery, Air Filter,
-                Transmission, Cooling System, Suspension, Lights, AC System,
-                Electrical, Body, Fluids, Other.
+                Classification relatedComponents must use only these values, which are the
+                components a %s has:
+                %s.
+                Values outside this list are rejected. If the best word for something is not on the
+                list, choose the closest listed component and say so in classification notes rather
+                than inventing a label.
                 You may infer classification labels from serviceType, partsReplaced,
                 laborPerformed, remarks, and OCR text. Do not invent factual values.
                 Mark inferred classification as AI-suggested and set needsOwnerReview true.
@@ -231,7 +352,10 @@ public class OpenAIServiceDraftExtractionProvider {
                 remarks, classification, confidenceNotes, fieldSources,
                 fieldConfidence, aiSuggestedFields, warnings.
                 services must be an array of objects, each with exactly these keys:
-                serviceType, partsReplaced, laborPerformed.
+                serviceType, partsReplaced, laborPerformed, lineCost, lineEntries.
+                partsReplaced and laborPerformed are legacy summary fields kept for older records;
+                fill them in as before, but lineEntries is the authoritative breakdown and a
+                consumable must never be summarised into partsReplaced.
                 classification must be an object with exactly these keys:
                 normalizedServiceType, serviceCategory, relatedComponents, recordTags,
                 confidence, source, needsOwnerReview, notes.
@@ -241,7 +365,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 fieldConfidence must map every field name to high, medium, low, or not_found.
                 aiSuggestedFields must list field names whose sourceType is INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED.
                 warnings must be an array of short user-safe notes about conflicts or limitations.
-                """;
+                """.formatted(
+                vehicle.isMotorcycle() ? "motorcycle" : "car",
+                String.join(", ", vehicle.allowedComponents()));
     }
 
     private String voiceSystemPrompt() {
@@ -282,7 +408,10 @@ public class OpenAIServiceDraftExtractionProvider {
                 remarks, classification, confidenceNotes, fieldSources,
                 fieldConfidence, aiSuggestedFields, warnings.
                 services must be an array of objects, each with exactly these keys:
-                serviceType, partsReplaced, laborPerformed.
+                serviceType, partsReplaced, laborPerformed, lineCost, lineEntries.
+                partsReplaced and laborPerformed are legacy summary fields kept for older records;
+                fill them in as before, but lineEntries is the authoritative breakdown and a
+                consumable must never be summarised into partsReplaced.
                 classification must be an object with exactly these keys:
                 normalizedServiceType, serviceCategory, relatedComponents, recordTags,
                 confidence, source, needsOwnerReview, notes.
@@ -377,6 +506,49 @@ public class OpenAIServiceDraftExtractionProvider {
         return value == null ? List.of() : List.of(value);
     }
 
+    /**
+     * Checks the extraction against itself.
+     *
+     * <p>A receipt carries its own checksum: the itemised lines sum to the
+     * printed total, and when they do not, something was dropped or misread.
+     * This is the one accuracy signal available without knowing the right
+     * answer, and it costs a subtraction.
+     *
+     * <p>It catches the failures that are otherwise invisible. Google Vision
+     * drops blocks below its confidence threshold, silently removing a line and
+     * its cost. OCR turns a printed 350.00 into "350.&#162;" and the line comes
+     * back unpriced. A misread digit turns 1,450.00 into 145.00, which looks
+     * perfectly plausible on its own and is obvious against a total.
+     *
+     * <p>Deliberately a warning rather than a correction. The gap says one of
+     * the two figures is wrong, not which, and quietly rewriting the total to
+     * match the lines would be inventing a value — the thing this pipeline is
+     * least allowed to do. The owner sees the discrepancy and decides.
+     */
+    private void reconcile(List<ServiceItemFields> services, BigDecimal totalCost, List<String> warnings) {
+        if (services == null || services.isEmpty() || totalCost == null) {
+            return;
+        }
+        List<BigDecimal> priced = services.stream()
+                .flatMap(service -> service.lineEntriesOrEmpty().stream())
+                .map(ServiceLineEntryFields::lineTotal)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (priced.isEmpty()) {
+            return;
+        }
+
+        BigDecimal sum = priced.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal gap = sum.subtract(totalCost).abs();
+        if (gap.compareTo(RECONCILE_TOLERANCE) <= 0) {
+            return;
+        }
+        warnings.add(String.format(
+                "The %d itemised lines add up to %s but the receipt total reads %s, a difference of %s."
+                        + " One of the two was misread - check the lines against the receipt before confirming.",
+                priced.size(), sum.toPlainString(), totalCost.toPlainString(), gap.toPlainString()));
+    }
+
     private List<ServiceItemFields> asServiceItems(JsonNode node) {
         List<ServiceItemFields> services = new ArrayList<>();
         if (node == null || node.isNull() || !node.isArray()) {
@@ -392,11 +564,47 @@ public class OpenAIServiceDraftExtractionProvider {
                     asText(itemNode.get("partsReplaced")),
                     asText(itemNode.get("laborPerformed")),
                     asBigDecimal(itemNode.get("lineCost")),
-                    List.of(),
+                    asLineEntries(itemNode.get("lineEntries")),
                     null
             ));
         }
         return services;
+    }
+
+    /**
+     * The itemised lines of one service.
+     *
+     * <p>Until this existed the pipeline passed {@code List.of()} here and every
+     * receipt-created draft saved zero line entries, which left migration
+     * {@code 011} — the schema, the backfill and the whole operation-only
+     * attribution rule — reachable from manual entry and nothing else.
+     *
+     * <p>A line with no description is dropped rather than kept: it cannot be
+     * matched, attributed or shown to anyone, and an unlabelled row on a
+     * receipt breakdown is worse than a missing one. The kind is resolved
+     * through {@link ServiceLineKind#fromNullable}, which defaults anything
+     * unrecognised to MATERIAL — the kind that claims least.
+     */
+    private List<ServiceLineEntryFields> asLineEntries(JsonNode node) {
+        List<ServiceLineEntryFields> entries = new ArrayList<>();
+        if (node == null || node.isNull() || !node.isArray()) {
+            return entries;
+        }
+        for (JsonNode entryNode : node) {
+            String description = asText(entryNode.get("description"));
+            if (description == null) {
+                continue;
+            }
+            entries.add(new ServiceLineEntryFields(
+                    ServiceLineKind.fromNullable(asText(entryNode.get("kind"))).name(),
+                    description,
+                    asText(entryNode.get("partCode")),
+                    asBigDecimal(entryNode.get("quantity")),
+                    asBigDecimal(entryNode.get("unitPrice")),
+                    asBigDecimal(entryNode.get("lineTotal"))
+            ));
+        }
+        return entries;
     }
 
     private Map<String, Object> asObjectMap(JsonNode node) {

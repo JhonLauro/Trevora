@@ -21,7 +21,10 @@ public class ServiceClassificationService {
             "Emergency",
             "Other"
     );
-    public static final List<String> ALLOWED_RELATED_COMPONENTS = List.of(
+    /**
+     * Components both vehicle classes have. An engine is an engine.
+     */
+    private static final List<String> COMMON_COMPONENTS = List.of(
             "Engine",
             "Engine Oil",
             "Oil Filter",
@@ -29,16 +32,58 @@ public class ServiceClassificationService {
             "Tires",
             "Battery",
             "Air Filter",
-            "Transmission",
             "Cooling System",
             "Suspension",
             "Lights",
-            "AC System",
             "Electrical",
-            "Body",
             "Fluids",
             "Other"
     );
+
+    /** A motorcycle has none of these. */
+    private static final List<String> CAR_ONLY_COMPONENTS = List.of(
+            "Transmission",
+            "AC System",
+            "Body"
+    );
+
+    /**
+     * A car has neither of these, and a rider has little else.
+     *
+     * <p>Chain and CVT service is the most frequent thing in a motorcycle's
+     * history and has no car equivalent, so it cannot be folded into
+     * Transmission — which is exactly what happened while this list did not
+     * exist. The frontend has carried the same split for a while; the backend
+     * disagreeing with it meant the backend's answer won and the record
+     * attributed to a component the vehicle does not have.
+     */
+    private static final List<String> MOTORCYCLE_ONLY_COMPONENTS = List.of(
+            "Drive Chain / CVT",
+            "Fairings"
+    );
+
+    public static final List<String> CAR_COMPONENTS = concat(COMMON_COMPONENTS, CAR_ONLY_COMPONENTS);
+    public static final List<String> MOTORCYCLE_COMPONENTS = concat(COMMON_COMPONENTS, MOTORCYCLE_ONLY_COMPONENTS);
+
+    /**
+     * Every component name the system recognises, across both classes.
+     *
+     * <p>Used only for validating what a model returned. Deciding what to
+     * <i>offer</i> a model must always go through the class-specific list —
+     * see {@link VehicleContext#allowedComponents()}.
+     */
+    public static final List<String> ALLOWED_RELATED_COMPONENTS =
+            concat(CAR_COMPONENTS, MOTORCYCLE_ONLY_COMPONENTS);
+
+    private static List<String> concat(List<String> first, List<String> second) {
+        List<String> combined = new ArrayList<>(first);
+        second.forEach(value -> {
+            if (!combined.contains(value)) {
+                combined.add(value);
+            }
+        });
+        return List.copyOf(combined);
+    }
 
     private static final Map<String, String> CATEGORY_LOOKUP = lookup(ALLOWED_SERVICE_CATEGORIES);
     private static final Map<String, String> COMPONENT_LOOKUP = lookup(ALLOWED_RELATED_COMPONENTS);
@@ -49,7 +94,13 @@ public class ServiceClassificationService {
             new KeywordRule("\\bbattery\\b", "Replacement", List.of("Battery", "Electrical"), "Battery Service"),
             new KeywordRule("\\b(coolant|radiator|cooling|thermostat)\\b", "Maintenance", List.of("Cooling System", "Fluids"), "Cooling System Service"),
             new KeywordRule("\\b(air filter|cabin filter)\\b", "Replacement", List.of("Air Filter", "AC System"), "Filter Replacement"),
-            new KeywordRule("\\b(transmission|atf|clutch|cvt)\\b", "Maintenance", List.of("Transmission"), "Transmission Service"),
+            new KeywordRule("\\b(transmission|atf|gearbox)\\b", "Maintenance", List.of("Transmission"), "Transmission Service"),
+            // Chain, sprocket, belt, roller, pulley and CVT are drivetrain on a
+            // bike and have no car equivalent. Filed after the car rule so a
+            // car receipt saying "CVT" still reaches Transmission; the class
+            // filter downstream drops whichever does not apply.
+            new KeywordRule("\\b(chain|sprocket|cvt|belt|roller|pulley|clutch)\\b", "Maintenance", List.of("Drive Chain / CVT"), "Drive / CVT Service"),
+            new KeywordRule("\\b(fairing|cowl|plastic|decal)\\b", "Repair", List.of("Fairings"), "Fairings / Body Service"),
             new KeywordRule("\\b(light|headlight|tail light|taillight|bulb|signal)\\b", "Replacement", List.of("Lights", "Electrical"), "Lights Service"),
             new KeywordRule("\\b(suspension|shock|strut)\\b", "Repair", List.of("Suspension"), "Suspension Service"),
             new KeywordRule("\\b(ac|a/c|aircon|freon|cabin)\\b", "Maintenance", List.of("AC System"), "AC System Service"),
@@ -57,6 +108,77 @@ public class ServiceClassificationService {
     );
 
     public ServiceClassification classifyAiOrFallback(
+            ServiceClassification aiClassification,
+            String rawText,
+            String serviceType,
+            String partsReplaced,
+            String laborPerformed,
+            String remarks,
+            int pageCount
+    ) {
+        return classifyAiOrFallback(aiClassification, rawText, serviceType, partsReplaced,
+                laborPerformed, remarks, pageCount, VehicleContext.UNKNOWN);
+    }
+
+    /**
+     * @param vehicle which taxonomy applies. Components outside the vehicle's
+     *     class are dropped rather than kept: the keyword rules deliberately
+     *     match both a car's transmission and a bike's drive chain from
+     *     overlapping words like "clutch", and this is where the wrong half is
+     *     discarded. Keeping it would put a component on the record that the
+     *     vehicle does not have, which downstream drops silently — the record
+     *     then attributes to nothing and vanishes from the parts map.
+     */
+    public ServiceClassification classifyAiOrFallback(
+            ServiceClassification aiClassification,
+            String rawText,
+            String serviceType,
+            String partsReplaced,
+            String laborPerformed,
+            String remarks,
+            int pageCount,
+            VehicleContext vehicle
+    ) {
+        VehicleContext context = vehicle == null ? VehicleContext.UNKNOWN : vehicle;
+        ServiceClassification classified = classifyInternal(aiClassification, rawText, serviceType,
+                partsReplaced, laborPerformed, remarks, pageCount);
+        return withComponentsForClass(classified, context);
+    }
+
+    /**
+     * Keeps only the components this class of vehicle has, and says so when
+     * something was removed.
+     */
+    private ServiceClassification withComponentsForClass(ServiceClassification classification, VehicleContext vehicle) {
+        List<String> allowed = vehicle.allowedComponents();
+        List<String> kept = classification.relatedComponents().stream()
+                .filter(allowed::contains)
+                .toList();
+
+        if (kept.size() == classification.relatedComponents().size()) {
+            return classification;
+        }
+
+        List<String> notes = new ArrayList<>(safeList(classification.notes()));
+        List<String> removed = classification.relatedComponents().stream()
+                .filter(component -> !allowed.contains(component))
+                .toList();
+        notes.add("Dropped " + String.join(", ", removed) + ": not a component a "
+                + (vehicle.isMotorcycle() ? "motorcycle" : "car") + " has.");
+
+        return new ServiceClassification(
+                classification.normalizedServiceType(),
+                classification.serviceCategory(),
+                kept.isEmpty() ? List.of("Other") : kept,
+                classification.recordTags(),
+                classification.confidence(),
+                classification.source(),
+                distinct(notes),
+                classification.needsOwnerReview()
+        );
+    }
+
+    private ServiceClassification classifyInternal(
             ServiceClassification aiClassification,
             String rawText,
             String serviceType,

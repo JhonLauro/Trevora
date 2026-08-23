@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.serviceinput.ManualServiceDraftRequest;
 import com.trevora.api.features.serviceinput.ReceiptExtractionResult;
@@ -116,8 +117,11 @@ public class ServiceInputService {
             String receiptPagesJson
     ) {
         requireVehicleOwner();
-        vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
-        ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(receiptImages, receiptInputMode);
+        // The ownership check already loads the vehicle, and the extractor needs
+        // it: a receipt only means something against the vehicle it belongs to.
+        VehicleProfile vehicle = vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
+        ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(
+                receiptImages, receiptInputMode, VehicleContext.from(vehicle));
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(vehicleId);

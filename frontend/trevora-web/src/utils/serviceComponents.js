@@ -116,6 +116,11 @@ const COMPONENT_KEY_BY_LABEL = {
   Electrical: 'battery',
   Body: 'body',
   Fluids: 'fluids',
+  // The two the backend vocabulary gained when it stopped being a car-only
+  // list. A rider's most frequent service finally has a name it can be
+  // classified as, instead of arriving as Transmission and being dropped.
+  'Drive Chain / CVT': 'drive',
+  Fairings: 'fairings',
 };
 
 /**
@@ -191,8 +196,22 @@ export function inferComponents(record, vehicleClass = 'car') {
     : Array.isArray(record?.classification?.relatedComponents)
       ? record.classification.relatedComponents
       : [];
-  const mapped = controlled.map((component) => COMPONENT_KEY_BY_LABEL[component]).filter(Boolean);
-  if (mapped.length) return [...new Set(mapped)];
+  // The AI's controlled vocabulary is a car vocabulary — it has Transmission
+  // and Body but no drive chain and no fairings — and the extraction prompt is
+  // never told what kind of vehicle the receipt belongs to. So a scooter's CVT
+  // service comes back labelled "Transmission", which is the closest word on
+  // offer and the wrong component for the vehicle.
+  //
+  // Keeping it would be bad, but *only* keeping it was worse: `componentStatuses`
+  // drops any key outside the class taxonomy, so the record attributed to
+  // Transmission, Transmission was dropped, and a rider's chain-and-CVT service
+  // disappeared from the map completely. Labels that do not apply to this class
+  // are discarded here instead, which lets the keyword rules below — which do
+  // know about chains and CVTs — have their turn.
+  const usable = controlled
+    .map((component) => COMPONENT_KEY_BY_LABEL[component])
+    .filter((key) => key && componentKeysFor(vehicleClass).includes(key));
+  if (usable.length) return [...new Set(usable)];
 
   const haystack = componentEvidenceText(record);
   const matches = componentRulesFor(vehicleClass)

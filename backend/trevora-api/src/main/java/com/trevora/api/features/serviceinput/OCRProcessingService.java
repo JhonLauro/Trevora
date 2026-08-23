@@ -1,7 +1,5 @@
 package com.trevora.api.features.serviceinput;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,10 +34,18 @@ public class OCRProcessingService {
     }
 
     public ReceiptExtractionResult extractReceiptFields(MultipartFile receiptImage) {
-        return extractReceiptFields(List.of(receiptImage), "UPLOAD");
+        return extractReceiptFields(List.of(receiptImage), "UPLOAD", VehicleContext.UNKNOWN);
     }
 
     public ReceiptExtractionResult extractReceiptFields(List<MultipartFile> receiptImages, String receiptInputMode) {
+        return extractReceiptFields(receiptImages, receiptInputMode, VehicleContext.UNKNOWN);
+    }
+
+    public ReceiptExtractionResult extractReceiptFields(
+            List<MultipartFile> receiptImages,
+            String receiptInputMode,
+            VehicleContext vehicle
+    ) {
         List<MultipartFile> files = receiptImages == null
                 ? List.of()
                 : receiptImages.stream().filter(file -> file != null && !file.isEmpty()).toList();
@@ -47,7 +53,7 @@ public class OCRProcessingService {
         String firstFileName = files.isEmpty() ? "uploaded receipt" : fileNameFor(files.get(0));
 
         if (!"google-vision".equals(ocrProvider)) {
-            return mockReceiptExtraction(firstFileName, inputMode, files.size(), List.of("OCR_PROVIDER is not set to google-vision."));
+            return emptyExtraction(firstFileName, inputMode, files.size(), List.of("OCR_PROVIDER is not set to google-vision."));
         }
 
         List<String> extractionErrors = new ArrayList<>();
@@ -88,7 +94,7 @@ public class OCRProcessingService {
 
         String combinedOcrText = String.join("\n\n", combinedSections).trim();
         if (combinedOcrText.isBlank()) {
-            return mockReceiptExtraction(firstFileName, inputMode, files.size(), extractionErrors.isEmpty()
+            return emptyExtraction(firstFileName, inputMode, files.size(), extractionErrors.isEmpty()
                     ? List.of("No receipt pages were provided.")
                     : extractionErrors);
         }
@@ -99,8 +105,8 @@ public class OCRProcessingService {
         }
 
         try {
-            ReceiptDraftFields fields = openAIExtractionProvider.extractFields(combinedOcrText);
-            return extractedDraft(fields, combinedOcrText, inputMode, pages, extractionErrors);
+            ReceiptDraftFields fields = openAIExtractionProvider.extractFields(combinedOcrText, vehicle);
+            return extractedDraft(fields, combinedOcrText, inputMode, pages, extractionErrors, vehicle);
         } catch (ReceiptProcessingException exception) {
             extractionErrors.add(exception.getMessage());
             return rawOcrDraft(combinedOcrText, inputMode, pages, extractionErrors);
@@ -112,10 +118,11 @@ public class OCRProcessingService {
             String rawOcrText,
             String receiptInputMode,
             List<Map<String, Object>> pages,
-            List<String> extractionErrors
+            List<String> extractionErrors,
+            VehicleContext vehicle
     ) {
         int pageCount = pages == null ? 0 : pages.size();
-        List<ServiceItemFields> classifiedServices = classifyItems(fields.services(), fields.classification(), rawOcrText, fields.remarks(), pageCount);
+        List<ServiceItemFields> classifiedServices = classifyItems(fields.services(), fields.classification(), rawOcrText, fields.remarks(), pageCount, vehicle);
         ServiceClassification overallClassification = classificationService.classifyAiOrFallback(
                 fields.classification(),
                 rawOcrText,
@@ -123,7 +130,8 @@ public class OCRProcessingService {
                 null,
                 null,
                 fields.remarks(),
-                pageCount
+                pageCount,
+                vehicle
         );
         return new ReceiptExtractionResult(
                 fields.serviceDate(),
@@ -155,7 +163,8 @@ public class OCRProcessingService {
             ServiceClassification aiClassificationHint,
             String rawText,
             String remarks,
-            int pageCount
+            int pageCount,
+            VehicleContext vehicle
     ) {
         if (rawItems == null || rawItems.isEmpty()) {
             return List.of();
@@ -169,7 +178,8 @@ public class OCRProcessingService {
                     item.partsReplaced(),
                     item.laborPerformed(),
                     remarks,
-                    pageCount
+                    pageCount,
+                    vehicle
             );
             classified.add(item.withClassification(itemClassification));
         }
@@ -226,41 +236,40 @@ public class OCRProcessingService {
         );
     }
 
-    private ReceiptExtractionResult mockReceiptExtraction(
+    /**
+     * The draft returned when nothing could be read: no OCR provider, no
+     * readable pages, no text.
+     *
+     * <p><b>It invents nothing.</b> An earlier version returned
+     * {@code LocalDate.now()}, a total of PHP 1,500.00, a shop called "Mock OCR
+     * Auto Shop" and a fabricated service line. Those are the exact fields the
+     * owner is asked to confirm, and they arrived pre-filled and plausible, so
+     * confirming the draft wrote invented history into a record whose whole
+     * purpose is to be trustworthy to a buyer or a mechanic. A blank draft that
+     * says why it is blank is worse UX and better data, and this project has
+     * already chosen that trade twice — see the null {@code bodyType} that is
+     * never back-filled, and the due-date grading that was removed rather than
+     * guessed.
+     */
+    private ReceiptExtractionResult emptyExtraction(
             String fileName,
             String receiptInputMode,
             int pageCount,
             List<String> extractionErrors
     ) {
-        ServiceClassification classification = classificationService.keywordFallback(
-                "",
-                "Receipt-based service",
-                "Mock extracted parts from " + fileName,
-                "Mock extracted labor from receipt image",
-                "",
-                Math.max(1, pageCount)
-        );
-        List<ServiceItemFields> services = List.of(new ServiceItemFields(
-                "Receipt-based service",
-                "Mock extracted parts from " + fileName,
-                "Mock extracted labor from receipt image",
+        return new ReceiptExtractionResult(
                 null,
                 List.of(),
-                classification
-        ));
-        return new ReceiptExtractionResult(
-                LocalDate.now(),
-                services,
                 null,
-                BigDecimal.valueOf(1500.00),
-                "Mock OCR Auto Shop",
                 null,
-                "Mock OCR extraction for MVP. Replace OCRProcessingService with a real provider later.",
-                mockMetadata(fileName, receiptInputMode, pageCount, extractionErrors)
+                null,
+                null,
+                null,
+                unreadableMetadata(fileName, receiptInputMode, pageCount, extractionErrors)
         );
     }
 
-    private Map<String, Object> mockMetadata(
+    private Map<String, Object> unreadableMetadata(
             String fileName,
             String receiptInputMode,
             int pageCount,
@@ -271,7 +280,7 @@ public class OCRProcessingService {
         metadata.put("inputType", "receipt");
         metadata.put("receiptInputMode", receiptInputMode);
         metadata.put("pageCount", Math.max(1, pageCount));
-        metadata.put("source", "mock_ocr");
+        metadata.put("source", "unreadable");
         metadata.put("ocrProvider", ocrProvider);
         metadata.put("aiProvider", aiProvider);
         metadata.put("aiModel", openAIExtractionProvider.model());
@@ -285,28 +294,18 @@ public class OCRProcessingService {
                 "rawText", "",
                 "textLength", 0,
                 "ocrStatus", "FAILED",
-                "errorMessage", "Mock fallback used."
+                "errorMessage", "No text could be extracted."
         )));
-        metadata.put("confidenceNotes", List.of("Mock receipt extraction was used for demo reliability."));
+        metadata.put("confidenceNotes", List.of("Nothing could be read from this receipt; every field was left blank."));
         metadata.put("fieldSources", Map.of());
         metadata.put("fieldConfidence", Map.of());
         metadata.put("aiSuggestedFields", List.of());
-        metadata.put("warnings", List.of("Receipt OCR fell back to mock extraction."));
-        metadata.put("classification", classificationService.keywordFallback(
-                "",
-                "Receipt-based service",
-                "Mock extracted parts from " + fileName,
-                "Mock extracted labor from receipt image",
-                "",
-                Math.max(1, pageCount)
-        ).toMetadata());
+        metadata.put("warnings", List.of("No text could be extracted from this receipt. Enter the details manually, or retake the photo in better light."));
+        // No text means no evidence, so no classification. Keyword-classifying an
+        // empty string produced a confident "Receipt-based service" out of nothing.
+        metadata.put("classification", Map.of());
         metadata.put("fileName", fileName);
-        metadata.put("confidence", Map.of(
-                "serviceDate", 0.82,
-                "serviceType", 0.74,
-                "totalCost", 0.88,
-                "shopName", 0.79
-        ));
+        // No invented confidence scores. There is nothing to be confident about.
         if (!extractionErrors.isEmpty()) {
             metadata.put("extractionErrors", extractionErrors);
         }
