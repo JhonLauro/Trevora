@@ -92,6 +92,7 @@ public class MechanicAccessService {
                 session.getMechanicAccessSessionId(),
                 session.getVehicleId(),
                 vehicleLabel(session.getVehicleId()),
+                vehicleBodyType(session.getVehicleId()),
                 session.getPermission(),
                 session.getStatus(),
                 session.getApprovedAt(),
@@ -169,6 +170,14 @@ public class MechanicAccessService {
                 .orElse(null);
         List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
         return MechanicSharedServiceRecordResponse.from(record, items, sourceDraft);
+    }
+
+    /** Null when the vehicle predates the body-type picker — the map then
+        lists the components without a drawing rather than inventing one. */
+    private String vehicleBodyType(UUID vehicleId) {
+        return vehicleRepository.findById(vehicleId)
+                .map(VehicleProfile::getBodyType)
+                .orElse(null);
     }
 
     String vehicleLabel(UUID vehicleId) {

@@ -40,7 +40,7 @@ import { hasVehicleShape, vehicleViews } from './vehicleShapes';
  */
 const LEGEND = ['ok', 'none'];
 
-function Rail({ entry, vehicleId }) {
+function Rail({ entry, recordHref }) {
   if (!entry) return null;
 
   const records = entry.records;
@@ -85,7 +85,7 @@ function Rail({ entry, vehicleId }) {
             {records.slice(0, 4).map((record) => (
               <article key={record.recordId}>
                 <div className="parts-rail__record-line">
-                  <Link to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
+                  <Link to={recordHref(record)}>
                     {serviceItemsSummaryLabel(record.services)}
                   </Link>
                   <strong>{formatAmount(record.totalCost)}</strong>
@@ -129,7 +129,18 @@ function Rail({ entry, vehicleId }) {
   );
 }
 
-export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bodyType = null }) {
+/**
+ * `recordHref` exists because the mechanic view reaches the same records by a
+ * different route — a share session, not an owned vehicle. Defaulting it to
+ * the owner path keeps every existing caller unchanged.
+ */
+export default function PartsView({
+  entries,
+  vehicleId,
+  vehicleClass = 'car',
+  bodyType = null,
+  recordHref = (record) => `/vehicles/${vehicleId}/history/${record.recordId}`,
+}) {
   const views = useMemo(() => vehicleViews(bodyType), [bodyType]);
   const [viewId, setViewId] = useState('side');
   const [selectedKey, setSelectedKey] = useState(null);
@@ -249,7 +260,7 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bo
         </ul>
       </section>
 
-      <Rail entry={selected} vehicleId={vehicleId} />
+      <Rail entry={selected} recordHref={recordHref} />
     </div>
   );
 }

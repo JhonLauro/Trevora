@@ -8,6 +8,9 @@ public record MechanicSharedHistoryResponse(
         UUID sessionId,
         UUID vehicleId,
         String vehicleLabel,
+        // The parts map needs the silhouette. Without it the mechanic view drew
+        // a sedan for every vehicle, including motorcycles.
+        String vehicleBodyType,
         String permission,
         String status,
         Instant approvedAt,

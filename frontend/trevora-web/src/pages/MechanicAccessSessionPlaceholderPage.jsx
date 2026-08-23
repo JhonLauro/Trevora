@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Car, LayoutGrid, Table2 } from 'lucide-react';
 import { getMechanicSessionHistory } from '../api/mechanicAccess';
 import MechanicAISearchPanel from '../components/MechanicAISearchPanel';
-import PartsMap from '../components/PartsMap';
+import PartsView from '../components/ink/PartsView.jsx';
 import { serviceItemsPartsInline, serviceItemsSearchText, serviceItemsSummaryLabel } from '../utils/serviceText';
+import { componentStatuses } from '../utils/componentStatus';
+import { vehicleClassFor } from '../data/vehicleCatalog';
 
 const COMPONENT_RULES = [
   ['brakes', /\bbrake|rotor|pad|caliper|brake fluid/i],
@@ -167,6 +169,12 @@ export default function MechanicAccessSessionPlaceholderPage() {
     [matchedRecords]
   );
   const visibleRecords = searchResult ? matchedRecords : records;
+  // Built from the filtered set so the map answers the mechanic's current
+  // search, and from the vehicle's own body type so the taxonomy is right.
+  const sharedComponents = useMemo(
+    () => componentStatuses(visibleRecords, { bodyType: history?.vehicleBodyType ?? null }),
+    [visibleRecords, history],
+  );
   const lastRecord = newestRecord(records);
   const sharedReceipts = records.filter(hasReceipt).length;
   const currentOdometer = latestOdometer(records);
@@ -285,11 +293,15 @@ export default function MechanicAccessSessionPlaceholderPage() {
                 </div>
               ) : viewMode === 'parts-map' ? (
                 <section className="mechanic-map-section">
-                  <PartsMap
-                    records={visibleRecords}
-                    odometer={currentOdometer || 0}
-                    onSelectRecord={(record) => openRecord(record.recordId)}
-                    onOpenRecord={openRecord}
+                  {/* Same component map the owner sees, and the same taxonomy:
+                      the older PartsMap took no vehicle and drew a sedan for
+                      everything, so a shared motorcycle showed a mechanic a
+                      car with an aircon and a gearbox it does not have. */}
+                  <PartsView
+                    entries={sharedComponents}
+                    vehicleClass={vehicleClassFor(history.vehicleBodyType)}
+                    bodyType={history.vehicleBodyType ?? null}
+                    recordHref={(record) => `/mechanic/access/${sessionId}/history/${record.recordId}`}
                   />
                 </section>
               ) : viewMode === 'timeline' ? (
