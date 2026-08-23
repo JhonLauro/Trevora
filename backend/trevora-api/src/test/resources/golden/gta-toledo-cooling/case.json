@@ -1,0 +1,35 @@
+{
+  "id": "gta-toledo-cooling",
+  "layer": "text",
+  "format": "Independent shop billing statement, parts and labour, handwritten-style layout",
+  "why": [
+    "The cleanest possible reconciliation test. Seven priced lines that sum to exactly the printed total of 3,325.00, so any dropped or misread line is provable rather than suspected.",
+    "It carries its own OCR error to catch: REPLACE THERMOSTAT prints as '350.¢' rather than 350.00. Read literally the lines sum to 2,975.00 against a printed 3,325.00, and the 350.00 gap is exactly the mangled line. This is what F4 exists to detect.",
+    "Textbook PART versus OPERATION separation. The same three nouns appear twice, once as a part and once prefixed REPLACE as the labour. An extractor that cannot tell them apart will double-count the components or the money.",
+    "Page 2 is not a receipt at all. It is a screenshot of a body-composition scale that the owner uploaded by mistake — 'STATE OF Health', 'BLD T laiararata', a percentage and a time. Nothing from it may reach any field. This is the strongest available test of the prompt's boilerplate and noise rejection.",
+    "Shop name OCRs as 'GTA Auio Services' rather than 'GTA Auto Services' in four runs out of five, which is why shopName is scored by similarity and not exact match."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Corolla",
+    "modelYear": null,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "supabase://receipts/rn_image_picker_lib_temp_4275b818-d19d-400c-b8c6-3a2a3b3758d1.jpg",
+  "sourceDraft": "7dd2baa3-ebf5-4997-aad9-4782ef05331e",
+  "ocrProvider": "tesseract",
+  "redacted": [
+    "preparer name",
+    "plate number in the vehicle line"
+  ],
+  "kept": [
+    "shop name and branch, including the Auio/Auto OCR error, which is the point of the fuzzy shopName rule"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "OCR came from the earlier Tesseract provider, not Google Vision. Kept deliberately: it is noisier than Vision output and a set of only clean text would flatter the extractor.",
+    "relatedComponents is a judgement call worth revisiting. A distributor condenser is an ignition component, so it is filed under Electrical rather than AC System; the temperature sensor and thermostat are Cooling System. A reviewer may argue Engine belongs here too."
+  ]
+}

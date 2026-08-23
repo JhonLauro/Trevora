@@ -1,0 +1,23 @@
+{
+  "serviceDate": "2020-09-22",
+  "odometer": null,
+  "totalCost": 3325.00,
+  "shopName": "GTA Auto Services",
+  "location": "Toledo City, Cebu",
+  "relatedComponents": ["Electrical", "Cooling System"],
+  "lineEntries": [
+    { "kind": "PART",      "description": "DISTRIBUTOR TRANSPANDER",         "lineTotal": 950.00 },
+    { "kind": "PART",      "description": "CONDENSER",                       "lineTotal": 150.00 },
+    { "kind": "PART",      "description": "TEMPERATURE SENSOR",              "lineTotal": 325.00 },
+    { "kind": "OPERATION", "description": "REPLACE DISTRIBUTOR TRANSPANDER", "lineTotal": 850.00 },
+    { "kind": "OPERATION", "description": "REPLACE CONDENSER",               "lineTotal": 350.00 },
+    { "kind": "OPERATION", "description": "REPLACE TEMPERATURE SENSOR",      "lineTotal": 350.00 },
+    { "kind": "OPERATION", "description": "REPLACE THERMOSTAT",              "lineTotal": 350.00 }
+  ],
+
+  "_comment": [
+    "The seven lineTotals sum to 3325.00, matching the printed total exactly. This case should always reconcile once line entries are extracted at all.",
+    "REPLACE THERMOSTAT is 350.00. The OCR renders it '350.¢' with the cents digits lost. Recovering it needs either the reconciliation gap or the pattern of the three identical labour charges above it — both are legitimate, and an extractor that returns null here has behaved correctly and should lose only the price point, not the line.",
+    "odometer is genuinely absent from this receipt. null is the correct answer and an extractor that invents one is wrong, not merely imprecise."
+  ]
+}

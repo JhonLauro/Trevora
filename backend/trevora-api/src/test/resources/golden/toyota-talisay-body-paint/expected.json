@@ -1,0 +1,16 @@
+{
+  "serviceDate": "2025-10-24",
+  "odometer": 244,
+  "totalCost": 12046.04,
+  "shopName": "TOYOTA TALISAY, CEBU",
+  "location": null,
+  "relatedComponents": ["Body"],
+  "lineEntries": null,
+
+  "_comment": [
+    "totalCost 12046.04 is confirmed: it appears in the OCR text as '12,046 04', and the two job subtotals 7,600.00 and 4,446.04 sum to it exactly. The 12,446.04 that one production run produced is wrong — a misread of the same figure.",
+    "relatedComponents is Body alone. The operations are SRA/FIX, PAINTING JOB and CBWS; nothing here touches a mechanical system. Any extraction returning Brakes has read the materials list, which is the exact failure migration 011 exists to prevent.",
+    "lineEntries is null and listed in pendingGroundTruth. The correct answer is 17 lines — 3 OPERATION, 3 PART, 11 MATERIAL — but their individual prices need reading off the original photo, because the OCR text has separated every price from its description.",
+    "location is null pending a decision on whether the shop's city counts as the service location when the customer address is redacted."
+  ]
+}

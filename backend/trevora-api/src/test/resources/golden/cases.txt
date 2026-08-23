@@ -1,0 +1,7 @@
+# One case directory per line. Order is report order.
+# Add a line when you add a case; see README.md.
+
+toyota-talisay-body-paint
+gta-toledo-cooling
+
+scooter-cvt-service

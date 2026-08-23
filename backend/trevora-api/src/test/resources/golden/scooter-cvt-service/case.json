@@ -1,0 +1,35 @@
+{
+  "id": "scooter-cvt-service",
+  "layer": "text",
+  "synthetic": true,
+  "format": "Independent motorcycle shop, scooter CVT service, column-aligned",
+  "why": [
+    "The only motorcycle coverage in the set, and the class the pipeline was demonstrably worst at. A scooter's CVT service used to come back as Transmission - the closest word the car-only vocabulary offered - and Transmission is not a component a motorcycle has, so the record attributed to nothing and disappeared from the parts map entirely.",
+    "Tests the whole of F5 and F6 at once: CVT CLEANING, DRIVE BELT and WEIGHT ROLLER SET are only classifiable as Drive Chain / CVT if the extractor knows this is a motorcycle and is offered a vocabulary that contains the answer.",
+    "Also tests that a motorcycle is never given AC System, which the old shared vocabulary allowed.",
+    "All four line kinds appear: operations, parts, a material (shop towel and contact cleaner) and a fee (disposal). The GTA case has no MATERIAL or FEE, so without this one those two kinds are untested.",
+    "Column-aligned with the pipe separator, so it also exercises the layout format the OCR layer now produces. Both other cases predate layout reconstruction and arrive as prose.",
+    "Ends in Tagalog. Nothing after TOTAL is transaction content and none of it may reach any field."
+  ],
+  "vehicle": {
+    "make": "Honda",
+    "model": "Click 125i",
+    "modelYear": 2022,
+    "bodyType": "scooter",
+    "vehicleClass": "motorcycle",
+    "lastKnownOdometer": 17980
+  },
+  "sourceImage": null,
+  "sourceDraft": null,
+  "ocrProvider": "synthetic",
+  "redacted": [
+    "n/a - no real customer data, this case is written rather than captured"
+  ],
+  "kept": [],
+  "pendingGroundTruth": [],
+  "notes": [
+    "SYNTHETIC. Written by hand because no real motorcycle receipt was available, and a class with zero coverage was worse than a class covered by a clean example. It is clean in ways real OCR is not: no character errors, no dropped glyphs, no column drift. Treat its scores as an upper bound.",
+    "Replace it with a real motorcycle receipt when one can be photographed. Until then it proves the vocabulary and the vehicle context work; it does not prove they survive bad OCR.",
+    "Line amounts sum to 2,450.00 exactly, matching the printed total, so reconciliation is scored here too."
+  ]
+}

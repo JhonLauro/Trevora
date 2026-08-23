@@ -1,0 +1,44 @@
+{
+  "id": "toyota-talisay-body-paint",
+  "layer": "text",
+  "format": "Dealership service invoice, body and paint, long materials list",
+  "why": [
+    "This is the invoice migration 011 was written for. Three operations (SRA/FIX, PAINTING JOB, CBWS), three fitted parts (floormat, plastic cover set, protection sheet) and eleven consumables (degreaser, thinner, masking paper, waste pad, rubbing compound, body filler, cloths, tapes). With two buckets every consumable lands in partsReplaced, and WASTE PAD-BP reads as brake work.",
+    "It is also the clearest demonstration of the OCR layout problem. Every price has detached from its description and collected into an unlabelled blob near the end of the text. No prompt can reattach them reliably from this input, so this case measures the OCR layer as much as the AI layer.",
+    "The shop's VAT TIN (000-313-856-00005) is a long number that must not be read as a cost.",
+    "Kilometers KM / 244 is a real odometer on a car delivered in March 2025 — low, but correct."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "supabase://receipts/3aed31c3-0409-4320-8c7b-da722f97bd33.jpg",
+  "sourceDraft": "a82aff88-0dd7-4c91-a355-033c71c19d86",
+  "ocrProvider": "google-vision",
+  "redacted": [
+    "customer name, both occurrences",
+    "customer address line",
+    "customer account number",
+    "plate / registration number, all four OCR variants",
+    "chassis / VIN",
+    "engine number",
+    "service advisor name",
+    "mobile number, both occurrences"
+  ],
+  "kept": [
+    "shop name, address, phone, fax and VAT TIN — public business details, and the TIN is a deliberate distractor"
+  ],
+  "pendingGroundTruth": [
+    "lineEntries",
+    "location"
+  ],
+  "notes": [
+    "lineEntries is pending because the correct per-line prices cannot be recovered from the OCR text — they must be read off the original photo in Supabase storage. Until then the case scores headers and reconciliation only.",
+    "This ocr.txt predates layout reconstruction: it was produced by the reading-order provider, which is why every amount sits in an unlabelled run at the end. GoogleVisionOCRProvider now rebuilds printed rows from word geometry, so re-running Vision on the source image would produce column-aligned text and most likely make these prices recoverable. Re-upload the image, replace ocr.txt, and this case becomes the strongest test in the set.",
+    "Filed in production against a Suzuki Smash 115 motorcycle as well as this Vios. A Toyota dealership invoice naming a Vios 1.3 XLE CVT belongs to neither by accident — see F14, duplicate and wrong-vehicle detection."
+  ]
+}

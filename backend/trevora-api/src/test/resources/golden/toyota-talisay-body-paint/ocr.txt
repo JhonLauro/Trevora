@@ -1,0 +1,390 @@
+[PAGE 1 - UPLOAD - toyota-talisay-body-paint.jpg]
+A TOYOTA
+
+Page 1 of 4
+Customer No.
+3000000000
+Date Invoiced
+10/24/2025
+Time Invoiced
+10:02:59AM
+Purchase Order No.
+
+Credit Card
+Cheque
+Charge Account
+
+Customer Name & Address
+Ms. AAAAAA A. AAAAAA
+
+Aaaaa
+
+City Of Talisay 6045 Cebu
+
+AA000A
+
+TOYOTA TALISAY, CEBU
+Owned and operated by Toyota Cebu City, Inc
+SRP Road, Lawan 1, City of Talisay
+Cebu, 6045
+Tel (032)260-9201/505-8249/505-4253
+Fax (032)384-0010
+VAT Reg TIN 000-313-856-00005
+Business Style Toyota Talisay, Cebu
+
+SERVICE INVOICE
+
+Home Phone No.
+
+Business Phone No.
+
+BillTo
+
+Name & Address
+Ms. AAAAAA A. AAAAAA
+
+Aaaaa
+
+G7YA022472
+Reference Repair Order No
+G71A134056
+Year Make Model
+
+2025/Vios 1.3 XLE CVT-EXE-438
+Chassis No./VIN/Serial No
+AA0000A0000000000
+
+Mobile No.
+
++639000000000
+Business Style
+
+City Of Talisay 6045 Cebu
+TIN:
+
+Reg No
+
+AA0000
+
+Color
+
+BLACKISH RED
+
+Kilometers KM
+244
+Warr Exp KM
+
+Stock No
+
+A./0000
+
+Selling Dealer
+
+Delivery Date
+03/31/2025
+
+Email Address
+
+Payment Method
+
+Cash
+
+TIN No
+
+Assignee's Contact No.
+
+Assignee's Name
+
+Driver's Contact No.
+
+201 Body & Paint
+Order
+
+Driver's Name
+
+Home Phone No.
+Business Phone No.
+
+Engine No.
+
+Promise Date & Time
+
+0AAA000000
+
+Service Advisor Name
+
+10/31/2025 09:28:00
+
+Mobile No.
+
+Aaaaaaa A. Aaaaaaaaa
+
++639000000000
+
+Warr Exp Date
+03/31/2028
+
+RECOMMENDED SERVICE
+
+JOB DONE: TECHNICIAN INSTRUCTION
+JOB NO. JOB TYPE
+
+OPERATION CODE/PART NO.
+52099
+
+DESCRIPTION
+
+SRA/FIX
+
+BP
+
+FLOORMATOK-BP
+
+PROPERLY INSTALLED GENUINE
+FLOORMAT-BP
+
+72990-YZA12
+
+PLASTIC COVER SET
+
+T
+
+RP
+
+TTY0G-PROTS-HEENT
+
+PROTSHEET
+
+2.000
+
+<< Total for Job 000001 >>
+
+BP
+
+52099
+
+2
+
+BP
+
+PAINTING JOB
+
+600
+
+TTY-SUB-PM-BP
+
+PAINTING MATERIALS
+
+3
+
+BP
+
+TTY-SUB-CBWS-BP
+
+Total for Job 000002 >>
+CBWS
+
+1.000
+
+3
+
+BP
+
+TTY-DEGREASER
+
+DEGREASER
+
+300 000
+
+3
+
+BP
+
+TTY-BP3MRCOMP
+
+3M RUBBING COMPOUND
+
+400.000
+
+3
+
+BP
+
+TTY-BPDUP759R
+
+DUPONT 759R BODY FILLER
+
+300.000
+
+3
+
+BP
+
+TTY-ACRTHINNER
+
+ACRYLIC THINNER
+
+0.300
+
+3
+
+BP
+
+3
+
+BP
+
+TTY-MSKPAPER
+TTY-WASTE PAD
+
+MASKING PAPER
+
+45.000
+
+WASTE PAD-BP
+
+5.000
+
+BP
+
+TTY-D CLOTH
+
+3
+
+BP
+
+TTY-THERMAL TAPE
+
+DEGREASER CLOTH
+THERMAL TAPE
+
+1.000
+
+1.000
+
+BP
+
+TTY-MASKING TAPE
+
+MASKING TAPE
+
+3.000
+
+*!!!!!!!!!!!!!!!!
+
+QTY
+
+600
+
+1.000
+
+UNIT PRICE
+1,000.00
+0.00
+
+TOTAL
+1.800.00
+
+0.00
+
+1.000
+
+178.57
+
+178 57
+
+133 92
+
+2.046.41
+
+1,000.00
+4,445.04
+
+7.600.00
+
+4.446 04
+
+12,046 04
+
+312.50
+
+312.50
+
+0.60
+
+180.00
+
+1.13
+
+452.00
+
+0.83
+
+249.00
+
+771.43
+
+231.43
+
+12.74
+
+573.30
+
+5.00
+
+25.00
+
+13.57
+
+13.57
+
+31.00
+
+31.00
+
+71.42
+
+214.26
+
+Note
+
+>3-month or 90 days guarantee
+
+>1 year or 20K km warranty for Period for workmanship and replacement of spare parts
+
+Paid Service Parts
+
+Customer Copy
+
+I hereby authorize and agree to pay for the above repair work done on myvehicle, including all parts and materials necessary to
+perform same. Inthe event that the cost of the repair are not paid within sixty (60) days from the date of notice of completion hereof.
+Thereby, authorizedand empower the TOYOTA TALISAY, CEBU to sell my vehicle at public auction andapply the proceeds or part
+thereof to the cost of the repairs and the excess, if any, shall be turned over to me.
+RECEIVED THE ABOVE ARTICLES/VEHICLES IN GOOD ORDER AND CONDITION AND THAT THE REPAIRS HAVE BEEN
+MADE TO MY ENTIRE SATISFACTION
+
+CUSTOMER'S SIGNATURE/DATE/TIME
+
+Approved Series Range
+tware Name/Version
+
+G7YA000001-G7Y2999999
+
+SAP ECC-Dealer Business Management Version 6/EHP 7.0/SP09
+
+VERY
+
+Countes
+
+RELEASED BY/DATE/TIME
+
+Ack. Cert. Ctrl. No.
+
+Date Issued
+
+AC 124 122024 000239
+01/01/2025
+
+Time
+
+am/p

@@ -1,0 +1,25 @@
+{
+  "serviceDate": "2026-03-14",
+  "odometer": 18452,
+  "totalCost": 2450.00,
+  "shopName": "RJ MOTOR PARTS & SERVICE",
+  "location": "Poblacion, Talisay City, Cebu",
+  "relatedComponents": ["Drive Chain / CVT", "Engine Oil", "Air Filter"],
+  "lineEntries": [
+    { "kind": "OPERATION", "description": "CVT CLEANING & OVERHAUL",       "lineTotal": 450.00 },
+    { "kind": "PART",      "description": "DRIVE BELT",                    "lineTotal": 890.00 },
+    { "kind": "PART",      "description": "WEIGHT ROLLER SET",             "lineTotal": 320.00 },
+    { "kind": "OPERATION", "description": "CHANGE OIL - LABOR",            "lineTotal": 120.00 },
+    { "kind": "PART",      "description": "MPX1 10W30 0.8L",               "lineTotal": 285.00 },
+    { "kind": "PART",      "description": "AIR FILTER ELEMENT",            "lineTotal": 240.00 },
+    { "kind": "MATERIAL",  "description": "SHOP TOWEL / CONTACT CLEANER",  "lineTotal": 95.00 },
+    { "kind": "FEE",       "description": "DISPOSAL FEE",                  "lineTotal": 50.00 }
+  ],
+
+  "_comment": [
+    "relatedComponents must contain Drive Chain / CVT. That label does not exist in the car vocabulary, so an extractor that has not been told this is a motorcycle cannot return it, and the old behaviour - answering Transmission - now scores zero rather than being silently dropped downstream.",
+    "AC System must never appear. A motorcycle does not have one.",
+    "SHOP TOWEL / CONTACT CLEANER is MATERIAL: consumed doing the work, not fitted to the bike. DISPOSAL FEE is FEE. Engine oil is a PART because it is fitted and leaves with the vehicle, which is the same reason a filter is a part.",
+    "The eight amounts sum to 2450.00, matching the printed total exactly."
+  ]
+}
