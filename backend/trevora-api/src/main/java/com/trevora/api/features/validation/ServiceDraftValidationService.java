@@ -4,6 +4,7 @@ package com.trevora.api.features.validation;
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.serviceinput.ServiceDraftItem;
 import com.trevora.api.features.serviceinput.ServiceInputService;
+import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.validation.FieldValidationIssue;
 import com.trevora.api.features.serviceinput.ServiceDraftResponse;
@@ -17,12 +18,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ServiceDraftValidationService {
     private static final double LOW_CONFIDENCE_THRESHOLD = 0.75;
+    /** Categories whose message is worth repeating in full, not just counting. */
+    private static final Set<String> PLAUSIBILITY_CATEGORIES =
+            Set.of("IMPLAUSIBLE_VALUE", "POSSIBLE_DUPLICATE");
     private static final List<FieldValidationRule> REQUIRED_RULES = List.of(
             new FieldValidationRule("vehicleId", "Vehicle profile", ServiceDraft::getVehicleId),
             new FieldValidationRule("serviceDate", "Service date", ServiceDraft::getServiceDate),
@@ -32,15 +37,18 @@ public class ServiceDraftValidationService {
     private final ServiceInputService serviceInputService;
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
+    private final DraftPlausibilityService plausibilityService;
 
     public ServiceDraftValidationService(
             ServiceInputService serviceInputService,
             VehicleService vehicleService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            DraftPlausibilityService plausibilityService
     ) {
         this.serviceInputService = serviceInputService;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
+        this.plausibilityService = plausibilityService;
     }
 
     public ServiceDraftReviewResponse getDraftReview(UUID draftId) {
@@ -58,18 +66,51 @@ public class ServiceDraftValidationService {
 
     public ValidationResult validateDraft(ServiceDraft draft, List<ServiceDraftItem> items) {
         List<FieldValidationIssue> missingRequiredFields = findMissingRequiredFields(draft, items);
-        List<FieldValidationIssue> flaggedFields = draft.getInputMethod() == InputMethod.MANUAL
-                ? List.of()
-                : findMetadataFlags(draft);
-        List<String> reviewSummary = buildReviewSummary(missingRequiredFields, flaggedFields);
+
+        List<FieldValidationIssue> flaggedFields = new ArrayList<>();
+        // Extraction confidence only means something when a model did the
+        // extracting; a manual draft has a person behind every field.
+        if (draft.getInputMethod() != InputMethod.MANUAL) {
+            flaggedFields.addAll(findMetadataFlags(draft));
+        }
+        // Plausibility applies to every input method. A future date or an
+        // odometer below the last reading is just as wrong when a person typed
+        // it, and typing is where a transposed digit is most likely.
+        flaggedFields.addAll(plausibilityService.check(draft, vehicleForDraft(draft)));
+
+        // A future date is the one implausible value nothing legitimate
+        // produces, so it blocks rather than warns and belongs with the errors.
+        List<FieldValidationIssue> blocking = new ArrayList<>(missingRequiredFields);
+        blocking.addAll(flaggedFields.stream().filter(FieldValidationIssue::blocksConfirmation).toList());
+
+        List<String> reviewSummary = buildReviewSummary(blocking, flaggedFields);
 
         return new ValidationResult(
                 draft.getDraftId(),
-                missingRequiredFields.isEmpty(),
-                missingRequiredFields,
+                blocking.isEmpty(),
+                blocking,
                 flaggedFields,
                 reviewSummary
         );
+    }
+
+    /**
+     * The vehicle a draft is filed against, or null when it cannot be loaded.
+     *
+     * <p>Plausibility is a nicety; validation working is not. A draft whose
+     * vehicle has been deleted underneath it should still validate its own
+     * fields rather than failing outright, so the odometer check simply loses
+     * one of its two reference points.
+     */
+    private VehicleProfile vehicleForDraft(ServiceDraft draft) {
+        if (draft.getVehicleId() == null) {
+            return null;
+        }
+        try {
+            return vehicleService.getVehicleForCurrentUser(draft.getVehicleId());
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private List<FieldValidationIssue> findMissingRequiredFields(ServiceDraft draft, List<ServiceDraftItem> items) {
@@ -363,6 +404,16 @@ public class ServiceDraftValidationService {
         } else {
             summary.add("No low-confidence extracted fields require review.");
         }
+
+        // Plausibility problems carry their explanation in the message, and the
+        // counts above throw it away. They also do not all attach to a field the
+        // review screen renders, so without this the duplicate warning would be
+        // counted and never read.
+        flaggedFields.stream()
+                .filter(issue -> PLAUSIBILITY_CATEGORIES.contains(issue.category()))
+                .map(FieldValidationIssue::message)
+                .forEach(summary::add);
+
         return summary;
     }
 
