@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parts map — design brief</title>
+<style>
+  :root {
+    --paper:#f7f4ef; --surface:#fff; --ink:#1c1b19; --ink-muted:#57534c; --ink-faint:#8b857c;
+    --border:#c4bdb0; --rule:#d8d1c5; --sunken:#efede8; --rule-faint:#e6e1d7;
+    --status-ok-bg:#ecf3ec; --status-ok-text:#285c33; --status-none-text:#57534c; --status-bad-text:#8c2018;
+    --font-serif:'Source Serif 4',Georgia,serif;
+    --font-sans:'Public Sans',ui-sans-serif,system-ui,'Segoe UI',sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:16px;line-height:1.55;margin:0;padding:40px 24px 80px}
+  main{margin:0 auto;max-width:900px}
+  h1{font-family:var(--font-serif);font-size:34px;line-height:1.2;margin:0 0 6px}
+  h2{border-top:1px solid var(--rule);font-family:var(--font-serif);font-size:24px;margin:44px 0 14px;padding-top:22px}
+  h3{font-size:17px;margin:26px 0 8px}
+  .lede{color:var(--ink-muted);font-size:18px;margin:0 0 8px}
+  .eyebrow{color:var(--ink-faint);font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase}
+  code{background:var(--sunken);border-radius:4px;font-family:var(--font-mono);font-size:13px;padding:1px 5px}
+  pre{background:var(--surface);border:1px solid var(--rule-faint);border-radius:8px;font-family:var(--font-mono);font-size:13px;line-height:1.6;overflow-x:auto;padding:16px 18px}
+  ul,ol{padding-left:22px} li{margin:6px 0} li::marker{color:var(--ink-faint)}
+  .must{border-left:3px solid var(--status-bad-text);padding-left:16px}
+  .keep{border-left:3px solid var(--status-ok-text);padding-left:16px}
+  .swatch{border:1px solid var(--rule);border-radius:3px;display:inline-block;height:13px;margin-right:7px;vertical-align:-2px;width:13px}
+  table{border-collapse:collapse;font-size:15px;width:100%}
+  th,td{border-bottom:1px solid var(--rule-faint);padding:8px 10px;text-align:left;vertical-align:top}
+  th{color:var(--ink-faint);font-size:12px;letter-spacing:.07em;text-transform:uppercase}
+
+  /* live rendering, exactly the classes the app uses */
+  figure{margin:0 0 26px}
+  figcaption{color:var(--ink-faint);font-size:13px;margin-top:6px}
+  figcaption b{color:var(--ink);font-size:15px}
+  .frame{background:var(--sunken);border:1px solid var(--rule-faint);border-radius:8px;padding:8px 12px}
+  .frame svg{display:block;height:auto;width:100%}
+  .grid2{display:grid;gap:24px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vd-mass{fill:#efede8;stroke:#8b857c;stroke-linejoin:round;stroke-width:3}
+  .vd-glass{fill:#fff;stroke:#8b857c;stroke-linejoin:round;stroke-width:3}
+  .vd-line{fill:none;stroke:#8b857c;stroke-width:3}
+  .vd-tyre{fill:#d8d1c5;stroke:#57534c;stroke-width:3}
+  .vd-hub{fill:#fff;stroke:#8b857c;stroke-width:3}
+  .vd-marker circle{fill:#fff;stroke:#1c1b19;stroke-width:2.5}
+  .vd-marker text{dominant-baseline:central;fill:#1c1b19;font-size:15px;font-weight:700;text-anchor:middle}
+  .vd-marker.is-ok circle{fill:#ecf3ec;stroke:#285c33}
+  .vd-marker.is-ok text{fill:#285c33}
+  .vd-marker.is-none circle{fill:#fff;stroke:#57534c}
+  .vd-marker.is-none text{fill:#57534c}
+  @media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<main>
+
+<p class="eyebrow">Trevora · Ink · design brief</p>
+<h1>Parts map</h1>
+<p class="lede">
+  Redraw the vehicle diagrams that carry component service history. This page renders all
+  thirteen current drawings from the live source, states what they have to do, and ends with
+  the prompt to work from.
+</p>
+
+<h2>1. What it is</h2>
+<p>
+  Trevora consolidates a vehicle's service history for owners in the Philippines. On the
+  Vehicle page, the <strong>Components</strong> tab answers "what parts of my car have actually
+  been worked on?" — a diagram of the vehicle with a numbered marker on each component, over a
+  list of the same components.
+</p>
+<p>
+  Each marker has exactly <strong>two states</strong>, and this is the whole point of the screen:
+</p>
+<ul>
+  <li><strong>Has service records</strong> — something in this history mentions this part.</li>
+  <li><strong>No record found</strong> — nothing does.</li>
+</ul>
+<p>
+  It is deliberately <em>not</em> a maintenance predictor. An earlier version graded parts as
+  due/overdue against a hardcoded interval table; that was removed because the intervals were
+  car conventions applied to every vehicle, and it told scooter riders their engine was fine
+  when it was not. The diagram reports what happened. It never forecasts.
+</p>
+
+<h2>2. The four views</h2>
+<p>
+  Thirteen drawings serve seven body types, because the views are shared unevenly:
+</p>
+<table>
+  <thead><tr><th>View</th><th>Drawn per</th><th>Markers</th><th>Carries</th></tr></thead>
+  <tbody>
+    <tr><td><b>Side</b></td><td>body type — 7 drawings</td><td>6 car / 7 bike</td><td>lights, body, suspension, brakes, tires, exhaust</td></tr>
+    <tr><td><b>Front</b></td><td>vehicle class — 2 drawings</td><td>5 / 4</td><td>lights, engine, battery, cooling, brakes</td></tr>
+    <tr><td><b>Rear</b></td><td>vehicle class — 2 drawings</td><td>4 / 5</td><td>lights, body, tires, exhaust</td></tr>
+    <tr><td><b>Engine bay</b></td><td>vehicle class — 2 drawings</td><td>7 / 6</td><td>cooling, battery, air filter, engine, aircon, fluids, transmission</td></tr>
+  </tbody>
+</table>
+<p>
+  <strong>Why four views rather than one.</strong> Seven components live under a car's bonnet.
+  On a single side profile they collide with the front wheel, or have to be relocated somewhere
+  less true to escape it. Giving the crowded region its own canvas is what makes the engine bay
+  legible at all.
+</p>
+<p>
+  <strong>Why side is per body type and the rest are shared.</strong> A pickup and an MPV differ
+  in profile, and that is the view where the difference shows. Head-on and under the bonnet they
+  were judged close enough that six near-identical drawings would be six places to drift out of
+  sync rather than six pieces of information. <em>This call is open to challenge</em> — see §4.
+</p>
+
+<h2>3. The current drawings, rendered from source</h2>
+<p style="color:var(--ink-muted)">
+  Markers show sample states: green filled = has records, hollow grey = nothing recorded.
+  Numbers are positional within each view.
+</p>
+
+<h3>Side — one per body type</h3>
+<div id="sides"></div>
+
+<h3>Shared across all six car body types</h3>
+<div class="grid2" id="carShared"></div>
+
+<h3>Shared across motorcycles</h3>
+<div class="grid2" id="motoShared"></div>
+
+<h2>4. What is wrong with them</h2>
+<p>These are my own drawings and this list is not generous. In rough order of severity:</p>
+<ol>
+  <li><strong>Front and rear cars are the same outline.</strong> Identical body path; only the
+      details differ — headlamps and grille versus tail lamps, boot seam and tailpipe. Switching
+      from Front to Rear shows the same silhouette twice, which makes the tab feel broken.</li>
+  <li><strong>The engine bay is boxes inside a box.</strong> It is legible and well spaced, but it
+      reads as a wireframe rather than as an engine bay. Nothing about it looks like an engine.</li>
+  <li><strong>Every motorcycle is a scooter.</strong> One drawing serves the whole class, so an
+      underbone or big-bike owner is shown a step-through with a leg shield.</li>
+  <li><strong>The shared views ignore body type entirely.</strong> A pickup owner gets their own
+      side profile and then three generic car drawings — three of their four views are not
+      their vehicle.</li>
+  <li><strong>Everything is one weight.</strong> Flat fill, uniform 3px stroke, no shading and no
+      depth, so nothing recedes and no part of the drawing is emphasised over another.</li>
+  <li><strong>Side profiles separate mainly by outline.</strong> Sedan against hatchback is still
+      close at the size the panel actually renders.</li>
+  <li><strong>Wheels are a circle with a smaller circle in it.</strong> No tread, no spokes, no
+      arch — they read as washers.</li>
+  <li><strong>Orientation is never stated.</strong> Everything faces left; nothing tells the
+      viewer that, and the front/rear views give no cue which end they are.</li>
+</ol>
+
+<h2>5. Constraints that cannot move</h2>
+
+<div class="must">
+  <h3>Chroma belongs to status and nothing else</h3>
+  <p style="margin-bottom:0">
+    The product is greyscale on warm paper. The <em>only</em> saturated colour is the status
+    ramp, and on this screen it means one thing: whether a component has service records. The
+    vehicle itself must stay entirely neutral — <strong>no body colour, no paint, no accent.</strong>
+    If the drawing takes colour, the markers stop being the only thing that means something.
+  </p>
+  <p style="margin-bottom:0;margin-top:10px">
+    <span class="swatch" style="background:#f7f4ef"></span><code>--paper #f7f4ef</code>
+    <span class="swatch" style="background:#efede8;margin-left:10px"></span><code>--sunken #efede8</code>
+    <span class="swatch" style="background:#d8d1c5;margin-left:10px"></span><code>--rule #d8d1c5</code>
+    <span class="swatch" style="background:#8b857c;margin-left:10px"></span><code>--ink-faint #8b857c</code>
+    <span class="swatch" style="background:#57534c;margin-left:10px"></span><code>--ink-muted #57534c</code>
+    <span class="swatch" style="background:#1c1b19;margin-left:10px"></span><code>--ink #1c1b19</code>
+    <span class="swatch" style="background:#285c33;margin-left:10px"></span><code>--status-ok-text #285c33</code>
+  </p>
+</div>
+
+<div class="keep" style="margin-top:24px">
+  <h3>Status is never colour alone</h3>
+  <p style="margin-bottom:0">
+    A documented component is a filled marker; an undocumented one is hollow. The difference has
+    to survive greyscale, and the list underneath repeats every state in words. Keep both the
+    fill/hollow distinction and the neutral-drawing rule.
+  </p>
+</div>
+
+<h3>Also fixed</h3>
+<ul>
+  <li><strong>Markers are decorative to assistive tech.</strong> The SVG is <code>aria-hidden</code>;
+      the list beneath is the accessible path, because every marker duplicates a list row and
+      putting the same controls in the tab order twice is worse than a pointer-only map. The view
+      tabs are the only real buttons. Do not propose markers as the sole way to reach a component.</li>
+  <li><strong>Markers must not collide.</strong> Radius 13 in each drawing's own viewBox; a script
+      checks every anchor pair and fails under 30 units apart. Any redraw has to come with
+      anchor coordinates that pass it.</li>
+  <li><strong>The component list is fixed</strong> by a keyword taxonomy: cars get 13, motorcycles
+      12 (no aircon, no transmission; they get a drive chain/CVT and fairings instead). Every
+      component must appear in at least one view. A component may appear in several — a car has
+      lights at both ends.</li>
+  <li><strong>The drawing is hidden below 720px</strong>, where a marker is smaller than a
+      fingertip. The tabs stay as a filter over the list. Design for the desktop panel, roughly
+      640–800px wide.</li>
+  <li><strong>A vehicle with no recorded body type gets no drawing at all</strong>, and says so.
+      Never substitute a default silhouette — that asserts a fact the record does not carry.</li>
+  <li><strong>Flat SVG, no raster.</strong> It ships as paths in a JS module.</li>
+</ul>
+
+<h2>6. Worth knowing</h2>
+<p>
+  The parts map is <strong>not in the original project proposal</strong>. It is justified as part
+  of "consolidating and presenting service history", but it is scope that was added, so it should
+  earn its place rather than grow. A redesign that makes it dramatically more elaborate is
+  probably the wrong direction.
+</p>
+<p>
+  Component attribution is currently <strong>guessed from receipt keywords</strong> on every
+  render, not stored. So a marker can be wrong and the owner cannot correct it. That is a known
+  gap being fixed separately — but it argues for a diagram that looks approximate rather than
+  authoritative.
+</p>
+
+<h2>7. What "better" means</h2>
+<ol>
+  <li>Front and rear are unmistakably different views of the vehicle.</li>
+  <li>The engine bay reads as an engine bay, not a wireframe.</li>
+  <li>A pickup or van owner recognises their own vehicle across the views they are shown.</li>
+  <li>Markers stay legible, uncrowded and clearly two-state.</li>
+  <li>Motorcycles are not all scooters, or the drawing is generic enough not to claim otherwise.</li>
+  <li>No colour on the vehicle. No forecasting, no due-dates, no third status.</li>
+  <li>It still looks like the same product as the rest of Ink.</li>
+</ol>
+
+<h2>8. What to hand back</h2>
+<ul>
+  <li>Redrawn views. Say clearly which are per body type and which are shared — if you think
+      front/rear should be per body type after all, argue for it and accept the count.</li>
+  <li>Anchor coordinates per component per view, in the drawing's viewBox, at least 30 units apart.</li>
+  <li>Marker treatment for both states plus selected and hover.</li>
+  <li>Whether the four-view split is right at all. If one richer drawing could carry every
+      component legibly, that is a better answer and I would rather hear it.</li>
+</ul>
+
+<h2>9. The prompt</h2>
+<p style="color:var(--ink-muted)">Copy from here down, with this page open alongside.</p>
+<pre>Redesign the parts map for Trevora, a vehicle service-history product
+for owners in the Philippines. The attached page renders all thirteen
+current drawings from the live source and states the constraints.
+
+What it does: on a vehicle's Components tab, a diagram of the vehicle
+carries a numbered marker on each component. Each marker has exactly
+two states — "has service records" or "no record found". It reports
+what has been done. It never predicts or schedules maintenance; an
+earlier version did and was removed for telling scooter riders their
+engine was fine when it was not.
+
+There are four views. Side is drawn per body type (sedan, hatchback,
+SUV, MPV, pickup, van, motorcycle). Front, rear and engine bay are
+drawn once for cars and once for motorcycles. Thirteen drawings in
+total. The split exists because seven components live under a car's
+bonnet and collide with the front wheel on a single side profile.
+
+What is wrong with the current set:
+- Front and rear cars use the SAME body outline; only headlights vs
+  taillights and grille vs tailpipe differ. Switching tabs shows the
+  same silhouette twice.
+- The engine bay is boxes inside a rounded box. Legible, well spaced,
+  but reads as a wireframe, not an engine bay.
+- Every motorcycle is a scooter, so underbone and big-bike owners see
+  a step-through with a leg shield.
+- The shared views ignore body type, so a pickup owner gets their own
+  side profile and three generic car drawings.
+- Flat fills, uniform 3px stroke, no depth; nothing recedes.
+- Sedan and hatchback profiles are still close at rendered size.
+- Wheels are a circle inside a circle and read as washers.
+- Orientation is never stated; everything faces left with no cue.
+
+Hard constraints:
+- Greyscale on warm paper (#f7f4ef). ALL saturated colour is reserved
+  for component status and means one specific thing. The vehicle must
+  stay neutral: no body colour, no paint, no accent. If the drawing
+  takes colour the markers stop being the only thing that means
+  something.
+- Status is never colour alone: documented markers are filled,
+  undocumented are hollow, and it must survive greyscale.
+- The SVG is aria-hidden; a list underneath is the accessible path.
+  Markers can never be the only way to reach a component.
+- Markers are radius 13 in each drawing's viewBox and must sit at
+  least 30 units apart. Supply anchor coordinates that pass that.
+- Cars have 13 components, motorcycles 12 (no aircon or transmission;
+  they get drive chain/CVT and fairings). Every component must appear
+  in at least one view; a component may appear in several.
+- Desktop panel is roughly 640-800px wide. The drawing is hidden
+  below 720px, so design for desktop.
+- Flat SVG paths, no raster.
+- A vehicle with no recorded body type gets no drawing at all. Never
+  substitute a default silhouette.
+
+Context worth having: this feature is not in the original project
+proposal, so it should earn its place rather than grow elaborate. And
+component attribution is currently guessed from receipt keywords and
+can be wrong, which argues for a diagram that looks approximate rather
+than authoritative.
+
+Success, in order: front and rear are unmistakably different; the
+engine bay reads as an engine bay; a pickup or van owner recognises
+their vehicle; markers stay legible and clearly two-state; motorcycles
+are not all scooters; no colour on the vehicle; it still looks like
+the same product.
+
+Hand back redrawn views with anchor coordinates per component per
+view, marker treatment for both states plus selected and hover, and a
+clear statement of which views are per body type and which are shared.
+If you think one richer drawing could carry every component legibly
+instead of four, say so — that would be a better answer than the
+split.</pre>
+
+</main>
+
+<script>
+const VIEWS = {"sedan":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M38 234 C28 234 24 229 24 220 L24 176 C24 160 32 152 48 150 L196 148 L272 80 C280 74 290 72 302 72 L404 72 C416 72 424 75 430 84 L482 148 L592 150 C608 152 616 160 616 176 L616 222 C616 230 612 234 604 234 Z"],"glass":"M282 90 L400 90 L442 142 L242 142 Z","extras":[],"pillars":["M344 90 L344 142"],"wheels":[[186,220,44],[508,220,44]],"wheelsBehind":false,"anchors":{"lights":[40,142],"body":[346,107.1],"suspension":[186,169.4],"brakes":[186,220],"tires":[508,220],"exhaust":[600,244]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"hatchback":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M54 234 C44 234 40 229 40 220 L40 176 C40 161 48 153 64 151 L206 149 L280 80 C288 74 298 72 310 72 L430 72 C442 72 450 76 456 86 L534 168 C544 178 548 186 548 198 L548 222 C548 230 544 234 536 234 Z"],"glass":"M290 90 L426 90 L468 142 L250 142 Z","extras":[],"pillars":["M358 90 L358 142"],"wheels":[[196,220,44],[470,220,44]],"wheelsBehind":false,"anchors":{"lights":[56,142],"body":[337,107.1],"suspension":[196,169.4],"brakes":[196,220],"tires":[470,220],"exhaust":[532,244]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"suv":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M34 216 C24 216 22 211 22 202 L22 154 C22 138 30 130 46 128 L190 126 L258 58 C266 52 276 48 290 48 L424 48 C438 48 448 52 454 60 L502 126 L594 128 C610 130 618 138 618 154 L618 204 C618 212 614 216 606 216 Z"],"glass":"M270 68 L420 68 L462 120 L232 120 Z","extras":[],"pillars":["M346 68 L346 120"],"wheels":[[190,218,54],[512,218,54]],"wheelsBehind":false,"anchors":{"lights":[38,120],"body":[345,84],"suspension":[190,155.9],"brakes":[190,218],"tires":[512,218],"exhaust":[602,226]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"mpv":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M34 234 C24 234 22 229 22 220 L22 178 C22 162 28 152 42 146 L100 136 L196 64 C204 56 214 54 226 54 L424 54 C438 54 446 58 452 68 L516 140 C532 148 542 158 544 174 L546 222 C546 230 542 234 534 234 Z"],"glass":"M204 74 L422 74 L466 132 L156 132 Z","extras":[],"pillars":["M320 74 L320 132"],"wheels":[[176,220,46],[470,220,46]],"wheelsBehind":false,"anchors":{"lights":[38,132],"body":[313,92.7],"suspension":[176,167.1],"brakes":[176,220],"tires":[470,220],"exhaust":[530,244]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"pickup":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M34 232 C24 232 22 227 22 218 L22 170 C22 156 30 146 46 144 L196 142 L254 68 C262 60 270 58 282 58 L396 58 C404 58 408 62 408 72 L408 152 L600 152 C610 152 618 158 618 170 L618 220 C618 228 614 232 606 232 Z"],"glass":"M268 76 L396 76 L396 136 L234 136 Z","extras":[],"pillars":["M332 76 L332 136"],"wheels":[[186,220,50],[508,220,50]],"wheelsBehind":false,"anchors":{"lights":[38,134],"body":[300,95.80000000000001],"suspension":[186,162.5],"brakes":[186,220],"tires":[508,220],"exhaust":[602,242]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"van":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M34 234 C24 234 22 229 22 220 L22 122 L78 50 C86 42 94 40 108 40 L584 40 C606 40 618 50 618 78 L618 222 C618 230 614 234 606 234 Z"],"glass":"M100 62 L186 62 L186 124 L64 124 Z","extras":["M204 62 L446 62 L446 124 L204 124 Z"],"pillars":["M322 62 L322 124"],"wheels":[[164,222,50],[516,222,50]],"wheelsBehind":false,"anchors":{"lights":[38,124],"body":[355,81.4],"suspension":[164,164.5],"brakes":[164,222],"tires":[516,222],"exhaust":[602,244]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 176 L182 170 L184 200 L122 206 Z","M400 176 L338 170 L336 200 L398 206 Z","M200 212 L320 212 L320 252 L200 252 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[150,188],"engine":[260,186],"battery":[358,196],"cooling":[260,250],"brakes":[105,286]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 520 360","masses":["M110 300 L104 200 C104 180 110 168 124 160 L150 96 C156 80 168 72 186 72 L334 72 C352 72 364 80 370 96 L396 160 C410 168 416 180 416 200 L410 300 Z","M86 244 C86 238 90 234 96 234 L114 234 C120 234 124 238 124 244 L124 316 C124 322 120 326 114 326 L96 326 C90 326 86 322 86 316 Z","M396 244 C396 238 400 234 406 234 L424 234 C430 234 434 238 434 244 L434 316 C434 322 430 326 424 326 L406 326 C400 326 396 322 396 316 Z","M330 296 C330 290 336 286 344 286 L360 286 C368 286 374 290 374 296 C374 302 368 306 360 306 L344 306 C336 306 330 302 330 296 Z"],"glass":"M170 100 L350 100 L368 152 L152 152 Z","extras":["M120 172 L184 168 L186 200 L122 204 Z","M400 172 L336 168 L334 200 L398 204 Z"],"pillars":["M168 214 L352 214"],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[152,186],"body":[260,140],"tires":[415,286],"exhaust":[352,296]}}},{"id":"engineBay","label":"Engine bay","shape":{"viewBox":"0 0 560 400","masses":["M60 60 C60 48 68 40 82 40 L478 40 C492 40 500 48 500 60 L500 348 C500 360 492 368 478 368 L82 368 C68 368 60 360 60 348 Z"],"glass":null,"extras":["M92 62 L468 62 L468 100 L92 100 Z","M100 122 L192 122 L192 192 L100 192 Z","M368 122 L470 122 L470 202 L368 202 Z","M208 132 L352 132 L352 284 L208 284 Z","M124 246 C124 232 136 222 152 222 C168 222 180 232 180 246 C180 260 168 270 152 270 C136 270 124 260 124 246 Z","M394 236 L446 236 L446 296 L394 296 Z","M222 296 L338 296 L338 352 L222 352 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"cooling":[280,81],"battery":[146,157],"airFilter":[419,162],"engine":[280,200],"ac":[152,246],"fluids":[420,266],"transmission":[280,324]}}}],"motorcycle":[{"id":"side","label":"Side","shape":{"viewBox":"0 0 640 300","masses":["M82 74 L224 74 L224 98 L206 98 C216 126 224 154 230 180 L234 200 L302 202 C318 202 324 180 332 160 C340 144 354 134 374 134 L468 134 C496 134 516 148 522 172 L528 200 C530 214 522 222 508 222 L496 222 C492 196 474 180 450 180 C426 180 410 196 406 220 L360 230 L302 230 L200 228 C184 228 176 220 176 208 L168 120 C166 106 158 98 146 98 L82 98 Z","M112 96 L152 96 L142 196 L118 196 Z"],"glass":null,"extras":[],"pillars":["M368 158 L470 154"],"wheels":[[128,212,54],[450,212,54]],"wheelsBehind":true,"anchors":{"lights":[100,86],"suspension":[130,150],"brakes":[128,212],"drive":[388,206],"tires":[450,240],"fairings":[490,166],"exhaust":[520,208]}}},{"id":"front","label":"Front","shape":{"viewBox":"0 0 400 380","masses":["M50 76 L350 76 C356 76 358 80 358 86 C358 92 356 96 350 96 L50 96 C44 96 42 92 42 86 C42 80 44 76 50 76 Z","M92 44 L108 44 L108 80 L92 80 Z","M292 44 L308 44 L308 80 L292 80 Z","M138 182 L262 182 L276 268 L124 268 Z","M164 250 L182 250 L182 316 L164 316 Z","M218 250 L236 250 L236 316 L218 316 Z","M182 262 C182 256 188 252 196 252 L204 252 C212 252 218 256 218 262 L218 344 C218 352 212 356 204 356 L196 356 C188 356 182 352 182 344 Z"],"glass":null,"extras":["M158 104 C158 96 170 92 200 92 C230 92 242 96 242 104 L250 158 C250 172 232 180 200 180 C168 180 150 172 150 158 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"lights":[200,136],"cooling":[246,225],"suspension":[173,268],"brakes":[200,310]}}},{"id":"rear","label":"Rear","shape":{"viewBox":"0 0 400 380","masses":["M136 100 C136 88 146 80 160 80 L240 80 C254 80 264 88 264 100 L272 178 C272 192 258 200 200 200 C142 200 128 192 128 178 Z","M176 196 L224 196 L224 250 L176 250 Z","M172 244 C172 236 180 232 190 232 L210 232 C220 232 228 236 228 244 L228 340 C228 350 220 354 210 354 L190 354 C180 354 172 350 172 340 Z","M232 268 L262 262 L262 300 L232 306 Z","M258 254 C258 244 268 238 282 238 L306 238 C320 238 330 244 330 254 L330 306 C330 316 320 322 306 322 L282 322 C268 322 258 316 258 306 Z","M172 268 L142 262 L142 300 L172 306 Z","M104 258 L146 258 L146 306 L104 306 Z"],"glass":null,"extras":["M170 124 L230 124 L236 160 L164 160 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"fairings":[160,104],"lights":[200,142],"drive":[124,282],"tires":[200,292],"exhaust":[294,280]}}},{"id":"engineBay","label":"Engine","shape":{"viewBox":"0 0 520 360","masses":["M50 50 C50 40 58 32 70 32 L470 32 C482 32 490 40 490 50 L490 314 C490 326 482 334 470 334 L70 334 C58 334 50 326 50 314 Z"],"glass":null,"extras":["M186 74 L296 74 L296 134 L186 134 Z","M170 134 L312 134 L312 254 L170 254 Z","M314 166 C314 152 326 144 342 144 L400 144 C426 144 442 162 442 186 L442 224 C442 248 426 264 400 264 L342 264 C326 264 314 256 314 242 Z","M340 62 L452 62 L452 126 L340 126 Z","M74 66 L160 66 L160 132 L74 132 Z","M74 168 L160 168 L160 254 L74 254 Z","M186 254 L296 254 L288 306 L194 306 Z"],"pillars":[],"wheels":[],"wheelsBehind":false,"anchors":{"battery":[117,99],"airFilter":[396,94],"engine":[241,194],"drive":[386,204],"cooling":[117,211],"fluids":[241,280]}}}]};
+
+const LABELS = {
+  engine:'Engine', drive:'Drive chain and CVT', fairings:'Fairings and body', tires:'Tires',
+  brakes:'Brakes', battery:'Battery', airFilter:'Air filter', transmission:'Transmission',
+  cooling:'Cooling system', suspension:'Suspension', lights:'Lights', ac:'Air conditioning',
+  body:'Body', exhaust:'Exhaust', fluids:'Fluids',
+};
+
+function draw(shape) {
+  const wheels = (shape.wheels || []).map(([cx, cy, r]) =>
+    `<circle class="vd-tyre" cx="${cx}" cy="${cy}" r="${r}"/><circle class="vd-hub" cx="${cx}" cy="${cy}" r="${r * 0.42}"/>`).join('');
+  const bodyParts =
+    (shape.masses || []).map(d => `<path class="vd-mass" d="${d}"/>`).join('')
+    + (shape.extras || []).map(d => `<path class="vd-glass" d="${d}"/>`).join('')
+    + (shape.glass ? `<path class="vd-glass" d="${shape.glass}"/>` : '')
+    + (shape.pillars || []).map(d => `<path class="vd-line" d="${d}"/>`).join('');
+  const keys = Object.keys(shape.anchors);
+  const markers = keys.map((key, i) => {
+    const [x, y] = shape.anchors[key];
+    const state = i % 3 === 0 ? 'none' : 'ok';
+    return `<g class="vd-marker is-${state}"><title>${LABELS[key] || key}</title>
+      <circle cx="${x}" cy="${y}" r="13"/><text x="${x}" y="${y}">${i + 1}</text></g>`;
+  }).join('');
+  return `<svg viewBox="${shape.viewBox}">${shape.wheelsBehind ? wheels + bodyParts : bodyParts + wheels}${markers}</svg>`;
+}
+
+function legend(shape) {
+  return Object.keys(shape.anchors).map((k, i) => `${i + 1} ${LABELS[k] || k}`).join(' · ');
+}
+
+function figure(title, shape, extraNote) {
+  return `<figure><div class="frame">${draw(shape)}</div>
+    <figcaption><b>${title}</b>${extraNote ? ' — ' + extraNote : ''}<br>${legend(shape)}</figcaption></figure>`;
+}
+
+const TYPE_LABELS = { sedan:'Sedan', hatchback:'Hatchback', suv:'SUV', mpv:'MPV', pickup:'Pickup', van:'Van', motorcycle:'Motorcycle (scooter)' };
+
+document.getElementById('sides').innerHTML = Object.keys(VIEWS)
+  .map(t => figure(TYPE_LABELS[t], VIEWS[t][0].shape)).join('');
+
+document.getElementById('carShared').innerHTML = VIEWS.sedan.slice(1)
+  .map(v => figure(v.label, v.shape, 'used by all six car types')).join('');
+
+document.getElementById('motoShared').innerHTML = VIEWS.motorcycle.slice(1)
+  .map(v => figure(v.label, v.shape)).join('');
+</script>
+</body>
+</html>

@@ -53,6 +53,35 @@ export function componentKeysFor(vehicleClass) {
   return componentRulesFor(vehicleClass).map(([key]) => key);
 }
 
+/**
+ * The order components are numbered and listed in, which is not the order the
+ * rules above happen to be written in.
+ *
+ * The parts map numbers each component by its position here, globally rather
+ * than per view, so 5 is Tires on every tab and every body type. That only
+ * works if the order is grouped by where the component lives: everything the
+ * side view carries first, then everything under the bonnet. A car's side view
+ * therefore reads 1-6 and its bonnet 7-13, and a rider's 1-7 and 8-12.
+ *
+ * Every key in `componentKeysFor` has to appear here, or it would be numbered
+ * off the end of the list.
+ */
+const COMPONENT_ORDER = {
+  car: ['lights', 'body', 'suspension', 'brakes', 'tires', 'exhaust',
+    'cooling', 'fluids', 'battery', 'airFilter', 'engine', 'ac', 'transmission'],
+  motorcycle: ['lights', 'fairings', 'suspension', 'brakes', 'tires', 'exhaust', 'drive',
+    'cooling', 'airFilter', 'battery', 'engine', 'fluids'],
+};
+
+function componentOrderFor(vehicleClass) {
+  return vehicleClass === 'motorcycle' ? COMPONENT_ORDER.motorcycle : COMPONENT_ORDER.car;
+}
+
+/** 1-based position of each component in its class taxonomy — the map's marker numbers. */
+export function componentNumbersFor(vehicleClass) {
+  return Object.fromEntries(componentOrderFor(vehicleClass).map((key, index) => [key, index + 1]));
+}
+
 export const COMPONENT_LABELS = {
   engine: 'Engine',
   drive: 'Drive chain and CVT',

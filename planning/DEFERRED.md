@@ -104,32 +104,50 @@ both add-vehicle forms send it. Values: sedan, hatchback, suv, mpv, pickup,
 van, motorcycle. Existing rows stay null — most are test data whose body type
 nobody can honestly state, and back-filling would be inventing it.
 
-The artwork landed 2026-08-22/23 as well. `components/ink/vehicleShapes.js`
-holds the geometry and `VehicleDiagram.jsx` renders it above the component
-list.
+The artwork landed 2026-08-22/23 as well, and was redrawn 2026-08-23 against a
+design handoff (`planning/design-handoffs/parts-map.html` is the brief).
+`components/ink/vehicleDrawings.jsx` holds the drawings,
+`components/ink/vehicleShapes.js` the viewBoxes and anchors, and
+`VehicleDiagram.jsx` renders them above the component list.
 
-**Four views, as the original design had**: Side, Front, Rear, Engine bay. A
-first pass shipped side-only, on the reasoning that the taxonomy has a single
-`tires` entry rather than one per corner so a second angle had nothing to point
-at. That reasoning was wrong, and the old `PartsMap.jsx` showed why: its views
-were never about per-corner attribution, they were about giving a crowded
-region its own canvas. Seven components live under a car's bonnet. On one side
-profile they collide with the front wheel, and the only way to fit them is to
-move some of them somewhere less true. The engine bay view holds all seven with
-room to spare.
+**Two views, not four**: Side, and Under the bonnet. The first pass shipped
+side-only; the second added Front, Rear and Engine bay; the redraw kept the bay
+and deleted front and rear. They existed to hold lights, brakes and exhaust,
+every one of which the side profile already carries at both ends of the
+vehicle, so deleting them cost no component — and they were the two views that
+duplicated each other's outline, ignored body type entirely, and so showed a
+pickup owner somebody else's vehicle. Thirteen drawings became nine.
+
+The bay keeps its own canvas for the original reason, which still holds: seven
+components live under a car's bonnet inside a region about 90 units wide on a
+side profile, and at marker radius 13 with 30 units of clearance they do not
+fit. Relocating them until they do is the lie the second drawing avoids.
 
 Scoped, deliberately:
 
-- **Side is per body type; the other three are shared per vehicle class.** A
-  pickup and an MPV differ in profile and that is the view where it shows.
-  Head-on and under the bonnet they are close enough that per-body-type copies
-  would be near-duplicates — six more places to drift, not six more facts.
-  Thirteen drawings rather than twenty-eight.
-- **A component may appear in more than one view**, since some genuinely live
-  in more than one place. Marker numbers are therefore per view, not global.
+- **Side is per body type; the bay is shared per vehicle class.** The side
+  profile is the view every owner recognises, so that is where the per-type
+  effort goes. An MPV's bay and a pickup's bay genuinely look alike, and
+  neither owner has ever seen theirs from directly above.
+- **Motorcycles get one generic naked standard, not sub-types.** `bodyType`
+  records `motorcycle`, not underbone or big bike, so a sub-type drawing would
+  be a guess dressed as a fact. If the field ever gains sub-types this becomes
+  three drawings and eleven total.
+- **A component may appear in both views**, since some genuinely live in more
+  than one place.
+- **Marker numbers are global**, the component's position in its class
+  taxonomy, so 5 is Tires on both tabs and every body type. The cost is that
+  the list is ordered by taxonomy rather than documented-first, and reads 1–6
+  on the side and 7–13 under the bonnet. Reverting means dropping
+  `componentNumbersFor` and going back to `index + 1`.
 - **A null `bodyType` gets no drawing and no tabs**, just the full list and a
   note. Falling back to a sedan would assert a body type the row does not
   carry — the same invention the migration avoided by not back-filling.
+
+Not done, and known: `PartsMap.jsx` still exists in the old palette with the
+removed due/overdue grading, and it is still rendered by the routed
+`/mechanic/access/:sessionId` page. Earlier notes calling it unwired are wrong.
+Porting the mechanic view onto `PartsView` is its own piece of work.
 
 Markers are `aria-hidden`; the list underneath remains the accessible path,
 because putting the same controls in the tab order twice is worse than a

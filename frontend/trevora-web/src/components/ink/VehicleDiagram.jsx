@@ -1,5 +1,14 @@
 import React from 'react';
 import { MARKER_RADIUS } from './vehicleShapes';
+import { WheelDefs } from './vehicleDrawings.jsx';
+
+/* Selection and hover are drawn as a ring *outside* the marker, at these
+   radii, rather than by thickening the marker's own stroke. The stroke is
+   already carrying status — solid for documented, dashed for not — so putting
+   selection there too makes a selected undocumented marker stop looking
+   undocumented. Kept on separate channels, both survive. */
+const HOVER_HALO = 18;
+const SELECTED_HALO = 20;
 
 /**
  * One view of the parts map: a drawing of the vehicle with a numbered marker
@@ -9,57 +18,56 @@ import { MARKER_RADIUS } from './vehicleShapes';
  * duplicates a row in the list below, and making both focusable would put the
  * same controls in the tab order twice — worse for a keyboard or screen-reader
  * user than not having the map at all. So the map is `aria-hidden`, the list
- * stays the accessible path, and the numbers tie the two together: marker 4 is
- * row 4. Pointer users get the map; everyone else loses nothing, because the
- * list already carries every fact the map shows.
+ * stays the accessible path, and the numbers tie the two together: marker 5 is
+ * the row numbered 5.
  *
- * Numbers are per view and come from the entry's position in `entries`, which
- * the caller has already filtered to this view and sorted by status. They
- * renumber as records change, which is why the number is drawn rather than
- * baked into the geometry.
+ * Numbers are the component's position in its class taxonomy, not its position
+ * in this view, so they do not change when the tab changes or when records
+ * come in. On a car the side view therefore reads 1–6 and the bonnet 7–13.
  *
  * Colour follows the Ink rule: chroma belongs to status and nothing else. The
- * drawing is entirely neutral, so the only coloured things are the markers,
- * and selection is shown by weight and an ink ring rather than by hue.
+ * drawing is entirely neutral, so the only coloured thing on it is a filled
+ * marker.
  */
-export default function VehicleDiagram({ shape, entries, selectedKey, onSelect }) {
+export default function VehicleDiagram({ shape, entries, selectedKey, hoverKey, onSelect, onHover }) {
   if (!shape) return null;
-
-  const wheels = shape.wheels.map(([cx, cy, r]) => (
-    <g key={`${cx}-${cy}`}>
-      <circle className="vd-tyre" cx={cx} cy={cy} r={r} />
-      <circle className="vd-hub" cx={cx} cy={cy} r={r * 0.42} />
-    </g>
-  ));
-
-  const body = (
-    <g key="body">
-      {shape.masses.map((d) => <path key={d} className="vd-mass" d={d} />)}
-      {shape.extras.map((d) => <path key={d} className="vd-glass" d={d} />)}
-      {shape.glass && <path className="vd-glass" d={shape.glass} />}
-      {shape.pillars.map((d) => <path key={d} className="vd-line" d={d} />)}
-    </g>
-  );
 
   return (
     <div className="vehicle-diagram">
       <svg viewBox={shape.viewBox} aria-hidden="true" focusable="false">
-        {shape.wheelsBehind ? [wheels, body] : [body, wheels]}
+        <WheelDefs />
+        {shape.art}
 
-        {entries.map((entry, index) => {
+        {entries.map((entry) => {
           const anchor = shape.anchors[entry.key];
           if (!anchor) return null;
           const [x, y] = anchor;
           const selected = entry.key === selectedKey;
+          const hovered = !selected && entry.key === hoverKey;
 
           return (
             <g
               key={entry.key}
               className={`vd-marker is-${entry.status}${selected ? ' is-selected' : ''}`}
               onClick={() => onSelect(entry.key)}
+              onMouseEnter={() => onHover?.(entry.key)}
+              onMouseLeave={() => onHover?.(null)}
             >
-              <circle cx={x} cy={y} r={MARKER_RADIUS} />
-              <text x={x} y={y}>{index + 1}</text>
+              {(selected || hovered) && (
+                <circle
+                  className="vd-marker__halo"
+                  cx={x}
+                  cy={y}
+                  r={selected ? SELECTED_HALO : HOVER_HALO}
+                />
+              )}
+              <circle
+                className="vd-marker__dot"
+                cx={x}
+                cy={y}
+                r={selected ? MARKER_RADIUS + 2 : MARKER_RADIUS + (hovered ? 1 : 0)}
+              />
+              <text x={x} y={y}>{entry.number}</text>
             </g>
           );
         })}

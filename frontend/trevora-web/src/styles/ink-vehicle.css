@@ -581,51 +581,35 @@
   width: 100%;
 }
 
-.vd-mass {
-  fill: var(--status-none-bg);
-  stroke: var(--ink-faint);
-  stroke-linejoin: round;
-  stroke-width: 3;
-}
+/* The vehicle itself carries its own values, in vehicleDrawings.jsx: the
+   drawings need six neutral steps and three line weights, which is more than a
+   handful of shared classes could describe without one of them meaning two
+   things. All that is left here is the type on the drawing and the markers. */
 
-.vd-glass {
-  fill: var(--surface);
-  stroke: var(--ink-faint);
-  stroke-linejoin: round;
-  stroke-width: 3;
-}
-
-.vd-line {
-  fill: none;
-  stroke: var(--ink-faint);
-  stroke-width: 3;
-}
-
-.vd-tyre {
-  fill: var(--rule);
-  stroke: var(--ink-muted);
-  stroke-width: 3;
-}
-
-.vd-hub {
-  fill: var(--surface);
-  stroke: var(--ink-faint);
-  stroke-width: 3;
+/* FRONT / REAR and the bay's end labels. Orientation used to be something the
+   viewer had to infer. */
+.vd-label {
+  fill: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  user-select: none;
 }
 
 .vd-marker {
   cursor: pointer;
 }
 
-.vd-marker circle {
+.vd-marker__dot {
   fill: var(--surface);
   stroke: var(--ink);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .vd-marker text {
   dominant-baseline: central;
   fill: var(--ink);
+  font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 700;
   text-anchor: middle;
@@ -633,36 +617,39 @@
   user-select: none;
 }
 
-/* Status rides on the marker's fill, the one place chroma is allowed. A
-   documented component is filled; an undocumented one stays hollow, so the
-   two are told apart by weight as well as by hue. */
-.vd-marker.is-ok circle {
-  fill: var(--status-ok-bg);
+/* Status rides on the marker, the one place chroma is allowed, and it is never
+   carried by hue alone: a documented component is solid-filled with a solid
+   ring, an undocumented one is hollow with a dashed one. Fill against fill was
+   the old failure — #ecf3ec on #fff is a four percent difference in lightness
+   carrying this screen's entire message. */
+.vd-marker.is-ok .vd-marker__dot {
+  fill: var(--status-ok-text);
   stroke: var(--status-ok-text);
 }
 
-.vd-marker.is-ok text { fill: var(--status-ok-text); }
+.vd-marker.is-ok text { fill: var(--paper); }
 
-.vd-marker.is-none circle {
+.vd-marker.is-none .vd-marker__dot {
   fill: var(--surface);
   stroke: var(--status-none-text);
+  stroke-dasharray: 3 3;
 }
 
 .vd-marker.is-none text { fill: var(--ink-muted); }
 
-.vd-marker:hover circle {
-  stroke-width: 3.5;
+/* Hover and selection are rings outside the marker, not changes to it.
+   Thickening the marker's own stroke would compete with the dash that means
+   "no record found", so a selected undocumented marker would stop looking
+   undocumented. Kept on separate channels, both stay readable. */
+.vd-marker__halo {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 1.5;
 }
 
-/* Selection is weight and a ring, never a colour change — the colour slot is
-   already spoken for by status. */
-.vd-marker.is-selected circle {
-  paint-order: stroke;
+.vd-marker.is-selected .vd-marker__halo {
   stroke: var(--ink);
-  stroke-width: 4;
 }
-
-.vd-marker.is-selected text { fill: var(--ink); }
 
 .parts-panel__note {
   background: var(--surface-sunken);
@@ -702,7 +689,11 @@
   width: 100%;
 }
 
-.parts-list__row:hover:not(.is-selected) {
+/* .is-hovered is the same state reached from the drawing: hovering a marker
+   mirrors its row, so the pointer never has to guess which row it belongs
+   to. */
+.parts-list__row:hover:not(.is-selected),
+.parts-list__row.is-hovered {
   background: var(--surface-sunken);
   border-color: var(--rule);
   color: var(--ink);
@@ -973,8 +964,8 @@
 
    The view tabs stay. Without the drawing they stop being a view switcher and
    become a plain "where on the vehicle" filter over the list, which is still
-   worth having — Side, Front, Rear and Engine bay group the components in a
-   way a single flat list of thirteen does not. */
+   worth having — outside the vehicle versus under the bonnet groups thirteen
+   components in a way a single flat list does not. */
 @media (max-width: 720px) {
   .vehicle-diagram {
     display: none;

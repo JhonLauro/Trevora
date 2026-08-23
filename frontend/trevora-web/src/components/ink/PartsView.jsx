@@ -4,23 +4,31 @@ import { formatAmount, formatDate, formatOdometer } from '../../utils/format';
 import { recordStatus, recordStatusLabel, sourceLabel } from '../../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../../utils/serviceText';
 import { STATUS_TEXT } from '../../utils/componentStatus';
+import { componentNumbersFor } from '../../utils/serviceComponents';
 import VehicleDiagram from './VehicleDiagram.jsx';
 import { hasVehicleShape, vehicleViews } from './vehicleShapes';
 
 /**
  * Components view: the parts map over the component list.
  *
- * Four views — side, front, rear, engine bay — each carrying the components
- * that live in it, so the list underneath is "components in this view" and the
- * numbering is per view (marker 4 is row 4). A component can appear in more
- * than one view, because some genuinely live in more than one place: a car has
- * lights at both ends. See vehicleShapes.js for the geometry and for why the
- * side view is per body type while the rest are per vehicle class.
+ * Two views — the side profile and the engine bay — each carrying the
+ * components that live in it, so the list underneath is "components in this
+ * view". A component can appear in both, because some genuinely live in more
+ * than one place. See vehicleShapes.js for the geometry, for why the side view
+ * is per body type while the bay is per vehicle class, and for why front and
+ * rear are gone.
+ *
+ * **Numbers are global, not per view.** Each one is the component's position
+ * in its class taxonomy, so 5 is Tires on both tabs and on every body type,
+ * and switching tabs does not renumber anything. The list is ordered to match,
+ * which is why it reads 1-6 on the side and 7-13 under the bonnet rather than
+ * putting the documented components first.
  *
  * The view tabs are the only real buttons on the map. The markers are
  * `aria-hidden`, because each one duplicates a list row and putting the same
  * controls in the tab order twice is worse than a pointer-only map; the tabs
- * have no equivalent in the list, so they are focusable.
+ * have no equivalent in the list, so they are focusable. Selection is owned by
+ * the row: hovering a marker mirrors its row, not the other way round.
  *
  * A vehicle whose `bodyType` is null gets no drawing and no tabs, and the note
  * says so rather than picking a silhouette on the owner's behalf. Rows created
@@ -125,6 +133,7 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bo
   const views = useMemo(() => vehicleViews(bodyType), [bodyType]);
   const [viewId, setViewId] = useState('side');
   const [selectedKey, setSelectedKey] = useState(null);
+  const [hoverKey, setHoverKey] = useState(null);
 
   const activeView = views.find((view) => view.id === viewId) ?? views[0] ?? null;
 
@@ -132,10 +141,17 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bo
   // the map is "components in this view" rather than the whole taxonomy. With
   // no drawing at all (unknown body type) the list falls back to everything,
   // which is what it showed before the map existed.
-  const visible = useMemo(
-    () => (activeView ? entries.filter((entry) => activeView.shape.anchors[entry.key]) : entries),
-    [entries, activeView],
-  );
+  //
+  // Both the order and the numbers come from the class taxonomy rather than
+  // from the incoming sort, so the numbers stay put across tabs and the list
+  // still counts upwards.
+  const visible = useMemo(() => {
+    const numbers = componentNumbersFor(vehicleClass);
+    return entries
+      .filter((entry) => (activeView ? activeView.shape.anchors[entry.key] : true))
+      .map((entry, index) => ({ ...entry, number: numbers[entry.key] ?? index + 1 }))
+      .sort((a, b) => a.number - b.number);
+  }, [entries, activeView, vehicleClass]);
 
   // A selection can fall out from under us two ways: records change and
   // re-sort the list, or the user switches to a view that does not carry the
@@ -191,7 +207,9 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bo
           shape={activeView?.shape ?? null}
           entries={visible}
           selectedKey={selectedKey}
+          hoverKey={hoverKey}
           onSelect={setSelectedKey}
+          onHover={setHoverKey}
         />
 
         {!hasVehicleShape(bodyType) && (
@@ -208,15 +226,18 @@ export default function PartsView({ entries, vehicleId, vehicleClass = 'car', bo
         </div>
 
         <ul className="parts-list">
-          {visible.map((entry, index) => (
+          {visible.map((entry) => (
             <li key={entry.key}>
               <button
                 type="button"
-                className={`parts-list__row${entry.key === selectedKey ? ' is-selected' : ''}`}
+                className={`parts-list__row${entry.key === selectedKey ? ' is-selected' : ''}${
+                  entry.key === hoverKey && entry.key !== selectedKey ? ' is-hovered' : ''}`}
                 aria-pressed={entry.key === selectedKey}
                 onClick={() => setSelectedKey(entry.key)}
+                onMouseEnter={() => setHoverKey(entry.key)}
+                onMouseLeave={() => setHoverKey(null)}
               >
-                <span className="parts-list__index ink-mono" aria-hidden="true">{index + 1}</span>
+                <span className="parts-list__index ink-mono" aria-hidden="true">{entry.number}</span>
                 <span className="parts-list__copy">
                   <strong>{entry.label}</strong>
                   <small className={`is-${entry.status}`}>{entry.statusText}</small>

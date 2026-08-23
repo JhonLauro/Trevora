@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Body type picker — design brief</title>
+<style>
+  :root {
+    --paper: #f7f4ef; --surface: #ffffff; --ink: #1c1b19; --ink-muted: #57534c;
+    --ink-faint: #8b857c; --border: #c4bdb0; --rule: #d8d1c5; --sunken: #efede8;
+    --rule-faint: #e6e1d7;
+    --status-ok-text: #285c33; --status-bad-text: #8c2018; --status-warn-text: #7a4e10;
+    --font-serif: 'Source Serif 4', Georgia, serif;
+    --font-sans: 'Public Sans', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink); font-family: var(--font-sans);
+    font-size: 16px; line-height: 1.55; margin: 0; padding: 40px 24px 80px;
+  }
+  main { margin: 0 auto; max-width: 860px; }
+  h1 { font-family: var(--font-serif); font-size: 34px; line-height: 1.2; margin: 0 0 6px; }
+  h2 {
+    border-top: 1px solid var(--rule); font-family: var(--font-serif); font-size: 24px;
+    margin: 44px 0 14px; padding-top: 22px;
+  }
+  h3 { font-size: 17px; margin: 26px 0 8px; }
+  .lede { color: var(--ink-muted); font-size: 18px; margin: 0 0 8px; }
+  .eyebrow {
+    color: var(--ink-faint); font-size: 12px; font-weight: 600;
+    letter-spacing: .09em; text-transform: uppercase;
+  }
+  code, kbd { background: var(--sunken); border-radius: 4px; font-family: var(--font-mono); font-size: 13px; padding: 1px 5px; }
+  pre {
+    background: var(--surface); border: 1px solid var(--rule-faint); border-radius: 8px;
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.6; overflow-x: auto; padding: 16px 18px;
+  }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 22px 24px; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--ink-faint); }
+  .must { border-left: 3px solid var(--status-bad-text); padding-left: 16px; }
+  .keep { border-left: 3px solid var(--status-ok-text); padding-left: 16px; }
+  table { border-collapse: collapse; font-size: 15px; width: 100%; }
+  th, td { border-bottom: 1px solid var(--rule-faint); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { color: var(--ink-faint); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+  .swatch { border: 1px solid var(--rule); border-radius: 3px; display: inline-block; height: 13px; margin-right: 7px; vertical-align: -2px; width: 13px; }
+
+  /* ---- the live current design, copied from the running app ---- */
+  .picker { border: 0; margin: 0; min-width: 0; padding: 0; }
+  .picker__group { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .picker__options { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .picker__option {
+    align-items: flex-start; background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 10px; display: flex; gap: 12px; padding: 14px 16px;
+  }
+  .picker__option.is-selected { background: var(--paper); border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .picker__radio {
+    border: 2px solid var(--ink-faint); border-radius: 50%; flex: 0 0 auto;
+    height: 20px; margin-top: 2px; width: 20px;
+  }
+  .is-selected .picker__radio { background: radial-gradient(var(--ink) 0 42%, transparent 44%); border-color: var(--ink); }
+  .picker__copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .picker__copy strong { font-size: 16px; font-weight: 600; }
+  .picker__copy small { color: var(--ink-muted); font-size: 15px; }
+  .picker__copy em { color: var(--ink-faint); font-size: 15px; font-style: normal; }
+  .glyph { color: var(--ink-muted); flex: 0 0 auto; height: 38px; margin-top: 2px; width: 72px; }
+  .is-selected .glyph { color: var(--ink); }
+
+  .zoom { display: grid; gap: 18px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
+  .zoom figure { margin: 0; text-align: center; }
+  .zoom svg { color: var(--ink); height: auto; width: 100%; }
+  .zoom figcaption { color: var(--ink-faint); font-size: 13px; margin-top: 4px; }
+  .actual { background: var(--sunken); border-radius: 8px; display: flex; flex-wrap: wrap; gap: 26px; margin-top: 12px; padding: 18px 20px; }
+  .actual figure { margin: 0; text-align: center; }
+  .actual svg { color: var(--ink-muted); height: 38px; width: 72px; }
+  .actual figcaption { color: var(--ink-faint); font-size: 12px; }
+  @media (max-width: 700px) {
+    .picker__options, .zoom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<p class="eyebrow">Trevora · Ink · design brief</p>
+<h1>Body type picker</h1>
+<p class="lede">
+  Improve how an owner tells us what shape their vehicle is. This page is the context —
+  it renders the current design from the real source, states the constraints that cannot
+  move, and ends with the prompt to work from.
+</p>
+
+<h2>1. What this is and where it appears</h2>
+<p>
+  Trevora is a vehicle service-history system for owners in the Philippines. Body type is
+  asked once, when a vehicle is added, on two screens:
+</p>
+<ul>
+  <li><code>RegisterVehiclePage</code> — step 2 of signup, immediately after account creation.
+      A brand-new user's third screen in a row that is a form.</li>
+  <li><code>AddVehiclePage</code> — adding a second or later vehicle from the Garage.</li>
+</ul>
+<p>
+  <strong>It is usually pre-filled.</strong> Picking a model from the catalogue sets the body
+  type automatically, and the hint changes to "Filled in from the model. Change it if it is
+  wrong." The picker is doing its hardest work for the minority of owners whose model is not
+  in the catalogue — which is exactly the person least likely to know the vocabulary.
+</p>
+<p>
+  It is a required field. Downstream, <code>bodyType</code> selects the silhouette on the parts
+  map, and its <code>vehicleClass</code> (car or motorcycle) decides which components a vehicle
+  is shown at all — a motorcycle is never offered an aircon, a car never a drive chain.
+  A wrong answer here is visible later, so being <em>easy to answer correctly</em> matters more
+  than being fast to skip.
+</p>
+
+<h2>2. The current design, as it actually renders</h2>
+<p class="eyebrow">Live markup, copied from the running app</p>
+<div class="card" style="margin-top:12px">
+  <fieldset class="picker">
+    <legend style="font-size:15px;font-weight:600">Body type</legend>
+    <p style="color:var(--ink-muted);font-size:15px;margin:4px 0 0">
+      Pick the one that looks like yours — the examples are there if the name is unfamiliar.
+    </p>
+
+    <div class="picker__group">
+      <span class="eyebrow">Four wheels</span>
+      <div class="picker__options" id="cars"></div>
+    </div>
+
+    <div class="picker__group">
+      <span class="eyebrow">Two wheels</span>
+      <div class="picker__options" id="bikes"></div>
+    </div>
+  </fieldset>
+</div>
+
+<h3>The seven silhouettes at their real size (72&times;38)</h3>
+<div class="actual" id="actual"></div>
+
+<h3>The same shapes enlarged, so the differences are visible</h3>
+<p style="color:var(--ink-muted);font-size:15px;margin:0">
+  These are the same paths. Anything you can only tell apart here and not above is,
+  in practice, not doing its job.
+</p>
+<div class="zoom" id="zoom"></div>
+
+<h2>3. What is wrong with it</h2>
+<p>Stated plainly, in rough order of how much it matters:</p>
+<ol>
+  <li><strong>Pairs collapse at 72px.</strong> Sedan against hatchback, and MPV against van, are
+      close to indistinguishable at rendered size. The source file admits this: the shapes were
+      deliberately exaggerated because "real proportions would make several of these
+      near-identical", and the CSS comment concedes the examples "do the real work for anyone
+      who does not know the term". The drawing is currently the weakest of the three signals,
+      when it should be the fastest.</li>
+  <li><strong>The glyphs are flat single-colour fills.</strong> No window line, no wheel arch,
+      no interior detail. The only things carrying the difference are the outline and the wheel
+      radius, which is very little information for seven categories.</li>
+  <li><strong>Six car options in a two-column grid is three rows</strong>, and one column on
+      mobile is a six-item scroll — inside a signup flow already flagged internally as too long.</li>
+  <li><strong>The "Two wheels" group holds exactly one option</strong>, so it renders as a single
+      card under its own heading and looks unbalanced against the six above it.</li>
+  <li><strong>Selection is quiet.</strong> A border, an inset shadow, and the glyph shifting from
+      <code>--ink-muted</code> to <code>--ink</code>. On a page of white cards it is easy to miss
+      which one is chosen.</li>
+  <li><strong>The radio dot competes with the glyph</strong> for the role of "the control", and
+      takes the leading edge of every row.</li>
+</ol>
+
+<h2>4. Constraints that cannot move</h2>
+
+<div class="must">
+  <h3>Ink reserves all chroma for record status</h3>
+  <p>
+    The product is greyscale on warm paper. The only saturated colour anywhere is the status
+    ramp, and it means one specific thing: whether a service record has been checked by a human.
+    <strong>Do not introduce an accent colour, a brand colour, or a coloured selected state.</strong>
+    Distinction has to come from structure, weight, size, spacing and motion.
+  </p>
+  <p style="margin-bottom:0">
+    <span class="swatch" style="background:#f7f4ef"></span><code>--paper #f7f4ef</code> ·
+    <span class="swatch" style="background:#fff"></span><code>--surface #ffffff</code> ·
+    <span class="swatch" style="background:#1c1b19"></span><code>--ink #1c1b19</code> ·
+    <span class="swatch" style="background:#57534c"></span><code>--ink-muted #57534c</code> ·
+    <span class="swatch" style="background:#8b857c"></span><code>--ink-faint #8b857c</code> ·
+    <span class="swatch" style="background:#d8d1c5"></span><code>--rule #d8d1c5</code> ·
+    <span class="swatch" style="background:#efede8"></span><code>--sunken #efede8</code>
+  </p>
+</div>
+
+<div class="keep" style="margin-top:24px">
+  <h3>Keep all three signals: shape, description, examples</h3>
+  <p style="margin-bottom:0">
+    They fail in different ways and cover for each other. The silhouette is fastest when it is
+    clear; the description rescues the pairs that look alike; the examples settle MPV against van,
+    which neither of the other two reliably does. A screen reader gets nothing from the drawing
+    and reads the description instead. <strong>Removing any one of them to save space is a
+    regression</strong>, even if the redesigned shapes are much better.
+  </p>
+</div>
+
+<h3>Also fixed</h3>
+<ul>
+  <li><strong>Real radio inputs.</strong> Single choice in a form — radios bring arrow-key
+      navigation and group semantics for free. A grid of <code>&lt;button&gt;</code>s would have to
+      re-implement both. The visual treatment of the radio is open; the semantics are not.</li>
+  <li><strong>Type floor:</strong> 16px body, 15px for secondary text. Nothing smaller.</li>
+  <li><strong>Touch targets ≥ 44px.</strong> Must work at 360px wide.</li>
+  <li><strong>The seven categories are fixed</strong> — sedan, hatchback, SUV, MPV, pickup, van,
+      motorcycle — and so are their ids, labels, descriptions and examples. They are a database
+      check constraint, not a design choice.</li>
+  <li><strong>Glyphs are drawn in <code>currentColor</code></strong> so they inherit the selected
+      state without a palette of their own. Keep that.</li>
+</ul>
+
+<h2>5. Explicitly out of scope</h2>
+<p>
+  <strong>This is not the parts map.</strong> A separate and much larger set of drawings
+  (<code>vehicleShapes.js</code>) renders four views per vehicle — side, front, rear, engine bay —
+  with numbered component markers on them. Those were rebuilt recently and are settled. They
+  share nothing with these glyphs: different viewBox, different level of detail, different job,
+  and they carry anchor points these do not. Do not try to unify them.
+</p>
+<p>
+  The make and model fields above this one are also out of scope, though there is a known
+  intention to turn make into a tappable grid of common Philippine marques. If your layout
+  would conflict with that, say so rather than designing around it silently.
+</p>
+
+<h2>6. What "better" means</h2>
+<p>Judge any proposal against these, in this order:</p>
+<ol>
+  <li>Someone who does not know the word "MPV" still answers correctly.</li>
+  <li>Sedan vs hatchback, and MPV vs van, are tellable apart <em>at final rendered size</em>,
+      not just when enlarged.</li>
+  <li>The whole control is shorter or feels shorter than three rows plus an orphan.</li>
+  <li>The chosen option is unmistakable at a glance.</li>
+  <li>It survives 360px width and a screen reader.</li>
+  <li>No new colour.</li>
+</ol>
+
+<h2>7. What to hand back</h2>
+<ul>
+  <li>A layout for the control at desktop and at 360px — including how the single motorcycle
+      option sits alongside six car options without looking like a mistake.</li>
+  <li>Seven redrawn silhouettes. Keep the <code>0 0 76 40</code> viewBox and single-path-per-shape
+      structure if you can, since swapping them is then a paths-only change; if a redesign needs a
+      different box or a second path per shape, that is allowed — say so.</li>
+  <li>The selected, hover and keyboard-focus states.</li>
+  <li>A note on anything above you disagree with. The constraints in §4 are real, but the
+      problems in §3 are one person's reading and worth challenging.</li>
+</ul>
+
+<h2>8. The prompt</h2>
+<p style="color:var(--ink-muted)">Copy from here down, with this page attached or open alongside.</p>
+<pre>Redesign the body type picker for Trevora, a vehicle service-history
+product for owners in the Philippines. The attached page renders the
+current design from the live source and states the constraints.
+
+The control asks a new owner what shape their vehicle is: sedan,
+hatchback, SUV, MPV, pickup, van, or motorcycle. It appears during
+signup and when adding a vehicle. It is usually pre-filled from the
+chosen model, so it matters most for owners whose model is not in our
+catalogue — the people least likely to know the terminology.
+
+The problem: each option shows a 72x38 silhouette, a one-line
+description and three example models. At that size the silhouettes do
+not carry their weight. Sedan and hatchback look alike; MPV and van
+look alike. The drawings are flat single-colour fills with no window
+line or wheel arch, so only the outline and wheel size distinguish
+seven categories. Six car options in a two-column grid runs three rows,
+and the lone motorcycle sits under its own heading looking orphaned.
+Selection is a border and a subtle ink shift, easy to miss.
+
+Hard constraints:
+- The product is greyscale on warm paper (#f7f4ef). ALL saturated
+  colour is reserved for service-record status and means something
+  specific. No accent colour, no coloured selected state. Distinction
+  must come from structure, weight, size, spacing and motion.
+- Keep all three signals per option: silhouette, description, examples.
+  They fail differently and cover for each other. A screen reader gets
+  the description, not the drawing. Dropping one to save space is a
+  regression.
+- Real radio inputs (arrow-key navigation, group semantics). Visual
+  treatment is open; the semantics are not.
+- 16px body text, 15px floor. Touch targets 44px or larger. Must work
+  at 360px wide.
+- The seven categories and their labels, descriptions and examples are
+  fixed by a database constraint.
+
+Out of scope: the parts-map artwork, which is a separate and settled
+set of four-view component diagrams. Do not unify the two.
+
+Success, in order: someone who does not know "MPV" still answers
+correctly; sedan/hatchback and MPV/van are tellable apart at rendered
+size rather than only when enlarged; the control is shorter than three
+rows plus an orphan; the selected option is unmistakable; it survives
+360px and a screen reader; no new colour.
+
+Give me the layout at desktop and 360px, seven redrawn silhouettes
+(keep the 0 0 76 40 viewBox and one path per shape if you can, so
+swapping them is a paths-only change), and the selected, hover and
+focus states. Tell me where you disagree with the problem statement.</pre>
+
+</main>
+
+<script>
+  // The real paths from components/ink/BodyTypeGlyph.jsx, so this page shows
+  // what ships rather than a redrawing of it.
+  const SHAPES = {
+    sedan: { body: 'M3 30.5 L3 24 C3 22 4 21 6 20.8 L17 20.5 L25 12.5 C26 11.5 27 11 28.5 11 L44 11 C45.5 11 46.5 11.5 47.5 12.5 L53 20.5 L70 20.8 C72 21 73 22 73 24 L73 30.5 Z', wheels: [[19,30.5,5.5],[57,30.5,5.5]] },
+    hatchback: { body: 'M6 30.5 L6 24 C6 22 7 21 9 20.8 L18 20.5 L25 12 C26 11 27 10.5 28.5 10.5 L50 10.5 C52 10.5 53 11 54 12.5 L60 21 C61.5 22 62 22.5 62 24 L62 30.5 Z', wheels: [[18,30.5,5.5],[52,30.5,5.5]] },
+    suv: { body: 'M4 22 L4 15 C4 13 5 12.5 7 12.5 L16 12.5 L22 7.5 C23 6.5 24 6 25.5 6 L54 6 C55.5 6 56.5 6.5 57 7.5 L62 12.5 L70 12.5 C72 12.5 73 13 73 15 L73 22 Z', wheels: [[19,28,7],[57,28,7]] },
+    mpv: { body: 'M3 30 L3.5 24 C3.7 22.5 4.5 22 6 21.5 L12 20 L22 10.5 C23 9.5 24 9 25.5 9 L55 9 C57 9 58 9.5 59 11 L65 20 C67 21 68 21.5 68.5 23 L69 30 Z', wheels: [[19,30,5.5],[57,30,5.5]] },
+    pickup: { body: 'M4 29 L4 20 C4 18 5 17.5 7 17.5 L14 17.5 L20 9 C21 8 22 7.5 23.5 7.5 L40 7.5 C41.5 7.5 42 8 42 9.5 L42 18.5 L70 18.5 C71.5 18.5 72 19 72 20.5 L72 29 Z', wheels: [[19,29,6],[58,29,6]] },
+    van: { body: 'M4 29 L4 15 L10 9 C11 8.5 12 8.3 13.5 8.3 L66 8.3 C68.5 8.3 70 9.3 70 11.8 L70 29 Z', wheels: [[17,29,6],[59,29,6]] },
+  };
+
+  const MOTO = ['M17 7 L31 7 C32 7 32.5 7.6 32.5 8.5 L32.5 10 C32.5 10.9 32 11.5 31 11.5 L17 11.5 C16 11.5 15.5 10.9 15.5 10 L15.5 8.5 C15.5 7.6 16 7 17 7 Z',
+    'M22 10 L30 10 L31 22 L25 23 Z',
+    'M25 22 L48 22 L52 30 L27 30 Z',
+    'M36 22 L39 16 C40 14.5 41.5 14 43.5 14 L57 14 C60 14 61.5 15 62.5 17.5 L66 26 L60 28 L44 26 L38 24 Z'];
+
+  const TYPES = [
+    ['sedan','Sedan','Four doors, with a separate closed boot at the back','Vios, City, Almera','car'],
+    ['hatchback','Hatchback','Smaller car — the whole back lifts up as one door','Wigo, Mirage, Swift','car'],
+    ['suv','SUV or crossover','Tall, with a high seating position','Fortuner, Montero Sport, CR-V','car'],
+    ['mpv','MPV','Family vehicle seating seven or eight','Innova, Xpander, Ertiga','car'],
+    ['pickup','Pickup','Open cargo bed at the back','Hilux, Ranger, D-Max','car'],
+    ['van','Van','Boxy, built for cargo or many passengers','Hiace, L300, Urvan','car'],
+    ['motorcycle','Motorcycle','Two wheels — scooter, underbone or big bike','Click, Mio, NMAX','motorcycle'],
+  ];
+
+  function glyph(id, cls) {
+    const inner = id === 'motorcycle'
+      ? `<g fill="currentColor"><circle cx="16" cy="27" r="8.5"/><circle cx="60" cy="27" r="8.5"/>${MOTO.map(d => `<path d="${d}"/>`).join('')}</g>`
+      : `<g fill="currentColor"><path d="${SHAPES[id].body}"/>${SHAPES[id].wheels.map(([cx,cy,r]) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`).join('')}</g>`;
+    return `<svg class="${cls}" viewBox="0 0 76 40" aria-hidden="true">${inner}</svg>`;
+  }
+
+  const cars = document.getElementById('cars');
+  const bikes = document.getElementById('bikes');
+  TYPES.forEach(([id, label, desc, eg, cls]) => {
+    const selected = id === 'mpv' ? ' is-selected' : '';
+    const html = `<div class="picker__option${selected}">
+      <span class="picker__radio"></span>${glyph(id, 'glyph')}
+      <span class="picker__copy"><strong>${label}</strong><small>${desc}</small><em>For example: ${eg}</em></span>
+    </div>`;
+    (cls === 'car' ? cars : bikes).insertAdjacentHTML('beforeend', html);
+  });
+
+  document.getElementById('actual').innerHTML = TYPES
+    .map(([id, label]) => `<figure>${glyph(id, '')}<figcaption>${label}</figcaption></figure>`).join('');
+  document.getElementById('zoom').innerHTML = TYPES
+    .map(([id, label]) => `<figure>${glyph(id, '')}<figcaption>${label}</figcaption></figure>`).join('');
+</script>
+</body>
+</html>
