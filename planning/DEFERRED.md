@@ -125,18 +125,30 @@ fit. Relocating them until they do is the lie the second drawing avoids.
 
 Scoped, deliberately:
 
-- **Side is per body type; the bay is shared per vehicle class.** The side
-  profile is the view every owner recognises, so that is where the per-type
-  effort goes. An MPV's bay and a pickup's bay genuinely look alike, and
-  neither owner has ever seen theirs from directly above.
-- **Motorcycles get one generic naked standard, not sub-types.** `bodyType`
-  records `motorcycle`, not underbone or big bike, so a sub-type drawing would
-  be a guess dressed as a fact. If the field ever gains sub-types this becomes
-  three drawings and eleven total.
-- **Each component appears in exactly one view.** The two views partition the
-  taxonomy rather than overlapping — 6 + 7 on a car, 7 + 5 on a bike. The
-  design allows a component in both, and nothing breaks if one ever is, but
-  none is today and the earlier note claiming otherwise was wrong.
+- **Side is per body type; the second view is per powertrain family.** The
+  side profile is the view every owner recognises, so that is where the
+  per-type effort goes. An MPV's bay and a pickup's bay genuinely look alike,
+  and neither owner has ever seen theirs from directly above, so the six cars
+  share one. Bikes do not: a scooter's CVT unit and a chain-driven engine hung
+  in a frame are not the same object, so scooters get their own.
+- **Motorcycles split three ways.** Superseded — the old rule was one generic
+  naked standard, on the grounds that `bodyType` records only `motorcycle` and
+  a sub-type drawing would be a guess dressed as a fact. That reasoning was
+  circular: the original parts-map spec called for the split and named the
+  column change as its first step, so deferring the column is what made the
+  drawings look unsupportable. Migration `012` added `scooter` and
+  `underbone`. Seventeen of the twenty-three motorcycles in the catalogue are
+  one or the other, so the single drawing was wrong about 74% of them. Twelve
+  drawings now. Rows created before the split keep `motorcycle`, which means
+  big bike and is the honest fallback of the three — it claims no bodywork, so
+  it under-describes a scooter rather than inventing an apron.
+- **Each component appears in one view, with a single exception.** The two
+  views partition the taxonomy rather than overlapping — 6 + 7 on a car, 7 + 5
+  on a bike. The exception is `drive` on a scooter, which is in both: the CVT
+  case is visible in profile *and* is the subject of the engine view, because
+  it carries the rear wheel. The design always allowed this and nothing
+  breaks; the earlier note saying no component was ever in both was written
+  before scooters existed.
 - **Marker numbers are global**, the component's position in its class
   taxonomy, so 5 is Tires on both tabs and every body type. The cost is that
   the list is ordered by taxonomy rather than documented-first, and reads 1–6
@@ -146,10 +158,12 @@ Scoped, deliberately:
   note. Falling back to a sedan would assert a body type the row does not
   carry — the same invention the migration avoided by not back-filling.
 
-Not done, and known: `PartsMap.jsx` still exists in the old palette with the
-removed due/overdue grading, and it is still rendered by the routed
-`/mechanic/access/:sessionId` page. Earlier notes calling it unwired are wrong.
-Porting the mechanic view onto `PartsView` is its own piece of work.
+`PartsMap.jsx` is no longer rendered anywhere. `/mechanic/access/:sessionId`
+was ported onto `PartsView`, which is what stopped a shared motorcycle being
+drawn for the mechanic as a sedan with an aircon and a gearbox it does not
+have; the mechanic history response gained `vehicleBodyType` to carry it.
+`PartsMap.jsx` and `VehicleServiceHistoryPage.jsx` are both unreferenced now
+and can be deleted — left as its own commit so this one stays reviewable.
 
 Markers are `aria-hidden`; the list underneath remains the accessible path,
 because putting the same controls in the tab order twice is worse than a
@@ -398,17 +412,124 @@ real receipts, not on a decision.
 
 ## OCR and extraction quality — deliberately waiting
 
-Receipt OCR and the AI extraction step both need work, and neither is blocked
-on code. They are blocked on **evidence**: a body of real receipts, varied
-enough to show what actually fails — faded thermal paper, handwritten talyer
-receipts, printed casa invoices, motorcycle 3S-shop invoices.
+Receipt OCR and the AI extraction step were audited on 2026-08-23 and largely
+rebuilt. **This section is now the handoff — read it before touching
+`serviceinput`.**
 
-Guessing at improvements before that means tuning against imagined failures.
-Collect the receipts first, study where extraction misses, then change the
-prompts against known cases.
+The old note here said the work was blocked on evidence: a body of real
+receipts. That was half right. It turned out most of the pipeline could be
+measured from **two** receipts already sitting in `service_drafts`, because the
+extraction failures were structural rather than long-tail. The evidence problem
+was real; the volume needed to start was much smaller than assumed.
 
-Related and unmeasured: the 85% field-extraction accuracy target in the
-proposal's objectives has never been measured against a real sample.
+### How to measure anything here
+
+`backend/trevora-api/src/test/resources/golden/` — real receipts with
+hand-checked answers and a per-field scorer. Read its `README.md` first.
+
+```
+./mvnw test              # unit tests, no API calls
+./mvnw test -Pgolden     # scores extraction, needs OPENAI_API_KEY, costs money
+./mvnw test -Pgolden -Dgolden.dump=true    # also print the extracted lines
+```
+
+**Do not change the extraction prompt without running this before and after.**
+Two prompt changes during the audit looked like clear improvements in the diff
+and were regressions: one dropped real part lines while trying to stop
+hallucinated ones (line kinds 100% → 36%), and one made the model split a
+receipt into one service per operation, orphaning every part line (100% → 36%
+again). Neither was visible without the set.
+
+### Where it stands
+
+Baseline at the end of the session, three cases, three runs each:
+
+| Metric | Before | Now |
+|---|---|---|
+| Line kinds correct | 0% | 100% |
+| Line prices correct | 0% | 100% |
+| Components correct | 75% | 83% |
+| Date / odometer / shop / location | 100% | 100% |
+| Lines reconcile to printed total | not checked | 2 of 3 |
+| Total cost | 50% | 67% |
+
+The two remaining failures are both the Toyota case and both are the correct
+behaviour: its OCR text predates layout reconstruction, so its per-line prices
+genuinely are unrecoverable and the pipeline says so instead of guessing.
+
+### Fixed, with the reasoning worth keeping
+
+- **The mock fallback fabricated data.** With `OCR_PROVIDER` unset — the
+  default — it returned `LocalDate.now()`, ₱1,500.00, "Mock OCR Auto Shop" and
+  invented confidence scores, into exactly the fields the owner confirms. Three
+  such rows were in the production database. Now every field returns null.
+- **The AI was never asked for line entries**, so migration `011` was reachable
+  from manual entry and nothing else. Every receipt-created draft saved zero
+  lines, and `componentEvidenceText` fell back to `laborPerformed` every time.
+  The prompt now defines the four kinds and the parser reads them.
+- **Nothing reconciled the lines against the printed total.** A receipt is its
+  own checksum. Now warned on, never silently corrected — the gap says one of
+  the two figures is wrong, not which.
+- **Vision's layout was discarded.** Word bounding boxes are now grouped into
+  printed rows, so a price stays attached to its description; columns are
+  separated with a pipe and the prompt is told what it means.
+- **The extractor was never told what vehicle it was reading for**, and the
+  component vocabulary was car-only. Both fixed together, because the
+  vocabulary can only be chosen once the vehicle is known.
+- **Nothing checked whether a value was possible**, only whether it was
+  present. `DraftPlausibilityService` now checks future dates, odometers below
+  the highest known reading, and duplicate receipts.
+
+### Still to do, in order
+
+1. **F8 — OCR text is truncated at 12,000 characters** with the warning fired
+   on the wrong side of the truncation, so a long dealership invoice can lose
+   its last pages while the draft still looks complete.
+2. **F9 — no schema enforcement.** `response_format: json_object` guarantees
+   valid JSON, not the right shape; a missing key silently becomes null.
+   Structured Outputs with a strict schema would make shape violations
+   impossible rather than undetectable.
+3. **F10 — one shot, no retry.** Any timeout or 429 drops straight to the
+   raw-OCR fallback. One retry with backoff would recover most of them.
+4. **F11 — `asInteger` strips all non-digits**, so a decimal or a stray
+   currency symbol yields a plausible number off by orders of magnitude. There
+   is no bound check to catch it.
+
+Together roughly half a day. None are blocked on anything.
+
+### Blocked on you, not on code
+
+- **Re-upload the Toyota receipt image** (`3aed31c3-…jpg`, in Supabase
+  storage). Its `ocr.txt` was produced before layout reconstruction, so
+  regenerating it should make the pending line prices recoverable and turn that
+  case into the strongest test in the set.
+- **One real motorcycle receipt.** `scooter-cvt-service` is synthetic and
+  marked as such. It proves the vocabulary and vehicle context work; it proves
+  nothing about whether they survive real OCR. Treat its scores as an upper
+  bound until a real one replaces it.
+- **More format coverage**: handwritten talyer receipt, thermal POS slip, tyre
+  shop with repeated identical lines, parts-only with no labour, part-Tagalog,
+  and one unreadable photo whose correct answer is all-null. The README lists
+  these as gaps.
+
+Fifteen receipts is enough to start; thirty makes the numbers defensible. The
+unit that matters is judgements per field, not receipts — one receipt with
+fourteen lines gives fourteen line-kind judgements but only one date judgement.
+
+### Note on run-to-run variance
+
+At `temperature: 0` the model is stable given identical text — the golden runs
+show zero spread on most fields. The instability is one layer down: two
+production extractions of the same Toyota image returned totals ₱400 apart
+because Google Vision returned 3,502 characters on one run and 3,511 on the
+other **for the same image**. So the text layer needs few repeats and the image
+layer needs several.
+
+### Still unmeasured
+
+The 85% field-extraction accuracy target in the proposal's objectives. The
+golden set is now the instrument that could measure it, but three cases — one
+of them synthetic — is not a sample anyone should quote a percentage from.
 
 ---
 

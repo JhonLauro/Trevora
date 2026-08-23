@@ -22,6 +22,14 @@ The source tree is rooted at `com.trevora.api`. Business capability code lives u
 - Verify vehicle ownership before creating service drafts.
 - All input methods must produce a ServiceDraft.
 - Manual entry must work even if OCR, speech-to-text, or AI services are unavailable.
+- **Never fabricate a value when extraction fails.** Return null and say why.
+  The mock fallback used to fill in a date, a cost and a shop name, and those
+  are precisely the fields the owner is asked to confirm.
+- **Do not change the extraction prompt without running the golden set.**
+  `src/test/resources/golden/` holds real receipts with checked answers and a
+  per-field scorer; `./mvnw test -Pgolden` scores extraction against them.
+  Two prompt changes during the 2026-08-23 audit read as improvements in the
+  diff and were regressions. See `planning/DEFERRED.md` for the handoff.
 
 ## Module 1 Backend Scope
 

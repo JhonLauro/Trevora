@@ -68,7 +68,9 @@ When nothing can be derived, `BodyTypePicker` asks. It is **not** a `<select>` o
 
 ### Motorcycles are not cars
 
-`vehicleClassFor(bodyType)` returns `car` or `motorcycle`, and that is the **only** distinction anything downstream should branch on — never the body type itself.
+`vehicleClassFor(bodyType)` returns `car` or `motorcycle`, and that is the **only** distinction the component taxonomy branches on — never the body type itself. Artwork is the one exception, and always has been: silhouettes are per body type by definition.
+
+There are three two-wheeler body types — `scooter`, `underbone` and `motorcycle` (big bike) — and all three share `vehicleClass: 'motorcycle'`, so they have identical components and differ only in what is drawn. They are separated by what an owner can name without looking: a full apron and a flat floorboard, or a short leg shield with a bare cylinder and a chain, or neither. `motorcycle` is also what every bike registered before migration `012` still carries, and it is the right fallback because it claims no bodywork.
 
 `utils/serviceComponents.js` holds one shared rule set plus a per-class extension: `componentRulesFor(vehicleClass)`. Cars get transmission, aircon and body panels; motorcycles get drive chain/CVT and fairings, and never get aircon. `componentStatuses(records, vehicle)` builds its list from the class, so a motorcycle is never offered a part it does not have. Unknown body type falls back to `car` — what every pre-picker row is, and the safer default.
 
@@ -80,7 +82,7 @@ Adding a model is a one-line change in the catalogue. The table is intentionally
 
 The **parts map is drawn**: artwork in `components/ink/vehicleDrawings.jsx`, viewBoxes and marker anchors in `components/ink/vehicleShapes.js`, rendered by `components/ink/VehicleDiagram.jsx` above the component list in `PartsView`.
 
-Two views — Side, and Under the bonnet (Engine and frame on a motorcycle) — each carrying only the components that live in it, so the list under the map is "components in this view". Nine drawings. **Side is per body type; the bay is shared per vehicle class.** The side profile is the view every owner recognises, so that is where the per-type effort goes; an MPV's bay and a pickup's bay genuinely look alike and neither owner has seen theirs from above. The bay keeps its own canvas because seven components live under a car's bonnet — on one side profile they collide with the front wheel or have to be moved somewhere less true.
+Two views — Side, and Under the bonnet (Engine and frame on a big bike or underbone, Engine and CVT on a scooter) — each carrying only the components that live in it, so the list under the map is "components in this view". Twelve drawings. **Side is per body type; the second view is per powertrain family.** The side profile is the view every owner recognises, so that is where the per-type effort goes; an MPV's bay and a pickup's bay genuinely look alike and neither owner has seen theirs from above, so the six cars share one. Bikes do not share: a scooter's CVT unit and a chain-driven engine in a frame have nothing in common. `drive` is the one component in two views at once, on scooters, because the CVT case is visible in profile and is also what the engine view is about. The bay keeps its own canvas because seven components live under a car's bonnet — on one side profile they collide with the front wheel or have to be moved somewhere less true.
 
 Front and rear were dropped in the 2026-08-23 redraw. They held lights, brakes and exhaust, all of which the side profile already carries at both ends, so nothing was lost; they were also the two views that duplicated each other's outline and ignored body type entirely.
 
