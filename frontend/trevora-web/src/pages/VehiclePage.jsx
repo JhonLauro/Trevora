@@ -17,9 +17,12 @@ import { spendTotals } from '../utils/spend';
 import { displayVehicleName } from '../utils/vehicleText';
 import { bodyTypeLabel, vehicleClassFor } from '../data/vehicleCatalog';
 
+/* Components leads because it is the only view that says something before the
+   first record exists: every part of the vehicle, most of them still empty.
+   Timeline opening on "no records yet" taught a new owner nothing. */
 const VIEWS = [
-  { id: 'timeline', label: 'Timeline' },
   { id: 'components', label: 'Components' },
+  { id: 'timeline', label: 'Timeline' },
   { id: 'table', label: 'Table' },
 ];
 
@@ -113,7 +116,7 @@ export default function VehiclePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('records');
-  const [view, setView] = useState('timeline');
+  const [view, setView] = useState('components');
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
 
@@ -282,13 +285,18 @@ export default function VehiclePage() {
         {tab === 'records' && (
           <div className="vehicle-records">
             <div className="vehicle-toolbar">
-              <input
-                type="search"
-                value={query}
-                aria-label="Search this vehicle's records"
-                placeholder="Search service, part, shop, or notes"
-                onChange={(event) => setQuery(event.target.value)}
-              />
+              {/* Components filters by part, not by text — the box would sit
+                  there doing nothing, and it is the first control on the page
+                  now that Components leads. */}
+              {view === 'components' ? <span /> : (
+                <input
+                  type="search"
+                  value={query}
+                  aria-label="Search this vehicle's records"
+                  placeholder="Search service, part, shop, or notes"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              )}
               <div className="ink-segmented" role="group" aria-label="View">
                 {VIEWS.map((option) => (
                   <button
@@ -304,7 +312,28 @@ export default function VehiclePage() {
               </div>
             </div>
 
-            {records.length === 0 ? (
+            {/* Components is checked before the empty state, because it is the
+                one view that does not need a record to say something: the
+                taxonomy is a property of the vehicle, so a brand-new
+                motorcycle still lists its twelve parts, all of them "no
+                record found". That list is the thing that shows an owner what
+                there is to fill in. */}
+            {view === 'components' ? (
+              <>
+                {records.length === 0 && (
+                  <p className="parts-panel__note">
+                    Nothing has been filed against this vehicle yet, so every part below reads as
+                    no record found. Adding a receipt fills in the parts it covers.
+                  </p>
+                )}
+                <PartsView
+                  entries={components}
+                  vehicleId={vehicleId}
+                  vehicleClass={vehicleClassFor(vehicle?.bodyType)}
+                  bodyType={vehicle?.bodyType ?? null}
+                />
+              </>
+            ) : records.length === 0 ? (
               <section className="ink-empty">
                 <h2 className="ink-empty__title">No records for this vehicle yet</h2>
                 <p className="ink-empty__body">
@@ -326,13 +355,6 @@ export default function VehiclePage() {
                 vehicleId={vehicleId}
                 onDelete={askDeleteRecord}
                 onMarkReviewed={markReviewed}
-              />
-            ) : view === 'components' ? (
-              <PartsView
-                entries={components}
-                vehicleId={vehicleId}
-                vehicleClass={vehicleClassFor(vehicle?.bodyType)}
-                bodyType={vehicle?.bodyType ?? null}
               />
             ) : (
               <section className="ink-table-card">
