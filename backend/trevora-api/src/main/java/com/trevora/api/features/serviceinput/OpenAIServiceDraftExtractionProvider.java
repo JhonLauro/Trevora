@@ -23,6 +23,28 @@ public class OpenAIServiceDraftExtractionProvider {
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
     private static final int MAX_OCR_CHARS = 12000;
     private static final int MAX_VOICE_TRANSCRIPT_CHARS = 8000;
+    /**
+     * Attempts per extraction, retries included. A rate limit or a timeout used
+     * to drop straight to the raw-OCR fallback, which costs the owner every
+     * extracted field over a condition that clears in a second. Three is enough
+     * to ride out a burst and few enough that a real outage still fails while
+     * someone is waiting on the response.
+     */
+    private static final int MAX_ATTEMPTS = 3;
+    private static final long RETRY_BASE_BACKOFF_MILLIS = 500L;
+    /**
+     * Ceiling on the generated answer. A long dealership invoice extracts to a
+     * few thousand tokens; left unset the model may spend its whole 16k output
+     * window repeating array entries before anyone finds out, and the bill and
+     * the wait are the owner's either way.
+     */
+    private static final int MAX_COMPLETION_TOKENS = 8000;
+    /**
+     * Kilometres past which a reading is a misread rather than a high mileage.
+     * Deliberately generous - a well-used jeepney can pass a million km, and the
+     * point is to catch an order of magnitude, not to argue about a plausible one.
+     */
+    private static final int MAX_PLAUSIBLE_ODOMETER_KM = 2_000_000;
     /** Pesos of slack before a lines-versus-total gap is worth reporting: VAT rounding. */
     private static final BigDecimal RECONCILE_TOLERANCE = new BigDecimal("1.00");
 
@@ -36,8 +58,18 @@ public class OpenAIServiceDraftExtractionProvider {
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.ai.openai.model:gpt-4o-mini}") String model
     ) {
+        this(objectMapper, RestClient.create(), apiKey, model);
+    }
+
+    /** Lets a test stand a server in front of the retry loop. */
+    OpenAIServiceDraftExtractionProvider(
+            ObjectMapper objectMapper,
+            RestClient restClient,
+            String apiKey,
+            String model
+    ) {
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.create();
+        this.restClient = restClient;
         this.apiKey = blankToNull(apiKey);
         this.model = blankToDefault(model, "gpt-4o-mini");
     }
@@ -57,10 +89,13 @@ public class OpenAIServiceDraftExtractionProvider {
         }
 
         VehicleContext context = vehicle == null ? VehicleContext.UNKNOWN : vehicle;
+        Truncation ocr = Truncation.of(rawOcrText, MAX_OCR_CHARS, "Receipt OCR text");
         return requestExtraction(
                 systemPrompt(context),
-                context.toPromptBlock() + "\nOCR text:\n" + truncate(rawOcrText, MAX_OCR_CHARS),
-                "OpenAI extraction"
+                context.toPromptBlock() + "\nOCR text:\n" + ocr.text(),
+                "OpenAI extraction",
+                ocr.warnings(),
+                ServiceDraftResponseSchema.forReceipt()
         );
     }
 
@@ -72,44 +107,100 @@ public class OpenAIServiceDraftExtractionProvider {
             throw new ReceiptProcessingException("Voice transcript is required before structured extraction.");
         }
 
+        Truncation spoken = Truncation.of(transcript, MAX_VOICE_TRANSCRIPT_CHARS, "Voice transcript");
         return requestExtraction(
                 voiceSystemPrompt(),
-                "Voice transcript:\n" + truncate(transcript, MAX_VOICE_TRANSCRIPT_CHARS),
-                "OpenAI voice extraction"
+                "Voice transcript:\n" + spoken.text(),
+                "OpenAI voice extraction",
+                spoken.warnings(),
+                ServiceDraftResponseSchema.forVoice()
         );
     }
 
-    private ReceiptDraftFields requestExtraction(String systemPrompt, String userContent, String operationLabel) {
+    private ReceiptDraftFields requestExtraction(
+            String systemPrompt,
+            String userContent,
+            String operationLabel,
+            List<String> inputWarnings,
+            Map<String, Object> responseFormat
+    ) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("model", model);
+        request.put("temperature", 0);
+        request.put("response_format", responseFormat);
+        request.put("max_completion_tokens", MAX_COMPLETION_TOKENS);
+        request.put("messages", List.of(
+                Map.of(
+                        "role", "system",
+                        "content", systemPrompt
+                ),
+                Map.of(
+                        "role", "user",
+                        "content", userContent
+                )
+        ));
+
+        ReceiptProcessingException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                String responseBody = restClient.post()
+                        .uri(OPENAI_CHAT_COMPLETIONS_URL)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(request)
+                        .retrieve()
+                        .body(String.class);
+
+                return parseOpenAIResponse(responseBody, inputWarnings);
+            } catch (MalformedResponseException exception) {
+                // Seen in practice: a strict schema guarantees the shape of what
+                // the model generates, not that the body arrives whole. A second
+                // request is as safe here as after a timeout - nothing was
+                // stored either way - and it is the difference between a draft
+                // with every field and a draft with none.
+                lastFailure = new ReceiptProcessingException(
+                        operationLabel + " returned a response that could not be read.", exception);
+            } catch (RestClientResponseException exception) {
+                int status = exception.getStatusCode().value();
+                lastFailure = new ReceiptProcessingException(
+                        operationLabel + " failed with HTTP status " + status + ".", exception);
+                if (!isWorthRetrying(status)) {
+                    throw lastFailure;
+                }
+            } catch (RestClientException exception) {
+                // No response at all: a timeout or a dropped connection. The
+                // request was never known to have been applied, and extraction
+                // has no side effects, so repeating it is safe.
+                lastFailure = new ReceiptProcessingException(operationLabel + " request failed.", exception);
+            }
+
+            if (attempt < MAX_ATTEMPTS) {
+                backOff(RETRY_BASE_BACKOFF_MILLIS * (1L << (attempt - 1)), lastFailure);
+            }
+        }
+        throw lastFailure;
+    }
+
+    /**
+     * Whether an HTTP failure is the kind that a second attempt can clear.
+     *
+     * <p>429 and 5xx are the provider saying "not now"; every other status is
+     * the provider saying "not like this", and repeating an identical request
+     * only spends the owner's time before the same fallback. 400 in particular
+     * means the request or its schema is wrong, which no amount of retrying
+     * fixes.
+     */
+    private boolean isWorthRetrying(int status) {
+        return status == 429 || status >= 500;
+    }
+
+    private void backOff(long millis, ReceiptProcessingException failure) {
         try {
-            Map<String, Object> request = new LinkedHashMap<>();
-            request.put("model", model);
-            request.put("temperature", 0);
-            request.put("response_format", Map.of("type", "json_object"));
-            request.put("messages", List.of(
-                    Map.of(
-                            "role", "system",
-                            "content", systemPrompt
-                    ),
-                    Map.of(
-                            "role", "user",
-                            "content", userContent
-                    )
-            ));
-
-            String responseBody = restClient.post()
-                    .uri(OPENAI_CHAT_COMPLETIONS_URL)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .body(String.class);
-
-            return parseOpenAIResponse(responseBody);
-        } catch (RestClientResponseException exception) {
-            throw new ReceiptProcessingException(operationLabel + " failed with HTTP status " + exception.getStatusCode().value() + ".", exception);
-        } catch (RestClientException exception) {
-            throw new ReceiptProcessingException(operationLabel + " request failed.", exception);
+            Thread.sleep(millis);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw failure;
         }
     }
 
@@ -117,10 +208,34 @@ public class OpenAIServiceDraftExtractionProvider {
         return model;
     }
 
-    private ReceiptDraftFields parseOpenAIResponse(String responseBody) {
+    private ReceiptDraftFields parseOpenAIResponse(String responseBody, List<String> inputWarnings) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
+            JsonNode choice = root.path("choices").path(0);
+            JsonNode message = choice.path("message");
+            // A strict schema guarantees the shape of a generation that
+            // finishes. One stopped at the token limit is valid JSON's opening
+            // half, and reporting that as invalid JSON sends the next reader
+            // looking for a parsing bug instead of a long receipt.
+            String finishReason = asText(choice.path("finish_reason"));
+            if ("length".equals(finishReason)) {
+                // Retryable, on evidence rather than hope: the golden set hit
+                // this twice on receipts that extracted cleanly on the runs
+                // either side, at temperature 0 with byte-identical input. It is
+                // the model occasionally spiralling on a repeated array entry,
+                // not the receipt being too long for the cap.
+                throw new MalformedResponseException(
+                        "OpenAI extraction hit the response token limit before finishing, so the"
+                                + " receipt was only partly read (" + usageSummary(root) + ").");
+            }
+            // Structured Outputs answers a declined request with `refusal`
+            // instead of `content`. Reporting it as missing JSON would send the
+            // caller looking for a parsing bug.
+            JsonNode refusal = message.path("refusal");
+            if (refusal.isTextual() && !refusal.asText().isBlank()) {
+                throw new ReceiptProcessingException("OpenAI extraction declined the request: " + refusal.asText());
+            }
+            JsonNode contentNode = message.path("content");
             if (contentNode.isMissingNode() || contentNode.asText().isBlank()) {
                 throw new ReceiptProcessingException("OpenAI extraction returned no JSON content.");
             }
@@ -130,9 +245,12 @@ public class OpenAIServiceDraftExtractionProvider {
             Map<String, Object> fieldSources = asObjectMap(fieldsNode.get("fieldSources"));
             Map<String, String> fieldConfidence = fieldConfidence(fieldsNode.get("fieldConfidence"), fieldSources);
             List<String> aiSuggestedFields = aiSuggestedFields(fieldsNode.get("aiSuggestedFields"), fieldSources);
-            List<String> warnings = new ArrayList<>(asStringList(fieldsNode.get("warnings")));
+            // Input warnings lead: if the model was shown only part of the
+            // receipt, every field below is an answer about a fragment.
+            List<String> warnings = new ArrayList<>(inputWarnings);
+            warnings.addAll(asStringList(fieldsNode.get("warnings")));
             LocalDate serviceDate = asDate(fieldsNode.get("serviceDate"));
-            Integer odometer = asInteger(fieldsNode.get("odometer"));
+            Integer odometer = asOdometer(fieldsNode.get("odometer"), warnings);
             BigDecimal totalCost = asBigDecimal(fieldsNode.get("totalCost"));
             String shopName = asText(fieldsNode.get("shopName"));
             String location = asText(fieldsNode.get("location"));
@@ -173,7 +291,32 @@ public class OpenAIServiceDraftExtractionProvider {
                     warnings
             );
         } catch (JsonProcessingException exception) {
-            throw new ReceiptProcessingException("OpenAI extraction returned invalid JSON.", exception);
+            throw new MalformedResponseException(exception);
+        }
+    }
+
+    /** Token counts from the response, for errors that are about size. */
+    private String usageSummary(JsonNode root) {
+        JsonNode usage = root.path("usage");
+        return "prompt " + usage.path("prompt_tokens").asInt()
+                + ", completion " + usage.path("completion_tokens").asInt()
+                + ", cap " + MAX_COMPLETION_TOKENS;
+    }
+
+    /**
+     * A reply that did not arrive as a whole, readable answer.
+     *
+     * <p>Separate from {@link ReceiptProcessingException} only so the retry loop
+     * can tell "the reply did not come back intact" — worth another attempt —
+     * apart from "the reply said no", which will say no again.
+     */
+    private static final class MalformedResponseException extends RuntimeException {
+        MalformedResponseException(Throwable cause) {
+            super("OpenAI extraction returned invalid JSON.", cause);
+        }
+
+        MalformedResponseException(String message) {
+            super(message);
         }
     }
 
@@ -320,7 +463,8 @@ public class OpenAIServiceDraftExtractionProvider {
                 Also infer the visit-level "remarks" field (notes that are not specific to one service).
                 These inferred or summarized values must be labeled as AI-suggested with sourceType INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED, confidence medium or low unless the source text is explicit, and needsReview true.
 
-                Field-level evidence is required for every returned field, including missing fields.
+                Field-level evidence is required for exactly these fields, including when the
+                field is missing: %s.
                 Each fieldSources entry must be an object with:
                 value, confidence, sourceType, sourceText, pageNumber, needsReview.
                 confidence must be one of high, medium, low, not_found.
@@ -362,10 +506,11 @@ public class OpenAIServiceDraftExtractionProvider {
                 classification.confidence must be high, medium, or low.
                 classification.source must be AI.
                 confidenceNotes must be an array of short user-safe notes about uncertain, inferred, conflicting, or missing fields.
-                fieldConfidence must map every field name to high, medium, low, or not_found.
+                fieldConfidence must map those same field names to high, medium, low, or not_found.
                 aiSuggestedFields must list field names whose sourceType is INFERRED_FROM_TEXT or EXTRACTED_AND_SUMMARIZED.
                 warnings must be an array of short user-safe notes about conflicts or limitations.
                 """.formatted(
+                ServiceDraftResponseSchema.evidenceFieldList(),
                 vehicle.isMotorcycle() ? "motorcycle" : "car",
                 String.join(", ", vehicle.allowedComponents()));
     }
@@ -418,10 +563,13 @@ public class OpenAIServiceDraftExtractionProvider {
                 classification.confidence must be high, medium, or low.
                 classification.source must be AI.
                 confidenceNotes must be an array of short strings about uncertain, missing, or unrelated fields.
-                fieldSources must be an object mapping extracted field names to "voice transcript".
-                fieldConfidence must map field names to high, medium, low, or not_found.
+                fieldSources must be an object with exactly these keys, each set to
+                "voice transcript" when the field was extracted and null when it was not: %s.
+                fieldConfidence must map those same keys to high, medium, low, or not_found.
                 aiSuggestedFields and warnings must be arrays.
-                """;
+                A voice note has no printed lines, so every service's lineEntries is an empty
+                array and lineCost is null.
+                """.formatted(ServiceDraftResponseSchema.evidenceFieldList());
     }
 
     private LocalDate asDate(JsonNode node) {
@@ -436,26 +584,52 @@ public class OpenAIServiceDraftExtractionProvider {
         }
     }
 
+    /**
+     * A whole number, read as a number rather than as a run of digits.
+     *
+     * <p>This used to strip every non-digit character and parse what was left,
+     * which reads "12,345.6 km" as 123456 — an odometer ten times the real one,
+     * and plausible enough that nothing downstream would question it. Grouping
+     * separators are dropped, a decimal point is a decimal point, and the value
+     * is rounded rather than concatenated.
+     *
+     * <p>Anything that does not fit an {@code int} returns null. A receipt
+     * cannot print a number that large about a vehicle, so the value is not a
+     * large reading, it is a misread.
+     */
     private Integer asInteger(JsonNode node) {
-        if (node == null || node.isNull()) {
-            return null;
-        }
-        if (node.isNumber()) {
-            return node.intValue();
-        }
-        String value = asText(node);
+        BigDecimal value = asBigDecimal(node);
         if (value == null) {
             return null;
         }
-        String digits = value.replaceAll("[^0-9]", "");
-        if (digits.isBlank()) {
-            return null;
-        }
         try {
-            return Integer.parseInt(digits);
-        } catch (NumberFormatException ignored) {
+            return value.setScale(0, java.math.RoundingMode.HALF_UP).intValueExact();
+        } catch (ArithmeticException ignored) {
             return null;
         }
+    }
+
+    /**
+     * The odometer, or null with a warning when the number cannot be one.
+     *
+     * <p>{@code DraftPlausibilityService} already compares a reading against the
+     * vehicle's history, but it has nothing to compare against on a vehicle's
+     * first receipt — exactly the case where an extra digit or a misplaced
+     * decimal has nothing to contradict it. This is the check that needs no
+     * history: no vehicle has travelled a negative distance, and none reaches
+     * {@value #MAX_PLAUSIBLE_ODOMETER_KM} km.
+     */
+    private Integer asOdometer(JsonNode node, List<String> warnings) {
+        Integer odometer = asInteger(node);
+        if (odometer == null) {
+            return null;
+        }
+        if (odometer < 0 || odometer > MAX_PLAUSIBLE_ODOMETER_KM) {
+            warnings.add("The odometer read as " + odometer + " km, which no vehicle reaches."
+                    + " It was left blank rather than recorded - enter it from the receipt.");
+            return null;
+        }
+        return odometer;
     }
 
     private BigDecimal asBigDecimal(JsonNode node) {
@@ -722,11 +896,34 @@ public class OpenAIServiceDraftExtractionProvider {
         return trimmed;
     }
 
-    private String truncate(String value, int maxChars) {
-        if (value == null || value.length() <= maxChars) {
-            return value;
+    /**
+     * Text as the model will actually see it, plus a warning for whatever the
+     * length cap cut off.
+     *
+     * <p>Truncation used to be silent here and warned about by the caller,
+     * which re-derived the condition from its own copy of the limit. That
+     * warned on the raw-OCR fallback, where nothing had been truncated because
+     * no request was ever made, and it would have gone quiet the moment either
+     * copy of the number moved. The code that cuts the text is the only code
+     * that knows a cut happened, so it is the code that reports it.
+     *
+     * <p>The cut lands on a line boundary. A receipt row split down the middle
+     * still reads as a row, and a description that lost its price is a line the
+     * model will price from context - which is guessing.
+     */
+    private record Truncation(String text, List<String> warnings) {
+        static Truncation of(String value, int maxChars, String label) {
+            if (value == null || value.length() <= maxChars) {
+                return new Truncation(value, List.of());
+            }
+            int lastNewline = value.lastIndexOf('\n', maxChars);
+            int cut = lastNewline > 0 ? lastNewline : maxChars;
+            return new Truncation(value.substring(0, cut), List.of(String.format(
+                    "%s ran to %d characters and only the first %d were read. The rest of it -"
+                            + " which is where the total and the last pages usually are - was not"
+                            + " seen, so anything below may be incomplete.",
+                    label, value.length(), cut)));
         }
-        return value.substring(0, maxChars);
     }
 
     private String blankToDefault(String value, String fallback) {
