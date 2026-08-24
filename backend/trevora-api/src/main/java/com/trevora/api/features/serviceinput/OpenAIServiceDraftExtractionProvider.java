@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -53,6 +54,13 @@ public class OpenAIServiceDraftExtractionProvider {
     private final String apiKey;
     private final String model;
 
+    /**
+     * @implNote {@code @Autowired} is required, not decorative. There are two
+     *     constructors, and with no annotation Spring will not choose between
+     *     them: it looks for a no-arg constructor instead and fails to start
+     *     the whole context.
+     */
+    @Autowired
     public OpenAIServiceDraftExtractionProvider(
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
