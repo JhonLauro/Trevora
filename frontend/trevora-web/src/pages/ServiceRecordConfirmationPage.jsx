@@ -22,6 +22,11 @@ function displayValue(key, value) {
   return String(value);
 }
 
+/** The enum names the input methods; these are the words for a person. */
+function inputMethodLabel(draft) {
+  return { RECEIPT: 'Receipt', VOICE: 'Voice note', MANUAL: 'Typed in' }[draft?.inputMethod] ?? 'Record';
+}
+
 function vehicleName(vehicle, draft) {
   if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
@@ -92,10 +97,10 @@ export default function ServiceRecordConfirmationPage() {
           <Link className="inline-link" to={`/service-drafts/${draftId}`}>
             Back to edit
           </Link>
-          <span>{draft?.inputMethod ?? 'Draft'}</span>
+          <span>{inputMethodLabel(draft)}</span>
         </p>
-        <h1>Confirm Service Record</h1>
-        <p>Review the final read-only summary before saving this validated record.</p>
+        <h1>Save this to your records</h1>
+        <p>Last look. Once saved, this becomes part of the vehicle&apos;s service history.</p>
       </section>
 
       {loading && <p className="muted">Loading final summary...</p>}
@@ -112,14 +117,14 @@ export default function ServiceRecordConfirmationPage() {
           <section className="confirmation-card">
             <div className="confirmation-header">
               <div>
-                <h2>Summary</h2>
-                <p>Will be saved to {vehicleName(vehicle, draft)} service records.</p>
+                <h2>What will be saved</h2>
+                <p>Filed under {vehicleName(vehicle, draft)}.</p>
               </div>
-              <span className="badge">{draft.inputMethod}</span>
+              <span className="badge">{inputMethodLabel(draft)}</span>
             </div>
 
             <div className="confirmation-services-section">
-              <h3>Services</h3>
+              <h3>What was done</h3>
               <ServiceItemsList services={draft.services} />
             </div>
 
@@ -158,21 +163,21 @@ export default function ServiceRecordConfirmationPage() {
 
           {draft.receiptStoragePath && (
             <section className="confirmation-card">
-              <StoredReceiptPreview source={draft} title="Stored receipt" />
+              <StoredReceiptPreview source={draft} title="Your receipt" />
             </section>
           )}
 
           <label className="confirmation-check">
             <input checked={authorized} onChange={(event) => setAuthorized(event.target.checked)} type="checkbox" />
-            <span>I confirm the details above are correct and authorize this record to be added to my vehicle service records.</span>
+            <span>I have checked these details and they match my receipt.</span>
           </label>
 
           <div className="confirmation-actions">
             <Link className="button-secondary button-link-secondary" to={`/service-drafts/${draftId}`}>
-              Back to Edit
+              Back to edit
             </Link>
             <button type="button" disabled={!canSave} onClick={handleConfirm}>
-              {saving ? 'Saving...' : 'Confirm and Save Record'}
+              {saving ? 'Saving...' : 'Save to my records'}
             </button>
           </div>
         </section>

@@ -14,27 +14,29 @@ import { getVehicle, getVehicles } from '../api/vehicles';
 const methods = [
   {
     key: 'receipt',
-    title: 'Receipt / Photo',
+    title: 'Photo of the receipt',
     badge: 'Recommended',
     icon: 'R',
-    description: 'Upload a receipt image. Google Cloud Vision OCR and AI extraction create a draft for review.',
-    meta: 'Best with clear receipt photos.',
+    // No provider names. They reassured a developer that the mock was off and
+    // implied to everyone else that some receipts get fake OCR.
+    description: 'Photograph or upload the receipt and we read the details off it. You check them before anything is saved.',
+    meta: 'Works best on a flat, well-lit receipt.'
   },
   {
     key: 'voice',
-    title: 'Voice Note',
+    title: 'Voice note',
     badge: 'Quick entry',
     icon: 'V',
-    description: 'Record a voice note. Speech-to-text returns editable transcript text.',
-    meta: 'Useful when you remember the service details.',
+    description: 'Say what was done and we write it down for you to check.',
+    meta: 'Useful when the receipt is long gone.'
   },
   {
     key: 'manual',
-    title: 'Manual Entry',
-    badge: 'Owner verified',
+    title: 'Type it in',
+    badge: 'Your own words',
     icon: 'M',
-    description: 'Type the service details yourself. No AI extraction is applied.',
-    meta: 'Most precise when you have the fields ready.',
+    description: 'Fill the details in yourself. Nothing is read or guessed.',
+    meta: 'Best when you already know what to enter.'
   },
 ];
 

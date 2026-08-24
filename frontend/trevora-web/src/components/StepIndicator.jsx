@@ -1,6 +1,6 @@
 import React from 'react';
 
-const steps = ['Select Vehicle', 'Choose Input Method', 'Create Draft'];
+const steps = ['Pick the vehicle', 'Choose how to add it', 'Add the details'];
 
 export default function StepIndicator({ currentStep = 3 }) {
   return (

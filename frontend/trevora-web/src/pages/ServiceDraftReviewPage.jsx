@@ -77,14 +77,6 @@ function serializeCorrections(form) {
   };
 }
 
-
-
-
-
-
-
-
-
 function vehicleDisplayName(vehicle, draft) {
   if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
@@ -284,7 +276,7 @@ function TranscriptPanel({ draft }) {
   return (
     <div className="voice-transcript-card">
       <strong>What you said</strong>
-      <p>{draft.fieldMetadata?.transcript || 'No transcript was stored with this draft.'}</p>
+      <p>{draft.fieldMetadata?.transcript || 'Nothing was recorded with this one.'}</p>
     </div>
   );
 }
@@ -368,7 +360,7 @@ function ValidationSidebar({ validation, form, draft }) {
 
       {notes.length > 0 && (
         <section className="helper-card">
-          <h2>Notes from reading your draft</h2>
+          <h2>Notes from reading it</h2>
           <ul className="metadata-note-list">
             {notes.map((note) => (
               <li key={note}>{note}</li>
@@ -541,7 +533,7 @@ export default function ServiceDraftReviewPage() {
         </p>
       </section>
 
-      {loading && <p className="muted">Loading draft...</p>}
+      {loading && <p className="muted">Loading...</p>}
       {error && <div className="alert">{error}</div>}
       {success && <div className="alert success-alert">{success}</div>}
 

@@ -385,7 +385,7 @@ export default function ReceiptUploadPage() {
           </Link>
           <span>Receipt</span>
         </p>
-        <h1>Add Service Record</h1>
+        <h1>Add a receipt</h1>
         {loading ? (
           <p>Loading selected vehicle...</p>
         ) : vehicle ? (
@@ -404,28 +404,28 @@ export default function ReceiptUploadPage() {
         <form className="panel record-panel" onSubmit={handleSubmit}>
           <div className="panel-heading">
             <div>
-              <h2>Receipt source</h2>
-              <p>Attach all pages for one service transaction before Trevora creates the draft.</p>
+              <h2>The receipt</h2>
+              <p>Add every page of one visit. Photograph them, upload them, or both.</p>
             </div>
-            <span className="method-badge">Receipt OCR</span>
+            <span className="method-badge">Receipt</span>
           </div>
 
           <div className="receipt-mode-tabs" role="tablist" aria-label="Receipt input mode">
             <button className={activeMode === 'UPLOAD' ? 'active' : ''} type="button" onClick={() => setActiveMode('UPLOAD')}>
               <FileImage size={17} aria-hidden="true" />
-              Upload Receipt
+              Upload photos
             </button>
             <button className={activeMode === 'SCAN' ? 'active' : ''} type="button" onClick={() => setActiveMode('SCAN')}>
               <Camera size={17} aria-hidden="true" />
-              Scan Receipt
+              Use camera
             </button>
           </div>
 
           {activeMode === 'UPLOAD' ? (
             <section className="receipt-input-panel" onDrop={handleDrop}>
               <div className="receipt-input-copy">
-                <strong>Upload existing service documents</strong>
-                <p>Use this for saved photos of receipt pages, invoices, job orders, or official receipts for the same service visit.</p>
+                <strong>Photos you already have</strong>
+                <p>Receipts, invoices, job orders — anything from the same visit.</p>
               </div>
               <ul className="receipt-upload-tips">
                 <li>
@@ -618,16 +618,16 @@ export default function ReceiptUploadPage() {
             <h2>What happens next</h2>
             <ul className="feature-list">
               <li>
-                <strong>Pages stay together</strong>
-                <span>Use one draft for the full service visit, even when the paperwork spans several pages.</span>
+                <strong>One visit, one record</strong>
+                <span>Add every page of the same visit here, however many there are.</span>
               </li>
               <li>
-                <strong>Each page is read separately</strong>
-                <span>Trevora keeps the page order and combines the extracted text before drafting details.</span>
+                <strong>Order matters</strong>
+                <span>Pages are read in the order shown, so put them the way they were printed.</span>
               </li>
               <li>
-                <strong>You still review</strong>
-                <span>The draft is reviewed before any final record is saved.</span>
+                <strong>Nothing saves until you say so</strong>
+                <span>You see everything we read off the receipt, and can fix any of it first.</span>
               </li>
             </ul>
           </section>
@@ -675,7 +675,7 @@ function ReceiptPageList({ pages, onPreview, onRemove, onRetake, onReplace, onMo
     return (
       <div className="receipt-pages-empty">
         <strong>No pages yet</strong>
-        <span>Add photos of every page of one service visit - upload them, scan them, or both.</span>
+        <span>Pages you add will be listed here, in the order they will be read.</span>
       </div>
     );
   }
@@ -779,10 +779,10 @@ function isSupportedReceiptFile(file) {
 function friendlyReceiptError(error) {
   const message = error?.message || '';
   if (message.toLowerCase().includes('storage')) {
-    return 'The receipt pages could not be uploaded. Please check your connection and try again.';
+    return 'The pages could not be uploaded. Check your connection and try again.';
   }
   if (message.toLowerCase().includes('ocr') || message.toLowerCase().includes('openai')) {
-    return 'Some details could not be extracted automatically. Please try again or review and complete the draft.';
+    return 'We could not read the receipt this time. Try again, or add the details yourself on the next screen.';
   }
-  return message || 'The receipt could not be analyzed. Please try again.';
+  return message || 'The receipt could not be read. Try again.';
 }

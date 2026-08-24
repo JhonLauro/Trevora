@@ -93,7 +93,7 @@ export default function VoiceInputPage() {
 
   async function startRecording() {
     if (!recorderSupported) {
-      setError('Voice recording is not supported in this browser. You can still type the transcript manually.');
+      setError('This browser cannot record audio. You can type what you want to say instead.');
       return;
     }
 
@@ -130,7 +130,7 @@ export default function VoiceInputPage() {
     } catch {
       stopStream();
       setRecording(false);
-      setError('Microphone access was blocked or unavailable. You can still type the transcript manually.');
+      setError('Trevora could not reach the microphone. Allow access, or type what you want to say instead.');
     }
   }
 
@@ -221,7 +221,7 @@ export default function VoiceInputPage() {
           </Link>
           <span>Voice</span>
         </p>
-        <h1>Add Service Record</h1>
+        <h1>Say what was done</h1>
         {loading ? (
           <p>Loading selected vehicle...</p>
         ) : vehicle ? (
@@ -240,8 +240,8 @@ export default function VoiceInputPage() {
         <form className="panel record-panel" onSubmit={handleSubmit}>
           <div className="panel-heading">
             <div>
-              <h2>Record your service note</h2>
-              <p>Stop recording to generate the raw transcript, then translate it to English when needed.</p>
+              <h2>Record a note</h2>
+              <p>Stop recording and we write down what you said. Translate it to English if you spoke another language.</p>
             </div>
             <span className="method-badge">Raw then English</span>
           </div>
@@ -345,7 +345,7 @@ export default function VoiceInputPage() {
               </div>
               <div>
                 <dt>Draft fields</dt>
-                <dd>Trevora creates the draft from the transcript you reviewed.</dd>
+                <dd>We pull the service details out of what you said, for you to check next.</dd>
               </div>
             </dl>
           </section>

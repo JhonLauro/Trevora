@@ -46,7 +46,7 @@ export default function ServiceRecordSavedPage() {
       <section className="saved-record-state">
         <div className="saved-icon">OK</div>
         <h1>Record saved</h1>
-        <p>Added to {vehicleName(vehicle, draft)} from this {draft?.inputMethod ?? 'service'} draft.</p>
+        <p>It is part of {vehicleName(vehicle, draft)}&apos;s service history now.</p>
         {location.state?.serviceRecord?.recordId && <small>Record ID: {location.state.serviceRecord.recordId}</small>}
         <div className="saved-actions">
           <Link className="button-link-secondary" to={draft?.vehicleId ? `/vehicles/${draft.vehicleId}/history` : '/vehicles'}>
