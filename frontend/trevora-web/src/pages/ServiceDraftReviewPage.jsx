@@ -58,11 +58,14 @@ function serializeCorrections(form) {
     shopName: form.shopName.trim() || null,
     location: form.location.trim() || null,
     remarks: form.remarks.trim() || null,
-    // Saving rebuilds every line from this request, so lineEntries is named
-    // explicitly rather than left to ride along inside the spread. Sent in
-    // display order: the server numbers them by position.
+    // Saving rebuilds every line from this request, so itemId and lineEntries
+    // are named explicitly rather than left to ride along inside the spread.
+    // itemId is what tells the server which item's existing lines these
+    // replace; null means a service the owner has just added. Lines are sent in
+    // display order — the server numbers them by position.
     services: (form.services || []).map((item, index) => ({
       ...item,
+      itemId: item.itemId ?? null,
       serviceType: item.serviceType?.trim() || '',
       serviceCategory: item.serviceCategory?.trim() || null,
       partsReplaced: item.partsReplaced?.trim() || null,
