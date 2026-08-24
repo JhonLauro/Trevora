@@ -84,7 +84,16 @@ export function passwordStrength(password) {
 
 const STRENGTH_WORDS = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 
-export function InkStrengthMeter({ score }) {
+/**
+ * `hint` puts the password requirement beside the bars rather than above them,
+ * which is where the design puts it — the meter and the rule it measures are
+ * one statement, not two stacked ones.
+ *
+ * When a hint is supplied the strength word goes to screen readers only. It is
+ * still announced on change; it just stops competing with the requirement for
+ * the same 40px of row.
+ */
+export function InkStrengthMeter({ score, hint }) {
   return (
     <div className="ink-meter">
       <div className="ink-meter__bars" role="presentation">
@@ -92,9 +101,10 @@ export function InkStrengthMeter({ score }) {
           <span key={bar} className="ink-meter__bar" data-filled={score >= bar ? 'true' : 'false'} />
         ))}
       </div>
-      <span className="ink-meter__word" aria-live="polite">
+      <span className={hint ? 'ink-sr-only' : 'ink-meter__word'} aria-live="polite">
         {STRENGTH_WORDS[score]}
       </span>
+      {hint && <span className="ink-meter__hint">{hint}</span>}
     </div>
   );
 }

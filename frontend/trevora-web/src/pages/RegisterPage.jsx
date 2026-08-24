@@ -310,10 +310,11 @@ export default function RegisterPage() {
             onChange={updateField}
             onBlur={handleBlur}
             error={fieldErrors.password}
-            help={PASSWORD_HELP}
           />
+          {/* The requirement rides with the meter now, so the field no longer
+              renders it separately — it was appearing twice over otherwise. */}
           <div className="ink-hide-mobile">
-            <InkStrengthMeter score={strength} />
+            <InkStrengthMeter score={strength} hint={PASSWORD_HELP} />
           </div>
         </div>
 
