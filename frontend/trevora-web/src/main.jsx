@@ -14,6 +14,9 @@ import './styles/ink-auth.css';
 import './styles/ink-garage.css';
 // Vehicle page. Builds on ink-garage.css primitives, so it comes after.
 import './styles/ink-vehicle.css';
+// Landing composition and section rhythm. Last, so it wins over the .fig-*
+// rules in styles.css without those needing to be edited in place.
+import './styles/ink-landing.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

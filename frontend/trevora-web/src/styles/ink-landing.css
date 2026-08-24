@@ -1,0 +1,334 @@
+/* ----------------------------------------------------------------------
+   Trevora landing — section rhythm and composition.
+
+   Loaded last in main.jsx, after styles.css. The landing's ~300 `.fig-*`
+   rules live in that 11k-line shared file; this sheet overrides the handful
+   that govern section padding and grid composition by load order rather than
+   editing them in place, which keeps the diff out of a file three other
+   people have open.
+
+   Ported from the approved layout mockup: its compositions and spacing only.
+   None of its copy, and none of its typefaces — it sets Hanken Grotesk and
+   IBM Plex Mono, we keep Public Sans and JetBrains Mono. Its inline hex is
+   translated onto the `--tv-*` tokens the landing already uses; no colour is
+   introduced here.
+
+   Why it is worth the file: every section used to be a centred heading over
+   an even grid, twice over. Seven sections at one rhythm read as a single
+   long section, so nothing on the page has weight. The mockup varies both
+   axes — ten grid definitions, six padding steps — so the page has a shape
+   you can navigate by.
+   ---------------------------------------------------------------------- */
+
+/* The mockup's vertical scale, stated once so the rhythm is legible as a
+   system and adjustable as one. Values are its px; the clamp floors keep
+   small screens usable without inventing a second scale. */
+:root {
+  --fig-pad-sm: clamp(3rem, 6vw, 4rem);       /*  64px */
+  --fig-pad-md: clamp(3.5rem, 7vw, 5.5rem);   /*  88px */
+  --fig-pad-lg: clamp(4rem, 8vw, 6rem);       /*  96px */
+  --fig-pad-xl: clamp(4.5rem, 9vw, 7rem);     /* 112px */
+  --fig-pad-2xl: clamp(5rem, 10vw, 8rem);     /* 128px */
+  --fig-pad-3xl: clamp(5.5rem, 11vw, 8.5rem); /* 136px */
+  --fig-gutter: clamp(1.5rem, 4vw, 2.5rem);
+
+  /* The mockup wraps every section's content in `max-width:1240px;margin:0
+     auto`. We have no such wrapper — the sections hold their children
+     directly — so the measure is applied as horizontal padding instead:
+     `max()` keeps the element full-width, so dark backgrounds still bleed to
+     the viewport, while the content inside lands on a 1240px column.
+
+     Without this the grids stretched to whatever the window was, which is
+     why everything sat against the edges. */
+  --fig-max: 1240px;
+  --fig-inset: max(var(--fig-gutter), (100% - var(--fig-max)) / 2);
+}
+
+/* Sections that only ever needed the measure, not a new composition. */
+.fig-nav,
+.fig-trust {
+  padding-left: var(--fig-inset);
+  padding-right: var(--fig-inset);
+}
+
+/* ------------------------------------------------------------------ hero
+   112 / 128, and a right column that leads rather than matches. Ours held a
+   420px floor that fought the ratio at midwidths. */
+.fig-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  padding: var(--fig-pad-xl) var(--fig-inset) var(--fig-pad-2xl);
+}
+
+/* ------------------------------------------------------------------- how
+   96 / 108. The heading opens asymmetrically: title in the wide column,
+   supporting line beside it rather than centred underneath. */
+.fig-how {
+  padding: var(--fig-pad-lg) var(--fig-inset) var(--fig-pad-xl);
+}
+
+.fig-how > .fig-section-heading {
+  align-items: start;
+  column-gap: clamp(1.5rem, 4vw, 3.5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  row-gap: 1rem;
+  text-align: left;
+}
+
+.fig-how > .fig-section-heading > .fig-pill {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.fig-how > .fig-section-heading > h2 {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+}
+
+/* Sits beside the title, centred against it, with a rule standing in for the
+   column edge. */
+.fig-how > .fig-section-heading > p {
+  align-self: center;
+  border-left: 1px solid var(--tv-line);
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  padding-left: clamp(1rem, 2vw, 1.75rem);
+}
+
+/* The three steps descend rather than sitting in a row. It is the one
+   composition on the page that encodes its own meaning: the eye reads them
+   in order because they are physically in order, not because they are
+   numbered. */
+.fig-how-grid {
+  align-items: start;
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+}
+
+/* 76 and 152 — the mockup's own step, and exactly one step per card so the
+   descent is even. An earlier pass measured 64px, which read as drift rather
+   than as a deliberate cascade. */
+.fig-how-card:nth-child(2) {
+  margin-top: clamp(2.5rem, 6vw, 4.75rem);
+}
+
+.fig-how-card:nth-child(3) {
+  margin-top: clamp(5rem, 12vw, 9.5rem);
+}
+
+/* -------------------------------------------------------------- features
+   136 / 152, the page's heaviest section — it is the one that has to land.
+
+   The size hierarchy is the point: the first two cards run at double width
+   and carry the two capabilities nothing else in the category has (reading a
+   receipt, and hearing one). The remaining four sit in a quieter row of
+   equals. A flat six-up grid gave a QR link the same visual claim as the OCR
+   that makes the product work. */
+.fig-features {
+  padding: var(--fig-pad-3xl) var(--fig-inset) calc(var(--fig-pad-3xl) + 1rem);
+}
+
+/* Title left, label pushed to the far edge and set against the baseline —
+   the label stops being a badge stacked over the heading and becomes the
+   section's right margin note. */
+.fig-features > .fig-section-heading {
+  align-items: end;
+  display: grid;
+  gap: clamp(1rem, 3vw, 2rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  text-align: left;
+}
+
+.fig-features > .fig-section-heading > h2 {
+  grid-column: 1;
+  margin: 0;
+}
+
+.fig-features > .fig-section-heading > .fig-pill {
+  grid-column: 2;
+  justify-self: end;
+}
+
+.fig-feature-grid {
+  display: grid;
+  gap: clamp(1rem, 2.5vw, 1.75rem);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+}
+
+/* The two leading cards hold their height whether or not their copy fills it,
+   so the pair reads as one band rather than as two cards that happened to
+   come out the same size. */
+.fig-feature-card:nth-child(-n + 2) {
+  grid-column: span 2;
+  min-height: 300px;
+}
+
+.fig-feature-card:nth-child(-n + 2) h3 {
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+}
+
+.fig-feature-card:nth-child(-n + 2) p {
+  font-size: 1.0625rem;
+  max-width: 46ch;
+}
+
+/* ------------------------------------------------------------- ai section
+   112 / 120. The confidence panel is the evidence and comes first in the
+   DOM, so it takes the leading column and the argument sits beside it. */
+.fig-ai-section {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  padding: var(--fig-pad-xl) var(--fig-inset) var(--fig-pad-2xl);
+}
+
+/* -------------------------------------------------------------- mechanic
+   88 top, 0 bottom: the preview panel runs to the section's edge, so the
+   dark block ends on the artwork rather than on padding. */
+.fig-mechanic {
+  align-items: center;
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+  /* Its two children — .fig-mechanic-copy and .fig-qr-card — are direct
+     siblings, so the section itself is the grid. It was block-flow before,
+     which stacked the QR panel under the copy at every width. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  padding: var(--fig-pad-md) var(--fig-inset) 0;
+}
+
+/* Both columns stop 88px above the section floor; the section itself has no
+   bottom padding, so the dark block closes on content rather than on space. */
+.fig-mechanic-copy {
+  padding-bottom: var(--fig-pad-md);
+}
+
+/* The preview runs off the right edge instead of sitting inside the gutter —
+   it reads as a panel the viewport is cropping, which is what sells it as a
+   real screen rather than an illustration of one. Right corners square,
+   because a rounded corner bleeding off an edge looks like a mistake. */
+.fig-qr-card {
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+  margin: 1.5rem calc(var(--fig-gutter) * -1) var(--fig-pad-md) 0;
+}
+
+/* ------------------------------------------------------------------- faq
+   96 / 88. A narrow heading column beside the list, so the questions start
+   at the top of the section instead of below a centred title. */
+.fig-faq {
+  align-items: start;
+  display: grid;
+  gap: clamp(2rem, 5vw, 3.5rem);
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1fr);
+  padding: var(--fig-pad-lg) var(--fig-inset) var(--fig-pad-md);
+}
+
+/* 120px clears the sticky header. At 2rem the heading parked underneath it
+   and the two overlapped as you scrolled the questions. */
+.fig-faq > h2 {
+  margin: 0;
+  position: sticky;
+  text-align: left;
+  top: 120px;
+}
+
+/* ------------------------------------------------------------- final cta
+   128 / 136, and centred. This is the one section the mockup does NOT split:
+   a single closing sentence, its qualifier, and the button, stacked on the
+   page's centre line. An earlier pass gave it the footer's 1.4fr/0.7fr grid
+   by mistake, which broke the sentence across four columns. */
+.fig-final-cta {
+  padding: var(--fig-pad-2xl) var(--fig-inset) var(--fig-pad-3xl);
+}
+
+.fig-final-cta > div {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: center;
+  margin: 0 auto;
+  max-width: 900px;
+  text-align: center;
+}
+
+.fig-final-cta > div > h2,
+.fig-final-cta > div > p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- footer
+   The 1.4fr + three narrow columns the CTA was wrongly given: the brand
+   block reads as a paragraph, the three link lists as an index. */
+.fig-footer {
+  display: grid;
+  gap: clamp(2rem, 5vw, 3rem);
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 0.7fr));
+  padding: var(--fig-pad-sm) var(--fig-inset);
+}
+
+/* --------------------------------------------------------------- reflow
+
+   One breakpoint, and it collapses every composition above to a single
+   column. The audience rule from the app applies here too: reflow rather
+   than shrink. A 1.4fr/0.7fr split at 700px is four unreadable columns, and
+   a staggered stack is just three cards with dead space above them. */
+@media (max-width: 900px) {
+  .fig-hero,
+  .fig-ai-section,
+  .fig-faq,
+  .fig-mechanic {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fig-how > .fig-section-heading,
+  .fig-features > .fig-section-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fig-how > .fig-section-heading > .fig-pill,
+  .fig-how > .fig-section-heading > h2,
+  .fig-how > .fig-section-heading > p,
+  .fig-features > .fig-section-heading > h2,
+  .fig-features > .fig-section-heading > .fig-pill {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .fig-how > .fig-section-heading > p {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .fig-how-card:nth-child(2),
+  .fig-how-card:nth-child(3) {
+    margin-top: 0;
+  }
+
+  .fig-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fig-feature-card:nth-child(-n + 2) {
+    grid-column: span 2;
+  }
+
+  .fig-faq > h2 {
+    position: static;
+  }
+
+  .fig-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .fig-feature-grid,
+  .fig-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fig-feature-card:nth-child(-n + 2) {
+    grid-column: auto;
+  }
+}
