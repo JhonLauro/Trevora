@@ -108,7 +108,7 @@ export default function ServiceRecordConfirmationPage() {
     <main className="page-shell module-two-page">
       <section className="page-header">
         <p className="eyebrow">
-          <Link className="inline-link" to={`/service-drafts/${draftId}/correct`}>
+          <Link className="inline-link" to={`/service-drafts/${draftId}`}>
             Back to edit
           </Link>
           <span>{draft?.inputMethod ?? 'Draft'}</span>
@@ -181,7 +181,7 @@ export default function ServiceRecordConfirmationPage() {
           </label>
 
           <div className="confirmation-actions">
-            <Link className="button-secondary button-link-secondary" to={`/service-drafts/${draftId}/correct`}>
+            <Link className="button-secondary button-link-secondary" to={`/service-drafts/${draftId}`}>
               Back to Edit
             </Link>
             <button type="button" disabled={!canSave} onClick={handleConfirm}>

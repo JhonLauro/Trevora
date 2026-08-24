@@ -22,13 +22,11 @@ import VehiclePage from './pages/VehiclePage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import RegisterVehiclePage from './pages/RegisterVehiclePage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
-import ServiceDraftCorrectionPage from './pages/ServiceDraftCorrectionPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
 import ServiceRecordConfirmationPage from './pages/ServiceRecordConfirmationPage.jsx';
 import ServiceRecordDetailPage from './pages/ServiceRecordDetailPage.jsx';
 import ServiceRecordSavedPage from './pages/ServiceRecordSavedPage.jsx';
-import StructuredServiceDraftPage from './pages/StructuredServiceDraftPage.jsx';
 import VoiceInputPage from './pages/VoiceInputPage.jsx';
 
 function RedirectToServiceInput({ method }) {
@@ -81,9 +79,12 @@ function AppRoutes() {
         <Route path="/service-input/:vehicleId/manual" element={<ManualEntryPage />} />
         <Route path="/service-input/:vehicleId/receipt" element={<ReceiptUploadPage />} />
         <Route path="/service-input/:vehicleId/voice" element={<VoiceInputPage />} />
-        <Route path="/service-drafts/:draftId" element={<StructuredServiceDraftPage />} />
-        <Route path="/service-drafts/:draftId/review" element={<ServiceDraftReviewPage />} />
-        <Route path="/service-drafts/:draftId/correct" element={<ServiceDraftCorrectionPage />} />
+        <Route path="/service-drafts/:draftId" element={<ServiceDraftReviewPage />} />
+        {/* Review and correction were separate screens: one that accepted
+            edits and discarded them, one that saved. Both are the draft
+            screen now, and the old paths still resolve. */}
+        <Route path="/service-drafts/:draftId/review" element={<RedirectToServiceDraft />} />
+        <Route path="/service-drafts/:draftId/correct" element={<RedirectToServiceDraft />} />
         <Route path="/service-drafts/:draftId/confirm" element={<ServiceRecordConfirmationPage />} />
         <Route path="/service-drafts/:draftId/saved" element={<ServiceRecordSavedPage />} />
 

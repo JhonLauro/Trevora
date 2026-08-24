@@ -81,12 +81,6 @@ export function getServiceDraftReview(draftId) {
   return apiRequest(`/service-drafts/${draftId}/review`).then(normalizeDraftValidationPayload);
 }
 
-export function validateServiceDraft(draftId) {
-  return apiRequest(`/service-drafts/${draftId}/validate`, {
-    method: 'POST',
-  }).then(normalizeDraftValidationPayload);
-}
-
 export function updateServiceDraftCorrections(draftId, corrections) {
   return apiRequest(`/service-drafts/${draftId}/corrections`, {
     method: 'PATCH',
