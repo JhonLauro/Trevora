@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import ServiceItemsEditor from '../components/ServiceItemsEditor';
+import ReceiptBalance from '../components/ReceiptBalance';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
+import { serializeLineEntries } from '../utils/serviceLines';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
@@ -55,9 +57,9 @@ function serializeCorrections(form) {
     shopName: form.shopName.trim() || null,
     location: form.location.trim() || null,
     remarks: form.remarks.trim() || null,
-    // lineEntries ride along inside the spread. They are the itemised receipt
-    // and saving a correction rebuilds every line from this request, so
-    // dropping them here would delete the breakdown.
+    // Saving rebuilds every line from this request, so lineEntries is named
+    // explicitly rather than left to ride along inside the spread. Sent in
+    // display order: the server numbers them by position.
     services: (form.services || []).map((item, index) => ({
       ...item,
       serviceType: item.serviceType?.trim() || '',
@@ -65,6 +67,7 @@ function serializeCorrections(form) {
       partsReplaced: item.partsReplaced?.trim() || null,
       laborPerformed: item.laborPerformed?.trim() || null,
       lineCost: item.lineCost === '' || item.lineCost === undefined || item.lineCost === null ? null : Number(item.lineCost),
+      lineEntries: serializeLineEntries(item.lineEntries),
       sortOrder: index,
     })),
   };
@@ -654,6 +657,7 @@ export default function ServiceDraftReviewPage() {
                 <span className="field-label-row">
                   <span>What was done</span>
                 </span>
+                <ReceiptBalance services={form.services} totalCost={form.totalCost} />
                 <ServiceItemsEditor value={form.services} onChange={updateServices} />
               </div>
               <ClassificationBadges draft={draft} />
@@ -695,6 +699,7 @@ export default function ServiceDraftReviewPage() {
               <span className="field-label-row">
                 <span>What was done</span>
               </span>
+              <ReceiptBalance services={form.services} totalCost={form.totalCost} />
               <ServiceItemsEditor value={form.services} onChange={updateServices} />
             </div>
 

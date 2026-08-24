@@ -1,15 +1,15 @@
 import React from 'react';
-
-function formatLineCost(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const number = Number(value);
-  if (!Number.isFinite(number)) return null;
-  return `PHP ${number.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { ServiceLineEntriesList } from './ServiceLineEntriesEditor';
+import { formatPeso, lineEntriesOf } from '../utils/serviceLines';
 
 /**
- * Read-only rendering of a service_record/service_draft's `services` array as a list of cards,
- * each showing serviceType as a mini-heading with partsReplaced/laborPerformed/lineCost beneath.
+ * Read-only rendering of a service_record/service_draft's `services` array.
+ *
+ * <p>Each service shows its own receipt lines when it has them. Before this it
+ * showed only `partsReplaced`/`laborPerformed`, which meant a body-and-paint
+ * invoice read as one sentence about parts and the eleven consumables it
+ * actually billed were nowhere — including on the confirmation screen, one step
+ * after the owner had just checked them line by line.
  */
 export default function ServiceItemsList({ services, emptyMessage = 'No services recorded for this visit.' }) {
   const items = Array.isArray(services) ? services.filter(Boolean) : [];
@@ -21,7 +21,12 @@ export default function ServiceItemsList({ services, emptyMessage = 'No services
   return (
     <div className="service-items-list">
       {items.map((item, index) => {
-        const lineCost = formatLineCost(item.lineCost);
+        const lineCost = formatPeso(item.lineCost);
+        const entries = lineEntriesOf(item);
+        // The legacy summary text is a duplicate of the lines when both exist,
+        // so it only earns space on records that predate the lines.
+        const showLegacyText = entries.length === 0;
+
         return (
           <article className="service-item-card" key={item.itemId ?? `service-item-${index}`}>
             <div className="service-item-card-header">
@@ -29,12 +34,15 @@ export default function ServiceItemsList({ services, emptyMessage = 'No services
               {item.serviceCategory && <span className="badge subtle">{item.serviceCategory}</span>}
               {lineCost && <span className="service-item-cost">{lineCost}</span>}
             </div>
-            {item.partsReplaced && (
+
+            <ServiceLineEntriesList item={item} />
+
+            {showLegacyText && item.partsReplaced && (
               <p className="service-item-detail">
                 <strong>Parts replaced:</strong> {item.partsReplaced}
               </p>
             )}
-            {item.laborPerformed && (
+            {showLegacyText && item.laborPerformed && (
               <p className="service-item-detail">
                 <strong>Labor performed:</strong> {item.laborPerformed}
               </p>
