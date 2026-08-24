@@ -92,6 +92,7 @@ public class MechanicAccessService {
                 session.getMechanicAccessSessionId(),
                 session.getVehicleId(),
                 vehicleLabel(session.getVehicleId()),
+                vehiclePlateNumber(session.getVehicleId()),
                 vehicleBodyType(session.getVehicleId()),
                 session.getPermission(),
                 session.getStatus(),
@@ -170,6 +171,20 @@ public class MechanicAccessService {
                 .orElse(null);
         List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
         return MechanicSharedServiceRecordResponse.from(record, items, sourceDraft);
+    }
+
+    /**
+     * The plate, for the approved mechanic only.
+     *
+     * <p>Reached through the session's own vehicle id, so it is scoped by the
+     * same approval and expiry as every other field on this response. Null when
+     * the owner has not recorded one; the mechanic view says so plainly rather
+     * than implying the vehicle has no plate.
+     */
+    private String vehiclePlateNumber(UUID vehicleId) {
+        return vehicleRepository.findById(vehicleId)
+                .map(VehicleProfile::getPlateNumber)
+                .orElse(null);
     }
 
     /** Null when the vehicle predates the body-type picker — the map then

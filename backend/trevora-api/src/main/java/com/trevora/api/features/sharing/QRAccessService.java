@@ -110,7 +110,6 @@ public class QRAccessService {
                 request.getQrAccessRequestId(),
                 request.getVehicleId(),
                 vehicleLabel(vehicle),
-                vehicle.getPlateNumber(),
                 request.getStatus(),
                 request.getExpiresAt(),
                 serviceRecordRepository.countByVehicleIdAndOwnerId(request.getVehicleId(), request.getOwnerId())
@@ -146,7 +145,7 @@ public class QRAccessService {
         MechanicAccessRequest saved = mechanicAccessRepository.save(accessRequest);
         VehicleProfile vehicle = vehicleRepository.findById(saved.getVehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shared vehicle was not found."));
-        return MechanicAccessRequestResponse.from(saved, vehicleLabel(vehicle), vehicle.getPlateNumber());
+        return MechanicAccessRequestResponse.from(saved, vehicleLabel(vehicle));
     }
 
     @Transactional
@@ -160,7 +159,7 @@ public class QRAccessService {
                 .map(request -> {
                     VehicleProfile vehicle = vehicleRepository.findById(request.getVehicleId())
                             .orElseThrow(() -> new ResourceNotFoundException("Shared vehicle was not found."));
-                    return MechanicAccessRequestResponse.from(request, vehicleLabel(vehicle), vehicle.getPlateNumber());
+                    return MechanicAccessRequestResponse.from(request, vehicleLabel(vehicle));
                 })
                 .orElse(null);
         MechanicAccessSessionResponse session = mechanicRequest == null ? null : sessionRepository
@@ -226,7 +225,6 @@ public class QRAccessService {
                 request.getQrAccessRequestId(),
                 request.getVehicleId(),
                 vehicleLabel(vehicle),
-                vehicle.getPlateNumber(),
                 request.getStatus(),
                 request.getExpiresAt(),
                 serviceRecordRepository.countByVehicleIdAndOwnerId(request.getVehicleId(), request.getOwnerId())

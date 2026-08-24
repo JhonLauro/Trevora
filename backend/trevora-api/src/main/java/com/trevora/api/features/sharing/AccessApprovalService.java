@@ -144,7 +144,7 @@ public class AccessApprovalService {
     private MechanicAccessRequestResponse toRequestResponse(MechanicAccessRequest request) {
         VehicleProfile vehicle = vehicleRepository.findById(request.getVehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle profile was not found."));
-        return MechanicAccessRequestResponse.from(request, vehicleLabel(vehicle), vehicle.getPlateNumber());
+        return MechanicAccessRequestResponse.from(request, vehicleLabel(vehicle));
     }
 
     private MechanicAccessSessionResponse toSessionResponse(MechanicAccessSession session) {

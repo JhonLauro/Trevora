@@ -226,7 +226,14 @@ export default function MechanicAccessSessionPlaceholderPage() {
               <div className="readonly-access-banner">
                 <span className="notice-icon">R</span>
                 <div>
-                  <strong>Mechanic read-only workspace for {history.vehicleLabel}</strong>
+                  {/* The plate is shown here and nowhere earlier: this page
+                      exists only once the owner has approved, which is the
+                      point at which confirming the right vehicle is worth
+                      disclosing it. */}
+                  <strong>
+                    Mechanic read-only workspace for {history.vehicleLabel}
+                    {history.plateNumber ? ` · ${history.plateNumber}` : ''}
+                  </strong>
                   <p>
                     Scope: owner-approved service history only - {records.length} record{records.length === 1 ? '' : 's'} -
                     {remaining == null ? ' active session' : ` ${remaining} min remaining`}

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
+import EditVehicleDetailsDialog from '../components/ink/EditVehicleDetailsDialog.jsx';
 import PartsView from '../components/ink/PartsView.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import Timeline from '../components/ink/Timeline.jsx';
-import { deleteVehicle, getVehicle } from '../api/vehicles';
+import { deleteVehicle, getVehicle, updateVehicle } from '../api/vehicles';
 import { deleteVehicleServiceRecord, getVehicleServiceHistory, markServiceRecordReviewed } from '../api/serviceHistory';
 import { componentStatuses } from '../utils/componentStatus';
 import { historyCompleteness, listYears } from '../utils/completeness';
@@ -40,6 +41,48 @@ function Stat({ label, value, note = null }) {
           "PHP 0 covered" is noise for the many owners who never claim. */}
       {note && <span className="vehicle-stat__note">{note}</span>}
     </div>
+  );
+}
+
+/**
+ * One registration field, drawn whether or not it has been filled in.
+ *
+ * An empty field still gets its label and a stated "Not recorded" — once any
+ * of the four is filled, the blanks beside it are information. What this does
+ * not carry is an explanation of why the field is worth filling in: that is
+ * decision-support, the decision is made in the edit dialog, and the copy now
+ * lives there. A card that displays four values should display four values.
+ *
+ * The all-blank case never reaches here; see `hasVehicleDetails`.
+ */
+function Detail({ label, value }) {
+  const recorded = value !== null && value !== undefined && String(value).trim() !== '';
+  return (
+    <div className="vehicle-detail">
+      <dt className="ink-eyebrow">{label}</dt>
+      <dd className={`vehicle-detail__value${recorded ? '' : ' is-empty'}`}>
+        {recorded ? value : 'Not recorded'}
+      </dd>
+    </div>
+  );
+}
+
+/**
+ * Whether any of the four has been filled in.
+ *
+ * Four columns all reading "Not recorded" is a grid restating one fact four
+ * times, and it is the state every new vehicle starts in. Below this the card
+ * says it once instead.
+ *
+ * `!= null` rather than a truthiness check: an odometer of 0 is a reading
+ * somebody took, not an absent one.
+ */
+function hasVehicleDetails(vehicle) {
+  return Boolean(
+    (vehicle?.plateNumber || '').trim()
+    || (vehicle?.vinChassisNumber || '').trim()
+    || vehicle?.year != null
+    || vehicle?.odometer != null,
   );
 }
 
@@ -119,6 +162,17 @@ export default function VehiclePage() {
   const [view, setView] = useState('components');
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
+  const [editingDetails, setEditingDetails] = useState(false);
+
+  /* The response is the saved row, so it becomes the new state directly rather
+     than re-fetching. The Garage listens for this event to pick up a changed
+     plate without a reload. */
+  async function saveVehicleDetails(payload) {
+    const updated = await updateVehicle(vehicleId, payload);
+    setVehicle(updated);
+    setEditingDetails(false);
+    window.dispatchEvent(new Event('trevora:vehicles-changed'));
+  }
 
   const vehicleDelete = useDeleteAction(
     () => deleteVehicle(vehicleId),
@@ -265,6 +319,45 @@ export default function VehiclePage() {
         </div>
       </header>
 
+      {/* The four details a buyer, an insurer or a mechanic asks for by name,
+          and the four the Add form lets you skip — so this is both where they
+          are read and the only place they can be supplied afterwards.
+
+          It displays values and nothing else. Why each one is worth filling in
+          is a decision, the decision is taken in the dialog, and the reasoning
+          now sits next to the inputs it applies to. Nothing here requires
+          them: records join to a vehicle by vehicle_id, and a record saves on
+          vehicle, date, service and cost alone. */}
+      <section className="ink-card vehicle-details">
+        <div className="vehicle-details__head">
+          <h2 className="vehicle-details__title">Vehicle details</h2>
+          <button
+            className="ink-button ink-button--outline ink-button--sm"
+            type="button"
+            disabled={!vehicle}
+            onClick={() => setEditingDetails(true)}
+          >
+            Edit details
+          </button>
+        </div>
+        {hasVehicleDetails(vehicle) ? (
+          <dl className="vehicle-details__grid">
+            <Detail label="Plate number" value={vehicle?.plateNumber} />
+            <Detail label="VIN / chassis" value={vehicle?.vinChassisNumber} />
+            <Detail label="Model year" value={vehicle?.year} />
+            <Detail label="Odometer" value={vehicle?.odometer == null ? null : formatOdometer(vehicle.odometer)} />
+          </dl>
+        ) : (
+          /* Said once, plainly, with the button beside it as the way in. No
+             badge, no count, no meter — a blank here is a valid answer, and
+             the sentence is an offer rather than an outstanding task. */
+          <p className="vehicle-details__empty">
+            No plate, VIN, model year, or odometer recorded yet. Optional — these help confirm the
+            right vehicle when you share this history.
+          </p>
+        )}
+      </section>
+
       <Completeness summary={completeness} />
 
       <section className="ink-card vehicle-stats">
@@ -371,6 +464,13 @@ export default function VehiclePage() {
 
         {tab === 'warranty' && <WarrantyPanel spend={spend} />}
       </div>
+
+      <EditVehicleDetailsDialog
+        open={editingDetails}
+        vehicle={vehicle}
+        onSave={saveVehicleDetails}
+        onCancel={() => setEditingDetails(false)}
+      />
 
       <ConfirmDialog
         open={vehicleDelete.open}
