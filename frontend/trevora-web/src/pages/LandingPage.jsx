@@ -88,8 +88,8 @@ const trustPoints = [
 ];
 
 const aiPoints = [
-  'Verified fields backed by OCR cross-reference',
-  'Low-confidence fields highlighted for quick review',
+  'Line items checked against the printed total, so a misread price shows up',
+  'Anything we are unsure of is flagged for you to check',
   'Missing data clearly shown, never silently dropped',
 ];
 
@@ -101,7 +101,7 @@ const mechanicPoints = [
 ];
 
 const faqs = [
-  ['How accurate is the AI extraction from receipts?', 'Trevora works best with clear receipt photos. Every extracted field includes a confidence score so owners can quickly verify uncertain details before saving.'],
+  ['How accurate is the AI extraction from receipts?', 'Trevora works best with clear receipt photos. Every value it reads is shown to you beside the receipt, anything uncertain is flagged, and the itemised lines are added up against the printed total so a misread figure is caught. Nothing is saved until you confirm it.'],
   ['What receipt formats are supported?', 'The MVP is designed around common auto shop receipts, itemized service slips, and owner-entered references. Manual entry remains available when a receipt is unclear.'],
   ['Is my vehicle data private and secure?', 'Owner workflows stay tied to the signed-in account. Mechanic access is temporary, read-only, and limited to the vehicle approved by the owner.'],
   ['Can I manage multiple vehicles?', 'Yes. Vehicle profiles keep separate service histories, record counts, costs, and mechanic access sessions.'],

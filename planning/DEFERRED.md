@@ -579,6 +579,39 @@ characters on one run and 3,511 on the other **for the same image**. So the text
 layer needs a few repeats — three is too few to see the tail — and the image
 layer needs several.
 
+### The golden set can fail the build now (2026-08-24)
+
+Two changes, both of which the set's own javadoc had asked for and neither of
+which needed more receipts.
+
+**Regression floors.** `GoldenReport` carries a minimum per field and the test
+throws when a score walks through one. Set from the measured baseline with room
+for the wobble — line kinds and line prices at 90%, date and odometer at 95%,
+shop and location at 90%, total cost and reconciliation at 60% because the
+Toyota case legitimately cannot reach them. **`relatedComponents` has no floor
+on purpose**: it measured 83–89% across runs of identical code, and a check that
+fires on noise gets ignored.
+
+The two audit regressions — line kinds 100% → 36%, twice — would both now break
+the build instead of reading as improvements in a diff.
+
+**A single bad extraction no longer destroys the run.** Roughly one in twenty
+comes back unusable at temperature 0; throwing meant losing the report for the
+other eight, which cost two paid runs before anyone noticed the failure was
+intermittent. Failures are counted, printed, and only fail the build past a
+quarter of all attempts — a rate that means something is actually broken.
+
+`GoldenReportTest` covers the floor logic offline and free, so the rules that
+decide "has extraction regressed" are themselves checked on every `./mvnw test`
+rather than only behind a paid call. Verified live: the set passes with floors
+active, same numbers as the August baseline.
+
+**Correction to an earlier claim in this document:** running the golden set
+costs one or two US cents, not enough to coordinate around. That was asserted
+several times without doing the arithmetic. The real trap is that without
+`OPENAI_API_KEY` the test *skips* rather than failing, so a green run does not
+prove it ran.
+
 ### Still unmeasured
 
 The 85% field-extraction accuracy target in the proposal's objectives. The

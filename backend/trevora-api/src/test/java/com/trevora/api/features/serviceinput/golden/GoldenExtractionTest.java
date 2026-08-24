@@ -16,24 +16,26 @@ import org.junit.jupiter.api.Test;
  * Runs the real extraction against the golden set and prints the scorecard.
  *
  * <p>Tagged {@code golden} and excluded from {@code ./mvnw test}, because it
- * calls the OpenAI API: it costs money and takes seconds per run. Run it
- * deliberately:
+ * calls the OpenAI API for real. A run is a cent or two and tens of seconds,
+ * so run it freely - just deliberately:
  *
  * <pre>
  *   ./mvnw test -Pgolden
  *   ./mvnw test -Pgolden -Dgolden.runs=5
  * </pre>
  *
- * <p><b>It does not assert a score.</b> That is deliberate. A threshold here
- * would either be set low enough to pass today — in which case it asserts
- * nothing — or fail the build until the pipeline is fixed, which makes the
- * measurement an obstacle rather than an instrument. The report is the output.
- * Once the numbers stabilise, add regression floors per field so a change that
- * drops line-kind accuracy from 84% to 40% breaks the build.
+ * <p><b>It asserts regression floors.</b> It did not, originally, on the
+ * grounds that the numbers had not stabilised — and while it did not, two
+ * prompt changes took line kinds and line prices from 100% to 36% and were
+ * merged anyway, because a diff that reads sensibly is not evidence. The
+ * numbers have since held across four separate code states, so the floors in
+ * {@link GoldenReport} now break the build instead of trusting whoever is
+ * reading the scorecard to notice.
  *
- * <p>What it <i>does</i> assert is that every case loaded and produced a
- * parseable extraction, so a broken case file or a malformed response fails
- * loudly rather than quietly scoring zero.
+ * <p>A single extraction that comes back unusable does <b>not</b> fail the run.
+ * Roughly one in twenty does, even at temperature 0, and treating that as a
+ * breakage destroyed the whole report for the other eight. They are counted and
+ * printed; only a rate high enough to be a real fault fails the build.
  */
 @Tag("golden")
 class GoldenExtractionTest {
@@ -66,9 +68,16 @@ class GoldenExtractionTest {
 
         for (GoldenCase goldenCase : cases) {
             for (int run = 0; run < runs; run++) {
-                ReceiptDraftFields extracted = provider.extractFields(goldenCase.ocrText(), goldenCase.vehicleContext());
+                ReceiptDraftFields extracted;
+                try {
+                    extracted = provider.extractFields(goldenCase.ocrText(), goldenCase.vehicleContext());
+                } catch (RuntimeException exception) {
+                    report.recordFailure(goldenCase.id(), exception.getMessage());
+                    continue;
+                }
                 if (extracted == null) {
-                    throw new AssertionError("Extraction returned null for case " + goldenCase.id());
+                    report.recordFailure(goldenCase.id(), "extraction returned null");
+                    continue;
                 }
                 ServiceClassification effective = classificationService.classifyAiOrFallback(
                         extracted.classification(),
@@ -89,6 +98,23 @@ class GoldenExtractionTest {
         }
 
         System.out.println(report.render(runs));
+
+        // A quarter of extractions failing is not the model having a bad day,
+        // it is something broken — a bad key, a changed API, a prompt the model
+        // will not answer.
+        if (report.attempts() > 0 && report.failures().size() * 4 > report.attempts()) {
+            throw new AssertionError(report.failures().size() + " of " + report.attempts()
+                    + " extractions produced nothing. That is a fault, not flakiness:\n  "
+                    + String.join("\n  ", report.failures()));
+        }
+
+        List<String> violations = report.floorViolations();
+        if (!violations.isEmpty()) {
+            throw new AssertionError("Receipt extraction regressed:\n  "
+                    + String.join("\n  ", violations)
+                    + "\n\nIf this is a deliberate trade-off, move the floor in GoldenReport"
+                    + " in the same commit and say why.");
+        }
     }
 
     private static String serviceTypes(ReceiptDraftFields fields) {
