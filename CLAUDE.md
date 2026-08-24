@@ -96,7 +96,44 @@ Modules 1–4 are all implemented in code, not just planned:
 - Module 3 — confirmed vehicle service history APIs/UI.
 - Module 4 — Supabase Auth (`features.auth`), AI/template explanation (`features.ai`), QR/share access + owner approval (`features.sharing`), mechanic read-only access/search (`features.mechanicaccess`). Migrations `003`–`005` in `database/migrations` back this.
 
-Since the project sat idle, treat this as needing a regression/correctness pass (run the app, check auth flow, check each module end-to-end) rather than as unfinished greenfield work. Multi-person "ownership" tables in the older docs are stale — this is effectively a solo codebase now.
+Since the project sat idle, treat this as needing a regression/correctness pass (run the app, check auth flow, check each module end-to-end) rather than as unfinished greenfield work.
+
+## Working alongside other people
+
+**Four people work on this repo, each with their own Claude Code session.**
+Assume a file you are about to change is open in someone else's editor. Read
+`planning/COLLABORATION.md` before starting; the rules that matter most are
+here because this file is loaded automatically and that one is not.
+
+- **Ask what the user owns** if the task does not make it obvious, and stay
+  inside it. Work is split by feature (backend `features.*` package plus the
+  frontend pages that use it), not by layer.
+- **Never reorder or reformat a shared file** — `styles.css` (11k lines),
+  `App.jsx` routes, `main.jsx` imports. Add at the end, leave the rest alone. A
+  whitespace pass on any of these conflicts with everybody.
+- **Prefer a new stylesheet** under `src/styles/<feature>.css`, imported at the
+  end of `main.jsx`, over adding to `styles.css`.
+- **Migration numbers must be claimed out loud before use.** `012` is the
+  highest. Two people writing `013_` is not a merge conflict, it is two
+  migrations racing into one shared Supabase database.
+- **`shared/dto/ServiceItemResponse` and `ServiceLineEntryResponse` cross every
+  module.** Grep for consumers before changing a field, and tell the user which
+  other features you are about to affect.
+- **Append to `planning/DEFERRED.md`, never rewrite it.** It is the shared
+  handoff. Disagree in a new note underneath rather than editing the claim away.
+- **The golden set costs money** (`./mvnw test -Pgolden`). Never change the
+  extraction prompt without running it before and after — two prompt changes
+  that looked like improvements were 100%→36% regressions — and never start a
+  run without checking nobody else is mid-run.
+
+Two things that make "it works" a weaker claim here than it sounds, and are
+worth saying plainly rather than glossing:
+
+- **`./mvnw test` passing does not mean the application starts.** There is no
+  Spring context test, so broken bean wiring passes the whole suite and fails at
+  boot. Start the app before reporting backend work as done.
+- **Anything behind the login is unverified** unless a human clicked it. You
+  cannot sign in.
 
 ## Commit messages
 

@@ -40,12 +40,24 @@ Module 4: AI-Assisted Service Understanding and Mechanic Handoff.
 
 ## Module 4 Development Split
 
-| Person | Scope |
+**Historical — this is how Module 4 was divided when it was built, not who owns
+what now.** For current ownership and the rules that keep four people out of
+each other's way, see `planning/COLLABORATION.md`.
+
+| Person | Scope (Module 4, as built) |
 |---|---|
 | Person A | Authentication / Access Foundation + Login/Register |
 | Person B | AI-generated service explanation |
 | Person C | QR/share access request and owner approval |
 | Person D | Temporary mechanic read-only access and mechanic search |
+
+## Who owns what now
+
+Fill this in and keep it current — it is the first thing a new session reads.
+
+| Person | Area | Feature packages / pages |
+|---|---|---|
+| | | |
 
 ## Module 4 Goal
 
