@@ -121,10 +121,11 @@ here because this file is loaded automatically and that one is not.
   other features you are about to affect.
 - **Append to `planning/DEFERRED.md`, never rewrite it.** It is the shared
   handoff. Disagree in a new note underneath rather than editing the claim away.
-- **The golden set costs money** (`./mvnw test -Pgolden`). Never change the
-  extraction prompt without running it before and after — two prompt changes
-  that looked like improvements were 100%→36% regressions — and never start a
-  run without checking nobody else is mid-run.
+- **Never change the receipt extraction prompt without running the golden set
+  before and after** (`./mvnw test -Pgolden`) — two prompt changes that looked
+  like improvements were 100%→36% regressions. It costs about a cent a run, so
+  run it freely; but without `OPENAI_API_KEY` it skips instead of failing, so
+  check the scorecard actually printed.
 
 Two things that make "it works" a weaker claim here than it sounds, and are
 worth saying plainly rather than glossing:

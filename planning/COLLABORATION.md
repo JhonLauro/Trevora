@@ -90,26 +90,36 @@ Changing behaviour in any of them affects screens outside your area.
 
 ---
 
-## 3. The golden set costs money
+## 3. The golden set
 
-`backend/trevora-api/src/test/resources/golden/` scores receipt extraction
-against real receipts. Read its `README.md` before touching anything in
-`features.serviceinput`.
+`backend/trevora-api/src/test/resources/golden/` holds three real receipts, the
+correct answer for each written out by hand, and a scorer that marks the
+extractor against them. It is the only thing in this project that can tell you
+whether a change to receipt extraction helped or hurt. Read its `README.md`
+before touching anything in `features.serviceinput`.
 
 ```
-./mvnw test              # unit tests, free, run these always
-./mvnw test -Pgolden     # hits the OpenAI API, costs money, needs OPENAI_API_KEY
+./mvnw test              # unit tests, free and offline, run these always
+./mvnw test -Pgolden     # calls the OpenAI API for real; needs OPENAI_API_KEY
 ```
 
-Three rules:
+**On cost:** about one or two US cents per full run — roughly 37k input and 8k
+output tokens on `gpt-4o-mini`. It is not expensive and nobody needs permission
+to run it. (An earlier version of this document said to coordinate runs to save
+money. That was written without doing the arithmetic and was wrong.)
 
-1. **Do not change the extraction prompt without running the golden set before
-   and after.** Two prompt changes during the August audit looked like clear
-   improvements in the diff and were regressions — line-kind accuracy went from
-   100% to 36%, twice, invisibly.
-2. **One person runs it at a time.** Concurrent runs just spend money twice.
-3. Numbers below about six points are noise on the current three-case set. Do
-   not claim an improvement you cannot reproduce across runs.
+What is actually worth knowing:
+
+1. **Do not change the extraction prompt without running it before and after.**
+   Two prompt changes during the August audit looked like clear improvements in
+   the diff and were regressions — line-kind accuracy went from 100% to 36%,
+   twice, invisibly. This is the rule that matters.
+2. **Without `OPENAI_API_KEY` the golden test skips rather than fails.** A green
+   run does not prove it ran. Check the output for the scorecard.
+3. **It is not deterministic.** Roughly one extraction in twenty comes back
+   unusable even at temperature 0. One bad run is not a regression.
+4. **Three cases is a small sample.** Anything under about six percentage points
+   is noise. Do not claim an improvement you cannot reproduce across runs.
 
 ---
 
