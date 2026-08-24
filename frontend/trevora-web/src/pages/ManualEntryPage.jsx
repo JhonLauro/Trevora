@@ -92,7 +92,7 @@ export default function ManualEntryPage() {
           </Link>
           <span>Manual</span>
         </p>
-        <h1>Add Service Record</h1>
+        <h1>Type in a service</h1>
         {loading ? (
           <p>Loading selected vehicle...</p>
         ) : vehicle ? (
@@ -112,7 +112,7 @@ export default function ManualEntryPage() {
           <div className="panel-heading">
             <div>
               <h2>Enter service details</h2>
-              <p>Manual entries are marked owner-verified for this draft.</p>
+              <p>Everything you type here is recorded as your own entry, not a reading.</p>
             </div>
             <span className="method-badge">Owner verified</span>
           </div>
@@ -186,8 +186,8 @@ export default function ManualEntryPage() {
             </ul>
           </section>
           <section className="helper-card success">
-            <h2>No AI processing</h2>
-            <p>Manual drafts skip OCR and voice processing. The entered fields go straight into the structured ServiceDraft.</p>
+            <h2>Nothing is guessed</h2>
+            <p>Every value here is one you typed. Nothing is read off a photo or inferred, so nothing is flagged for checking.</p>
           </section>
         </aside>
       </section>
