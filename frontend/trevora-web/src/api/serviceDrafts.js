@@ -16,16 +16,33 @@ export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
   });
 }
 
-export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode }) {
-  const storedPages = await uploadReceiptPages({ vehicleId, pages });
+/**
+ * Stores the pages, then sends them for reading.
+ *
+ * <p>Each file crosses the network twice and no more: once to Supabase
+ * Storage, where it stays so the owner can look at the receipt again, and once
+ * to the API, which runs OCR over the bytes rather than fetching them back.
+ * A single-page receipt used to make the trip three times — it was appended as
+ * `receiptImage` as well as `receiptImages`, and the server prefers the latter
+ * and drops the former. On a 4 MB phone photo that was 4 MB of upload spent to
+ * be discarded, on the slowest step in the flow.
+ *
+ * @param onProgress called with a { stage, storedPages, totalPages } object at
+ *     each real transition. There are two stages because there are two things
+ *     happening, not because four reads better.
+ */
+export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode, onProgress }) {
+  onProgress?.({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
+  const storedPages = await uploadReceiptPages({
+    vehicleId,
+    pages,
+    onPageStored: (storedCount, totalCount) =>
+      onProgress?.({ stage: 'STORING', storedPages: storedCount, totalPages: totalCount }),
+  });
   const primaryPage = storedPages[0];
   const formData = new FormData();
   formData.append('vehicleId', vehicleId);
   formData.append('receiptInputMode', receiptInputMode || 'UPLOAD');
-  if (pages.length === 1) {
-    const firstFile = pages[0]?.file ?? pages[0];
-    formData.append('receiptImage', firstFile);
-  }
   pages.forEach((page) => {
     formData.append('receiptImages', page.file ?? page);
   });
@@ -38,6 +55,7 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
   }
 
   try {
+    onProgress?.({ stage: 'READING', storedPages: storedPages.length, totalPages: pages.length });
     return await apiRequest('/service-drafts/receipt', {
       method: 'POST',
       body: formData,

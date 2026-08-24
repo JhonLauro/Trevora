@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle2, FileImage, Plus, RotateCcw, Trash2, Video, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Camera, CheckCircle2, FileImage, RotateCcw, Trash2, Video, X } from 'lucide-react';
 import StepIndicator from '../components/StepIndicator';
 import { createReceiptPagesServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
@@ -15,20 +15,22 @@ export default function ReceiptUploadPage() {
   const canvasRef = useRef(null);
   const analysisCanvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
-  const uploadPagesRef = useRef([]);
-  const scanPagesRef = useRef([]);
+  const pagesRef = useRef([]);
   const replaceInputRef = useRef(null);
   const replacingPageIdRef = useRef(null);
+  // Which control is on screen, not which basket the pages go in. Upload and
+  // scan used to hold separate arrays and submit sent only the active one, so
+  // photographing two pages and then adding a third from the gallery filed a
+  // one-page receipt and dropped the other two without saying so.
   const [activeMode, setActiveMode] = useState('UPLOAD');
   const [vehicle, setVehicle] = useState(null);
-  const [uploadPages, setUploadPages] = useState([]);
-  const [scanPages, setScanPages] = useState([]);
+  const [pages, setPages] = useState([]);
   const [previewPage, setPreviewPage] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [cameraUnavailable, setCameraUnavailable] = useState(false);
   const [cameraMessage, setCameraMessage] = useState('');
-  const [processingStep, setProcessingStep] = useState('');
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preparingUpload, setPreparingUpload] = useState(false);
@@ -73,16 +75,12 @@ export default function ReceiptUploadPage() {
   }, [vehicleId]);
 
   useEffect(() => {
-    uploadPagesRef.current = uploadPages;
-  }, [uploadPages]);
-
-  useEffect(() => {
-    scanPagesRef.current = scanPages;
-  }, [scanPages]);
+    pagesRef.current = pages;
+  }, [pages]);
 
   useEffect(() => () => {
     stopCamera(false);
-    [...uploadPagesRef.current, ...scanPagesRef.current].forEach((page) => URL.revokeObjectURL(page.previewUrl));
+    pagesRef.current.forEach((page) => URL.revokeObjectURL(page.previewUrl));
   }, []);
 
   useEffect(() => {
@@ -140,8 +138,8 @@ export default function ReceiptUploadPage() {
     return () => window.clearInterval(interval);
   }, [cameraActive]);
 
-  const activePages = activeMode === 'UPLOAD' ? uploadPages : scanPages;
   const isScanMode = activeMode === 'SCAN';
+  const hasScannedPage = pages.some((page) => page.source === 'SCAN');
 
   async function addUploadFiles(fileList) {
     const files = Array.from(fileList || []).filter(isSupportedReceiptFile);
@@ -154,9 +152,9 @@ export default function ReceiptUploadPage() {
     setPreparingUpload(true);
     try {
       const prepared = await Promise.all(files.map(prepareReceiptFile));
-      setUploadPages((current) => renumberPages([
+      setPages((current) => renumberPages([
         ...current,
-        ...prepared.map((result) => toPage(result.file, result.isBlurry)),
+        ...prepared.map((result) => toPage(result.file, 'UPLOAD', result.isBlurry)),
       ]));
     } finally {
       setPreparingUpload(false);
@@ -180,7 +178,7 @@ export default function ReceiptUploadPage() {
     setReplacingPageId(pageId);
     try {
       const result = await prepareReceiptFile(file);
-      setUploadPages((current) => current.map((page) => {
+      setPages((current) => current.map((page) => {
         if (page.id !== pageId) return page;
         URL.revokeObjectURL(page.previewUrl);
         return {
@@ -202,7 +200,7 @@ export default function ReceiptUploadPage() {
       setError('Capture a supported receipt image.');
       return;
     }
-    setScanPages((current) => renumberPages([...current, toPage(file)]));
+    setPages((current) => renumberPages([...current, toPage(file, 'SCAN')]));
     setError('');
   }
 
@@ -278,23 +276,23 @@ export default function ReceiptUploadPage() {
       return;
     }
 
-    if (isBlurry) {
-      setCameraMessage('That page looks blurry. Hold steady and make sure the receipt is in focus, then capture again.');
-      return;
-    }
-
-    const pageNumber = scanPagesRef.current.length + 1;
+    // A blurry capture is added and flagged rather than silently refused. An
+    // uploaded page that looks blurry gets a badge and a Replace button; a
+    // captured one used to just not appear, which reads as a broken button.
+    const pageNumber = pagesRef.current.length + 1;
     const file = new File([blob], `receipt-scan-page-${pageNumber}.jpg`, {
       type: 'image/jpeg',
       lastModified: Date.now(),
     });
-    setScanPages((current) => renumberPages([...current, toPage(file)]));
+    setPages((current) => renumberPages([...current, toPage(file, 'SCAN', isBlurry)]));
     setError('');
-    setCameraMessage(`Page ${pageNumber} captured. Add another page or finish scanning.`);
+    setCameraMessage(isBlurry
+      ? `Page ${pageNumber} captured, but it looks blurry. Retake it for a better read.`
+      : `Page ${pageNumber} captured. Add another page or finish scanning.`);
   }
 
   function retakeLastScanPage() {
-    setScanPages((current) => {
+    setPages((current) => {
       const page = current[current.length - 1];
       if (!page) return current;
       URL.revokeObjectURL(page.previewUrl);
@@ -303,17 +301,33 @@ export default function ReceiptUploadPage() {
     setCameraMessage('Last page removed. Capture it again when ready.');
   }
 
-  function removePage(mode, pageId) {
-    const setter = mode === 'UPLOAD' ? setUploadPages : setScanPages;
-    setter((current) => {
+  function removePage(pageId) {
+    setPages((current) => {
       const page = current.find((item) => item.id === pageId);
       if (page) URL.revokeObjectURL(page.previewUrl);
       return renumberPages(current.filter((item) => item.id !== pageId));
     });
   }
 
+  /**
+   * Page order is what the extractor reads as page 1, page 2, and a multi-page
+   * invoice photographed out of order used to mean starting over. Buttons
+   * rather than drag-and-drop: this is used one-handed on a phone, where a drag
+   * target is the wrong control for a thumb.
+   */
+  function movePage(pageId, offset) {
+    setPages((current) => {
+      const index = current.findIndex((item) => item.id === pageId);
+      const target = index + offset;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return renumberPages(next);
+    });
+  }
+
   function retakeScanPage(pageId) {
-    removePage('SCAN', pageId);
+    removePage(pageId);
     if (!cameraUnavailable) {
       window.setTimeout(() => {
         if (!cameraStreamRef.current) startCamera();
@@ -330,27 +344,29 @@ export default function ReceiptUploadPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (activePages.length === 0) {
-      setError(activeMode === 'UPLOAD' ? 'Select at least one receipt page.' : 'Capture at least one receipt page.');
+    if (pages.length === 0) {
+      setError('Add at least one receipt page.');
       return;
     }
 
     setSaving(true);
     setError('');
+    setProgress({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
 
     try {
-      const draft = await runWithProcessingSteps(() => createReceiptPagesServiceDraft({
+      const draft = await createReceiptPagesServiceDraft({
         vehicleId,
-        pages: activePages,
-        receiptInputMode: activeMode,
-      }), setProcessingStep);
-      if (activeMode === 'SCAN') {
-        stopCamera();
-      }
+        pages,
+        // Camera capture brings its own artefacts - glare, skew, focus - and a
+        // mixed set contains them, so one scanned page is enough to say so.
+        receiptInputMode: hasScannedPage ? 'SCAN' : 'UPLOAD',
+        onProgress: setProgress,
+      });
+      stopCamera();
       navigate(`/service-drafts/${draft.draftId}`);
     } catch (err) {
       setError(friendlyReceiptError(err));
-      setProcessingStep('');
+      setProgress(null);
     } finally {
       setSaving(false);
     }
@@ -359,16 +375,12 @@ export default function ReceiptUploadPage() {
   return (
     <main className="page-shell">
       {saving && (
-        <ReceiptProcessingOverlay
-          step={processingStep || 'Creating draft'}
-          pageCount={activePages.length}
-          mode={activeMode}
-        />
+        <ReceiptProcessingOverlay progress={progress} />
       )}
 
       <section className="page-header">
         <p className="eyebrow">
-          <Link className="inline-link" to="/vehicles">
+          <Link className="inline-link" to={`/service-input/${vehicleId}`}>
             Change method
           </Link>
           <span>Receipt</span>
@@ -442,7 +454,7 @@ export default function ReceiptUploadPage() {
               />
               <button className="receipt-input-cta" type="button" onClick={() => uploadInputRef.current?.click()} disabled={preparingUpload}>
                 <FileImage size={24} aria-hidden="true" />
-                <strong>{preparingUpload ? 'Preparing images...' : uploadPages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
+                <strong>{preparingUpload ? 'Preparing images...' : pages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
                 <span>Select multiple images at once or drag them into this panel.</span>
               </button>
               <input
@@ -516,7 +528,7 @@ export default function ReceiptUploadPage() {
                   <>
                     <button className="receipt-input-cta receipt-camera-action" type="button" onClick={captureScanPage}>
                       <Camera size={22} aria-hidden="true" />
-                      <strong>{scanPages.length ? 'Add another page' : 'Capture page'}</strong>
+                      <strong>{pages.length ? 'Add another page' : 'Capture page'}</strong>
                       <span>Save the current frame as the next receipt page.</span>
                     </button>
                     <button className="button-secondary" type="button" onClick={stopCamera}>
@@ -526,7 +538,7 @@ export default function ReceiptUploadPage() {
                   </>
                 )}
 
-                {scanPages.length > 0 && (
+                {pages.length > 0 && (
                   <button className="button-secondary" type="button" onClick={retakeLastScanPage}>
                     <RotateCcw size={16} aria-hidden="true" />
                     Retake last page
@@ -548,10 +560,13 @@ export default function ReceiptUploadPage() {
 
           <div className="receipt-page-section-heading">
             <div>
-              <strong>{isScanMode ? 'Captured pages' : 'Selected pages'}</strong>
-              <span>{activePages.length} page{activePages.length === 1 ? '' : 's'} ready</span>
+              <strong>Pages in this receipt</strong>
+              <span>
+                {pages.length} page{pages.length === 1 ? '' : 's'} ready
+                {pages.length > 1 ? ', in the order shown' : ''}
+              </span>
             </div>
-            {isScanMode && activePages.length > 0 && (
+            {isScanMode && pages.length > 0 && (
               <button className="button-secondary" type="button" onClick={cameraActive ? captureScanPage : startCamera}>
                 Add another page
               </button>
@@ -559,21 +574,16 @@ export default function ReceiptUploadPage() {
           </div>
 
           <ReceiptPageList
-            mode={activeMode}
-            pages={activePages}
+            pages={pages}
             onPreview={setPreviewPage}
             onRemove={removePage}
             onRetake={retakeScanPage}
             onReplace={requestReplaceUploadPage}
+            onMove={movePage}
             replacingPageId={replacingPageId}
           />
 
-          {saving && (
-            <div className="processing-status">
-              <strong>{processingStep || 'Creating draft'}</strong>
-              <span>{activePages.length} page{activePages.length === 1 ? '' : 's'} queued for receipt analysis.</span>
-            </div>
-          )}
+
 
           {previewPage && (
             <div className="image-preview-overlay" role="dialog" aria-modal="true" aria-label="Receipt page preview">
@@ -593,8 +603,12 @@ export default function ReceiptUploadPage() {
             <Link className="secondary-link" to={`/service-input/${vehicleId}`}>
               Change method
             </Link>
-            <button type="submit" disabled={saving || loading}>
-              {saving ? 'Analyzing...' : activeMode === 'SCAN' ? 'Finish scanning and analyze' : 'Analyze Receipt Pages'}
+            <button type="submit" disabled={saving || loading || pages.length === 0}>
+              {saving
+                ? 'Reading...'
+                : pages.length > 1
+                  ? `Read ${pages.length} pages`
+                  : 'Read this receipt'}
             </button>
           </div>
         </form>
@@ -623,9 +637,9 @@ export default function ReceiptUploadPage() {
   );
 }
 
-function ReceiptProcessingOverlay({ step, pageCount, mode }) {
-  const steps = ['Preparing pages', 'Running OCR', 'Analyzing service details', 'Creating draft'];
-  const activeIndex = Math.max(0, steps.findIndex((item) => item === step));
+function ReceiptProcessingOverlay({ progress }) {
+  const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
+  const storing = stage !== 'READING';
 
   return (
     <div className="receipt-processing-overlay" role="status" aria-live="polite">
@@ -635,41 +649,40 @@ function ReceiptProcessingOverlay({ step, pageCount, mode }) {
           <i />
         </div>
         <div>
-          <p className="eyebrow">Receipt analysis</p>
-          <h2>{step}</h2>
+          <p className="eyebrow">Receipt</p>
+          <h2>{storing ? 'Saving your pages' : 'Reading your receipt'}</h2>
           <p>
-            Trevora is reading {pageCount} {pageCount === 1 ? 'page' : 'pages'} from {mode === 'SCAN' ? 'your scan' : 'your upload'} and preparing a reviewable service draft.
+            {storing
+              ? `${storedPages} of ${totalPages} saved.`
+              : `${totalPages} page${totalPages === 1 ? '' : 's'} saved. Reading them now - this is the slow part.`}
           </p>
         </div>
+        {/* Two steps, because two things happen. There used to be four, walked
+            through on a 900ms timer with no connection to the request: it
+            claimed to be "Analyzing service details" 1.8s in whether or not
+            OCR had returned, then sat on the last step indefinitely. */}
         <div className="receipt-processing-steps">
-          {steps.map((item, index) => (
-            <span className={index <= activeIndex ? 'active' : ''} key={item}>
-              {item}
-            </span>
-          ))}
+          <span className="active">Saving pages</span>
+          <span className={storing ? '' : 'active'}>Reading</span>
         </div>
       </section>
     </div>
   );
 }
 
-function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake, onReplace, replacingPageId }) {
+function ReceiptPageList({ pages, onPreview, onRemove, onRetake, onReplace, onMove, replacingPageId }) {
   if (pages.length === 0) {
     return (
       <div className="receipt-pages-empty">
-        <strong>{mode === 'UPLOAD' ? 'No pages selected yet' : 'No pages captured yet'}</strong>
-        <span>
-          {mode === 'UPLOAD'
-            ? 'Add one or more service document images to start.'
-            : 'Capture page 1, then add more pages until the transaction is complete.'}
-        </span>
+        <strong>No pages yet</strong>
+        <span>Add photos of every page of one service visit - upload them, scan them, or both.</span>
       </div>
     );
   }
 
   return (
     <div className="receipt-page-grid">
-      {pages.map((page) => (
+      {pages.map((page, index) => (
         <article className={`receipt-page-card${page.isBlurry ? ' receipt-page-card-blurry' : ''}`} key={page.id}>
           <button type="button" onClick={() => onPreview(page)}>
             <img src={page.previewUrl} alt={`Receipt page ${page.pageNumber}`} />
@@ -677,18 +690,43 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake, onReplace
           <div>
             <strong>Page {page.pageNumber}</strong>
             <span>{page.file.name}</span>
-            <small>{Math.round(page.file.size / 1024)} KB</small>
+            <small>
+              {Math.round(page.file.size / 1024)} KB · {page.source === 'SCAN' ? 'Scanned' : 'Uploaded'}
+            </small>
             {page.isBlurry && (
-              <span className="receipt-page-blur-flag">Looks blurry — replace for better accuracy</span>
+              <span className="receipt-page-blur-flag">
+                Looks blurry — {page.source === 'SCAN' ? 'retake' : 'replace'} for a better read
+              </span>
             )}
           </div>
           <div className="receipt-page-actions">
-            {mode === 'SCAN' && (
+            {pages.length > 1 && (
+              <div className="receipt-page-order">
+                <button
+                  className="button-secondary"
+                  type="button"
+                  onClick={() => onMove(page.id, -1)}
+                  disabled={index === 0}
+                  aria-label={`Move page ${page.pageNumber} earlier`}
+                >
+                  <ArrowUp size={15} aria-hidden="true" />
+                </button>
+                <button
+                  className="button-secondary"
+                  type="button"
+                  onClick={() => onMove(page.id, 1)}
+                  disabled={index === pages.length - 1}
+                  aria-label={`Move page ${page.pageNumber} later`}
+                >
+                  <ArrowDown size={15} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            {page.source === 'SCAN' ? (
               <button className="button-secondary" type="button" onClick={() => onRetake(page.id)}>
                 Retake
               </button>
-            )}
-            {mode === 'UPLOAD' && (
+            ) : (
               <button
                 className={`button-secondary${page.isBlurry ? ' receipt-page-replace-flagged' : ''}`}
                 type="button"
@@ -698,7 +736,12 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake, onReplace
                 {replacingPageId === page.id ? 'Replacing...' : 'Replace'}
               </button>
             )}
-            <button className="button-secondary danger-lite" type="button" onClick={() => onRemove(mode, page.id)} aria-label={`Remove page ${page.pageNumber}`}>
+            <button
+              className="button-secondary danger-lite"
+              type="button"
+              onClick={() => onRemove(page.id)}
+              aria-label={`Remove page ${page.pageNumber}`}
+            >
               <Trash2 size={15} aria-hidden="true" />
             </button>
           </div>
@@ -708,10 +751,13 @@ function ReceiptPageList({ mode, pages, onPreview, onRemove, onRetake, onReplace
   );
 }
 
-function toPage(file, isBlurry = false) {
+function toPage(file, source, isBlurry = false) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     file,
+    // How this page was captured. Kept per page rather than per submission
+    // because a receipt can be part photographed and part uploaded.
+    source,
     pageNumber: 1,
     previewUrl: URL.createObjectURL(file),
     isBlurry,
@@ -728,25 +774,7 @@ function isSupportedReceiptFile(file) {
   return /\.(heic|heif|jpe?g|png|webp)$/i.test(file.name);
 }
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
-async function runWithProcessingSteps(task, setProcessingStep) {
-  const steps = ['Preparing pages', 'Running OCR', 'Analyzing service details', 'Creating draft'];
-  let index = 0;
-  setProcessingStep(steps[index]);
-  const interval = window.setInterval(() => {
-    index = Math.min(index + 1, steps.length - 1);
-    setProcessingStep(steps[index]);
-  }, 900);
-
-  try {
-    return await task();
-  } finally {
-    window.clearInterval(interval);
-  }
-}
 
 function friendlyReceiptError(error) {
   const message = error?.message || '';
