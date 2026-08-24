@@ -102,21 +102,27 @@ function normalizeDraftValidationPayload(payload) {
       validation: normalizeValidation(payload.validation),
     };
   }
-  if (Array.isArray(payload.missingRequiredFields) || Array.isArray(payload.flaggedFields)) {
+  if (Array.isArray(payload.missingRequiredFields) || Array.isArray(payload.flaggedFields)
+      || Array.isArray(payload.invalidFields)) {
     return normalizeValidation(payload);
   }
   return payload;
 }
 
+/**
+ * Fills in the lists so callers can map over them without guarding.
+ *
+ * Deliberately does not touch `valid`. It used to recompute it from
+ * `missingRequiredFields.length`, which is a second definition of "ready to
+ * confirm" living on the client — it happened to agree with the server's, and
+ * silently would not have once plausibility errors started blocking.
+ */
 function normalizeValidation(validation) {
-  const missingRequiredFields = validation.missingRequiredFields ?? [];
-  const flaggedFields = validation.flaggedFields ?? [];
-
   return {
     ...validation,
-    valid: missingRequiredFields.length === 0,
-    missingRequiredFields,
-    flaggedFields,
+    missingRequiredFields: validation.missingRequiredFields ?? [],
+    invalidFields: validation.invalidFields ?? [],
+    flaggedFields: validation.flaggedFields ?? [],
   };
 }
 

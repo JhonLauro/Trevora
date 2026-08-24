@@ -5,6 +5,7 @@ import ServiceItemsEditor from '../components/ServiceItemsEditor';
 import ReceiptBalance from '../components/ReceiptBalance';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import { serializeLineEntries } from '../utils/serviceLines';
+import { attentionCount, fieldSignal, isBlankOptionalField, issuesByField } from '../utils/fieldConfidence';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
@@ -73,104 +74,13 @@ function serializeCorrections(form) {
   };
 }
 
-function issueMapFor(validation) {
-  const issueMap = new Map();
-  for (const issue of validation?.flaggedFields ?? []) {
-    issueMap.set(issue.fieldName, issue);
-  }
-  for (const issue of validation?.missingRequiredFields ?? []) {
-    issueMap.set(issue.fieldName, issue);
-  }
-  return issueMap;
-}
 
-/**
- * An empty odometer is the normal case, not a problem: plenty of receipts never
- * print one. Counting it as a flagged field made almost every draft look like
- * it needed work.
- */
-function isBlankOptionalFieldIssue(issue, form = {}) {
-  return issue?.fieldName === 'odometer' && !String(form.odometer ?? issue.currentValue ?? '').trim();
-}
 
-function attentionCountFor(validation, form) {
-  const missing = validation?.missingRequiredFields?.length ?? 0;
-  const flagged = (validation?.flaggedFields ?? [])
-    .filter((issue) => !isBlankOptionalFieldIssue(issue, form) && issue.requiresReview)
-    .length;
-  return missing + flagged;
-}
 
-function fieldEvidence(draft, fieldName) {
-  const metadata = draft?.fieldMetadata ?? {};
-  const source = metadata.fieldSources?.[fieldName];
-  const confidence = metadata.fieldConfidence?.[fieldName];
-  if (source && typeof source === 'object') {
-    return {
-      sourceType: source.sourceType,
-      confidence: source.confidence || confidence,
-      sourceText: source.sourceText,
-      pageNumber: source.pageNumber,
-      needsReview: Boolean(source.needsReview),
-    };
-  }
-  if (source || confidence) {
-    return {
-      sourceType: source ? 'EXTRACTED_FROM_TEXT' : undefined,
-      confidence,
-      sourceText: typeof source === 'string' ? source : undefined,
-      needsReview: confidence === 'low' || confidence === 'not_found',
-    };
-  }
-  return null;
-}
 
-function evidenceStatus(evidence, value) {
-  if (!value && evidence?.confidence === 'not_found') return 'low';
-  if (!evidence) return null;
-  if (evidence.sourceType === 'CONFLICTING') return 'low';
-  if (evidence.needsReview || evidence.confidence === 'low' || evidence.confidence === 'not_found') return 'low';
-  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'source';
-  if (evidence.confidence === 'high') return 'high';
-  if (evidence.confidence === 'medium') return 'medium';
-  return null;
-}
 
-function evidenceBadgeText(evidence, value, draft) {
-  if (!value && evidence?.confidence === 'not_found') return 'Not on receipt';
-  if (!evidence) return '';
-  if (evidence.sourceType === 'CONFLICTING') return 'Two different values found';
-  if (evidence.sourceType === 'INFERRED_FROM_TEXT' || evidence.sourceType === 'EXTRACTED_AND_SUMMARIZED') return 'Read between the lines';
-  if (evidence.confidence === 'not_found') return 'Not on receipt';
-  if (evidence.confidence === 'low' || evidence.needsReview) return 'Check this one';
-  if (evidence.sourceType === 'EXTRACTED_FROM_TEXT') {
-    return draft?.inputMethod === 'VOICE' ? 'Heard in your note' : 'Read from receipt';
-  }
-  return '';
-}
 
-/** What the validator said about this field, when it said anything. */
-function issueBadgeText(issue) {
-  if (!issue) return '';
-  if (issue.blocksConfirmation) return 'Needed to save';
-  if (issue.category === 'NOT_FOUND') return 'Not on receipt';
-  if (issue.category === 'MISSING_METADATA') return 'Missing';
-  if (issue.category === 'UNCERTAIN') return 'Uncertain';
-  if (issue.category === 'LOW_CONFIDENCE') return 'Check this one';
-  return '';
-}
 
-/**
- * The snippet of the source this value came from. Only ever a real quote — an
- * earlier version filled the gap with static sentences describing how the code
- * works ("Mapped from total or amount paid"), rendered in the same place and
- * style as genuine evidence.
- */
-function sourceQuote(evidence) {
-  if (!evidence?.sourceText) return '';
-  const page = evidence.pageNumber ? `Page ${evidence.pageNumber}: ` : '';
-  return `${page}${String(evidence.sourceText)}`;
-}
 
 function vehicleDisplayName(vehicle, draft) {
   if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
@@ -219,12 +129,10 @@ function extractionNotes(metadata = {}) {
 function DraftField({ field, form, draft, issue, updateField }) {
   const [key, label, type, required] = field;
   const value = form[key] ?? '';
-  const blankOptional = isBlankOptionalFieldIssue(issue, form);
-  const visibleIssue = blankOptional ? null : issue;
-  const evidence = fieldEvidence(draft, key);
-  const status = evidenceStatus(evidence, value) || (visibleIssue?.requiresReview || visibleIssue?.blocksConfirmation ? 'low' : null);
-  const badgeText = evidenceBadgeText(evidence, value, draft) || issueBadgeText(visibleIssue);
-  const quote = sourceQuote(evidence);
+  const visibleIssue = isBlankOptionalField(issue, form) ? null : issue;
+  const { status, label: badgeText, quote } = fieldSignal({
+    draft, fieldName: key, value, issue: visibleIssue,
+  });
   const className = [
     'review-field',
     'extraction-field-card',
@@ -386,34 +294,52 @@ function TranscriptPanel({ draft }) {
  * fields rather than off to one side.
  */
 function BlockingCallout({ validation }) {
-  const blocking = validation?.missingRequiredFields ?? [];
-  if (blocking.length === 0) return null;
+  const missing = validation?.missingRequiredFields ?? [];
+  const invalid = validation?.invalidFields ?? [];
+  if (missing.length === 0 && invalid.length === 0) return null;
 
   return (
     <section className="helper-card warning">
-      <h2>Fix before saving</h2>
-      <ul className="issue-list">
-        {blocking.map((issue) => (
-          <li key={`${issue.fieldName}-${issue.category}`}>
-            <strong>{issue.label}</strong>
-            <span>{issue.message}</span>
-          </li>
-        ))}
-      </ul>
+      {missing.length > 0 && (
+        <>
+          <h2>Fill these in</h2>
+          <ul className="issue-list">
+            {missing.map((issue) => (
+              <li key={`${issue.fieldName}-${issue.category}`}>
+                <strong>{issue.label}</strong>
+                <span>{issue.message}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {invalid.length > 0 && (
+        <>
+          <h2>These cannot be right</h2>
+          <ul className="issue-list">
+            {invalid.map((issue) => (
+              <li key={`${issue.fieldName}-${issue.category}`}>
+                <strong>{issue.label}</strong>
+                <span>{issue.message}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
 
 function ValidationSidebar({ validation, form, draft }) {
-  const blocking = validation?.missingRequiredFields ?? [];
+  const ready = Boolean(validation?.valid);
   const needsReview = (validation?.flaggedFields ?? [])
-    .filter((issue) => !isBlankOptionalFieldIssue(issue, form) && issue.requiresReview);
+    .filter((issue) => !isBlankOptionalField(issue, form) && issue.requiresReview);
   const notes = draft?.inputMethod === 'RECEIPT' ? [] : extractionNotes(draft?.fieldMetadata);
 
   return (
     <aside className="guidance-stack">
-      <section className={blocking.length ? 'helper-card warning' : 'helper-card success'}>
-        <h2>{blocking.length ? 'Not ready to save yet' : 'Ready to save'}</h2>
+      <section className={ready ? 'helper-card success' : 'helper-card warning'}>
+        <h2>{ready ? 'Ready to save' : 'Not ready to save yet'}</h2>
         <ul className="check-list">
           {(validation?.reviewSummary ?? []).map((item) => (
             <li key={item}>{item}</li>
@@ -421,19 +347,7 @@ function ValidationSidebar({ validation, form, draft }) {
         </ul>
       </section>
 
-      {blocking.length > 0 && (
-        <section className="helper-card">
-          <h2>Fix before saving</h2>
-          <ul className="issue-list">
-            {blocking.map((issue) => (
-              <li key={`${issue.fieldName}-${issue.category}`}>
-                <strong>{issue.label}</strong>
-                <span>{issue.message}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <BlockingCallout validation={validation} />
 
       {needsReview.length > 0 && (
         <section className="helper-card">
@@ -531,9 +445,11 @@ export default function ServiceDraftReviewPage() {
     };
   }, [draftId]);
 
-  const issueMap = useMemo(() => issueMapFor(validation), [validation]);
-  const attentionCount = attentionCountFor(validation, form);
-  const readyToConfirm = (validation?.missingRequiredFields?.length ?? 0) === 0;
+  const issueMap = useMemo(() => issuesByField(validation), [validation]);
+  const needsAttention = attentionCount(validation, form);
+  // The server decides. Re-deriving this on the client meant two definitions of
+  // "ready" that only happened to agree.
+  const readyToConfirm = Boolean(validation?.valid);
   // Confirming reads the saved draft, not this form, so unsaved edits would be
   // silently left behind — the exact failure this screen exists to remove.
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
@@ -583,9 +499,9 @@ export default function ServiceDraftReviewPage() {
       setValidation(response.validation);
       setForm(next);
       setSaved(next);
-      setSuccess((response.validation?.missingRequiredFields?.length ?? 0) === 0
+      setSuccess(response.validation?.valid
         ? 'Saved. This draft is ready to confirm.'
-        : 'Saved. A few required fields are still empty.');
+        : 'Saved. Some fields still need attention before it can be confirmed.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -634,8 +550,8 @@ export default function ServiceDraftReviewPage() {
               <span className="mini-chip neutral">{vehicleSubtext(vehicle, draft)}</span>
             </div>
             <strong className="attention-count">
-              {attentionCount
-                ? `${attentionCount} field${attentionCount === 1 ? '' : 's'} to check`
+              {needsAttention
+                ? `${needsAttention} field${needsAttention === 1 ? '' : 's'} to check`
                 : 'Nothing flagged'}
             </strong>
           </div>
