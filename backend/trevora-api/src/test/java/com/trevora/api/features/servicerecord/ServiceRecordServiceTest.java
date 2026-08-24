@@ -85,7 +85,7 @@ class ServiceRecordServiceTest {
         when(serviceInputService.getDraftForMockOwner(draftId)).thenReturn(draft);
         when(serviceInputService.getItemsForDraft(any())).thenReturn(draftItems);
         when(serviceDraftValidationService.validateDraft(draft, draftItems))
-                .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of("All required fields are present.")));
+                .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of(), List.of("All required fields are present.")));
         when(serviceRecordRepository.findByDraftIdAndOwnerId(any(), any())).thenReturn(Optional.empty());
         when(serviceRecordRepository.save(any(ServiceRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(serviceDraftRepository.save(any(ServiceDraft.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -137,7 +137,7 @@ class ServiceRecordServiceTest {
         when(serviceInputService.getDraftForMockOwner(draftId)).thenReturn(draft);
         when(serviceInputService.getItemsForDraft(any())).thenReturn(draftItems);
         when(serviceDraftValidationService.validateDraft(draft, draftItems))
-                .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of("All required fields are present.")));
+                .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of(), List.of("All required fields are present.")));
         when(serviceRecordRepository.findByDraftIdAndOwnerId(any(), any())).thenReturn(Optional.empty());
         when(serviceRecordRepository.save(any(ServiceRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(serviceDraftRepository.save(any(ServiceDraft.class))).thenAnswer(invocation -> invocation.getArgument(0));

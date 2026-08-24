@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ServiceDraftValidationService {
-    private static final double LOW_CONFIDENCE_THRESHOLD = 0.75;
     /** Categories whose message is worth repeating in full, not just counting. */
     private static final Set<String> PLAUSIBILITY_CATEGORIES =
             Set.of("IMPLAUSIBLE_VALUE", "POSSIBLE_DUPLICATE");
@@ -65,32 +64,44 @@ public class ServiceDraftValidationService {
     }
 
     public ValidationResult validateDraft(ServiceDraft draft, List<ServiceDraftItem> items) {
-        List<FieldValidationIssue> missingRequiredFields = findMissingRequiredFields(draft, items);
+        List<FieldValidationIssue> requiredFieldIssues = findMissingRequiredFields(draft, items);
 
-        List<FieldValidationIssue> flaggedFields = new ArrayList<>();
+        List<FieldValidationIssue> allFlags = new ArrayList<>();
         // Extraction confidence only means something when a model did the
         // extracting; a manual draft has a person behind every field.
         if (draft.getInputMethod() != InputMethod.MANUAL) {
-            flaggedFields.addAll(findMetadataFlags(draft));
+            allFlags.addAll(findMetadataFlags(draft));
         }
         // Plausibility applies to every input method. A future date or an
         // odometer below the last reading is just as wrong when a person typed
         // it, and typing is where a transposed digit is most likely.
-        flaggedFields.addAll(plausibilityService.check(draft, vehicleForDraft(draft)));
+        allFlags.addAll(plausibilityService.check(draft, vehicleForDraft(draft)));
 
+        // Absent and impossible are different problems. A blank total needs
+        // filling in; a date next year needs correcting. Reporting both under
+        // one heading meant the review screen filed a value that was present
+        // under a heading reading "missing required fields".
+        List<FieldValidationIssue> missing = requiredFieldIssues.stream()
+                .filter(issue -> "MISSING_REQUIRED".equals(issue.category()))
+                .toList();
+        List<FieldValidationIssue> invalid = new ArrayList<>(requiredFieldIssues.stream()
+                .filter(issue -> !"MISSING_REQUIRED".equals(issue.category()))
+                .toList());
         // A future date is the one implausible value nothing legitimate
-        // produces, so it blocks rather than warns and belongs with the errors.
-        List<FieldValidationIssue> blocking = new ArrayList<>(missingRequiredFields);
-        blocking.addAll(flaggedFields.stream().filter(FieldValidationIssue::blocksConfirmation).toList());
+        // produces, so it blocks rather than warns.
+        invalid.addAll(allFlags.stream().filter(FieldValidationIssue::blocksConfirmation).toList());
 
-        List<String> reviewSummary = buildReviewSummary(blocking, flaggedFields);
+        List<FieldValidationIssue> warnings = allFlags.stream()
+                .filter(issue -> !issue.blocksConfirmation())
+                .toList();
 
         return new ValidationResult(
                 draft.getDraftId(),
-                blocking.isEmpty(),
-                blocking,
-                flaggedFields,
-                reviewSummary
+                missing.isEmpty() && invalid.isEmpty(),
+                missing,
+                invalid,
+                warnings,
+                buildReviewSummary(missing, invalid, warnings)
         );
     }
 
@@ -126,7 +137,6 @@ public class ServiceDraftValidationService {
                         "ERROR",
                         rule.label() + " is required before confirmation.",
                         value,
-                        null,
                         metadataSource(draft),
                         true,
                         true
@@ -141,7 +151,6 @@ public class ServiceDraftValidationService {
                     "MISSING_REQUIRED",
                     "ERROR",
                     "At least one service performed must be added before confirmation.",
-                    null,
                     null,
                     metadataSource(draft),
                     true,
@@ -160,7 +169,6 @@ public class ServiceDraftValidationService {
                         "ERROR",
                         "Vehicle profile could not be verified for this owner.",
                         draft.getVehicleId(),
-                        null,
                         metadataSource(draft),
                         true,
                         true
@@ -178,33 +186,9 @@ public class ServiceDraftValidationService {
             return issues;
         }
 
-        Object confidenceNode = metadata.get("confidence");
-        if (confidenceNode instanceof Map<?, ?> confidenceMap) {
-            for (Map.Entry<?, ?> entry : confidenceMap.entrySet()) {
-                String fieldName = String.valueOf(entry.getKey());
-                Double confidence = asDouble(entry.getValue());
-                if (confidence == null) {
-                    continue;
-                }
-
-                boolean lowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD;
-                issues.add(new FieldValidationIssue(
-                        fieldName,
-                        labelFor(fieldName),
-                        lowConfidence ? "LOW_CONFIDENCE" : "SOURCE_FIELD",
-                        lowConfidence ? "WARNING" : "INFO",
-                        lowConfidence
-                                ? labelFor(fieldName) + " has low extraction confidence and should be reviewed."
-                                : labelFor(fieldName) + " was extracted from the draft source.",
-                        valueForField(draft, fieldName),
-                        confidence,
-                        metadataSource(draft),
-                        false,
-                        lowConfidence
-                ));
-            }
-        }
-
+        // `fieldConfidence` is the only confidence extraction writes. A
+        // numeric `confidence` map was read here too, which nothing has
+        // produced since the mock provider was removed.
         Object fieldConfidenceNode = metadata.get("fieldConfidence");
         if (fieldConfidenceNode instanceof Map<?, ?> fieldConfidenceMap) {
             for (Map.Entry<?, ?> entry : fieldConfidenceMap.entrySet()) {
@@ -313,11 +297,6 @@ public class ServiceDraftValidationService {
                 "WARNING",
                 "Service category and related component suggestions should be reviewed by the owner.",
                 classification,
-                switch (confidence) {
-                    case "high" -> 0.9;
-                    case "medium" -> 0.7;
-                    default -> 0.45;
-                },
                 metadataSource(draft),
                 false,
                 true
@@ -339,7 +318,6 @@ public class ServiceDraftValidationService {
                 severity,
                 message,
                 valueForField(draft, fieldName),
-                confidenceFor(draft, fieldName),
                 metadataSource(draft),
                 false,
                 requiresReview
@@ -366,7 +344,6 @@ public class ServiceDraftValidationService {
                     severity,
                     labelFor(fieldName) + " " + messageSuffix,
                     valueForField(draft, fieldName),
-                    confidenceFor(draft, fieldName),
                     metadataSource(draft),
                     false,
                     !"INFO".equals(severity)
@@ -389,6 +366,7 @@ public class ServiceDraftValidationService {
 
     private List<String> buildReviewSummary(
             List<FieldValidationIssue> missingRequiredFields,
+            List<FieldValidationIssue> invalidFields,
             List<FieldValidationIssue> flaggedFields
     ) {
         List<String> summary = new ArrayList<>();
@@ -396,6 +374,9 @@ public class ServiceDraftValidationService {
             summary.add("All required fields are present.");
         } else {
             summary.add(missingRequiredFields.size() + " required field(s) must be completed before confirmation.");
+        }
+        if (!invalidFields.isEmpty()) {
+            summary.add(invalidFields.size() + " field(s) hold a value that cannot be right.");
         }
 
         long reviewCount = flaggedFields.stream().filter(FieldValidationIssue::requiresReview).count();
@@ -439,40 +420,7 @@ public class ServiceDraftValidationService {
         return source == null ? null : String.valueOf(source);
     }
 
-    private Double confidenceFor(ServiceDraft draft, String fieldName) {
-        Object confidenceNode = draft.getFieldMetadata() == null ? null : draft.getFieldMetadata().get("confidence");
-        if (confidenceNode instanceof Map<?, ?> confidenceMap) {
-            return asDouble(confidenceMap.get(fieldName));
-        }
-        Object fieldConfidenceNode = draft.getFieldMetadata() == null ? null : draft.getFieldMetadata().get("fieldConfidence");
-        if (fieldConfidenceNode instanceof Map<?, ?> fieldConfidenceMap) {
-            Object value = fieldConfidenceMap.get(fieldName);
-            if (value != null) {
-                return switch (String.valueOf(value).toLowerCase(Locale.ROOT)) {
-                    case "high" -> 0.9;
-                    case "medium" -> 0.7;
-                    case "low" -> 0.45;
-                    case "not_found" -> 0.0;
-                    default -> null;
-                };
-            }
-        }
-        return null;
-    }
 
-    private Double asDouble(Object value) {
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        if (value instanceof String stringValue) {
-            try {
-                return Double.parseDouble(stringValue);
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
-    }
 
     private String labelFor(String fieldName) {
         return switch (fieldName) {

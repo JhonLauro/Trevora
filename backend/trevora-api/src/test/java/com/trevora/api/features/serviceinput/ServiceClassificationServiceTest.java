@@ -64,9 +64,9 @@ class ServiceClassificationServiceTest {
         // service once per service_draft_items / service_record_items row (a single visit can have
         // multiple distinct services), instead of once per whole draft.
         List<ServiceItemRequest> visitServices = List.of(
-                new ServiceItemRequest("Oil Change", "Engine oil, oil filter", "Drain and refill", null, null),
-                new ServiceItemRequest("Tire Rotation", null, "Rotated all four tires", null, null),
-                new ServiceItemRequest("Brake Pad Replacement", "Front brake pads", "Replaced worn pads", null, null)
+                new ServiceItemRequest(null, "Oil Change", "Engine oil, oil filter", "Drain and refill", null, null),
+                new ServiceItemRequest(null, "Tire Rotation", null, "Rotated all four tires", null, null),
+                new ServiceItemRequest(null, "Brake Pad Replacement", "Front brake pads", "Replaced worn pads", null, null)
         );
 
         List<ServiceClassification> classifications = visitServices.stream()

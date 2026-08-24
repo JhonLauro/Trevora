@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import ServiceItemsList from '../components/ServiceItemsList';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
+import { fieldSignal, issuesByField } from '../utils/fieldConfidence';
 import { getVehicle } from '../api/vehicles';
 
 const summaryFields = [
@@ -26,27 +27,7 @@ function vehicleName(vehicle, draft) {
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 }
 
-function issueMapFor(validation) {
-  const issueMap = new Map();
-  for (const issue of validation?.flaggedFields ?? []) issueMap.set(issue.fieldName, issue);
-  for (const issue of validation?.missingRequiredFields ?? []) issueMap.set(issue.fieldName, issue);
-  return issueMap;
-}
 
-function confidenceLabel(issue, value) {
-  if (!issue && value !== null && value !== undefined && value !== '') return 'Reviewed';
-  if (!issue) return 'Optional';
-  if (issue.blocksConfirmation) return 'Required';
-  if (issue.category === 'SOURCE_FIELD' && issue.confidence !== null && issue.confidence !== undefined) {
-    const confidence = Number(issue.confidence);
-    if (confidence >= 0.8) return 'High';
-    if (confidence >= 0.75) return 'Medium';
-    return 'Low';
-  }
-  if (issue.category === 'LOW_CONFIDENCE') return 'Low';
-  if (issue.category === 'NOT_FOUND') return 'Not found';
-  return 'Reviewed';
-}
 
 export default function ServiceRecordConfirmationPage() {
   const { draftId } = useParams();
@@ -88,7 +69,7 @@ export default function ServiceRecordConfirmationPage() {
     };
   }, [draftId]);
 
-  const issueMap = useMemo(() => issueMapFor(validation), [validation]);
+  const issueMap = useMemo(() => issuesByField(validation), [validation]);
   const canSave = validation?.valid && authorized && !saving;
 
   async function handleConfirm() {
@@ -108,7 +89,7 @@ export default function ServiceRecordConfirmationPage() {
     <main className="page-shell module-two-page">
       <section className="page-header">
         <p className="eyebrow">
-          <Link className="inline-link" to={`/service-drafts/${draftId}/correct`}>
+          <Link className="inline-link" to={`/service-drafts/${draftId}`}>
             Back to edit
           </Link>
           <span>{draft?.inputMethod ?? 'Draft'}</span>
@@ -124,7 +105,7 @@ export default function ServiceRecordConfirmationPage() {
         <section className="confirmation-shell">
           {!validation?.valid && (
             <div className="alert">
-              Complete required fields before confirmation. Vehicle, service date, and total cost are required.
+              Some fields still need attention. Go back to edit to finish them.
             </div>
           )}
 
@@ -147,21 +128,27 @@ export default function ServiceRecordConfirmationPage() {
                 <dt>Vehicle</dt>
                 <dd>
                   <strong>{vehicleName(vehicle, draft)}</strong>
-                  <span className="field-confidence-badge field-confidence-high">Reviewed</span>
                 </dd>
               </div>
               {summaryFields.map(([key, label]) => {
-                const issue = issueMap.get(key);
                 const value = draft[key];
-                const confidence = confidenceLabel(issue, value);
+                // The same vocabulary as the review screen. A badge that
+                // changes wording between the screen where you check a value
+                // and the screen where you commit it is a badge nobody can
+                // learn to read.
+                const { status, label: badgeText } = fieldSignal({
+                  draft, fieldName: key, value, issue: issueMap.get(key),
+                });
                 return (
                   <div key={key}>
                     <dt>{label}</dt>
                     <dd>
                       <strong>{displayValue(key, value)}</strong>
-                      <span className={issue?.blocksConfirmation ? 'field-confidence-badge field-confidence-low' : 'field-confidence-badge field-confidence-high'}>
-                        {confidence}
-                      </span>
+                      {badgeText && (
+                        <span className={`field-confidence-badge field-confidence-${status ?? 'high'}`}>
+                          {badgeText}
+                        </span>
+                      )}
                     </dd>
                   </div>
                 );
@@ -181,7 +168,7 @@ export default function ServiceRecordConfirmationPage() {
           </label>
 
           <div className="confirmation-actions">
-            <Link className="button-secondary button-link-secondary" to={`/service-drafts/${draftId}/correct`}>
+            <Link className="button-secondary button-link-secondary" to={`/service-drafts/${draftId}`}>
               Back to Edit
             </Link>
             <button type="button" disabled={!canSave} onClick={handleConfirm}>

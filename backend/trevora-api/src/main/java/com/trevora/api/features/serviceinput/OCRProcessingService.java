@@ -11,8 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class OCRProcessingService {
-    private static final int OPENAI_SAFE_OCR_CHARS = 12000;
-
     private final GoogleVisionOCRProvider googleVisionOCRProvider;
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
     private final ServiceClassificationService classificationService;
@@ -347,9 +345,9 @@ public class OCRProcessingService {
         if (aiWarnings != null) {
             warnings.addAll(aiWarnings.stream().filter(warning -> warning != null && !warning.isBlank()).toList());
         }
-        if (rawOcrText != null && rawOcrText.length() > OPENAI_SAFE_OCR_CHARS) {
-            warnings.add("Combined OCR text exceeded OpenAI safety length and was truncated for AI extraction.");
-        }
+        // Truncation is reported by the extractor that performs it and arrives
+        // in aiWarnings. Re-deriving it here also fired on the raw-OCR
+        // fallback, which stores the whole text and truncates nothing.
         if (fallbackUsed) {
             warnings.add("Draft created from raw OCR because AI extraction was unavailable or invalid.");
         }

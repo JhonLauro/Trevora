@@ -230,6 +230,32 @@ public class ServiceInputService {
      * rather than failing the whole save. A miscategorised line is a correction
      * the owner can make; a rejected draft is a receipt they have to re-shoot.
      */
+    /**
+     * The lines to store for one item: the ones sent, or the ones it already
+     * had when the request stayed silent about them.
+     */
+    private List<ServiceLineEntryFields> linesFor(
+            ServiceItemRequest itemRequest,
+            Map<UUID, List<ServiceLineEntryFields>> existingLines
+    ) {
+        if (itemRequest.specifiesLineEntries()) {
+            return itemRequest.lineEntriesOrEmpty().stream()
+                    .map(request -> new ServiceLineEntryFields(
+                            request.kind(),
+                            request.description(),
+                            request.partCode(),
+                            request.quantity(),
+                            request.unitPrice(),
+                            request.lineTotal()
+                    ))
+                    .toList();
+        }
+        if (itemRequest.itemId() == null) {
+            return List.of();
+        }
+        return existingLines.getOrDefault(itemRequest.itemId(), List.of());
+    }
+
     private void saveLineEntries(UUID itemId, List<ServiceLineEntryFields> entries) {
         int order = 0;
         for (ServiceLineEntryFields fields : entries) {
@@ -250,14 +276,53 @@ public class ServiceInputService {
         }
     }
 
+    /**
+     * Rewrites a draft's items from a correction request.
+     *
+     * <p>The items are deleted and rebuilt rather than updated in place, which
+     * takes their line entries with them — the foreign key cascades. So the
+     * lines are read first, and any item whose request does not mention them
+     * gets its own lines back. See {@link ServiceItemRequest} for why absent
+     * has to mean unchanged: without it, one client that did not know about
+     * line entries would quietly delete the entire itemised receipt on the
+     * owner's first correction.
+     */
     @Transactional
     public List<ServiceDraftItem> replaceDraftItems(UUID draftId, List<ServiceItemRequest> items, String remarksContext) {
+        Map<UUID, List<ServiceLineEntryFields>> existingLines = lineEntriesByItem(draftId);
         serviceDraftItemRepository.deleteByDraftId(draftId);
-        saveManualItems(draftId, items, remarksContext);
+        saveItems(draftId, items, remarksContext, existingLines);
         return getItemsForDraft(draftId);
     }
 
+    /** Every item's current lines, keyed by the item they belong to. */
+    private Map<UUID, List<ServiceLineEntryFields>> lineEntriesByItem(UUID draftId) {
+        Map<UUID, List<ServiceLineEntryFields>> byItem = new LinkedHashMap<>();
+        for (ServiceDraftItem item : getItemsForDraft(draftId)) {
+            byItem.put(item.getItemId(), item.getLineEntries().stream()
+                    .map(entry -> new ServiceLineEntryFields(
+                            entry.getKind() == null ? null : entry.getKind().name(),
+                            entry.getDescription(),
+                            entry.getPartCode(),
+                            entry.getQuantity(),
+                            entry.getUnitPrice(),
+                            entry.getLineTotal()
+                    ))
+                    .toList());
+        }
+        return byItem;
+    }
+
     private void saveManualItems(UUID draftId, List<ServiceItemRequest> items, String remarksContext) {
+        saveItems(draftId, items, remarksContext, Map.of());
+    }
+
+    private void saveItems(
+            UUID draftId,
+            List<ServiceItemRequest> items,
+            String remarksContext,
+            Map<UUID, List<ServiceLineEntryFields>> existingLines
+    ) {
         if (items == null) {
             return;
         }
@@ -285,16 +350,7 @@ public class ServiceInputService {
             item.setServiceCategory(classification.serviceCategory());
             item.setFieldMetadata(classification.toMetadata());
             ServiceDraftItem savedItem = serviceDraftItemRepository.save(item);
-            saveLineEntries(savedItem.getItemId(), itemRequest.lineEntriesOrEmpty().stream()
-                    .map(request -> new ServiceLineEntryFields(
-                            request.kind(),
-                            request.description(),
-                            request.partCode(),
-                            request.quantity(),
-                            request.unitPrice(),
-                            request.lineTotal()
-                    ))
-                    .toList());
+            saveLineEntries(savedItem.getItemId(), linesFor(itemRequest, existingLines));
         }
     }
 

@@ -13,7 +13,12 @@ export async function uploadReceiptImage({ vehicleId, receiptImage }) {
   };
 }
 
-export async function uploadReceiptPages({ vehicleId, pages }) {
+/**
+ * @param onPageStored called with (storedCount, totalCount) after each page
+ *     lands. Pages upload one at a time, so this is a real count of work
+ *     finished rather than an estimate of it.
+ */
+export async function uploadReceiptPages({ vehicleId, pages, onPageStored }) {
   const client = requireSupabaseClient();
   const currentUser = getActiveCurrentUser();
   if (!currentUser?.userId) {
@@ -50,6 +55,7 @@ export async function uploadReceiptPages({ vehicleId, pages }) {
       originalFilename: file.name,
       contentType: file.type || 'application/octet-stream',
     });
+    onPageStored?.(uploaded.length, pages.length);
   }
 
   return uploaded;

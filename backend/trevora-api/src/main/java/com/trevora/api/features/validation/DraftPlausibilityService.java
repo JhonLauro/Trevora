@@ -296,7 +296,6 @@ public class DraftPlausibilityService {
                 severity,
                 message,
                 currentValue,
-                null,
                 draft.getInputMethod() == null ? null : draft.getInputMethod().name(),
                 blocksConfirmation,
                 true

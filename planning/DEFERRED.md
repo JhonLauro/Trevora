@@ -442,16 +442,24 @@ again). Neither was visible without the set.
 
 ### Where it stands
 
-Baseline at the end of the session, three cases, three runs each:
+Three cases, three runs each. The 2026-08-23 audit column, and where F8–F11
+(2026-08-24) left it:
 
-| Metric | Before | Now |
-|---|---|---|
-| Line kinds correct | 0% | 100% |
-| Line prices correct | 0% | 100% |
-| Components correct | 75% | 83% |
-| Date / odometer / shop / location | 100% | 100% |
-| Lines reconcile to printed total | not checked | 2 of 3 |
-| Total cost | 50% | 67% |
+| Metric | Before | After audit | After F8–F11 |
+|---|---|---|---|
+| Line kinds correct | 0% | 100% | 100% |
+| Line prices correct | 0% | 100% | 100% |
+| Components correct | 75% | 83% | 83–89% |
+| Date / odometer / shop / location | 100% | 100% | 100% |
+| Lines reconcile to printed total | not checked | 2 of 3 | 2 of 3 |
+| Total cost | 50% | 67% | 67% |
+
+F8–F11 were hardening, not accuracy work, and the numbers say so: every scored
+metric is unchanged. Components is written as a range because it moved between
+83% and 89% across four runs on identical code — the GTA case sometimes returns
+`[Engine, Cooling System]` and sometimes `[Cooling System]`. Neither number is
+an improvement over the other; one field on one case is simply not stable, and
+quoting the 89% run as a gain would be reading noise as signal.
 
 The two remaining failures are both the Toyota case and both are the correct
 behaviour: its OCR text predates layout reconstruction, so its per-line prices
@@ -480,22 +488,58 @@ genuinely are unrecoverable and the pipeline says so instead of guessing.
   present. `DraftPlausibilityService` now checks future dates, odometers below
   the highest known reading, and duplicate receipts.
 
-### Still to do, in order
+### F8–F11, done 2026-08-24
 
-1. **F8 — OCR text is truncated at 12,000 characters** with the warning fired
-   on the wrong side of the truncation, so a long dealership invoice can lose
-   its last pages while the draft still looks complete.
-2. **F9 — no schema enforcement.** `response_format: json_object` guarantees
-   valid JSON, not the right shape; a missing key silently becomes null.
-   Structured Outputs with a strict schema would make shape violations
-   impossible rather than undetectable.
-3. **F10 — one shot, no retry.** Any timeout or 429 drops straight to the
-   raw-OCR fallback. One retry with backoff would recover most of them.
-4. **F11 — `asInteger` strips all non-digits**, so a decimal or a stray
-   currency symbol yields a plausible number off by orders of magnitude. There
-   is no bound check to catch it.
+- **F8 — truncation reported itself.** The 12,000-character cap lived in two
+  classes: the extractor cut the text, and `OCRProcessingService` guessed that
+  it had by re-deriving the condition from its own copy of the number. That
+  guess fired on the raw-OCR fallback, which truncates nothing, and would have
+  gone silent the moment either copy moved. The cap now belongs to the code
+  that applies it and emits its own warning, and the cut lands on a line
+  boundary so no half-row reaches the model inviting a guessed price. The
+  voice transcript cap was silent entirely; it warns now too.
+- **F9 — Structured Outputs with a strict schema** (`ServiceDraftResponseSchema`).
+  Strict mode forbids open-ended maps, so `fieldSources` and `fieldConfidence`
+  now name six fixed keys — the visit-level factual fields, which is exactly the
+  set the parser reads back. Per-service evidence was dropped: a flat map could
+  never say which of three services a `serviceType` entry belonged to, so it was
+  unusable, not lost. `ServiceDraftResponseSchemaTest` enforces the strict-mode
+  rules, because a schema that breaks them fails as a 400 at request time and
+  surfaces as an empty draft for a reason unrelated to the receipt.
+- **F10 — three attempts with exponential backoff.** 429 and 5xx retry; 4xx
+  does not, because a rejected request is rejected the same way twice.
+- **F11 — `asInteger` reads a number instead of a run of digits.** It stripped
+  every non-digit and parsed the remainder, so "12,345.6 km" read as 123456 — a
+  reading ten times the real one, plausible enough that nothing questioned it.
+  It now drops grouping separators, treats a decimal point as one, and rounds.
+  `asOdometer` adds the bound check that needs no history: negatives and
+  anything past 2,000,000 km are blanked with a warning rather than stored.
+  `DraftPlausibilityService` still owns the comparison against past readings,
+  but it has nothing to compare on a vehicle's first receipt — which is exactly
+  where an extra digit has nothing to contradict it.
 
-Together roughly half a day. None are blocked on anything.
+### Found while doing F9: the model sometimes runs away
+
+Twice across five golden runs, one extraction came back with
+`finish_reason: length` — the model spiralling on a repeated array entry rather
+than the receipt being too long. At temperature 0, on byte-identical input,
+with the runs either side clean. It first appeared as "invalid JSON", which is
+what a truncated body looks like from the parser, and cost a run before the
+`finish_reason` check made it legible.
+
+Three consequences, all in place:
+
+- A cut-off response is **retryable**, on that evidence rather than on hope.
+- So is a body that fails to parse. A strict schema constrains what the model
+  generates, not what arrives intact.
+- `max_completion_tokens` is set to 8,000. Left unset the model may spend its
+  whole 16k output window before anyone finds out, and both the bill and the
+  wait are the owner's.
+
+**This is the strongest argument yet for more golden cases.** A ~1-in-20
+per-extraction failure was invisible in three runs of three cases and only
+showed up because F8–F11 meant running the set five times. Nothing in the
+current set would catch it regressing.
 
 ### Blocked on you, not on code
 
@@ -518,11 +562,21 @@ fourteen lines gives fourteen line-kind judgements but only one date judgement.
 
 ### Note on run-to-run variance
 
-At `temperature: 0` the model is stable given identical text — the golden runs
-show zero spread on most fields. The instability is one layer down: two
-production extractions of the same Toyota image returned totals ₱400 apart
-because Google Vision returned 3,502 characters on one run and 3,511 on the
-other **for the same image**. So the text layer needs few repeats and the image
+At `temperature: 0` the model is *mostly* stable given identical text — the
+golden runs show zero spread on most fields. Two things qualify that, both
+found on 2026-08-24 by running the set five times instead of once:
+
+- **`relatedComponents` on `gta-toledo-cooling` alternates** between
+  `[Engine, Cooling System]` and `[Cooling System]`, moving the overall
+  component score between 83% and 89% with no code change. Any component
+  finding smaller than six points is noise.
+- **Roughly 1 extraction in 20 does not finish at all**, coming back
+  `finish_reason: length`. See the section above.
+
+The instability one layer down is worse: two production extractions of the same
+Toyota image returned totals ₱400 apart because Google Vision returned 3,502
+characters on one run and 3,511 on the other **for the same image**. So the text
+layer needs a few repeats — three is too few to see the tail — and the image
 layer needs several.
 
 ### Still unmeasured
