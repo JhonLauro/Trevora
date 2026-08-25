@@ -1082,18 +1082,27 @@
   }
 }
 
-/* Below this the markers are smaller than a fingertip, and a map you cannot
-   reliably tap is worse than no map. The list underneath carries the same
-   information and its rows are already 44px, so nothing is lost by dropping
-   the drawing on a phone.
+/* The drawing used to be hidden outright below this width, on the grounds that
+   the markers are smaller than a fingertip and a map you cannot reliably tap is
+   worse than no map. The first half of that is still true. The conclusion is
+   not: it treats the drawing as only a tap target, when on a phone its greater
+   value is orientation — *where on my car is this* — which needs no tapping.
 
-   The view tabs stay. Without the drawing they stop being a view switcher and
-   become a plain "where on the vehicle" filter over the list, which is still
-   worth having — outside the vehicle versus under the bonnet groups thirteen
-   components in a way a single flat list does not. */
+   So the drawing stays and the markers stop being controls. Selection still
+   flows the other way: pick a row in the 44px list and its marker lights up
+   here. That makes the drawing an output on a phone rather than a second,
+   worse copy of the list — and nothing is offered that cannot be hit.
+
+   The markers are already `aria-hidden` and unfocusable (see VehicleDiagram),
+   so this changes nothing for keyboard or screen-reader users either way. */
 @media (max-width: 720px) {
   .vehicle-diagram {
-    display: none;
+    padding: 6px 8px;
+  }
+
+  .vd-marker {
+    cursor: default;
+    pointer-events: none;
   }
 }
 

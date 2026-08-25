@@ -867,3 +867,35 @@ three things from the old `ServiceLineEntriesEditor`. Restored:
 
 **No dropdown option was ever missing** — the select maps the full four-element
 `LINE_KINDS`, verified rendering Labour / Part / Supplies / Fee.
+
+## The parts map on a phone — changed, with the reasoning — 2026-08-25
+
+`ink-vehicle.css` hid `.vehicle-diagram` outright below 720px. The note above
+the rule argued: the markers are smaller than a fingertip, a map you cannot
+reliably tap is worse than no map, and the list carries the same information at
+44px a row.
+
+**The first half is right and is kept. The conclusion is what changed**, at
+Brent's request after the drawing vanishing on a phone read as a bug rather
+than a decision.
+
+The original reasoning treats the drawing as *only* a tap target. On a phone
+its greater value is orientation — *where on my car is this* — which needs no
+tapping at all. So the drawing now stays and the markers stop being controls:
+`pointer-events: none` below 720px. Selection still flows the other way, from
+the list to the map, so tapping a 44px row lights up its marker. That makes the
+drawing an output on a phone rather than a second, worse copy of the list, and
+nothing is offered that cannot be hit.
+
+No accessibility change either way: `VehicleDiagram` already renders the whole
+SVG `aria-hidden="true" focusable="false"` with markers as `<g>` rather than
+buttons, so nothing here was ever in the tab order. Verified at 375px (diagram
+visible, markers inert, zero focusable descendants) and at 750px (unchanged —
+`pointer-events: auto`, `cursor: pointer`).
+
+**This is the vehicle-page slice, not `serviceinput`/`validation`.** It is on
+its own branch, `vehicle-diagram-on-mobile`, off `main` rather than folded into
+the add-record work, so whoever owns the vehicle page can take it or drop it on
+its own merits. If you disagree, the one-line revert is restoring
+`display: none` — but please leave a note saying why rather than deleting this
+one.
