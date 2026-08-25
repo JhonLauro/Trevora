@@ -1,11 +1,32 @@
 import { apiRequest } from './http';
+import { NOTIFICATION_CATEGORIES } from './notificationPreferences.js';
+import { dismissLocalNotification, recordLocalNotification } from './localNotifications.js';
 import { removeStoredReceipt, uploadReceiptPages } from './receiptStorage';
+
+/**
+ * Nothing on the backend records that a draft was created or confirmed, so
+ * these two moments are captured here, where every input method (manual,
+ * receipt, voice) passes through, rather than in each of the three pages.
+ */
+function announceDraftCreated(draft) {
+  const draftId = draft?.serviceDraftId ?? draft?.draftId ?? draft?.id;
+  if (!draftId) return draft;
+  recordLocalNotification({
+    category: NOTIFICATION_CATEGORIES.DRAFT_REVIEW,
+    title: 'Service draft needs review',
+    body: 'A service draft is waiting for you to check what was read from it.',
+    action: 'Review draft',
+    href: `/service-drafts/${draftId}`,
+    dedupeKey: draftId,
+  });
+  return draft;
+}
 
 export function createManualServiceDraft(draft) {
   return apiRequest('/service-drafts/manual', {
     method: 'POST',
     body: JSON.stringify(draft),
-  });
+  }).then(announceDraftCreated);
 }
 
 export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
@@ -56,10 +77,10 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
 
   try {
     onProgress?.({ stage: 'READING', storedPages: storedPages.length, totalPages: pages.length });
-    return await apiRequest('/service-drafts/receipt', {
+    return announceDraftCreated(await apiRequest('/service-drafts/receipt', {
       method: 'POST',
       body: formData,
-    });
+    }));
   } catch (error) {
     await Promise.all(storedPages.map((page) => removeStoredReceipt(page)));
     throw error;
@@ -70,7 +91,7 @@ export function createVoiceServiceDraft(draft) {
   return apiRequest('/service-drafts/voice', {
     method: 'POST',
     body: JSON.stringify(draft),
-  });
+  }).then(announceDraftCreated);
 }
 
 export function transcribeVoiceAudio({ vehicleId, audioFile }) {
@@ -109,7 +130,17 @@ export function updateServiceDraftCorrections(draftId, corrections) {
 export function confirmServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}/confirm`, {
     method: 'POST',
-  }).then(normalizeDraftValidationPayload);
+  })
+    .then(normalizeDraftValidationPayload)
+    .then((result) => {
+      // The draft no longer needs reviewing, so its prompt is taken back.
+      // Otherwise the list kept pointing at a draft that was already filed.
+      dismissLocalNotification({
+        category: NOTIFICATION_CATEGORIES.DRAFT_REVIEW,
+        dedupeKey: draftId,
+      });
+      return result;
+    });
 }
 
 function normalizeDraftValidationPayload(payload) {
