@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Car, Clock3, Copy, ExternalLink, QrCode, Shield } from 'lucide-react';
+import { Copy, ExternalLink, ShieldCheck } from 'lucide-react';
+import Tabs from '../components/ink/Tabs.jsx';
 import {
   createQRAccessRequest,
   getOwnerMechanicAccessSessions,
@@ -9,40 +10,59 @@ import {
   revokeOwnerMechanicAccessSession,
 } from '../api/qrAccess';
 import { getVehicle, getVehicles } from '../api/vehicles';
+import { displayVehicleName } from '../utils/vehicleText';
+import { pluralize } from '../utils/format';
 
-function vehicleName(vehicle) {
-  if (!vehicle) return 'Selected vehicle';
-  return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
+/**
+ * Make a share link for one vehicle, and manage who currently holds one.
+ *
+ * Migrated off the pre-Ink classes. Four things fixed beyond the styling:
+ *
+ * - **The scope box orphaned a word.** "Service history for {vehicle} only"
+ *   was one sentence wrapped across a narrow card, so "only" landed alone on
+ *   its own line — the one word in it that changes the meaning. It is now a
+ *   labelled fact, not a sentence that has to survive wrapping.
+ * - **The status badge shouted a raw enum.** A fresh link is ACTIVE and a
+ *   used one is APPROVED; both were printed verbatim in caps. They now read
+ *   as what they mean to the owner.
+ * - **Expiry was a raw locale string** with seconds in it.
+ * - **Two of the three tabs were links that navigated away.** Requests lives
+ *   on its own page, so it is a header link now, and the tabs are only the
+ *   two views this page actually has.
+ *
+ * The `trevora.activeVehicleId` writes are gone: vehicle identity comes from
+ * the route, and that key's only reader was a fallback on the requests page
+ * that could send an owner to the Garage instead of here.
+ */
+
+const STATUS = {
+  ACTIVE: { tone: 'ok', label: 'Ready to scan' },
+  REQUESTED: { tone: 'warn', label: 'A mechanic has asked' },
+  APPROVED: { tone: 'ok', label: 'Approved' },
+  DENIED: { tone: 'bad', label: 'Denied' },
+  EXPIRED: { tone: 'none', label: 'Expired' },
+};
+
+function statusOf(request) {
+  return STATUS[String(request?.status || '').toUpperCase()] ?? { tone: 'none', label: request?.status ?? 'Unknown' };
 }
 
-function vehicleSubtitle(vehicle) {
-  if (!vehicle) return '';
-  return `${[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}${
-    vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''
-  }`;
+/** "26 Aug, 2:46 PM" — no seconds; nobody schedules around a second. */
+function shortDateTime(value) {
+  if (!value) return 'Not recorded';
+  return new Date(value).toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+  });
 }
 
-function formatDateTime(value) {
-  if (!value) return 'Not available';
-  return new Date(value).toLocaleString();
+function timeLeft(value) {
+  if (!value) return null;
+  const ms = new Date(value).getTime() - Date.now();
+  if (ms <= 0) return 'Expired';
+  const hours = Math.floor(ms / 3600000);
+  if (hours >= 1) return `${pluralize(hours, 'hour')} left`;
+  return `${Math.max(1, Math.ceil(ms / 60000))} min left`;
 }
-
-function statusClass(status) {
-  return `access-status access-status-${String(status || '').toLowerCase()}`;
-}
-
-function minutesRemaining(value) {
-  if (!value) return 'Expiration unavailable';
-  const minutes = Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 60000));
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
-    return `${hours}h${remainder ? ` ${remainder}m` : ''} remaining`;
-  }
-  return `${minutes} min remaining`;
-}
-
-const LATEST_QR_TOKEN_KEY = 'trevora.mechanic.latestQrToken';
 
 export default function QRSharingPage() {
   const { vehicleId } = useParams();
@@ -52,8 +72,8 @@ export default function QRSharingPage() {
   const [vehicles, setVehicles] = useState([]);
   const [requests, setRequests] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [currentRequest, setCurrentRequest] = useState(null);
-  const [activeView, setActiveView] = useState('generate');
+  const [current, setCurrent] = useState(null);
+  const [view, setView] = useState('link');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [revokingId, setRevokingId] = useState('');
@@ -61,16 +81,8 @@ export default function QRSharingPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    window.localStorage.setItem('trevora.activeVehicleId', vehicleId);
-  }, [vehicleId]);
-
-  useEffect(() => {
-    const view = new URLSearchParams(location.search).get('view');
-    if (view === 'sessions') {
-      setActiveView('sessions');
-    } else if (view === 'generate') {
-      setActiveView('generate');
-    }
+    const requested = new URLSearchParams(location.search).get('view');
+    if (requested === 'sessions') setView('sessions');
   }, [location.search]);
 
   useEffect(() => {
@@ -87,15 +99,10 @@ export default function QRSharingPage() {
       .then(([vehicleData, requestData, vehicleList, sessionData]) => {
         if (!active) return;
         setVehicle(vehicleData);
-        setVehicles(vehicleList);
-        setRequests(requestData);
-        setSessions(sessionData);
-        setCurrentRequest(requestData[0] ?? null);
-        window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(vehicleData));
-        window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(vehicleData));
-        if (requestData[0]?.accessToken) {
-          window.localStorage.setItem(LATEST_QR_TOKEN_KEY, requestData[0].accessToken);
-        }
+        setVehicles(vehicleList ?? []);
+        setRequests(requestData ?? []);
+        setSessions(sessionData ?? []);
+        setCurrent(requestData?.[0] ?? null);
       })
       .catch((err) => {
         if (active) setError(err.message);
@@ -104,22 +111,8 @@ export default function QRSharingPage() {
         if (active) setLoading(false);
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [vehicleId]);
-
-  function handleVehicleChange(event) {
-    const nextVehicleId = event.target.value;
-    const nextVehicle = vehicles.find((item) => item.vehicleId === nextVehicleId);
-
-    window.localStorage.setItem('trevora.activeVehicleId', nextVehicleId);
-    if (nextVehicle) {
-      window.localStorage.setItem('trevora.activeVehicleLabel', vehicleName(nextVehicle));
-      window.localStorage.setItem('trevora.activeVehicleSubtitle', vehicleSubtitle(nextVehicle));
-    }
-    navigate(`/vehicles/${nextVehicleId}/share`);
-  }
 
   async function handleGenerate() {
     setSaving(true);
@@ -127,9 +120,8 @@ export default function QRSharingPage() {
     setCopied(false);
     try {
       const created = await createQRAccessRequest(vehicleId);
-      setCurrentRequest(created);
-      setRequests((current) => [created, ...current]);
-      window.localStorage.setItem(LATEST_QR_TOKEN_KEY, created.accessToken);
+      setCurrent(created);
+      setRequests((list) => [created, ...list]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -137,12 +129,12 @@ export default function QRSharingPage() {
     }
   }
 
-  async function revokeSession(sessionId) {
+  async function revoke(sessionId) {
     setRevokingId(sessionId);
     setError('');
     try {
       await revokeOwnerMechanicAccessSession(sessionId);
-      setSessions((current) => current.filter((session) => session.mechanicAccessSessionId !== sessionId));
+      setSessions((list) => list.filter((s) => s.mechanicAccessSessionId !== sessionId));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -151,271 +143,281 @@ export default function QRSharingPage() {
   }
 
   async function copyLink() {
-    if (!currentRequest?.accessUrl) return;
-    await navigator.clipboard.writeText(currentRequest.accessUrl);
+    if (!current?.accessUrl) return;
+    await navigator.clipboard.writeText(current.accessUrl);
     setCopied(true);
   }
 
-  function rememberLatestRequestLink() {
-    if (!currentRequest?.accessToken) return;
-    window.localStorage.setItem(LATEST_QR_TOKEN_KEY, currentRequest.accessToken);
-  }
-
-  const activeSessions = sessions.filter((session) =>
-    session.status === 'APPROVED' && session.vehicleProfileId === vehicleId
+  const name = vehicle ? displayVehicleName(vehicle) : 'this vehicle';
+  const liveSessions = useMemo(
+    () => sessions.filter((s) => s.status === 'APPROVED' && s.vehicleProfileId === vehicleId),
+    [sessions, vehicleId],
   );
 
+  const tabs = [
+    { id: 'link', label: 'Share link' },
+    { id: 'sessions', label: 'Active sessions', count: liveSessions.length },
+  ];
+
+  if (loading) {
+    return (
+      <main className="ink-page access-page">
+        <p className="ink-page__summary">Loading share options…</p>
+      </main>
+    );
+  }
+
   return (
-    <main className="page-shell module-four-page">
-      <section className="page-header shared-access-header">
+    <main className="ink-page access-page">
+      <nav className="vehicle-crumbs" aria-label="Breadcrumb">
+        <Link to="/">Garage</Link>
+        <span aria-hidden="true">/</span>
+        <Link to={`/vehicles/${vehicleId}`}>{name}</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Share</span>
+      </nav>
+
+      <header className="ink-page__header">
         <div>
-          <h1>Shared Access</h1>
-          <p>Control who can view your vehicle service history</p>
+          <h1 className="ink-page__title">Share history</h1>
+          <p className="ink-page__summary">
+            A mechanic scans this and asks for access. You decide whether they get it.
+          </p>
+        </div>
+        <Link className="ink-button ink-button--outline" to="/access/requests">All requests</Link>
+      </header>
+
+      <section className="ink-card access-notice">
+        <span className="access-notice__icon" aria-hidden="true"><ShieldCheck size={20} /></span>
+        <div>
+          <h2 className="ink-section-title">The QR grants nothing on its own</h2>
+          <p>
+            Scanning it lets a mechanic <em>ask</em>. Until you approve, they see nothing. Once you
+            do, they get read-only access to {name}'s confirmed records — no other vehicle, no
+            edits — and it expires by itself.
+          </p>
         </div>
       </section>
 
-      {error && <div className="alert">{error}</div>}
-      {loading && <p className="muted">Loading share options...</p>}
+      {error && <div className="ink-alert">{error}</div>}
 
-      {!loading && (
-        <>
-        <section className="shared-access-notice">
-          <span className="notice-icon">
-            <Shield size={18} aria-hidden="true" />
-          </span>
-          <div>
-            <strong>Mechanic access requires your approval and is temporary read-only.</strong>
-            <p>Mechanics can view but cannot edit, delete, or create service records.</p>
-          </div>
-        </section>
+      <Tabs tabs={tabs} activeId={view} onChange={setView} label="Sharing views" />
 
-        <nav className="shared-access-tabs" aria-label="Shared access views">
-          <button
-            className={activeView === 'generate' ? 'shared-access-tab active' : 'shared-access-tab'}
-            type="button"
-            onClick={() => setActiveView('generate')}
-          >
-            Generate QR
-          </button>
-          <Link className="shared-access-tab" to="/access/requests">
-            Requests ({requests.filter((request) => request.status === 'REQUESTED').length})
-          </Link>
-          <button
-            className={activeView === 'sessions' ? 'shared-access-tab active' : 'shared-access-tab'}
-            type="button"
-            onClick={() => setActiveView('sessions')}
-          >
-            Active Sessions ({activeSessions.length})
-          </button>
-        </nav>
+      <div id={`panel-${view}`} role="tabpanel" aria-labelledby={`tab-${view}`} tabIndex={-1}>
+        {view === 'link' ? (
+          <div className="share-grid">
+            <section className="ink-card share-make">
+              <h2 className="ink-section-title">Make a link</h2>
 
-        {activeView === 'generate' ? (
-          <section className="shared-access-layout">
-          <article className="access-card">
-            <div className="access-card-title-row">
-              <div>
-                <h2>Generate QR Access Code</h2>
-                <p>Choose the vehicle history this temporary request can target.</p>
-              </div>
-              <span>
-                <QrCode size={20} aria-hidden="true" />
-              </span>
-            </div>
-
-            <label>
-              Select Vehicle
-              <select value={vehicleId} onChange={handleVehicleChange}>
-                {vehicles.length === 0 ? (
-                  <option value={vehicleId}>{vehicleName(vehicle)}</option>
-                ) : (
-                  vehicles.map((item) => (
+              <div className="ink-combo">
+                <label className="ink-combo__label" htmlFor="share-vehicle">Vehicle</label>
+                <p className="ink-combo__hint" id="share-vehicle-hint">
+                  One link covers one vehicle. Switching starts a link for that one instead.
+                </p>
+                <select
+                  id="share-vehicle"
+                  className="ink-select"
+                  value={vehicleId}
+                  aria-describedby="share-vehicle-hint"
+                  onChange={(event) => navigate(`/vehicles/${event.target.value}/share`)}
+                >
+                  {(vehicles.length ? vehicles : [vehicle]).filter(Boolean).map((item) => (
                     <option key={item.vehicleId} value={item.vehicleId}>
-                      {vehicleName(item)}
+                      {displayVehicleName(item)}
                     </option>
-                  ))
-                )}
-              </select>
-            </label>
-
-            <div className="access-scope-box">
-              <span>
-                <Car size={18} aria-hidden="true" />
-              </span>
-              <div>
-                <strong>Access scope</strong>
-                <p>Service history for <strong>{vehicleName(vehicle)}</strong> only</p>
+                  ))}
+                </select>
               </div>
-            </div>
 
-            <div className="access-warning-box">
-              <AlertTriangle size={17} aria-hidden="true" />
-              This QR creates an access request, not direct access. The mechanic must wait for your approval before
-              viewing records.
-            </div>
+              {/* Labelled facts, not a sentence. "Service history for {vehicle}
+                  only" wrapped in this column with "only" alone on the last
+                  line — the one word that limits the whole claim. */}
+              <dl className="share-scope">
+                <div>
+                  <dt className="ink-eyebrow">Shares</dt>
+                  <dd>Confirmed service records</dd>
+                </div>
+                <div>
+                  <dt className="ink-eyebrow">Of</dt>
+                  <dd>{name}</dd>
+                </div>
+                <div>
+                  <dt className="ink-eyebrow">And nothing else</dt>
+                  <dd>No other vehicle, no drafts, no edits</dd>
+                </div>
+              </dl>
 
-            <button className="generate-qr-button" type="button" onClick={handleGenerate} disabled={saving}>
-              <QrCode size={18} aria-hidden="true" />
-              {saving ? 'Generating...' : 'Generate One-time QR Code'}
-            </button>
+              <button className="ink-button ink-button--block" type="button" onClick={handleGenerate} disabled={saving}>
+                {saving ? 'Generating…' : current ? 'Generate a new link' : 'Generate share link'}
+              </button>
 
-            <Link className="inline-link" to={`/vehicles/${vehicleId}/history`}>
-              Back to service history
-            </Link>
-          </article>
+              {current && (
+                <p className="share-make__note">
+                  A new link does not cancel the one beside it — old links stay valid until they
+                  expire. To end access someone already has, revoke it under Active sessions.
+                </p>
+              )}
+            </section>
 
-          <article className="access-card qr-display-card">
-            {currentRequest ? (
-              <>
-                <div className="qr-display-top">
-                  <div className="qr-code-frame" aria-label="QR code for mechanic access request">
-                    {currentRequest.accessUrl ? (
-                      <QRCodeSVG
-                        value={currentRequest.accessUrl}
-                        size={208}
-                        bgColor="#ffffff"
-                        fgColor="#071526"
-                        level="M"
-                        includeMargin
-                      />
+            <section className="ink-card share-result">
+              {current ? (
+                <>
+                  <div className="share-result__head">
+                    <h2 className="ink-section-title">Ready to scan</h2>
+                    <span className={`ink-badge ink-badge--${statusOf(current).tone}`}>
+                      {statusOf(current).label}
+                    </span>
+                  </div>
+
+                  <div className="share-qr">
+                    {current.accessUrl ? (
+                      <QRCodeSVG value={current.accessUrl} size={196} bgColor="#ffffff" fgColor="#1c1b19" level="M" includeMargin />
                     ) : (
-                      <div className="qr-missing-url">
-                        <strong>QR unavailable</strong>
-                        <p>The backend did not return a share URL for this access request.</p>
+                      <div className="share-qr__missing">
+                        <strong>No share URL</strong>
+                        <p>The server did not return a link, so there is nothing to encode.</p>
                       </div>
                     )}
-                    <small>{currentRequest.accessToken}</small>
                   </div>
-                  <div className="qr-display-summary">
-                    <div className="qr-result-heading">
-                      <strong>One-time access request ready</strong>
-                      <span className={statusClass(currentRequest.status)}>{currentRequest.status}</span>
-                    </div>
-                    <p className="qr-scan-note">
-                      Phone scanning requires the share URL to be reachable from the phone. Use deployment, a local
-                      network IP, or a tunnel for real-device testing.
-                    </p>
-                  </div>
-                </div>
 
-                <div className="share-url-panel">
-                  <label>
-                    Share URL
-                    <input value={currentRequest.accessUrl || ''} placeholder="Share URL unavailable" readOnly />
-                  </label>
-                  <div className="access-action-row">
-                    <button className="button-secondary" type="button" onClick={copyLink}>
+                  <div className="ink-combo">
+                    <label className="ink-combo__label" htmlFor="share-url">Share URL</label>
+                    <input id="share-url" value={current.accessUrl || ''} placeholder="Unavailable" readOnly />
+                  </div>
+
+                  <div className="share-result__actions">
+                    <button className="ink-button ink-button--outline" type="button" onClick={copyLink}>
                       <Copy size={16} aria-hidden="true" />
                       {copied ? 'Copied' : 'Copy link'}
                     </button>
-                    <Link
-                      className="button-link"
-                      to={`/access/request/${currentRequest.accessToken}`}
-                      onClick={rememberLatestRequestLink}
-                    >
+                    <Link className="ink-button ink-button--outline" to={`/access/request/${current.accessToken}`}>
                       <ExternalLink size={16} aria-hidden="true" />
-                      Open request link
+                      Open as mechanic
                     </Link>
                   </div>
-                </div>
-                <dl className="compact-facts">
-                  <div>
-                    <dt>Expires</dt>
-                    <dd>{formatDateTime(currentRequest.expiresAt)}</dd>
-                  </div>
-                  <div>
-                    <dt>Confirmed records in scope</dt>
-                    <dd>{currentRequest.confirmedRecordCount}</dd>
-                  </div>
-                </dl>
-              </>
-            ) : (
-              <div className="qr-empty-state">
-                <span>
-                  <QrCode size={40} aria-hidden="true" />
-                </span>
-                <strong>QR code will appear here</strong>
-                <p>Select a vehicle and click Generate</p>
-              </div>
-            )}
-          </article>
 
-          <article className="access-card access-card-wide">
-            <h2>Recent access requests</h2>
-            {requests.length === 0 ? (
-              <p className="muted">Generated access links for this vehicle will appear here.</p>
-            ) : (
-              <div className="access-request-list">
-                {requests.map((request) => (
-                  <div className="access-request-row" key={request.qrAccessRequestId}>
+                  <dl className="share-facts">
                     <div>
-                      <strong>{request.accessToken}</strong>
-                      <small>Expires {formatDateTime(request.expiresAt)}</small>
+                      <dt className="ink-eyebrow">Expires</dt>
+                      <dd>
+                        {shortDateTime(current.expiresAt)}
+                        {timeLeft(current.expiresAt) && (
+                          <span className="share-facts__sub">{timeLeft(current.expiresAt)}</span>
+                        )}
+                      </dd>
                     </div>
-                    <span className={statusClass(request.status)}>{request.status}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </article>
+                    <div>
+                      <dt className="ink-eyebrow">Records in scope</dt>
+                      <dd className="ink-mono">{current.confirmedRecordCount ?? 0}</dd>
+                    </div>
+                  </dl>
+
+                  {/* A phone cannot reach localhost. Said here rather than
+                      letting a scan fail silently at the counter. */}
+                  <p className="share-result__note">
+                    Scanning from a phone needs this URL reachable from that phone — a deployed
+                    address, your machine's network IP, or a tunnel. <code>localhost</code> will not
+                    resolve.
+                  </p>
+                </>
+              ) : (
+                <div className="share-result__empty">
+                  <h2 className="ink-empty__title">No link yet</h2>
+                  <p className="ink-empty__body">
+                    Generate one and the QR appears here, ready to show a mechanic at the counter.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section className="ink-card share-history">
+              <h2 className="ink-section-title">Links made for {name}</h2>
+              {requests.length === 0 ? (
+                <p className="share-history__empty">
+                  None yet. Every link you generate is listed here with its expiry, so you can see
+                  what is still out there.
+                </p>
+              ) : (
+                <ul className="share-history__list">
+                  {requests.map((request) => (
+                    <li key={request.qrAccessRequestId}>
+                      <div>
+                        <span className="share-history__when">Made {shortDateTime(request.createdAt)}</span>
+                        <span className="share-history__expiry">
+                          Expires {shortDateTime(request.expiresAt)}
+                        </span>
+                      </div>
+                      <span className={`ink-badge ink-badge--${statusOf(request).tone}`}>
+                        {statusOf(request).label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        ) : liveSessions.length === 0 ? (
+          <section className="ink-empty">
+            <h2 className="ink-empty__title">No one has access right now</h2>
+            <p className="ink-empty__body">
+              Approved mechanics appear here while their access lasts, with the time they have left
+              and a way to cut it short.
+            </p>
+            <div className="ink-empty__actions">
+              <button className="ink-button" type="button" onClick={() => setView('link')}>
+                Make a share link
+              </button>
+            </div>
           </section>
         ) : (
-          <section className="access-card access-card-wide shared-session-panel">
-            <div className="access-card-title-row">
-              <div>
-                <h2>Active Shared Sessions</h2>
-                <p>Approved mechanics with temporary read-only access to {vehicleName(vehicle)}.</p>
-              </div>
-              <span>
-                <Clock3 size={20} aria-hidden="true" />
-              </span>
-            </div>
-
-            {activeSessions.length === 0 ? (
-              <section className="history-empty-state compact-empty-state">
-                <h2>No active shared sessions</h2>
-                <p>Approved mechanic sessions for this vehicle will appear here until they expire or are revoked.</p>
-                <button className="button-secondary" type="button" onClick={() => setActiveView('generate')}>
-                  Generate a QR request
-                </button>
-              </section>
-            ) : (
-              <div className="active-session-list">
-                {activeSessions.map((session) => (
-                  <article className="active-session-card shared-access-session-card" key={session.mechanicAccessSessionId}>
-                    <span className="session-clock">
-                      <Clock3 size={16} aria-hidden="true" />
+          <ul className="access-requests">
+            {liveSessions.map((session) => (
+              <li className="ink-card access-request" key={session.mechanicAccessSessionId}>
+                <div className="access-request__head">
+                  <div>
+                    <h2 className="access-request__name">{session.mechanicName || 'Mechanic'}</h2>
+                    <p className="access-request__shop">
+                      {session.shopName || 'Shop not given'}
+                      {session.contactInfo ? ` · ${session.contactInfo}` : ''}
+                    </p>
+                  </div>
+                  <div className="access-request__meta">
+                    <span className="ink-badge ink-badge--ok">{timeLeft(session.expiresAt)}</span>
+                    <span className="access-request__time ink-mono">
+                      Until {shortDateTime(session.expiresAt)}
                     </span>
-                    <div className="shared-session-main">
-                      <strong>
-                        {session.mechanicName || 'Mechanic'}
-                        {session.shopName ? ` - ${session.shopName}` : ''}
-                      </strong>
-                      <small>{session.contactInfo || 'No contact provided'}</small>
-                      <small>{session.vehicleLabel} · {session.permission} · {minutesRemaining(session.expiresAt)}</small>
-                    </div>
-                    <span className={statusClass(session.status)}>{session.status}</span>
-                    <div className="access-action-row shared-session-actions">
-                      <Link className="button-link-secondary" to={`/mechanic/access/${session.mechanicAccessSessionId}`}>
-                        <ExternalLink size={15} aria-hidden="true" />
-                        View
-                      </Link>
-                      <button
-                        className="button-secondary danger"
-                        type="button"
-                        disabled={revokingId === session.mechanicAccessSessionId}
-                        onClick={() => revokeSession(session.mechanicAccessSessionId)}
-                      >
-                        {revokingId === session.mechanicAccessSessionId ? 'Revoking...' : 'Revoke'}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
+                  </div>
+                </div>
+
+                <dl className="access-request__facts">
+                  <div>
+                    <dt className="ink-eyebrow">Vehicle</dt>
+                    <dd>{session.vehicleLabel || name}</dd>
+                  </div>
+                  <div>
+                    <dt className="ink-eyebrow">Permission</dt>
+                    <dd>Read-only</dd>
+                  </div>
+                </dl>
+
+                <div className="access-request__actions">
+                  <Link className="ink-button ink-button--outline" to={`/mechanic/access/${session.mechanicAccessSessionId}`}>
+                    See what they see
+                  </Link>
+                  <button
+                    className="ink-button ink-button--danger-outline"
+                    type="button"
+                    disabled={revokingId === session.mechanicAccessSessionId}
+                    onClick={() => revoke(session.mechanicAccessSessionId)}
+                  >
+                    {revokingId === session.mechanicAccessSessionId ? 'Revoking…' : 'Revoke now'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-        </>
-      )}
+      </div>
     </main>
   );
 }

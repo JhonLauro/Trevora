@@ -1,0 +1,489 @@
+/* ----------------------------------------------------------------------
+   Ink — shared access.
+
+   Every mechanic who has asked to see a vehicle, and the decision on each.
+   Loaded after ink-vehicle.css; builds on .ink-card, .ink-badge, .ink-tabs,
+   .ink-select and redefines none of them.
+   ---------------------------------------------------------------------- */
+
+/* .ink-notice exists in ink-auth.css but has no success variant. Added here
+   rather than there because the auth screens never show one. */
+.ink-notice--ok {
+  background: var(--status-ok-bg);
+  border-color: var(--status-ok-border);
+  color: var(--status-ok-text);
+}
+
+.access-page {
+  max-width: 1100px;
+}
+
+/* --------------------------------------------------------- share control
+
+   The page's primary action, and the one that used to dead-end on the
+   Garage. Either a direct link (one vehicle) or pick-then-go (several). */
+
+.access-share {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.access-share .ink-select {
+  min-width: 210px;
+}
+
+/* ------------------------------------------------------------- summary
+
+   Four counts across the top. They are the reason the page has something to
+   say before any request exists, and they turn "Requests (0)" from the whole
+   story into one number among four. */
+
+.access-summary {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--rule-faint);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.access-summary__cell {
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+}
+
+.access-summary__cell strong {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* A count above zero is the only one worth full ink — the rest are context,
+   and a wall of equally-black zeros is what this strip exists to avoid. */
+.access-summary__cell strong:not(.is-live) {
+  color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------- notice */
+
+.access-notice {
+  display: flex;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.access-notice__icon {
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  color: var(--ink-muted);
+  display: flex;
+  flex: 0 0 auto;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.access-notice p {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 8px 0 0;
+}
+
+/* --------------------------------------------------------- how it works
+
+   Shown only when there are no requests at all. An empty page that explains
+   the mechanism is worth more than an empty page that states its emptiness,
+   and this is the screen where the flow is least obvious. */
+
+.access-empty {
+  display: grid;
+  gap: 16px;
+}
+
+.access-how {
+  padding: 22px 24px;
+}
+
+.access-how ol {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+.access-how li {
+  display: flex;
+  gap: 12px;
+}
+
+.access-how__step {
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  color: var(--ink-muted);
+  display: flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.access-how strong {
+  display: block;
+  font-size: 16px;
+}
+
+.access-how__num {
+  color: var(--ink-faint);
+  font-size: 13px;
+  margin-right: 4px;
+}
+
+.access-how p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+/* ------------------------------------------------------------ requests */
+
+.access-requests {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.access-request {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+}
+
+.access-request__head {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.access-request__name {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.access-request__shop {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 4px 0 0;
+}
+
+.access-request__meta {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.access-request__time {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+/* Which vehicle, what it grants, why they asked — read as a set, so they
+   stay on one row rather than stacking into unrelated lines. */
+.access-request__facts {
+  border-top: 1px solid var(--rule-hairline);
+  display: grid;
+  gap: 16px 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding-top: 16px;
+}
+
+.access-request__facts dd {
+  color: var(--ink);
+  font-size: 16px;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.access-request__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.access-request__actions .ink-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.access-request__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .access-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .access-how ol,
+  .access-request__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .access-share {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .access-share .ink-select,
+  .access-share .ink-button {
+    width: 100%;
+  }
+
+  .access-request,
+  .access-notice,
+  .access-how {
+    padding: 18px;
+  }
+
+  .access-request__meta {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  /* Approve stays above Deny, so the destructive one is never the button
+     under the thumb by default. */
+  .access-request__actions .ink-button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------ share link
+
+   Control on the left, the thing it produces on the right, history across
+   the foot of both. The QR is this screen's output, so it gets the wider
+   column rather than being tucked beneath the form that made it. */
+
+.share-grid {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+}
+
+.share-make,
+.share-result {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+}
+
+.share-history {
+  grid-column: 1 / -1;
+  padding: 22px 24px;
+}
+
+/* Three labelled facts rather than one sentence. As prose in a narrow
+   column, "Service history for {vehicle} only" put "only" alone on the last
+   line — the single word that limits the whole claim, orphaned. */
+.share-scope {
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 18px;
+}
+
+.share-scope dd {
+  color: var(--ink);
+  font-size: 16px;
+  margin: 3px 0 0;
+}
+
+.share-make__note,
+.share-result__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+.share-result__note code {
+  background: var(--surface-sunken);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 1px 5px;
+}
+
+.share-result__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+/* White behind the code whatever the surface — a scanner needs the contrast
+   the code was generated for. The raw token that used to sit underneath is
+   gone: it is unreadable, unmemorable, and wrapped mid-string. */
+.share-qr {
+  align-items: center;
+  align-self: center;
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.share-qr__missing {
+  color: var(--ink-muted);
+  max-width: 260px;
+  padding: 28px 12px;
+  text-align: center;
+}
+
+.share-qr__missing strong {
+  color: var(--ink);
+  display: block;
+  font-size: 17px;
+}
+
+.share-qr__missing p {
+  font-size: 15px;
+  margin: 6px 0 0;
+}
+
+.share-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.share-result__actions .ink-button {
+  align-items: center;
+  display: inline-flex;
+  flex: 1;
+  gap: 8px;
+  justify-content: center;
+  min-width: 150px;
+}
+
+.share-facts {
+  border-top: 1px solid var(--rule-hairline);
+  display: grid;
+  gap: 16px 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding-top: 16px;
+}
+
+.share-facts dd {
+  color: var(--ink);
+  font-size: 16px;
+  margin: 4px 0 0;
+}
+
+.share-facts__sub {
+  color: var(--ink-muted);
+  display: block;
+  font-size: 15px;
+  margin-top: 2px;
+}
+
+.share-result__empty {
+  padding: 36px 8px;
+  text-align: center;
+}
+
+.share-history__empty {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 12px 0 0;
+}
+
+.share-history__list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.share-history__list li {
+  align-items: center;
+  border-top: 1px solid var(--rule-hairline);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 0;
+}
+
+.share-history__list li:first-child {
+  border-top: 0;
+}
+
+.share-history__when {
+  display: block;
+  font-size: 16px;
+}
+
+.share-history__expiry {
+  color: var(--ink-muted);
+  display: block;
+  font-size: 15px;
+  margin-top: 3px;
+}
+
+@media (max-width: 900px) {
+  .share-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .share-make,
+  .share-result,
+  .share-history {
+    padding: 18px;
+  }
+
+  .share-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .share-result__actions .ink-button {
+    width: 100%;
+  }
+}
