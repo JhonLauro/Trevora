@@ -385,7 +385,7 @@ export default function ReceiptUploadPage() {
         : `${pages.length} page${pages.length === 1 ? '' : 's'}, in the order they print.`}
       onExit={() => { stopCamera(); navigate('/'); }}
     >
-      {saving && <ReadingOverlay progress={progress} />}
+      {saving && <ReadingOverlay progress={progress} pages={pages} />}
 
       {error && <div className="flow-alert">{error}</div>}
 
@@ -662,57 +662,98 @@ export default function ReceiptUploadPage() {
 }
 
 /**
- * Two steps, because two things happen, and both bars move with real page
- * counts. There used to be four steps walked through on a 900ms timer with no
+ * The wait, as a dialog over the flow rather than a screen of its own.
+ *
+ * <p>It used to be a full-bleed dark takeover — the one place the flow dropped
+ * its own design language, so the slowest moment was also the most
+ * disorienting one. Now it is a card on a scrim: the pages you just arranged
+ * stay visible behind it, so it reads as something happening *to* this screen
+ * rather than a different screen arriving.
+ *
+ * <p><b>Two steps, because two things happen, and neither is a timer.</b> An
+ * earlier version walked four invented steps on a 900ms interval with no
  * connection to the request: it claimed to be "Analyzing service details" 1.8s
- * in whether or not OCR had returned, then sat on the last step indefinitely.
+ * in whether or not OCR had returned, then sat on the last step forever.
+ *
+ * <p>That history is why the two phases are drawn differently:
+ *
+ * <ul>
+ *   <li><b>Saving</b> reports every stored page, so it gets a real bar.</li>
+ *   <li><b>Reading</b> is one opaque call — the API fires {@code READING} once
+ *       and returns when the whole thing is done. There is no page-by-page
+ *       signal, so there is no honest percentage to draw. It gets a scanner
+ *       sweeping the actual receipt instead: motion that says "working"
+ *       without claiming a position it cannot know.</li>
+ * </ul>
  */
-function ReadingOverlay({ progress }) {
+function ReadingOverlay({ progress, pages = [] }) {
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
   const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
+  const cover = pages[0];
 
   return (
-    <div className="flow-reading" role="status" aria-live="polite">
-      <div className="flow-reading__inner">
-        <div>
+    <div className="flow-scrim" role="dialog" aria-modal="true" aria-label="Reading your receipt">
+      <section className="flow-reading" role="status" aria-live="polite">
+        {/* The owner's own receipt, being worked on. A generic spinner would
+            say the same thing about any request; this says it about theirs. */}
+        {cover && (
+          <div className={`flow-scanner${storing ? '' : ' is-scanning'}`}>
+            <img src={cover.previewUrl} alt="" />
+            <span className="flow-scanner__beam" aria-hidden="true" />
+            {pages.length > 1 && (
+              <span className="flow-scanner__count">{pages.length} pages</span>
+            )}
+          </div>
+        )}
+
+        <div className="flow-reading__head">
           <h2 className="flow-reading__title">
             {storing ? 'Saving your pages' : 'Reading your receipt'}
           </h2>
           <p className="flow-reading__sub">
-            Two steps. This is the slow part — leave it running and it will finish.
+            {storing
+              ? 'Keeping the originals with the record.'
+              : 'This is the slow part. Leave it running and it will finish.'}
           </p>
         </div>
 
-        <div className="flow-reading__steps">
-          <div className="flow-reading__step">
+        <ol className="flow-reading__steps">
+          <li className="flow-reading__step">
             <span className={`flow-reading__dot${storing ? '' : ' is-done'}`} aria-hidden="true">
-              <Check size={14} strokeWidth={3} />
+              <Check size={13} strokeWidth={3} />
             </span>
-            <div style={{ flex: 1 }}>
+            <div className="flow-reading__body">
               <p className="flow-reading__name">Saving the pages</p>
               <p className="flow-reading__count">{storedPages} of {totalPages} saved</p>
               {storing && (
-                <div className="flow-reading__bar"><i style={{ width: `${storedPct}%` }} /></div>
+                <div className="flow-reading__bar">
+                  <i style={{ width: `${storedPct}%` }} />
+                </div>
               )}
             </div>
-          </div>
+          </li>
 
-          <div className="flow-reading__step">
-            <span className="flow-reading__dot" aria-hidden="true" />
-            <div style={{ flex: 1 }}>
+          <li className="flow-reading__step">
+            <span className={`flow-reading__dot${storing ? '' : ' is-active'}`} aria-hidden="true" />
+            <div className="flow-reading__body">
               <p className="flow-reading__name">Reading them</p>
               <p className="flow-reading__count">
                 {storing
                   ? 'Waiting for the pages'
                   : `${totalPages} page${totalPages === 1 ? '' : 's'} to read`}
               </p>
+              {/* Indeterminate on purpose — see the note above. */}
+              {!storing && <div className="flow-reading__bar is-indeterminate"><i /></div>}
             </div>
-          </div>
-        </div>
+          </li>
+        </ol>
 
-        <p className="flow-reading__foot">Both counts are real. Neither is a timer.</p>
-      </div>
+        <p className="flow-reading__foot">
+          The saved count is real. The reading bar only means it is working — we
+          cannot see inside that step, so it does not pretend to.
+        </p>
+      </section>
     </div>
   );
 }

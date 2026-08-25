@@ -1550,94 +1550,216 @@
   text-underline-offset: 4px;
 }
 
-/* --- the reading overlay: two steps, both driven by real counts --- */
+/* --- the wait: a dialog over the flow, not a screen of its own --- */
 
-.flow-reading {
+/* The pages the owner just arranged stay visible behind the scrim, so this
+   reads as something happening to this screen rather than a different screen
+   arriving. The old version was a full-bleed dark takeover — the one place the
+   flow abandoned its own design language, at its slowest moment. */
+.flow-scrim {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--ink);
-  color: var(--on-ink);
+  background: rgba(28, 27, 25, 0.55);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 34px;
-  padding: 44px 28px;
+  padding: 24px;
+  animation: flow-fade 160ms ease-out;
 }
 
-.flow-reading__inner {
-  max-width: 460px;
-  margin: 0 auto;
+.flow-reading {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  padding: 24px;
   width: 100%;
+  max-width: 460px;
   display: flex;
   flex-direction: column;
-  gap: 34px;
+  gap: 20px;
+  max-height: 100%;
+  overflow-y: auto;
 }
+
+.flow-reading__head { display: flex; flex-direction: column; gap: 6px; }
 
 .flow-reading__title {
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
+  margin: 0;
 }
 
-.flow-reading__sub { font-size: 16px; color: var(--on-ink-muted); line-height: 1.55; }
+.flow-reading__sub { font-size: 16px; color: var(--ink-muted); line-height: 1.55; margin: 0; }
+
+/* --- the scanner --- */
+
+/* The owner's own receipt, being worked on. A generic spinner would say the
+   same thing about any request; this says it about theirs. */
+.flow-scanner {
+  position: relative;
+  height: 168px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule-faint);
+}
+
+.flow-scanner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  /* Held back while it is only being stored, so the sweep reads as the moment
+     something starts happening to it. */
+  filter: grayscale(0.35) contrast(0.96);
+  transition: filter 240ms ease;
+}
+
+.flow-scanner.is-scanning img { filter: none; }
+
+.flow-scanner__beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(28, 27, 25, 0) 0%,
+    rgba(28, 27, 25, 0.05) 55%,
+    rgba(28, 27, 25, 0.16) 92%,
+    var(--ink) 100%
+  );
+}
+
+.flow-scanner.is-scanning .flow-scanner__beam {
+  opacity: 1;
+  animation: flow-scan 1900ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.flow-scanner__count {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* Both values are percentages of the beam's own height, and the beam is 44%
+   of the container — so -100% parks it fully above and 227% (100/44) carries
+   its top edge past the bottom. Stays correct at any container height, which
+   matters because the phone breakpoint shortens it. */
+@keyframes flow-scan {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(227%); }
+}
+
+@keyframes flow-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes flow-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* --- the two steps --- */
 
 .flow-reading__steps {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.flow-reading__step {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-}
+.flow-reading__step { display: flex; gap: 14px; align-items: flex-start; }
+
+.flow-reading__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 
 .flow-reading__dot {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--on-ink);
-  flex: 0 0 26px;
+  border: 2px solid var(--border);
+  flex: 0 0 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: transparent;
+  background: var(--surface);
 }
 
 .flow-reading__dot.is-done {
-  background: var(--on-ink);
-  border-color: var(--on-ink);
-  color: var(--ink);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
 }
 
-.flow-reading__name { font-size: 16px; font-weight: 600; }
-.flow-reading__count { font-size: 15px; color: var(--on-ink-faint); }
+.flow-reading__dot.is-active { border-color: var(--ink); }
+
+.flow-reading__name { font-size: 16px; font-weight: 600; margin: 0; }
+.flow-reading__count { font-size: 15px; color: var(--ink-muted); margin: 0; }
 
 .flow-reading__bar {
   height: 5px;
   border-radius: 3px;
-  background: var(--on-ink-rule);
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule-faint);
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .flow-reading__bar i {
   display: block;
-  height: 5px;
-  background: var(--on-ink);
+  height: 100%;
+  background: var(--ink);
   border-radius: 3px;
-  transition: width 200ms ease;
+  transition: width 220ms ease;
+}
+
+/* Indeterminate, and deliberately so: the API fires READING once and returns
+   when the whole call is done, so there is no page-by-page signal and no
+   honest percentage to draw. A travelling sliver says "working" without
+   claiming a position. */
+.flow-reading__bar.is-indeterminate i {
+  width: 28%;
+  transition: none;
+  animation: flow-indeterminate 1400ms ease-in-out infinite;
 }
 
 .flow-reading__foot {
   font-size: 15px;
   line-height: 1.55;
-  color: var(--on-ink-faint);
-  border-top: 1px solid var(--on-ink-rule);
-  padding-top: 18px;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--rule-faint);
+  padding-top: 14px;
+  margin: 0;
+}
+
+/* Motion is decoration here — every one of these conveys "working", which the
+   text already says. Honour the preference and drop all of it. */
+@media (prefers-reduced-motion: reduce) {
+  .flow-scrim { animation: none; }
+  .flow-scanner.is-scanning .flow-scanner__beam { animation: none; opacity: 0.28; }
+  .flow-reading__bar.is-indeterminate i { animation: none; width: 100%; opacity: 0.45; }
+  .flow-reading__bar i { transition: none; }
+}
+
+@media (max-width: 767px) {
+  .flow-scrim { padding: 16px; align-items: flex-end; }
+  .flow-reading { max-width: 100%; padding: 20px 18px; }
+  .flow-scanner { height: 132px; }
 }
 
 /* ------------------------------------------------- step 3b · the voice */

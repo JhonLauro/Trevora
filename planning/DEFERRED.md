@@ -867,3 +867,32 @@ three things from the old `ServiceLineEntriesEditor`. Restored:
 
 **No dropdown option was ever missing** — the select maps the full four-element
 `LINE_KINDS`, verified rendering Labour / Part / Supplies / Fee.
+
+### The receipt wait is a dialog now, not a screen — 2026-08-25
+
+It was a full-bleed dark takeover: the one place the flow dropped its own
+design language, at its slowest moment. It is now a card on a scrim, so the
+pages the owner just arranged stay visible behind it and it reads as something
+happening *to* this screen rather than a different screen arriving.
+
+The two phases are drawn differently, and the difference is the point:
+
+- **Saving** reports every stored page (`onProgress` fires per page), so it
+  gets a real determinate bar.
+- **Reading** is one opaque call — `serviceDrafts.js` fires `READING` once and
+  returns when the whole thing is done. **There is no page-by-page signal, so
+  there is no honest percentage to draw.** It gets a scanner sweeping the
+  owner's actual receipt plus an indeterminate sliver: motion that says
+  "working" without claiming a position it cannot know.
+
+This is deliberately not what the artboard drew. Artboard 1D shows reading at
+"Page 2 of 3" with a 58% bar. Nothing in the API can produce those numbers, and
+inventing them is precisely the bug this overlay already carries scar tissue
+from — four invented steps on a 900ms timer that claimed "Analyzing service
+details" whether or not OCR had returned. The footer says outright which of the
+two figures is real.
+
+All motion is dropped under `prefers-reduced-motion: reduce`; every animation
+here only restates what the text already says, so nothing is lost by removing
+it. Verified: scrim, beam and indeterminate bar all resolve to `animation: none`
+under the query.
