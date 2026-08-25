@@ -9,6 +9,8 @@ import {
   isLoggedIn,
 } from '../api/currentUser.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
+import { supabase } from '../api/supabaseClient.js';
+import ConfirmDialog from './ink/ConfirmDialog.jsx';
 import InkLockup from './InkLockup.jsx';
 
 /**
@@ -64,6 +66,8 @@ export default function AppShell({ children }) {
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
   const [pendingCount, setPendingCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const sheetRef = useRef(null);
   const menuButtonRef = useRef(null);
 
@@ -133,11 +137,30 @@ export default function AppShell({ children }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [menuOpen]);
 
-  function handleSignOut() {
-    clearLoggedInUser();
-    setAuthenticated(false);
-    setCurrentUser(null);
-    window.location.assign('/login');
+  /**
+   * Sign out is one click away from five navigation items, and in the
+   * sidebar it sits directly under the account row. It is not destructive —
+   * nothing is lost that signing back in does not restore — but a misclick
+   * discards an in-progress draft and costs a round trip through Supabase
+   * auth, so it asks first.
+   */
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      // Previously omitted here while AccountSettingsPage did it, so signing
+      // out from the sidebar cleared Trevora's copy of the session and left
+      // Supabase's own intact — and http.js refreshes tokens from that, so
+      // the session was still recoverable after an apparent sign-out.
+      if (supabase) await supabase.auth.signOut();
+    } catch {
+      // A failed network call must not strand someone signed in. The local
+      // clear below is what actually ends the session for this browser.
+    } finally {
+      clearLoggedInUser();
+      setAuthenticated(false);
+      setCurrentUser(null);
+      window.location.assign('/login');
+    }
   }
 
   return (
@@ -158,7 +181,7 @@ export default function AppShell({ children }) {
             <span className="ink-account-row__avatar" aria-hidden="true">{initialsFor(displayName)}</span>
             <span className="ink-account-row__name">{displayName}</span>
           </div>
-          <button className="ink-signout-row" type="button" onClick={handleSignOut}>
+          <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
             Sign out
           </button>
         </div>
@@ -214,13 +237,30 @@ export default function AppShell({ children }) {
                 <span className="ink-account-row__avatar" aria-hidden="true">{initialsFor(displayName)}</span>
                 <span className="ink-account-row__name">{displayName}</span>
               </div>
-              <button className="ink-signout-row" type="button" onClick={handleSignOut}>
+              <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
                 Sign out
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmSignOut}
+        busy={signingOut}
+        title="Sign out of Trevora?"
+        confirmLabel="Sign out"
+        busyLabel="Signing out…"
+        tone="outline"
+        onCancel={() => { if (!signingOut) setConfirmSignOut(false); }}
+        onConfirm={handleSignOut}
+        body={(
+          <>
+            <p>Anything you are part-way through adding is not saved yet and will be lost.</p>
+            <p>Your records stay where they are. You will need to sign in again to reach them.</p>
+          </>
+        )}
+      />
 
       <div className="ink-app__content">{children}</div>
     </div>

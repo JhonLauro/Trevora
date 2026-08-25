@@ -14,6 +14,7 @@ import { syncCurrentUserProfile } from '../api/auth.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
 import { getMechanicAccessRequests, getOwnerMechanicAccessSessions, revokeOwnerMechanicAccessSession } from '../api/qrAccess.js';
 import { supabase } from '../api/supabaseClient.js';
+import ConfirmDialog from '../components/ink/ConfirmDialog.jsx';
 
 const NOTIFICATION_PREFS_KEY = 'trevora.notificationPreferences';
 const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
@@ -126,6 +127,8 @@ export default function AccountSettingsPage() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     if (activeTab !== 'privacy' && activeTab !== 'sessions') return undefined;
@@ -312,9 +315,14 @@ export default function AccountSettingsPage() {
     }
   }
 
+  /* Asks first: this button sits in the same list as five navigation rows,
+     so a misclick here is a mis-navigation, not a decision. */
   async function handleSignOut() {
+    setSigningOut(true);
     try {
       if (supabase) await supabase.auth.signOut();
+    } catch {
+      // A failed network call must not strand someone signed in.
     } finally {
       clearLoggedInUser();
       window.location.assign('/login');
@@ -350,7 +358,7 @@ export default function AccountSettingsPage() {
               </button>
             );
           })}
-          <button className="danger" type="button" onClick={handleSignOut}>
+          <button className="danger" type="button" onClick={() => setConfirmSignOut(true)}>
             <LogOut size={18} aria-hidden="true" />
             Sign Out
           </button>
@@ -521,6 +529,23 @@ export default function AccountSettingsPage() {
           </article>
         )}
       </section>
+      <ConfirmDialog
+        open={confirmSignOut}
+        busy={signingOut}
+        title="Sign out of Trevora?"
+        confirmLabel="Sign out"
+        busyLabel="Signing out…"
+        tone="outline"
+        onCancel={() => { if (!signingOut) setConfirmSignOut(false); }}
+        onConfirm={handleSignOut}
+        body={(
+          <>
+            <p>Anything you are part-way through adding is not saved yet and will be lost.</p>
+            <p>Your records stay where they are. You will need to sign in again to reach them.</p>
+          </>
+        )}
+      />
+
     </main>
   );
 }

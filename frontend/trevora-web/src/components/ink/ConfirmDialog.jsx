@@ -24,6 +24,12 @@ export default function ConfirmDialog({
   onCancel,
   busy,
   error,
+  // Deleting is the common case, so it stays the default. Sign out borrows
+  // the dialog without borrowing the red: it costs a session, not data, and
+  // dressing a recoverable action as a destructive one is how a red button
+  // stops meaning anything.
+  busyLabel = 'Deleting…',
+  tone = 'danger',
 }) {
   const dialogRef = useRef(null);
   const cancelRef = useRef(null);
@@ -88,12 +94,12 @@ export default function ConfirmDialog({
             Cancel
           </button>
           <button
-            className="ink-button ink-button--danger"
+            className={`ink-button ink-button--${tone}`}
             type="button"
             disabled={busy}
             onClick={onConfirm}
           >
-            {busy ? 'Deleting…' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>
