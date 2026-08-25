@@ -1,20 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Bell,
-  ChevronRight,
-  Clock3,
-  Eye,
-  EyeOff,
-  KeyRound,
-  LogOut,
-  Shield,
-  User,
-} from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
 import { syncCurrentUserProfile } from '../api/auth.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
-import { getMechanicAccessRequests, getOwnerMechanicAccessSessions, revokeOwnerMechanicAccessSession } from '../api/qrAccess.js';
 import {
-  defaultNotificationPreferences,
   getNotificationPreferences,
   saveNotificationPreferences,
 } from '../api/notificationPreferences.js';
@@ -23,21 +10,23 @@ import { supabase } from '../api/supabaseClient.js';
 
 const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
 
-const settingsNav = [
-  { id: 'profile', icon: User, label: 'Profile Information' },
-  { id: 'security', icon: KeyRound, label: 'Password & Security' },
-  { id: 'notifications', icon: Bell, label: 'Notification Preferences' },
-  { id: 'privacy', icon: Shield, label: 'Privacy & Access History' },
-  { id: 'sessions', icon: Clock3, label: 'Active Shared Sessions' },
+// One row per category in api/notificationPreferences.js and no more — a row
+// without a category is a switch that controls nothing, which is what four of
+// the original seven turned out to be. Grouped by what the notification is
+// about, because the two access ones are the consequential pair.
+const recordNotifications = [
+  ['draftReview', 'A draft needs review', 'A scanned receipt is waiting for you to check it.'],
 ];
 
-// One row per category in api/notificationPreferences.js, and no more: a row
-// without a category is a switch that controls nothing, which is what four of
-// the seven here turned out to be.
-const notificationRows = [
-  ['draftReview', 'Service draft needs review'],
-  ['mechanicRequest', 'Mechanic requested access'],
-  ['temporaryExpired', 'Temporary access expired'],
+const accessNotifications = [
+  ['mechanicRequest', 'A mechanic asks for access', 'You decide before anyone can see anything.'],
+  ['temporaryExpired', 'Temporary access has expired', 'The mechanic can no longer see the vehicle.'],
+];
+
+const passwordFields = [
+  ['currentPassword', 'Current password'],
+  ['newPassword', 'New password'],
+  ['confirmPassword', 'Repeat new password'],
 ];
 
 function splitName(fullName) {
@@ -64,29 +53,14 @@ function saveJson(key, value) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function formatDateTime(value) {
-  if (!value) return 'Not recorded';
-  return new Intl.DateTimeFormat('en-PH', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+function countChanges(a, b) {
+  return Object.keys(b).filter((key) => Boolean(a[key]) !== Boolean(b[key])).length;
 }
 
-function minutesRemaining(value) {
-  const diff = Math.max(0, new Date(value).getTime() - Date.now());
-  if (diff === 0) return 'Expired';
-  const minutes = Math.ceil(diff / 60000);
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} remaining`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m remaining`;
-}
-
-function statusClass(status) {
-  const normalized = String(status || '').toLowerCase();
-  if (normalized.includes('denied') || normalized.includes('revoked')) return 'danger';
-  if (normalized.includes('approved') || normalized.includes('active')) return 'success';
-  return '';
+function changeCountLabel(count) {
+  if (count === 0) return null;
+  const word = count === 1 ? 'One change' : count === 2 ? 'Two changes' : `${count} changes`;
+  return `${word} not saved yet.`;
 }
 
 export default function AccountSettingsPage() {
@@ -96,70 +70,94 @@ export default function AccountSettingsPage() {
     ? { firstName: currentUser?.firstName || '', lastName: currentUser?.lastName || '' }
     : splitName(getUserDisplayName(currentUser));
   const profileExtras = useMemo(() => loadJson(PROFILE_EXTRAS_KEY, {}), []);
+  const storedPrefs = useMemo(() => getNotificationPreferences(), []);
 
-  const [activeTab, setActiveTab] = useState('profile');
   const [form, setForm] = useState({
     firstName: baseName.firstName,
     lastName: baseName.lastName,
     email: currentUser?.email || '',
     phone: profileExtras.phone || currentUser?.phone || '',
     // Account first, browser second: `profileExtras.avatar` is only ever a
-    // leftover base64 photo from the old localStorage scheme, and preferring
-    // it would hide the real one from anyone who had set a photo before.
+    // leftover base64 photo from the old localStorage scheme.
     avatar: currentUser?.avatar || profileExtras.avatar || '',
   });
+  const [detailErrors, setDetailErrors] = useState({});
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordErrors, setPasswordErrors] = useState({});
   const [showPasswords, setShowPasswords] = useState({
     currentPassword: false,
     newPassword: false,
     confirmPassword: false,
   });
-  const [notificationPrefs, setNotificationPrefs] = useState(getNotificationPreferences);
-  const [accessRequests, setAccessRequests] = useState([]);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [message, setMessage] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [savedPrefs, setSavedPrefs] = useState(storedPrefs);
+  const [notificationPrefs, setNotificationPrefs] = useState(storedPrefs);
+  // One status line per section, shown beside that section's own submit
+  // button. The old page shared a single banner across five sections and
+  // wiped it on every keystroke.
+  const [sectionStatus, setSectionStatus] = useState({ details: null, password: null, notifications: null });
+  const [savingSection, setSavingSection] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [signOutConfirming, setSignOutConfirming] = useState(false);
 
-  useEffect(() => {
-    if (activeTab !== 'privacy' && activeTab !== 'sessions') return undefined;
-    let mounted = true;
+  const displayName = `${form.firstName} ${form.lastName}`.trim();
+  const unsavedPrefCount = countChanges(savedPrefs, notificationPrefs);
 
-    async function loadAccessData() {
-      setMessage(null);
-      try {
-        const [requests, sessions] = await Promise.all([
-          getMechanicAccessRequests(),
-          getOwnerMechanicAccessSessions(),
-        ]);
-        if (!mounted) return;
-        setAccessRequests(requests);
-        setActiveSessions(sessions.filter((session) => session.status === 'APPROVED'));
-      } catch (error) {
-        if (mounted) setMessage({ type: 'error', text: error.message || 'Could not load access data.' });
-      }
-    }
-
-    loadAccessData();
-    return () => {
-      mounted = false;
-    };
-  }, [activeTab]);
+  function setStatus(section, value) {
+    setSectionStatus((current) => ({ ...current, [section]: value }));
+  }
 
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
-    setMessage(null);
+    setDetailErrors((current) => (current[name] ? { ...current, [name]: null } : current));
+    setStatus('details', null);
+  }
+
+  function validateDetail(name, value) {
+    const trimmed = String(value ?? '').trim();
+    if (name === 'firstName' && !trimmed) return 'Enter your first name.';
+    if (name === 'lastName' && !trimmed) return 'Enter your last name.';
+    if (name === 'email') {
+      if (!trimmed) return 'Enter your email address.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'That does not look like an email address.';
+    }
+    return null;
+  }
+
+  function blurDetail(event) {
+    const { name, value } = event.target;
+    const error = validateDetail(name, value);
+    setDetailErrors((current) => ({ ...current, [name]: error }));
   }
 
   function updatePasswordField(event) {
     const { name, value } = event.target;
     setPasswordForm((current) => ({ ...current, [name]: value }));
-    setMessage(null);
+    setPasswordErrors((current) => (current[name] ? { ...current, [name]: null } : current));
+    setStatus('password', null);
+  }
+
+  function validatePassword(name, value, source) {
+    const state = source || passwordForm;
+    if (name === 'currentPassword' && !value) return 'Enter your current password.';
+    if (name === 'newPassword') {
+      if (!value) return 'Enter a new password.';
+      if (value.length < 8) return 'Use at least 8 characters.';
+    }
+    if (name === 'confirmPassword') {
+      if (!value) return 'Repeat the new password.';
+      if (value !== state.newPassword) return 'These two do not match yet.';
+    }
+    return null;
+  }
+
+  function blurPassword(event) {
+    const { name, value } = event.target;
+    setPasswordErrors((current) => ({ ...current, [name]: validatePassword(name, value) }));
   }
 
   async function saveProfile(event) {
@@ -169,13 +167,19 @@ export default function AccountSettingsPage() {
     const email = form.email.trim();
     const phone = form.phone.trim();
 
-    if (!firstName || !lastName || !email) {
-      setMessage({ type: 'error', text: 'First name, last name, and email are required.' });
+    const errors = {
+      firstName: validateDetail('firstName', firstName),
+      lastName: validateDetail('lastName', lastName),
+      email: validateDetail('email', email),
+    };
+    setDetailErrors(errors);
+    if (Object.values(errors).some(Boolean)) {
+      setStatus('details', null);
       return;
     }
 
-    setLoading(true);
-    setMessage(null);
+    setSavingSection('details');
+    setStatus('details', null);
     try {
       let syncedUser = currentUser;
       if (supabase) {
@@ -206,8 +210,7 @@ export default function AccountSettingsPage() {
 
       // The photo is not in here any more: it lives in Supabase Auth metadata,
       // which is what lets it follow the account to another browser.
-      const extras = { phone };
-      saveJson(PROFILE_EXTRAS_KEY, extras);
+      saveJson(PROFILE_EXTRAS_KEY, { phone });
       setLoggedInUser({
         ...currentUser,
         ...syncedUser,
@@ -220,83 +223,79 @@ export default function AccountSettingsPage() {
         role: currentUser?.role || syncedUser?.role || 'VEHICLE_OWNER',
         accessToken: currentUser?.accessToken,
       });
-      setMessage({
-        type: 'success',
+      setStatus('details', {
+        tone: 'ok',
         text: email !== currentUser?.email
-          ? 'Profile saved. Check your inbox if Supabase requires email confirmation.'
-          : 'Profile changes saved.',
+          ? 'Saved. Check your inbox to confirm the new email address.'
+          : 'Saved a moment ago.',
       });
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Could not save profile changes.' });
+      setStatus('details', { tone: 'bad', text: error.message || 'Could not save your details.' });
     } finally {
-      setLoading(false);
+      setSavingSection(null);
     }
   }
 
   async function updatePassword(event) {
     event.preventDefault();
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setMessage({ type: 'error', text: 'Complete all password fields.' });
-      return;
-    }
-    if (passwordForm.newPassword.length < 8) {
-      setMessage({ type: 'error', text: 'New password must be at least 8 characters.' });
-      return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setMessage({ type: 'error', text: 'New password and confirmation must match.' });
+    const errors = {
+      currentPassword: validatePassword('currentPassword', passwordForm.currentPassword),
+      newPassword: validatePassword('newPassword', passwordForm.newPassword),
+      confirmPassword: validatePassword('confirmPassword', passwordForm.confirmPassword),
+    };
+    setPasswordErrors(errors);
+    if (Object.values(errors).some(Boolean)) {
+      setStatus('password', null);
       return;
     }
     if (!supabase) {
-      setMessage({ type: 'error', text: 'Supabase Auth is not configured, so password changes are unavailable here.' });
+      setStatus('password', { tone: 'bad', text: 'Supabase Auth is not configured, so password changes are unavailable here.' });
       return;
     }
 
-    setLoading(true);
-    setMessage(null);
+    setSavingSection('password');
+    setStatus('password', null);
     try {
       const email = currentUser?.email || form.email;
       const signInResult = await supabase.auth.signInWithPassword({
         email,
         password: passwordForm.currentPassword,
       });
-      if (signInResult.error) throw new Error('Current password is incorrect.');
+      if (signInResult.error) {
+        setPasswordErrors({ currentPassword: 'That is not your current password.' });
+        return;
+      }
 
       const { error } = await supabase.auth.updateUser({ password: passwordForm.newPassword });
       if (error) throw new Error(error.message);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setMessage({ type: 'success', text: 'Password updated.' });
+      setStatus('password', { tone: 'ok', text: 'Password changed.' });
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Could not update password.' });
+      setStatus('password', { tone: 'bad', text: error.message || 'Could not change your password.' });
     } finally {
-      setLoading(false);
+      setSavingSection(null);
     }
   }
 
   function togglePreference(key) {
-    setNotificationPrefs((current) => {
-      const next = { ...current, [key]: !current[key] };
-      // Saving through the shared module is what makes the switch mean
-      // something: it notifies the notification list and the sidebar badge,
-      // which now read these same values.
-      saveNotificationPreferences(next);
-      // Naming the row matters here: seven switches sit in one list and the
-      // banner appears at the bottom of all of them, so "Notification turned
-      // on." left you to remember which one you had just pressed.
-      const label = notificationRows.find(([rowKey]) => rowKey === key)?.[1] ?? 'Notification';
-      setMessage({
-        type: 'success',
-        text: `${label}: ${next[key] ? 'on' : 'off'}.`,
-      });
-      return next;
-    });
+    // Flips optimistically and marks the section dirty. No success banner
+    // per toggle — nothing has been saved yet.
+    setNotificationPrefs((current) => ({ ...current, [key]: !current[key] }));
+    setStatus('notifications', null);
+  }
+
+  function saveNotifications() {
+    // Through the shared module, not straight to localStorage: this is what
+    // notifies the sidebar badge and an open Notifications page.
+    setSavedPrefs(saveNotificationPreferences(notificationPrefs));
+    setStatus('notifications', { tone: 'ok', text: 'Saved a moment ago.' });
   }
 
   /**
-   * The photo saves on its own rather than waiting for Save Changes. It is not
-   * a form field -- there is nothing to review or correct before it applies,
-   * and pairing an immediate preview with a change that silently needed a
-   * second click was the surest way to lose it.
+   * The photo saves on its own rather than waiting for Save details. It is not
+   * a form field — there is nothing to review before it applies, and pairing an
+   * immediate preview with a change that silently needed a second click was the
+   * surest way to lose it.
    */
   async function handlePhotoUpload(event) {
     const file = event.target.files?.[0];
@@ -305,29 +304,15 @@ export default function AccountSettingsPage() {
     if (!file) return;
 
     setUploadingPhoto(true);
-    setMessage(null);
+    setStatus('details', null);
     try {
       const avatar = await uploadProfilePhoto(file);
       setForm((current) => ({ ...current, avatar }));
-      setMessage({ type: 'success', text: 'Profile photo updated.' });
+      setStatus('details', { tone: 'ok', text: 'Photo updated.' });
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Could not update your profile photo.' });
+      setStatus('details', { tone: 'bad', text: error.message || 'Could not update your photo.' });
     } finally {
       setUploadingPhoto(false);
-    }
-  }
-
-  async function revokeSession(sessionId) {
-    setLoading(true);
-    setMessage(null);
-    try {
-      await revokeOwnerMechanicAccessSession(sessionId);
-      setActiveSessions((current) => current.filter((session) => session.mechanicAccessSessionId !== sessionId));
-      setMessage({ type: 'success', text: 'Shared session revoked.' });
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Could not revoke this session.' });
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -340,211 +325,228 @@ export default function AccountSettingsPage() {
     }
   }
 
-  const displayName = `${form.firstName} ${form.lastName}`.trim();
+  function renderStatus(section) {
+    const status = sectionStatus[section];
+    if (!status) return null;
+    return <span className={`set-status ${status.tone}`}>{status.text}</span>;
+  }
 
   return (
-    <main className="page-shell account-settings-page">
-      <section className="page-header">
-        <h1>Account Settings</h1>
-        <p>Manage your account preferences and security</p>
+    <main className="ink-settings">
+      <header className="set-head">
+        <h1>Account settings</h1>
+        <p>Your notifications, your details, and your password.</p>
+      </header>
+
+      <section className="set-section">
+        <div className="set-rail">
+          <h2>Your details</h2>
+          <p>Your name and email are how Trevora identifies you on every record.</p>
+        </div>
+
+        <form className="set-body" onSubmit={saveProfile}>
+          <div className="set-avatar-row">
+            <span className="set-avatar">
+              {form.avatar ? <img alt="" src={form.avatar} /> : initials(form.firstName, form.lastName)}
+            </span>
+            <div className="set-avatar-meta">
+              <span className="set-avatar-name">{displayName || 'Vehicle Owner'}</span>
+              <button
+                className="set-textbutton"
+                type="button"
+                disabled={uploadingPhoto}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadingPhoto ? 'Uploading...' : 'Change photo'}
+              </button>
+              <span className="set-hint faint">{describeAvatarLimit()}</span>
+              <input
+                ref={fileInputRef}
+                className="sr-only"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+              />
+            </div>
+          </div>
+
+          <p className="set-note">
+            Your photo follows your account and saves as soon as you choose it. Your phone number is saved in this
+            browser only — sign in somewhere else and it will not be there.
+          </p>
+
+          <div className="set-grid">
+            <label className={`set-field ${detailErrors.firstName ? 'invalid' : ''}`}>
+              First name
+              <input name="firstName" value={form.firstName} onChange={updateField} onBlur={blurDetail} />
+              {detailErrors.firstName && <span className="set-error">{detailErrors.firstName}</span>}
+            </label>
+            <label className={`set-field ${detailErrors.lastName ? 'invalid' : ''}`}>
+              Last name
+              <input name="lastName" value={form.lastName} onChange={updateField} onBlur={blurDetail} />
+              {detailErrors.lastName && <span className="set-error">{detailErrors.lastName}</span>}
+            </label>
+            <label className={`set-field ${detailErrors.email ? 'invalid' : ''}`}>
+              Email
+              <input name="email" type="email" value={form.email} onChange={updateField} onBlur={blurDetail} />
+              {detailErrors.email && <span className="set-error">{detailErrors.email}</span>}
+            </label>
+            <label className="set-field">
+              Phone
+              <input name="phone" type="tel" value={form.phone} onChange={updateField} placeholder="0917 555 2841" />
+              <span className="set-hint faint">This browser only.</span>
+            </label>
+          </div>
+
+          <div className="set-submit">
+            <button className="set-button" type="submit" disabled={savingSection === 'details'}>
+              {savingSection === 'details' ? 'Saving...' : 'Save details'}
+            </button>
+            {renderStatus('details')}
+          </div>
+        </form>
       </section>
 
-      <section className="account-settings-layout">
-        <aside className="settings-menu">
-          {settingsNav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                className={activeTab === item.id ? 'active' : ''}
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setMessage(null);
-                }}
-              >
-                <Icon size={18} aria-hidden="true" />
-                {item.label}
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
-            );
-          })}
-          <button className="danger" type="button" onClick={handleSignOut}>
-            <LogOut size={18} aria-hidden="true" />
-            Sign Out
-          </button>
-        </aside>
+      <div className="set-rule" />
 
-        {activeTab === 'profile' && (
-          <article className="settings-card">
-            <h2>Profile Information</h2>
-            <p>Update your personal details</p>
+      <section className="set-section">
+        <div className="set-rail">
+          <h2>Password</h2>
+          <p>We ask for your current password first, to make sure it is you.</p>
+        </div>
 
-            <div className="settings-profile-heading">
-              <span className={`settings-avatar ${form.avatar ? 'has-photo' : ''}`}>
-                {form.avatar ? <img alt="" src={form.avatar} /> : initials(form.firstName, form.lastName)}
-              </span>
-              <div>
-                <strong>{displayName}</strong>
-                <small>Vehicle Owner</small>
-                <button
-                  type="button"
-                  disabled={uploadingPhoto}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploadingPhoto ? 'Uploading…' : 'Change photo'}
-                </button>
-                <small className="settings-photo-hint">JPG or PNG, up to {describeAvatarLimit()}.</small>
+        <form className="set-body narrow" onSubmit={updatePassword}>
+          {passwordFields.map(([key, label]) => (
+            <label className={`set-field ${passwordErrors[key] ? 'invalid' : ''}`} key={key}>
+              {label}
+              <span className="set-reveal-wrap">
                 <input
-                  ref={fileInputRef}
-                  className="sr-only"
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
+                  name={key}
+                  type={showPasswords[key] ? 'text' : 'password'}
+                  value={passwordForm[key]}
+                  onChange={updatePasswordField}
+                  onBlur={blurPassword}
                 />
-              </div>
-            </div>
+                <button
+                  className="set-reveal"
+                  type="button"
+                  onClick={() => setShowPasswords((current) => ({ ...current, [key]: !current[key] }))}
+                >
+                  {showPasswords[key] ? 'Hide' : 'Show'}
+                </button>
+              </span>
+              {key === 'newPassword' && !passwordErrors[key] && <span className="set-hint">At least 8 characters.</span>}
+              {passwordErrors[key] && <span className="set-error">{passwordErrors[key]}</span>}
+            </label>
+          ))}
 
-            <form className="settings-form" onSubmit={saveProfile}>
-              <div className="settings-form-grid">
-                <label>
-                  First Name
-                  <input name="firstName" value={form.firstName} onChange={updateField} />
-                </label>
-                <label>
-                  Last Name
-                  <input name="lastName" value={form.lastName} onChange={updateField} />
-                </label>
-              </div>
-              <label>
-                Email Address
-                <input name="email" type="email" value={form.email} onChange={updateField} />
-              </label>
-              <label>
-                Phone Number
-                <input name="phone" value={form.phone} onChange={updateField} placeholder="+63 917 123 4567" />
-              </label>
-              {message && <div className={`${message.type}-banner`}>{message.text}</div>}
-              <div className="settings-actions">
-                <button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</button>
-              </div>
-            </form>
-          </article>
-        )}
+          <div className="set-submit">
+            <button className="set-button" type="submit" disabled={savingSection === 'password'}>
+              {savingSection === 'password' ? 'Changing...' : 'Change password'}
+            </button>
+            {renderStatus('password')}
+          </div>
+        </form>
+      </section>
 
-        {activeTab === 'security' && (
-          <article className="settings-card">
-            <h2>Password & Security</h2>
-            <p>Change your password to keep your account secure</p>
+      <div className="set-rule" />
 
-            <form className="settings-form password-settings-form" onSubmit={updatePassword}>
-              {[
-                ['currentPassword', 'Current Password'],
-                ['newPassword', 'New Password'],
-                ['confirmPassword', 'Confirm New Password'],
-              ].map(([key, label]) => (
-                <label key={key}>
-                  {label}
-                  <span className="password-input-wrap">
-                    <input
-                      name={key}
-                      type={showPasswords[key] ? 'text' : 'password'}
-                      value={passwordForm[key]}
-                      onChange={updatePasswordField}
-                    />
-                    <button
-                      aria-label={showPasswords[key] ? `Hide ${label}` : `Show ${label}`}
-                      type="button"
-                      onClick={() => setShowPasswords((current) => ({ ...current, [key]: !current[key] }))}
-                    >
-                      {showPasswords[key] ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
-                    </button>
+      <section className="set-section">
+        <div className="set-rail">
+          <h2>Notifications</h2>
+          <p>Which of these you want to see while you are using Trevora.</p>
+        </div>
+
+        <div className="set-body">
+          <p className="set-note">
+            These choices are saved in this browser only, and control what appears in Trevora — the notifications list
+            and the count on the sidebar. Trevora does not send email or push notifications.
+          </p>
+
+          <div className="set-group">
+            <span className="set-group-label">Your records</span>
+            <div className="set-card">
+              {recordNotifications.map(([key, title, description]) => (
+                <button
+                  aria-checked={notificationPrefs[key] ? 'true' : 'false'}
+                  className="set-row"
+                  key={key}
+                  role="switch"
+                  type="button"
+                  onClick={() => togglePreference(key)}
+                >
+                  <span className="set-row-text">
+                    <span className="set-row-title">{title}</span>
+                    <span className="set-row-sub">{description}</span>
                   </span>
-                </label>
-              ))}
-              {message && <div className={`${message.type}-banner`}>{message.text}</div>}
-              <div className="settings-actions">
-                <button type="submit" disabled={loading}>{loading ? 'Updating...' : 'Update Password'}</button>
-              </div>
-            </form>
-          </article>
-        )}
-
-        {activeTab === 'notifications' && (
-          <article className="settings-card">
-            <h2>Notification Preferences</h2>
-            <p>Choose which notifications you'd like to receive</p>
-
-            <div className="settings-list">
-              {notificationRows.map(([key, label]) => (
-                <button className="settings-row" key={key} type="button" onClick={() => togglePreference(key)}>
-                  <span>{label}</span>
-                  <span className={`toggle-switch ${notificationPrefs[key] ? 'on' : ''}`} />
+                  <span className="set-row-state">
+                    <span className="set-row-word">{notificationPrefs[key] ? 'On' : 'Off'}</span>
+                    <span className="set-toggle" />
+                  </span>
                 </button>
               ))}
             </div>
-            {message && <div className={`${message.type}-banner settings-inline-message`}>{message.text}</div>}
-          </article>
-        )}
+          </div>
 
-        {activeTab === 'privacy' && (
-          <article className="settings-card">
-            <h2>Privacy & Access History</h2>
-            <p>View who has requested or received access to your vehicle records</p>
-
-            {message && <div className={`${message.type}-banner`}>{message.text}</div>}
-            <div className="access-history-list">
-              {accessRequests.length === 0 ? (
-                <div className="empty-panel compact">No mechanic access requests yet.</div>
-              ) : (
-                accessRequests.map((item) => (
-                  <div className="access-history-row" key={item.mechanicAccessRequestId}>
-                    <div>
-                      <strong>{item.mechanicName || 'Unknown mechanic'}{item.shopName ? ` - ${item.shopName}` : ''}</strong>
-                      <small>
-                        {item.vehicleLabel || 'Selected vehicle'} · Requested {formatDateTime(item.requestedAt)}
-                      </small>
-                    </div>
-                    <span className={`status-pill ${statusClass(item.status)}`}>{item.status}</span>
-                  </div>
-                ))
-              )}
+          <div className="set-group">
+            <div className="set-group-head">
+              <span className="set-group-label">Mechanic access</span>
+              <span className="set-group-note">These are about who can see your records.</span>
             </div>
-          </article>
-        )}
+            <div className="set-card">
+              {accessNotifications.map(([key, title, description]) => (
+                <button
+                  aria-checked={notificationPrefs[key] ? 'true' : 'false'}
+                  className="set-row"
+                  key={key}
+                  role="switch"
+                  type="button"
+                  onClick={() => togglePreference(key)}
+                >
+                  <span className="set-row-text">
+                    <span className="set-row-title">{title}</span>
+                    <span className="set-row-sub">{description}</span>
+                  </span>
+                  <span className="set-row-state">
+                    <span className="set-row-word">{notificationPrefs[key] ? 'On' : 'Off'}</span>
+                    <span className="set-toggle" />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-        {activeTab === 'sessions' && (
-          <article className="settings-card">
-            <h2>Active Shared Sessions</h2>
-            <p>Manage currently active mechanic access sessions</p>
+          <div className="set-submit">
+            <button className="set-button" type="button" disabled={unsavedPrefCount === 0} onClick={saveNotifications}>
+              Save notifications
+            </button>
+            {unsavedPrefCount > 0
+              ? <span className="set-status pending">{changeCountLabel(unsavedPrefCount)}</span>
+              : renderStatus('notifications')}
+          </div>
+        </div>
+      </section>
 
-            {message && <div className={`${message.type}-banner`}>{message.text}</div>}
-            {activeSessions.length > 0 ? (
-              <div className="active-session-list">
-                {activeSessions.map((session) => (
-                  <div className="active-session-card" key={session.mechanicAccessSessionId}>
-                    <span className="session-clock"><Clock3 size={16} aria-hidden="true" /></span>
-                    <div>
-                      <strong>
-                        {session.mechanicName || 'Mechanic'}{session.shopName ? ` - ${session.shopName}` : ''}
-                      </strong>
-                      <small>{session.vehicleLabel} · {minutesRemaining(session.expiresAt)}</small>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => revokeSession(session.mechanicAccessSessionId)}
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-panel compact">No active shared sessions.</div>
-            )}
-            <p className="settings-footnote">All sessions automatically expire after the approved time limit.</p>
-          </article>
+      <div className="set-rule" />
+
+      <section className="set-signout">
+        <div className="set-signout-text">
+          <span className="set-signout-title">
+            {signOutConfirming ? 'Sign out of Trevora?' : 'Sign out of Trevora'}
+          </span>
+          <span className="set-signout-sub">On this device. Your records stay where they are.</span>
+        </div>
+        {signOutConfirming ? (
+          <div className="set-confirm">
+            <button className="set-button danger" type="button" onClick={handleSignOut}>Sign out</button>
+            <button className="set-button quiet" type="button" onClick={() => setSignOutConfirming(false)}>
+              Stay signed in
+            </button>
+          </div>
+        ) : (
+          <button className="set-button danger" type="button" onClick={() => setSignOutConfirming(true)}>
+            Sign out
+          </button>
         )}
       </section>
     </main>
