@@ -1063,6 +1063,87 @@
   text-align: right;
 }
 
+/* An empty service says what the emptiness costs, rather than just offering a
+   button. */
+.flow-lines-empty {
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.flow-lines-empty strong { font-size: 15px; font-weight: 600; }
+.flow-lines-empty span { font-size: 15px; color: var(--ink-muted); line-height: 1.55; }
+
+/* The description cell holds the input and, when the receipt printed one, the
+   part number underneath it. */
+.flow-lines__desc {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.flow-lines__code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  padding-left: 2px;
+}
+
+/* The kind legend. Collapsed by default: the explanation matters, but only to
+   the owner who is unsure, and it must not cost every other owner four
+   sentences of reading on every service. */
+.flow-kinds {
+  border-top: 1px solid var(--rule-faint);
+  padding: 14px 24px 18px;
+}
+
+.flow-kinds > summary {
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: revert;
+}
+
+.flow-kinds dl {
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.flow-kinds dl > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.flow-kinds dt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.flow-kinds dd {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 767px) {
+  .flow-kinds { padding: 14px 17px 18px; }
+  .flow-kinds dl > div { grid-template-columns: 1fr; gap: 2px; }
+}
+
 .flow-done__foot {
   padding: 18px 24px;
   display: flex;
