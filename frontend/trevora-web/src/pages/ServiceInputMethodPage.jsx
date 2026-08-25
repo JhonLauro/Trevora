@@ -1,255 +1,221 @@
-import { useNavigate, useParams } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Car, CheckCircle2 } from 'lucide-react';
-import StepIndicator from '../components/StepIndicator';
-import {
-  clearActiveVehicleSelection,
-  displayVehicleName,
-  displayVehicleSubtitle,
-  getActiveVehicleId,
-  setActiveVehicleSelection,
-} from '../api/activeVehicle.js';
-import { getVehicle, getVehicles } from '../api/vehicles';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Check, FileText, Mic, PenLine } from 'lucide-react';
+import FlowChrome from '../components/flow/FlowChrome';
+import useGarage from '../hooks/useGarage.js';
+import { getVehicle } from '../api/vehicles';
+import { displayVehicleName } from '../utils/vehicleText';
+import { relativeDays } from '../utils/format';
+
+/**
+ * Steps 1 and 2 — which vehicle, and how.
+ *
+ * <p>They stay two screens rather than merging. Step 1 is cheap because it is
+ * skipped on the normal way in: entering from a vehicle page starts at step 2
+ * with the car already named in the bar. Merging them would put a question the
+ * owner has usually already answered in front of the one they came to answer.
+ *
+ * <p>The method cards no longer carry R / V / M letter tiles. Each says what
+ * happens to what you give us, because that is the actual difference between
+ * the three — not speed. The recommendation is an outlined word, not a
+ * coloured ribbon: chroma is not available for emphasis here.
+ */
 
 const methods = [
   {
     key: 'receipt',
     title: 'Photo of the receipt',
-    badge: 'Recommended',
-    icon: 'R',
-    // No provider names. They reassured a developer that the mock was off and
-    // implied to everyone else that some receipts get fake OCR.
-    description: 'Photograph or upload the receipt and we read the details off it. You check them before anything is saved.',
-    meta: 'Works best on a flat, well-lit receipt.'
+    icon: FileText,
+    recommended: true,
+    body: 'We read the details off it. Multi-page receipts are fine — keep them in printed order.',
+    foot: 'Every field will show where its value came from.',
+    cta: 'Continue with a photo',
   },
   {
     key: 'voice',
     title: 'Voice note',
-    badge: 'Quick entry',
-    icon: 'V',
-    description: 'Say what was done and we write it down for you to check.',
-    meta: 'Useful when the receipt is long gone.'
+    icon: Mic,
+    body: 'Say what was done. We write it down, and you can edit every word of it.',
+    foot: 'Quickest when you have no paper.',
+    cta: 'Continue with a voice note',
   },
   {
     key: 'manual',
     title: 'Type it in',
-    badge: 'Your own words',
-    icon: 'M',
-    description: 'Fill the details in yourself. Nothing is read or guessed.',
-    meta: 'Best when you already know what to enter.'
+    icon: PenLine,
+    body: 'Your own words. Nothing is read or guessed — what you type is what saves.',
+    foot: 'Best for an old record you already know.',
+    cta: 'Continue by typing',
   },
 ];
 
-export default function ServiceInputMethodPage() {
-  const { vehicleId } = useParams();
-  const navigate = useNavigate();
+/** Step 1 — the vehicle, with the numbers that tell them apart. */
+function PickVehicle({ navigate }) {
+  const { garages, loading, error } = useGarage();
+  const [selected, setSelected] = useState('');
+
+  const chosen = garages.find((entry) => entry.vehicle.vehicleId === selected);
+
+  return (
+    <FlowChrome
+      step={1}
+      title="Which vehicle was serviced?"
+      subtitle="Step 1 of 6"
+      onExit={() => navigate('/')}
+    >
+      {error && <div className="flow-alert">{error}</div>}
+
+      {loading ? (
+        <p className="flow-note">Loading your vehicles…</p>
+      ) : garages.length === 0 ? (
+        <section className="flow-card" style={{ padding: 26 }}>
+          <h2 className="flow-done__title">No vehicles yet</h2>
+          <p className="flow-note" style={{ margin: '8px 0 18px' }}>
+            Add a vehicle before recording a service against it.
+          </p>
+          <button className="flow-btn" type="button" onClick={() => navigate('/vehicles/new')}>
+            Add a vehicle
+          </button>
+        </section>
+      ) : (
+        <>
+          <div className="flow-pick">
+            {garages.map(({ vehicle, records }) => {
+              const isSelected = vehicle.vehicleId === selected;
+              return (
+                <button
+                  className={`flow-pick__card${isSelected ? ' is-selected' : ''}`}
+                  type="button"
+                  key={vehicle.vehicleId}
+                  onClick={() => setSelected(vehicle.vehicleId)}
+                  aria-pressed={isSelected}
+                >
+                  <span className="flow-pick__top">
+                    <span>
+                      <span className="flow-pick__name">{displayVehicleName(vehicle)}</span>
+                      <br />
+                      <span className="flow-pick__sub">
+                        {[vehicle.plateNumber, vehicle.bodyType].filter(Boolean).join(' · ') || 'Vehicle'}
+                      </span>
+                    </span>
+                    <span className="flow-pick__tick" aria-hidden="true">
+                      <Check size={14} strokeWidth={3} />
+                    </span>
+                  </span>
+                  <span className="flow-pick__stats">
+                    <span className="flow-stat">
+                      <span className="flow-eyebrow">Records</span>
+                      <span className="flow-stat__value">{records.length}</span>
+                    </span>
+                    <span className="flow-stat">
+                      <span className="flow-eyebrow">Last</span>
+                      <span className="flow-stat__value">
+                        {records[0]?.serviceDate ? relativeDays(records[0].serviceDate) : 'None yet'}
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flow-actions">
+            <p className="flow-note">Entering from a vehicle page? This step is skipped.</p>
+            <button
+              className="flow-btn"
+              type="button"
+              disabled={!chosen}
+              onClick={() => navigate(`/service-input/${chosen.vehicle.vehicleId}`)}
+            >
+              Proceed
+            </button>
+          </div>
+        </>
+      )}
+    </FlowChrome>
+  );
+}
+
+/** Step 2 — the method. */
+function PickMethod({ vehicleId, navigate }) {
   const [vehicle, setVehicle] = useState(null);
-  const [vehicles, setVehicles] = useState([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState(() => getActiveVehicleId() || '');
-  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState('receipt');
   const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
-
-    if (!vehicleId) {
-      setLoading(true);
-      getVehicles()
-        .then((data) => {
-          if (!active) return;
-          setVehicles(data);
-          setVehicle(null);
-          setSelectedVehicleId((current) => {
-            if (current && data.some((item) => item.vehicleId === current)) return current;
-            return '';
-          });
-          if (data.length === 0) {
-            clearActiveVehicleSelection();
-          }
-          setError('');
-        })
-        .catch((err) => {
-          if (active) setError(err.message);
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-
-      return () => {
-        active = false;
-      };
-    }
-
     getVehicle(vehicleId)
-      .then((data) => {
-        if (active) {
-          setVehicle(data);
-          setActiveVehicleSelection(data);
-          setError('');
-        }
-      })
-      .catch((err) => {
-        if (active) {
-          clearActiveVehicleSelection();
-          setError(err.message);
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+      .then((data) => { if (active) { setVehicle(data); setError(''); } })
+      .catch((err) => { if (active) setError(err.message); });
+    return () => { active = false; };
   }, [vehicleId]);
 
-  function handleSelectVehicle(selectedVehicle) {
-    setSelectedVehicleId(selectedVehicle.vehicleId);
-    setActiveVehicleSelection(selectedVehicle);
-    window.dispatchEvent(new Event('trevora:vehicles-changed'));
-  }
-
-  function handleProceed() {
-    const selectedVehicle = vehicles.find((item) => item.vehicleId === selectedVehicleId);
-    if (selectedVehicle) {
-      setActiveVehicleSelection(selectedVehicle);
-      window.dispatchEvent(new Event('trevora:vehicles-changed'));
-      navigate(`/service-input/${selectedVehicle.vehicleId}`);
-    }
-  }
-
-  if (!vehicleId) {
-    const selectedVehicle = vehicles.find((item) => item.vehicleId === selectedVehicleId);
-
-    return (
-      <main className="page-shell">
-        <section className="page-header page-header-row">
-          <div>
-            <h1>Add Service Record</h1>
-            <p>Select the vehicle profile that this service record belongs to.</p>
-          </div>
-        </section>
-
-        <StepIndicator currentStep={1} />
-
-        {error && <div className="alert">{error}</div>}
-
-        {loading ? (
-          <p className="muted">Loading vehicle profiles...</p>
-        ) : vehicles.length === 0 ? (
-          <section className="history-empty-state">
-            <h2>No vehicle profiles yet</h2>
-            <p>Add a vehicle before creating a service record.</p>
-            <button type="button" onClick={() => navigate('/vehicles')}>
-              Add Vehicle
-            </button>
-          </section>
-        ) : (
-          <>
-            <section className="service-selection-panel">
-              <div className="service-selection-heading">
-                <div>
-                  <p className="eyebrow">Vehicle profiles</p>
-                  <h2>Choose one vehicle</h2>
-                  <p>Only records for the selected vehicle will be created in the next steps.</p>
-                </div>
-                <span>{vehicles.length} registered</span>
-              </div>
-
-              <div className="service-vehicle-grid" aria-label="Select vehicle for service record">
-                {vehicles.map((item) => {
-                  const selected = item.vehicleId === selectedVehicleId;
-                  return (
-                    <button
-                      className={`service-vehicle-option ${selected ? 'selected' : ''}`}
-                      key={item.vehicleId}
-                      type="button"
-                      onClick={() => handleSelectVehicle(item)}
-                    >
-                      <span className="service-vehicle-icon">
-                        <Car size={24} strokeWidth={2.2} aria-hidden="true" />
-                      </span>
-                      <span className="service-vehicle-copy">
-                        <strong>{displayVehicleName(item)}</strong>
-                        <small>{displayVehicleSubtitle(item)}</small>
-                        <span className="service-vehicle-meta">
-                          {[item.year, item.make, item.model].filter(Boolean).join(' ') || 'Vehicle profile'}
-                        </span>
-                      </span>
-                      <span className="service-vehicle-status">
-                        {selected ? (
-                          <>
-                            <CheckCircle2 size={16} aria-hidden="true" />
-                            Selected
-                          </>
-                        ) : (
-                          'Select'
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="service-input-action-bar">
-                <div>
-                  <span>Ready for next step</span>
-                  <strong>{selectedVehicle ? displayVehicleName(selectedVehicle) : 'No vehicle selected'}</strong>
-                </div>
-                <button type="button" disabled={!selectedVehicleId} onClick={handleProceed}>
-                  Proceed
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </div>
-            </section>
-          </>
-        )}
-      </main>
-    );
-  }
+  const chosen = methods.find((method) => method.key === selected) ?? methods[0];
 
   return (
-    <main className="page-shell">
-      <section className="page-header page-header-row">
-        <div>
-          <h1>Add Service Record</h1>
-          <p>
-            {loading
-              ? 'Loading selected vehicle...'
-              : vehicle
-                ? `Choose how to capture service details for ${vehicle.nickname || `${vehicle.make} ${vehicle.model}`}.`
-                : 'Choose a vehicle before adding a service record.'}
-              </p>
-        </div>
-        <button className="button-secondary back-step-button" type="button" onClick={() => navigate('/service-input')}>
-          <ArrowLeft size={18} aria-hidden="true" />
-          Back to Select Vehicle
+    <FlowChrome
+      step={2}
+      vehicleName={vehicle ? displayVehicleName(vehicle) : ''}
+      title="How do you want to add it?"
+      subtitle="Step 2 of 6 · you will check everything before it saves, whichever you pick"
+      onExit={() => navigate('/')}
+    >
+      {error && <div className="flow-alert">{error}</div>}
+
+      <div className="flow-methods">
+        {methods.map((method) => {
+          const Icon = method.icon;
+          const isSelected = method.key === selected;
+          return (
+            <button
+              className={`flow-method${isSelected ? ' is-selected' : ''}`}
+              type="button"
+              key={method.key}
+              onClick={() => setSelected(method.key)}
+              onDoubleClick={() => navigate(`/service-input/${vehicleId}/${method.key}`)}
+              aria-pressed={isSelected}
+            >
+              <span className="flow-method__top">
+                <Icon size={30} strokeWidth={1.5} aria-hidden="true" />
+                {method.recommended && <span className="flow-method__rec">Recommended</span>}
+              </span>
+              <span>
+                <span className="flow-method__title">{method.title}</span>
+                <br />
+                <span className="flow-method__body">{method.body}</span>
+              </span>
+              <span className="flow-method__spacer" />
+              <span className="flow-method__foot">{method.foot}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flow-actions">
+        <button
+          className="flow-btn flow-btn--ghost"
+          type="button"
+          onClick={() => navigate('/service-input')}
+        >
+          Back
         </button>
-      </section>
-
-      <StepIndicator currentStep={2} />
-
-      {error && <div className="alert">{error}</div>}
-
-      <section className="method-grid">
-        {methods.map((method) => (
-          <button
-            className="method-card"
-            disabled={loading || Boolean(error)}
-            key={method.key}
-            onClick={() => navigate(`/service-input/${vehicleId}/${method.key}`)}
-            type="button"
-          >
-            <span className="method-topline">
-              <span className="method-icon">{method.icon}</span>
-              <span className="method-badge">{method.badge}</span>
-            </span>
-            <strong>{method.title}</strong>
-            <span>{method.description}</span>
-            <small>{method.meta}</small>
-          </button>
-        ))}
-      </section>
-    </main>
+        <button
+          className="flow-btn"
+          type="button"
+          onClick={() => navigate(`/service-input/${vehicleId}/${chosen.key}`)}
+        >
+          {chosen.cta}
+        </button>
+      </div>
+    </FlowChrome>
   );
+}
+
+export default function ServiceInputMethodPage() {
+  const { vehicleId } = useParams();
+  const navigate = useNavigate();
+
+  return vehicleId
+    ? <PickMethod vehicleId={vehicleId} navigate={navigate} />
+    : <PickVehicle navigate={navigate} />;
 }

@@ -14,6 +14,10 @@ import './styles/ink-auth.css';
 import './styles/ink-garage.css';
 // Vehicle page. Builds on ink-garage.css primitives, so it comes after.
 import './styles/ink-vehicle.css';
+// Adding a service record, and checking it before saving. Last, because these
+// screens were the final ones still on the pre-Ink tokens in styles.css and
+// this layer has to win over them.
+import './styles/service-flow.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

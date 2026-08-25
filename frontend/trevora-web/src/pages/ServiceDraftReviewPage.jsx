@@ -1,34 +1,56 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import StoredReceiptPreview from '../components/StoredReceiptPreview';
-import ServiceItemsEditor from '../components/ServiceItemsEditor';
-import ReceiptBalance from '../components/ReceiptBalance';
+import FlowChrome from '../components/flow/FlowChrome';
+import ReceiptStrip from '../components/flow/ReceiptStrip';
+import ReviewField, { signalFor } from '../components/flow/ReviewField';
+import RecordIssueBand from '../components/flow/RecordIssueBand';
+import StatusRail from '../components/flow/StatusRail';
+import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/ServiceLinesEditor';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import { serializeLineEntries } from '../utils/serviceLines';
-import { attentionCount, fieldSignal, isBlankOptionalField, issuesByField } from '../utils/fieldConfidence';
+import { issuesByField } from '../utils/fieldConfidence';
+import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
 /**
- * The one screen between an extracted draft and confirming it.
+ * Step 4 — the one screen between an extracted draft and confirming it.
  *
- * <p>This used to be three: a read-only "structured draft" view, a review
- * screen whose inputs were editable but discarded on navigation, and a
- * correction screen that actually saved. The owner met an editable field on
- * their second screen and a field that saved on their third, with no way to
- * tell the two apart. Everything here saves.
+ * <p>It used to be three screens: a read-only draft view, a review screen
+ * whose inputs were editable but discarded on navigation, and a correction
+ * screen that actually saved. Merging them fixed that. **Everything here
+ * saves**, and that invariant is load-bearing — do not add a control that
+ * looks editable and is not.
+ *
+ * <p>What this redesign changes is that there is now **one layout** rather
+ * than two. Receipt drafts used to get an inline model with no sidebar, and
+ * voice and manual drafts got a sidebar model. The receipt branch dropped the
+ * sidebar because two columns of receipt-and-fields left no room for a third —
+ * and with the sidebar went every non-blocking warning, the possible-duplicate
+ * notice, and the entire review summary. On the most common path. Meanwhile
+ * the count in the header still counted them, so the bar could read "3 fields
+ * to check" on a screen that showed nothing to check.
+ *
+ * <p>The fix is structural: the receipt is a page strip above the fields
+ * rather than a column beside them, which frees the second column for the
+ * rail. Record-level issues get a band under the bar, because no field badge
+ * can carry them. Every rail row is a jump link, so the count always resolves
+ * to something reachable.
  */
 
-// Order follows how a receipt is read rather than the database column order:
-// when it happened, how far the vehicle had gone, what it cost, who did it.
+// Receipt-reading order, not database column order: when it happened, how far
+// the vehicle had gone, what it cost, who did it.
 const editableFields = [
-  ['serviceDate', 'Service date', 'date', true],
-  ['odometer', 'Odometer at service', 'number', false],
+  ['serviceDate', 'Date of service', 'date', true],
+  ['odometer', 'Odometer', 'number', false],
   ['totalCost', 'Total cost', 'number', true],
   ['shopName', 'Shop name', 'text', false],
-  ['location', 'Shop location', 'text', false],
+  ['location', 'Location', 'text', false],
   ['remarks', 'Remarks', 'textarea', false],
 ];
+
+const fieldDomId = (key) => `field-${key}`;
+const DONE_ID = 'what-was-done';
 
 function draftToForm(draft) {
   const form = editableFields.reduce((accumulator, [key]) => {
@@ -70,7 +92,9 @@ function serializeCorrections(form) {
       serviceCategory: item.serviceCategory?.trim() || null,
       partsReplaced: item.partsReplaced?.trim() || null,
       laborPerformed: item.laborPerformed?.trim() || null,
-      lineCost: item.lineCost === '' || item.lineCost === undefined || item.lineCost === null ? null : Number(item.lineCost),
+      lineCost: item.lineCost === '' || item.lineCost === undefined || item.lineCost === null
+        ? null
+        : Number(item.lineCost),
       lineEntries: serializeLineEntries(item.lineEntries),
       sortOrder: index,
     })),
@@ -82,10 +106,10 @@ function vehicleDisplayName(vehicle, draft) {
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 }
 
-function vehicleSubtext(vehicle, draft) {
-  if (!vehicle) return draft?.vehicleId ?? '';
+function vehicleSubtext(vehicle) {
+  if (!vehicle) return '';
   return `${[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}${
-    vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''
+    vehicle.plateNumber ? ` · ${vehicle.plateNumber}` : ''
   }`;
 }
 
@@ -106,292 +130,20 @@ function coverageHint(form) {
   if (covered >= total) {
     return 'Fully covered — this record will show as costing you nothing.';
   }
-  return `You paid ${(total - covered).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} of ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
-}
-
-function classificationFromDraft(draft) {
-  const classification = draft?.fieldMetadata?.classification;
-  return classification && typeof classification === 'object' ? classification : null;
-}
-
-/** Every note the extractor left, in the order it left them. */
-function extractionNotes(metadata = {}) {
-  const lists = ['warnings', 'confidenceNotes', 'extractionErrors']
-    .map((key) => (Array.isArray(metadata[key]) ? metadata[key] : []));
-  return lists.flat().filter(Boolean).map(String);
-}
-
-function DraftField({ field, form, draft, issue, updateField }) {
-  const [key, label, type, required] = field;
-  const value = form[key] ?? '';
-  const visibleIssue = isBlankOptionalField(issue, form) ? null : issue;
-  const { status, label: badgeText, quote } = fieldSignal({
-    draft, fieldName: key, value, issue: visibleIssue,
+  const money = (value) => value.toLocaleString(undefined, {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
   });
-  const className = [
-    'review-field',
-    'extraction-field-card',
-    visibleIssue?.blocksConfirmation ? 'field-needs-review' : '',
-    status ? `field-status-${status}` : '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <label className={className}>
-      <span className="field-label-row">
-        <span>
-          {label}
-          {required ? ' *' : ''}
-          {!required && key === 'odometer' ? <span className="badge subtle">Optional</span> : null}
-        </span>
-        {badgeText && (
-          <span className={`field-confidence-badge ${status ? `field-confidence-${status}` : ''}`}>{badgeText}</span>
-        )}
-      </span>
-      {type === 'textarea' ? (
-        <textarea name={key} value={value} onChange={updateField} rows="3" />
-      ) : (
-        <input
-          name={key}
-          type={type}
-          min={type === 'number' ? '0' : undefined}
-          step={key === 'totalCost' ? '0.01' : undefined}
-          value={value}
-          onChange={updateField}
-        />
-      )}
-      {quote && <small className="field-source-hint">{quote}</small>}
-      {!quote && visibleIssue?.message && <small className="field-source-hint">{visibleIssue.message}</small>}
-    </label>
-  );
+  return `You paid ${money(total - covered)} of ${money(total)}.`;
 }
 
-function CoverageField({ form, setForm, updateField }) {
-  return (
-    // Off by default and collapsed, because most records have no coverage at
-    // all. A permanent amount field on every entry would tax the common path
-    // to serve the rare one.
-    <div className="review-field extraction-field-card">
-      <label className="coverage-toggle">
-        <input
-          type="checkbox"
-          name="hasCoverage"
-          checked={Boolean(form.hasCoverage)}
-          onChange={(event) => setForm((current) => ({
-            ...current,
-            hasCoverage: event.target.checked,
-            amountCovered: event.target.checked ? current.amountCovered : '',
-          }))}
-        />
-        <span>Insurance or warranty covered part of this</span>
-      </label>
-
-      {form.hasCoverage && (
-        <div className="coverage-amount">
-          <span className="field-label-row"><span>Amount covered</span></span>
-          <input
-            name="amountCovered"
-            type="number"
-            min="0"
-            max={form.totalCost === '' ? undefined : form.totalCost}
-            step="0.01"
-            value={form.amountCovered ?? ''}
-            onChange={updateField}
-          />
-          <small className="field-source-hint">{coverageHint(form)}</small>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ClassificationBadges({ draft }) {
-  const classification = classificationFromDraft(draft);
-  if (!classification) return null;
-  const components = Array.isArray(classification.relatedComponents) ? classification.relatedComponents : [];
-  return (
-    <section className="classification-badges-panel">
-      <div>
-        <strong>How this will be filed</strong>
-        <span>Check the category and the parts of the vehicle this touched.</span>
-      </div>
-      <div className="classification-badge-row">
-        <span className="field-confidence-badge field-confidence-source">{classification.serviceCategory || 'Other'}</span>
-        {components.slice(0, 5).map((component) => (
-          <span className="field-confidence-badge field-confidence-high" key={component}>{component}</span>
-        ))}
-        {classification.needsOwnerReview && <span className="field-confidence-badge field-confidence-low">Check this</span>}
-      </div>
-    </section>
-  );
-}
-
-/**
- * What the machine actually read, so a wrong value can be traced to a
- * misreading rather than guessed at.
- */
-function SourcePanel({ draft }) {
-  const metadata = draft?.fieldMetadata ?? {};
-  const rawOcrText = metadata.rawOcrText;
-  const hasRawOcrText = typeof rawOcrText === 'string' && rawOcrText.trim().length > 0;
-  const notes = extractionNotes(metadata);
-
-  return (
-    <section className="receipt-preview-card">
-      <div className="receipt-preview-header">
-        <strong>Your receipt</strong>
-        <span>
-          {metadata.pageCount ? `${metadata.pageCount} page${metadata.pageCount === 1 ? '' : 's'}` : ''}
-        </span>
-      </div>
-      <StoredReceiptPreview source={draft} title="Saved receipt" />
-
-      {notes.length > 0 && (
-        <div className="ocr-note-list">
-          {notes.map((note) => (
-            <span key={note}>{note}</span>
-          ))}
-        </div>
-      )}
-
-      <p className="receipt-ai-reminder">Check each value against the receipt before saving.</p>
-
-      <details className="ocr-source-panel">
-        <summary>See the text we read from it</summary>
-        <div>
-          {hasRawOcrText ? (
-            <pre>{rawOcrText}</pre>
-          ) : (
-            <div className="ocr-empty-state">
-              <strong>No text could be read from this receipt.</strong>
-              <span>Fill the fields in from the receipt yourself, or go back and retake the photo.</span>
-            </div>
-          )}
-        </div>
-      </details>
-    </section>
-  );
-}
-
-function TranscriptPanel({ draft }) {
-  return (
-    <div className="voice-transcript-card">
-      <strong>What you said</strong>
-      <p>{draft.fieldMetadata?.transcript || 'Nothing was recorded with this one.'}</p>
-    </div>
-  );
-}
-
-/**
- * The blocking issues, inline.
- *
- * <p>The receipt layout is already two columns of receipt and fields, with no
- * room for a sidebar, and a reason the owner cannot save belongs next to the
- * fields rather than off to one side.
- */
-function BlockingCallout({ validation }) {
-  const missing = validation?.missingRequiredFields ?? [];
-  const invalid = validation?.invalidFields ?? [];
-  if (missing.length === 0 && invalid.length === 0) return null;
-
-  return (
-    <section className="helper-card warning">
-      {missing.length > 0 && (
-        <>
-          <h2>Fill these in</h2>
-          <ul className="issue-list">
-            {missing.map((issue) => (
-              <li key={`${issue.fieldName}-${issue.category}`}>
-                <strong>{issue.label}</strong>
-                <span>{issue.message}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {invalid.length > 0 && (
-        <>
-          <h2>These cannot be right</h2>
-          <ul className="issue-list">
-            {invalid.map((issue) => (
-              <li key={`${issue.fieldName}-${issue.category}`}>
-                <strong>{issue.label}</strong>
-                <span>{issue.message}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </section>
-  );
-}
-
-function ValidationSidebar({ validation, form, draft }) {
-  const ready = Boolean(validation?.valid);
-  const needsReview = (validation?.flaggedFields ?? [])
-    .filter((issue) => !isBlankOptionalField(issue, form) && issue.requiresReview);
-  const notes = draft?.inputMethod === 'RECEIPT' ? [] : extractionNotes(draft?.fieldMetadata);
-
-  return (
-    <aside className="guidance-stack">
-      <section className={ready ? 'helper-card success' : 'helper-card warning'}>
-        <h2>{ready ? 'Ready to save' : 'Not ready to save yet'}</h2>
-        <ul className="check-list">
-          {(validation?.reviewSummary ?? []).map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </section>
-
-      <BlockingCallout validation={validation} />
-
-      {needsReview.length > 0 && (
-        <section className="helper-card">
-          <h2>Worth a second look</h2>
-          <ul className="issue-list">
-            {needsReview.map((issue) => (
-              <li key={`${issue.fieldName}-${issue.category}`}>
-                <strong>{issue.label}</strong>
-                <span>{issue.message}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {notes.length > 0 && (
-        <section className="helper-card">
-          <h2>Notes from reading it</h2>
-          <ul className="metadata-note-list">
-            {notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </aside>
-  );
-}
-
-function ReviewActions({ saving, dirty, readyToConfirm, draftId, layout }) {
-  const navigate = useNavigate();
-  const className = layout === 'receipt' ? 'receipt-review-footer' : 'actions';
-
-  return (
-    <div className={className}>
-      {/* Submits the enclosing form; the form's onSubmit is the only save path. */}
-      <button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save changes'}
-      </button>
-      <button
-        className="button-secondary"
-        type="button"
-        disabled={saving || dirty || !readyToConfirm}
-        onClick={() => navigate(`/service-drafts/${draftId}/confirm`)}
-      >
-        {dirty ? 'Save first, then continue' : 'Continue to confirm'}
-      </button>
-    </div>
-  );
+/** How the source is described in the subtitle, in the owner's terms. */
+function sourceLine(draft) {
+  if (draft?.inputMethod === 'RECEIPT') {
+    const pages = Number(draft?.fieldMetadata?.pageCount) || 0;
+    return pages > 1 ? `read off a ${pages}-page receipt` : 'read off your receipt';
+  }
+  if (draft?.inputMethod === 'VOICE') return 'written down from your voice note';
+  return 'typed in by you';
 }
 
 export default function ServiceDraftReviewPage() {
@@ -406,7 +158,7 @@ export default function ServiceDraftReviewPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -441,13 +193,54 @@ export default function ServiceDraftReviewPage() {
   }, [draftId]);
 
   const issueMap = useMemo(() => issuesByField(validation), [validation]);
-  const needsAttention = attentionCount(validation, form);
-  // The server decides. Re-deriving this on the client meant two definitions of
-  // "ready" that only happened to agree.
+
+  // The server decides. Re-deriving this on the client meant two definitions
+  // of "ready" that only happened to agree.
   const readyToConfirm = Boolean(validation?.valid);
+
   // Confirming reads the saved draft, not this form, so unsaved edits would be
   // silently left behind — the exact failure this screen exists to remove.
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved]);
+
+  /**
+   * The rail's two lists, built from the same signals the fields render with.
+   *
+   * <p>Counted from what is actually drawn rather than from the raw validation
+   * payload, so the heading count and the rows can never disagree — which is
+   * precisely how the old bar came to promise fields that were not on screen.
+   */
+  const { blocking, review } = useMemo(() => {
+    if (!draft) return { blocking: [], review: [] };
+    const blockingItems = [];
+    const reviewItems = [];
+
+    for (const [key, label] of editableFields) {
+      const issue = issueMap.get(key);
+      const signal = signalFor(draft, form, key, issue);
+      const tier = tierFor(signal);
+      if (tier === TIER_SETTLED) continue;
+      const entry = {
+        id: fieldDomId(key),
+        name: label,
+        why: issue?.message || signal.label,
+      };
+      if (tier === TIER_BLOCKING) blockingItems.push(entry);
+      else if (tier === TIER_REVIEW) reviewItems.push(entry);
+    }
+
+    // The balance gap is a property of the record's lines rather than of a
+    // field, but it does have somewhere to jump to, so it lists like the rest.
+    const gap = balanceWarning(form.services, form.totalCost);
+    if (gap) reviewItems.push({ id: DONE_ID, name: 'What was done', why: gap });
+
+    return { blocking: blockingItems, review: reviewItems };
+  }, [draft, form, issueMap]);
+
+  const duplicateIssue = useMemo(() => {
+    if (duplicateDismissed) return null;
+    return (validation?.flaggedFields ?? [])
+      .find((issue) => issue.category === 'POSSIBLE_DUPLICATE') ?? null;
+  }, [validation, duplicateDismissed]);
 
   // Closing the tab or reloading. In-app navigation away is handled by the
   // dialog below; between them, there is no path off this screen that drops an
@@ -462,7 +255,7 @@ export default function ServiceDraftReviewPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  function leaveForGarage() {
+  function leaveFlow() {
     if (dirty) {
       setLeavePrompt(true);
       return;
@@ -473,19 +266,16 @@ export default function ServiceDraftReviewPage() {
   function updateField(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
-    setSuccess('');
   }
 
   function updateServices(services) {
     setForm((current) => ({ ...current, services }));
-    setSuccess('');
   }
 
   async function handleSave(event) {
     event.preventDefault();
     setSaving(true);
     setError('');
-    setSuccess('');
 
     try {
       const response = await updateServiceDraftCorrections(draftId, serializeCorrections(form));
@@ -494,9 +284,6 @@ export default function ServiceDraftReviewPage() {
       setValidation(response.validation);
       setForm(next);
       setSaved(next);
-      setSuccess(response.validation?.valid
-        ? 'Saved. This draft is ready to confirm.'
-        : 'Saved. Some fields still need attention before it can be confirmed.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -504,129 +291,129 @@ export default function ServiceDraftReviewPage() {
     }
   }
 
-  const isReceipt = draft?.inputMethod === 'RECEIPT';
-  const fieldNodes = editableFields.map((field) => (
-    <DraftField
-      key={field[0]}
-      field={field}
-      form={form}
-      draft={draft}
-      issue={issueMap.get(field[0])}
-      updateField={updateField}
-    />
-  ));
+  const counts = [
+    blocking.length > 0 && `${blocking.length} to fix`,
+    review.length > 0 && `${review.length} to check`,
+  ].filter(Boolean).join(', ');
+
+  const subtitle = draft
+    ? `Step 4 of 6 · ${sourceLine(draft)}${counts ? ` · ${counts}` : ' · nothing flagged'}`
+    : undefined;
 
   return (
-    <main className="page-shell module-two-page">
-      <section className="page-header">
-        <p className="eyebrow">
-          <button className="inline-link" type="button" onClick={leaveForGarage}>
-            Garage
-          </button>
-          <span>Review</span>
-        </p>
-        <h1>Check the details</h1>
-        <p>
-          {isReceipt
-            ? 'We read these from your receipt. Fix anything that is wrong, then save.'
-            : 'Fix anything that is wrong, then save.'}
-        </p>
-      </section>
-
-      {loading && <p className="muted">Loading...</p>}
-      {error && <div className="alert">{error}</div>}
-      {success && <div className="alert success-alert">{success}</div>}
-
-      {draft && isReceipt && (
-        <section className="receipt-review-surface">
-          <div className="receipt-extraction-bar">
-            <div className="receipt-bar-left">
-              <strong>{vehicleDisplayName(vehicle, draft)}</strong>
-              <span className="mini-chip neutral">{vehicleSubtext(vehicle, draft)}</span>
-            </div>
-            <strong className="attention-count">
-              {needsAttention
-                ? `${needsAttention} field${needsAttention === 1 ? '' : 's'} to check`
-                : 'Nothing flagged'}
-            </strong>
-          </div>
-
-          <div className="receipt-review-grid">
-            <SourcePanel draft={draft} />
-
-            <form className="auto-fields-panel" onSubmit={handleSave}>
-              <div className="auto-fields-header">
-                <h2>Service details</h2>
-                {dirty && <span className="badge subtle">Unsaved changes</span>}
-              </div>
-              <BlockingCallout validation={validation} />
-              <div className="receipt-field-stack">
-                {fieldNodes}
-                <CoverageField form={form} setForm={setForm} updateField={updateField} />
-              </div>
-              <div className="review-field extraction-field-card">
-                <span className="field-label-row">
-                  <span>What was done</span>
-                </span>
-                <ReceiptBalance services={form.services} totalCost={form.totalCost} />
-                <ServiceItemsEditor value={form.services} onChange={updateServices} />
-              </div>
-              <ClassificationBadges draft={draft} />
-              <ReviewActions
-                saving={saving}
-                dirty={dirty}
-                readyToConfirm={readyToConfirm}
-                draftId={draftId}
-                layout="receipt"
-              />
-            </form>
-          </div>
-        </section>
+    <FlowChrome
+      step={4}
+      width="wide"
+      vehicleName={vehicleDisplayName(vehicle, draft)}
+      title="Check the details"
+      subtitle={subtitle}
+      onExit={leaveFlow}
+      onSaveLater={leaveFlow}
+      band={draft && (
+        <RecordIssueBand
+          issue={duplicateIssue}
+          vehicleId={draft.vehicleId}
+          onDismiss={() => setDuplicateDismissed(true)}
+        />
       )}
+    >
+      {loading && <p className="flow-note">Loading…</p>}
+      {error && <div className="flow-alert">{error}</div>}
 
-      {draft && !isReceipt && (
-        <section className="content-two">
-          <form className="panel record-panel review-form" onSubmit={handleSave}>
-            <div className="draft-toolbar">
-              <span className="badge">{draft.inputMethod === 'VOICE' ? 'Voice note' : 'Typed in'}</span>
-              {dirty && <span className="badge subtle">Unsaved changes</span>}
-            </div>
+      {draft && (
+        <form className="flow-check" onSubmit={handleSave}>
+          <div className="flow-check__main">
+            {draft.inputMethod === 'RECEIPT' && <ReceiptStrip draft={draft} />}
 
-            <div className="draft-vehicle-card">
-              <span className="vehicle-icon">V</span>
-              <div>
-                <h2>{vehicleDisplayName(vehicle, draft)}</h2>
-                <p>{vehicleSubtext(vehicle, draft)}</p>
+            {draft.inputMethod === 'VOICE' && (
+              <section className="flow-card flow-source">
+                <div className="flow-source__head">
+                  <span className="flow-eyebrow">Your voice note</span>
+                </div>
+                <p className="flow-transcript">
+                  {draft.fieldMetadata?.transcript || 'Nothing was recorded with this one.'}
+                </p>
+                <p className="flow-source__foot">
+                  Same layout, same rail, same badges. Only this panel differs.
+                </p>
+              </section>
+            )}
+
+            <section className="flow-card flow-fields">
+              {editableFields.map((field) => (
+                <ReviewField
+                  key={field[0]}
+                  field={field}
+                  form={form}
+                  draft={draft}
+                  issue={issueMap.get(field[0])}
+                  updateField={updateField}
+                  fieldId={fieldDomId(field[0])}
+                />
+              ))}
+
+              {/* Off by default and collapsed, because most records have no
+                  coverage at all. A permanent amount field on every entry
+                  would tax the common path to serve the rare one. */}
+              <div className="flow-coverage">
+                <label className="flow-switch">
+                  <input
+                    type="checkbox"
+                    name="hasCoverage"
+                    checked={Boolean(form.hasCoverage)}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      hasCoverage: event.target.checked,
+                      amountCovered: event.target.checked ? current.amountCovered : '',
+                    }))}
+                  />
+                  <span className="flow-switch__track" aria-hidden="true" />
+                  <span>Insurance or warranty covered part of this</span>
+                </label>
+
+                {form.hasCoverage && (
+                  <label className="flow-field">
+                    <span>Amount covered</span>
+                    <input
+                      name="amountCovered"
+                      type="number"
+                      min="0"
+                      max={form.totalCost === '' ? undefined : form.totalCost}
+                      step="0.01"
+                      value={form.amountCovered ?? ''}
+                      onChange={updateField}
+                    />
+                    <span className="flow-note">{coverageHint(form)}</span>
+                  </label>
+                )}
               </div>
-            </div>
+            </section>
 
-            {draft.inputMethod === 'VOICE' && <TranscriptPanel draft={draft} />}
+            <section className="flow-card">
+              <div className="flow-done__head">
+                <div>
+                  <h2 className="flow-done__title">What was done</h2>
+                  <p className="flow-note">A service, then the lines that paid for it.</p>
+                </div>
+              </div>
+              <div style={{ padding: '18px 24px 0' }}>
+                <Balance services={form.services} totalCost={form.totalCost} />
+              </div>
+              <ServiceLinesEditor id={DONE_ID} value={form.services} onChange={updateServices} />
+            </section>
+          </div>
 
-            <div className="form-grid">{fieldNodes}</div>
-
-            <CoverageField form={form} setForm={setForm} updateField={updateField} />
-
-            <div className="review-field">
-              <span className="field-label-row">
-                <span>What was done</span>
-              </span>
-              <ReceiptBalance services={form.services} totalCost={form.totalCost} />
-              <ServiceItemsEditor value={form.services} onChange={updateServices} />
-            </div>
-
-            <ClassificationBadges draft={draft} />
-
-            <ReviewActions
-              saving={saving}
-              dirty={dirty}
-              readyToConfirm={readyToConfirm}
-              draftId={draftId}
-              layout="standard"
-            />
-          </form>
-
-          <ValidationSidebar validation={validation} form={form} draft={draft} />
-        </section>
+          <StatusRail
+            ready={readyToConfirm}
+            blocking={blocking}
+            review={review}
+            vehicleName={vehicleDisplayName(vehicle, draft)}
+            vehicleSubtext={vehicleSubtext(vehicle)}
+            saving={saving}
+            dirty={dirty}
+            onContinue={() => navigate(`/service-drafts/${draftId}/confirm`)}
+          />
+        </form>
       )}
 
       <ConfirmDialog
@@ -637,6 +424,6 @@ export default function ServiceDraftReviewPage() {
         onConfirm={() => navigate('/')}
         onCancel={() => setLeavePrompt(false)}
       />
-    </main>
+    </FlowChrome>
   );
 }
