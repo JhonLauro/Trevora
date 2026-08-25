@@ -198,6 +198,19 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
               )}
             </div>
 
+            {/* Without lines a record is a total and nothing about what it
+                paid for, which is worth saying at the moment it is true
+                rather than discovering later on the history screen. */}
+            {lines.length === 0 && (
+              <div className="flow-lines-empty">
+                <strong>No itemised lines for this service.</strong>
+                <span>
+                  Add them to record what each charge was for. Without them, this record
+                  shows a total and nothing about what it bought.
+                </span>
+              </div>
+            )}
+
             {lines.length > 0 && (
               <div className="flow-lines">
                 <span className="flow-lines__h">Line on the receipt</span>
@@ -206,12 +219,18 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                 <span />
                 {lines.map((line, lineIndex) => (
                   <React.Fragment key={line.entryId ?? `new-line-${lineIndex}`}>
-                    <input
-                      value={line.description ?? ''}
-                      onChange={(event) => updateLine(serviceIndex, lineIndex, { description: event.target.value })}
-                      placeholder="As printed on the receipt"
-                      aria-label={`Line ${lineIndex + 1} description`}
-                    />
+                    <div className="flow-lines__desc">
+                      <input
+                        value={line.description ?? ''}
+                        onChange={(event) => updateLine(serviceIndex, lineIndex, { description: event.target.value })}
+                        placeholder="As printed on the receipt"
+                        aria-label={`Line ${lineIndex + 1} description`}
+                      />
+                      {/* Read off the receipt, not editable: it is evidence,
+                          and a part number nobody typed is one nobody can
+                          mistype. */}
+                      {line.partCode ? <span className="flow-lines__code">{line.partCode}</span> : null}
+                    </div>
                     <select
                       value={line.kind ?? DEFAULT_LINE_KIND}
                       onChange={(event) => updateLine(serviceIndex, lineIndex, { kind: event.target.value })}
@@ -259,6 +278,26 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
           Lines stay in the order they print, so you can read down the paper.
         </span>
       </div>
+
+      {/* The kind is not cosmetic: only a labour line says which part of the
+          vehicle was worked on, so calling a tin of degreaser a Part puts a
+          component on a vehicle that never had one.
+
+          The old editor repeated this explanation under every single line. In
+          a flat table that is the same four sentences five times over, so it
+          is stated once here instead — collapsed, because most receipts are
+          kinded correctly on the first read and only the unsure need it. */}
+      <details className="flow-kinds">
+        <summary>What these kinds mean</summary>
+        <dl>
+          {LINE_KINDS.map((kind) => (
+            <div key={kind.value}>
+              <dt>{kind.label}</dt>
+              <dd>{kind.hint}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   );
 }

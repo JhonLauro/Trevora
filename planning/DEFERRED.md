@@ -843,3 +843,27 @@ global, so any other screen with a button-shaped card that sets its own colour
 has the same failure. Not mine to fix, but worth a sweep — the Garage vehicle
 cards are `<article>` rather than `<button>` and so are safe, which is likely
 why nobody hit this before.
+
+### Three things the flattened lines editor had dropped — 2026-08-25
+
+Flattening `ServiceItemsEditor` into `components/flow/ServiceLinesEditor` lost
+three things from the old `ServiceLineEntriesEditor`. Restored:
+
+- **The per-kind hint.** The old editor printed `LINE_KINDS[].hint` under every
+  line. This is the one that mattered: the kind decides whether a line puts a
+  component on the vehicle's parts map, and "Part / Supplies / Fee" is not
+  self-evident to an owner reading a receipt — a tin of degreaser kinded as a
+  Part adds a component the vehicle never had. It is now stated **once** per
+  editor in a collapsed "What these kinds mean" legend rather than repeated
+  under all five lines, which in a flat table was the same four sentences over
+  and over.
+- **The empty state.** A service with no lines rendered nothing but an "Add a
+  line" button. It now says what the emptiness costs — a total and nothing
+  about what it bought — at the moment it is true, rather than leaving the
+  owner to find out on the history screen.
+- **The part code.** `partCode` round-tripped through the form but was never
+  shown. It is back under the description, read-only and in the mono face,
+  because it is evidence off the receipt rather than something to type.
+
+**No dropdown option was ever missing** — the select maps the full four-element
+`LINE_KINDS`, verified rendering Labour / Part / Supplies / Fee.
