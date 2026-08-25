@@ -14,6 +14,9 @@ import './styles/ink-auth.css';
 import './styles/ink-garage.css';
 // Vehicle page. Builds on ink-garage.css primitives, so it comes after.
 import './styles/ink-vehicle.css';
+// The mechanic's shared view. Last, because it builds on primitives from
+// every file above it and overrides none of them.
+import './styles/ink-mechanic.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

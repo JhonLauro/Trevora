@@ -4,6 +4,7 @@ import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
+import com.trevora.api.features.servicerecord.ValidationStatus;
 import com.trevora.api.shared.dto.ServiceItemResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,6 +19,11 @@ public record MechanicSharedServiceRecordResponse(
         InputMethod sourceInputMethod,
         LocalDate serviceDate,
         List<ServiceItemResponse> services,
+        // Whether a human is accountable for these fields. The mechanic is the
+        // reader with the most at stake in that question — they act on this
+        // data — and until now they were the one reader not told. The page
+        // filled the silence by labelling every shared record "Validated".
+        ValidationStatus validationStatus,
         Integer odometer,
         BigDecimal totalCost,
         String shopName,
@@ -41,6 +47,7 @@ public record MechanicSharedServiceRecordResponse(
                 record.getSourceInputMethod(),
                 record.getServiceDate(),
                 items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
+                record.getValidationStatus(),
                 record.getOdometer(),
                 record.getTotalCost(),
                 record.getShopName(),

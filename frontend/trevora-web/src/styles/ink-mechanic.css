@@ -1,0 +1,236 @@
+/* ----------------------------------------------------------------------
+   Ink — the mechanic's view.
+
+   The one surface with no signed-in user behind it. It is read once, in a
+   minute, by someone standing at a counter, so it is laid out as a briefing:
+   what the vehicle is, whether the history can be believed, what it says.
+
+   Loaded after ink-vehicle.css and builds on its primitives — .ink-card,
+   .ink-badge, .ink-tabs, .ink-table, .ink-link-button. Nothing here
+   redefines one.
+   ---------------------------------------------------------------------- */
+
+.mechanic-page {
+  max-width: 900px;
+}
+
+.mechanic-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.mechanic-header .ink-page__title {
+  margin-top: 4px;
+}
+
+/* Read-only and expiring are conditions of the session, not news. They sit
+   at the edge, stated once, rather than as a banner across the top. */
+.mechanic-header__expiry {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The line that replaced four counters. One sentence, scannable, and it says
+   nothing at all when there are no records — the empty state speaks then. */
+.mechanic-summary {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 8px 0 0;
+}
+
+.mechanic-summary strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mechanic-summary__warn {
+  color: var(--status-warn-text);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- briefing */
+
+.mechanic-briefing {
+  padding: 22px 24px;
+}
+
+.mechanic-briefing ul {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+/* A left edge rather than a filled card: these are notes on the history, and
+   a wall of tinted blocks would read as a wall of alarms. Square, because a
+   single-sided border with rounded corners looks like a mistake. */
+.mechanic-note {
+  border-left: 3px solid var(--rule);
+  padding: 2px 0 2px 14px;
+}
+
+.mechanic-note--warn {
+  border-left-color: var(--status-warn-border);
+}
+
+.mechanic-note--bad {
+  border-left-color: var(--status-bad-border);
+}
+
+.mechanic-note strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.mechanic-note p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 4px 0 0;
+}
+
+/* ------------------------------------------------------------- timeline */
+
+.mechanic-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.mechanic-timeline__year {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mechanic-timeline__head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.mechanic-timeline__head h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mechanic-timeline__head span {
+  background: var(--rule-faint);
+  flex: 1;
+  height: 1px;
+}
+
+.mechanic-timeline__head small {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+.mechanic-record {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+}
+
+.mechanic-record__head {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.mechanic-record__head h3 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.mechanic-record__shop {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 4px 0 0;
+}
+
+.mechanic-record__parts {
+  color: var(--ink);
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Date, odometer and provenance read as one strip of facts rather than a
+   definition list — a mechanic scans across them, not down. */
+.mechanic-record__facts {
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 15px;
+  gap: 8px 18px;
+  padding-top: 12px;
+}
+
+.mechanic-record .ink-link-button {
+  align-self: flex-start;
+}
+
+/* ---------------------------------------------------------------- table */
+
+.mechanic-table {
+  --table-columns: 116px minmax(0, 1.6fr) minmax(0, 1fr) 108px 120px;
+}
+
+.mechanic-table tbody tr {
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------- search */
+
+.mechanic-filter-note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0 0 16px;
+}
+
+/* --------------------------------------------------------------- footer */
+
+.mechanic-footer {
+  align-items: baseline;
+  border-top: 1px solid var(--rule-hairline);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  justify-content: space-between;
+  padding-top: 20px;
+}
+
+.mechanic-footer p {
+  color: var(--ink-faint);
+  font-size: 15px;
+  margin: 0;
+  max-width: 60ch;
+}
+
+@media (max-width: 720px) {
+  .mechanic-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mechanic-record,
+  .mechanic-briefing {
+    padding: 18px;
+  }
+
+  .mechanic-record__head {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
