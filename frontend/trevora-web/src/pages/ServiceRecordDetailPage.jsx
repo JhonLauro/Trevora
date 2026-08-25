@@ -1,64 +1,76 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import { Calendar, Car, FileText, Gauge, MapPin, Store, Wallet, Wrench } from 'lucide-react';
+import AIExplanationPanel from '../components/AIExplanationPanel';
 import ServiceItemsList from '../components/ServiceItemsList';
+import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
-import AIExplanationPanel from '../components/AIExplanationPanel';
+import { formatAmount, formatDate, formatOdometer } from '../utils/format';
+import { needsReview, recordStatusLabel, sourceLabel } from '../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
+import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 
-function vehicleName(vehicle, record) {
-  if (vehicle) return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
-  return record?.vehicleId ?? 'Selected vehicle';
-}
+/**
+ * One confirmed service record, in full.
+ *
+ * Rewritten off the pre-Ink classes, and with three claims removed that the
+ * page had no basis for making:
+ *
+ * - **A hardcoded "Validated" badge on every record.** The same assertion
+ *   migration 009 exists to prevent, and the same one the mechanic view was
+ *   making. Status now comes from `validationStatus`.
+ * - **"Verified" beside the vehicle, and "Confirmed" beside every field.**
+ *   Printed unconditionally, including on fields OCR guessed and nobody
+ *   checked. A per-field confidence badge is only honest if it reads the
+ *   per-field confidence, so rather than fake it, the record's one real
+ *   status is stated once at the top.
+ * - **An "AI explanation" badge** that appeared whether or not one existed.
+ *
+ * The letter-in-a-circle icons are gone too. They came from
+ * `label.charAt(0)`, so Service Date, Shop Name and Shop Location all
+ * rendered an identical "S" — three different fields wearing the same badge.
+ */
 
-function vehicleSubtitle(vehicle) {
-  if (!vehicle) return '';
-  return `${[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ')}${
-    vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''
-  }`;
-}
+/* One icon per field, none repeating. Decorative only — every row states its
+   own label, so a screen reader loses nothing by skipping them.
 
-function formatMoney(value) {
-  if (value === null || value === undefined || value === '') return 'Not provided';
-  return `PHP ${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDate(value) {
-  if (!value) return 'No date';
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function sourceLabel(record) {
-  if (!record) return 'Service record';
-  const source = record.sourceInputMethod === 'RECEIPT' ? 'Receipt' : record.sourceInputMethod === 'VOICE' ? 'Voice' : 'Manual';
-  return `${source} source`;
-}
-
-function relatedComponents(record) {
-  if (Array.isArray(record?.relatedComponents)) return record.relatedComponents;
-  const components = record?.classification?.relatedComponents;
-  return Array.isArray(components) ? components : [];
-}
-
-const detailFields = [
-  ['serviceDate', 'Service Date', (record) => formatDate(record.serviceDate)],
-  ['odometer', 'Odometer at Service', (record) => (record.odometer != null ? `${Number(record.odometer).toLocaleString()} km` : 'Not provided')],
-  ['shopName', 'Shop Name', (record) => record.shopName || 'Not provided'],
-  ['location', 'Shop Location', (record) => record.location || 'Not provided'],
-  ['totalCost', 'Total Cost', (record) => formatMoney(record.totalCost)],
-  ['remarks', 'Remarks', (record) => record.remarks || 'Not provided'],
+   Each `value` returns null when there is nothing to show and Field supplies
+   the wording, which is what keeps a missing reading from being dressed as a
+   present one: "NOT RECORDED" set in tabular mono read with more weight than
+   the odometer readings it was standing in for. */
+const DETAIL_FIELDS = [
+  { key: 'serviceDate', label: 'Service date', icon: Calendar, value: (r) => (r.serviceDate ? formatDate(r.serviceDate) : null) },
+  { key: 'odometer', label: 'Odometer', icon: Gauge, mono: true, value: (r) => (r.odometer != null ? formatOdometer(r.odometer) : null) },
+  { key: 'shopName', label: 'Shop', icon: Store, value: (r) => r.shopName || null },
+  { key: 'location', label: 'Location', icon: MapPin, value: (r) => r.location || null },
+  { key: 'remarks', label: 'Remarks', icon: FileText, value: (r) => r.remarks || null, absent: 'None given' },
 ];
 
 function serviceCategories(record) {
-  const categories = (record?.services ?? [])
-    .map((item) => item.serviceCategory)
-    .filter(Boolean);
-  return [...new Set(categories)];
+  return [...new Set((record?.services ?? []).map((item) => item.serviceCategory).filter(Boolean))];
+}
+
+/**
+ * One labelled fact.
+ *
+ * A null value is a statement about the record, not a value in it, so it
+ * loses the mono treatment and recedes rather than sitting at full weight
+ * beside real data.
+ */
+function Field({ icon: Icon, label, value, mono, absent = 'Not recorded' }) {
+  const missing = value == null || value === '';
+  return (
+    <div className="record-field">
+      <span className="record-field__icon" aria-hidden="true"><Icon size={18} /></span>
+      <div className="record-field__body">
+        <span className="ink-eyebrow">{label}</span>
+        <span className={`record-field__value${mono && !missing ? ' ink-mono' : ''}${missing ? ' is-empty' : ''}`}>
+          {missing ? absent : value}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function ServiceRecordDetailPage() {
@@ -67,10 +79,6 @@ export default function ServiceRecordDetailPage() {
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    window.localStorage.setItem('trevora.activeVehicleId', vehicleId);
-  }, [vehicleId]);
 
   useEffect(() => {
     let active = true;
@@ -93,120 +101,160 @@ export default function ServiceRecordDetailPage() {
         if (active) setLoading(false);
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [vehicleId, recordId]);
 
+  if (loading) {
+    return (
+      <main className="ink-page record-page">
+        <p className="ink-page__summary">Loading this record…</p>
+      </main>
+    );
+  }
+
+  if (error || !record) {
+    return (
+      <main className="ink-page record-page">
+        <section className="ink-empty">
+          <h1 className="ink-empty__title">This record could not be opened</h1>
+          <p className="ink-empty__body">{error || 'It may have been deleted.'}</p>
+          <div className="ink-empty__actions">
+            <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}`}>Back to the vehicle</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const name = vehicle ? displayVehicleName(vehicle) : 'Vehicle';
+  const unreviewed = needsReview(record);
+
   return (
-    <main className="page-shell module-three-page">
-      <section className="record-detail-topbar">
-        <Link className="inline-link" to={`/vehicles/${vehicleId}/history`}>
-          Back to History
-        </Link>
-        <Link className="inline-link" to={`/vehicles/${vehicleId}/share`}>
-          Share Access
-        </Link>
-      </section>
+    <main className="ink-page record-page">
+      <nav className="vehicle-crumbs" aria-label="Breadcrumb">
+        <Link to="/">Garage</Link>
+        <span aria-hidden="true">/</span>
+        <Link to={`/vehicles/${vehicleId}`}>{name}</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{formatDate(record.serviceDate)}</span>
+      </nav>
 
-      {loading && <p className="muted">Loading service record...</p>}
-      {error && <div className="alert">{error}</div>}
+      <header className="record-header">
+        <div>
+          <h1 className="ink-page__title">{serviceItemsSummaryLabel(record.services)}</h1>
+          <p className="ink-page__summary">
+            {name} · {formatDate(record.serviceDate)} · {sourceLabel(record.sourceInputMethod)}
+          </p>
+          <div className="record-header__badges">
+            {/* The record's one real status, read from the column rather than
+                asserted. Everything beside it is a category, not a claim. */}
+            <span className={`ink-badge ink-badge--${unreviewed ? 'warn' : 'ok'}`}>
+              {recordStatusLabel(record)}
+            </span>
+            {serviceCategories(record).map((category) => (
+              <span className="ink-badge ink-badge--none" key={category}>{category}</span>
+            ))}
+          </div>
+        </div>
+        <div className="record-header__cost">
+          <span className="ink-eyebrow">Total cost</span>
+          <strong>PHP {formatAmount(record.totalCost)}</strong>
+          {record.amountCovered > 0 && (
+            <span className="record-header__covered">PHP {formatAmount(record.amountCovered)} covered</span>
+          )}
+        </div>
+      </header>
 
-      {record && (
-        <>
-          <section className="record-detail-header">
-            <div>
-              <h1>{serviceItemsSummaryLabel(record.services)}</h1>
-              <p>
-                {vehicleName(vehicle, record)} · {formatDate(record.serviceDate)}
-              </p>
-              <div className="record-detail-badges">
-                <span className="badge">Validated</span>
-                {serviceCategories(record).map((category) => (
-                  <span className="badge subtle" key={category}>{category}</span>
-                ))}
-                {relatedComponents(record).slice(0, 4).map((component) => (
-                  <span className="badge subtle" key={component}>{component}</span>
-                ))}
-                <span className="badge subtle">{sourceLabel(record)}</span>
-                <span className="badge subtle">AI explanation</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="record-detail-layout">
-            <article className="record-detail-card">
-              <div className="record-detail-card-header">
-                <h2>Record Details</h2>
-                <span>From: {sourceLabel(record)}</span>
-              </div>
-
-              <div className="record-field-list">
-                <div className="record-field-row">
-                  <span className="record-field-icon">V</span>
-                  <div>
-                    <span>Vehicle</span>
-                    <strong>{vehicleName(vehicle, record)}</strong>
-                    {vehicleSubtitle(vehicle) && <small>{vehicleSubtitle(vehicle)}</small>}
-                  </div>
-                  <span className="field-confidence-badge field-confidence-high">Verified</span>
-                </div>
-
-                <div className="record-field-row record-field-row-services">
-                  <span className="record-field-icon">S</span>
-                  <div>
-                    <span>Services</span>
-                    <ServiceItemsList services={record.services} />
-                  </div>
-                </div>
-
-                {detailFields.map(([key, label, getValue]) => (
-                  <div className="record-field-row" key={key}>
-                    <span className="record-field-icon">{label.charAt(0)}</span>
-                    <div>
-                      <span>{label}</span>
-                      <strong>{getValue(record)}</strong>
-                    </div>
-                    <span className="field-confidence-badge field-confidence-high">Confirmed</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <aside className="record-detail-side">
-              <AIExplanationPanel recordId={record.recordId} />
-
-              {record.receiptStoragePath && (
-                <section className="record-source-card">
-                  <StoredReceiptPreview source={record} title="Stored receipt" />
-                </section>
-              )}
-
-              <section className="record-source-card">
-                <h2>Source Reference</h2>
-                <dl className="compact-facts">
-                  <div>
-                    <dt>Source</dt>
-                    <dd>{sourceLabel(record)}</dd>
-                  </div>
-                  <div>
-                    <dt>Record ID</dt>
-                    <dd>{record.recordId}</dd>
-                  </div>
-                  <div>
-                    <dt>Draft trace</dt>
-                    <dd>{record.draftId}</dd>
-                  </div>
-                  <div>
-                    <dt>Saved</dt>
-                    <dd>{record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Not provided'}</dd>
-                  </div>
-                </dl>
-              </section>
-            </aside>
-          </section>
-        </>
+      {unreviewed && (
+        <p className="record-notice">
+          Nobody has checked these fields against the receipt. They were read automatically and
+          saved as-is — open the vehicle's timeline to mark this reviewed once you have.
+        </p>
       )}
+
+      <div className="record-layout">
+        <div className="record-main">
+          <section className="ink-card record-card">
+            <div className="record-card__head">
+              <h2 className="ink-section-title">
+                <Wrench size={18} aria-hidden="true" /> What was done
+              </h2>
+            </div>
+            <ServiceItemsList services={record.services} />
+          </section>
+
+          <section className="ink-card record-card">
+            <div className="record-card__head">
+              <h2 className="ink-section-title">Details</h2>
+            </div>
+
+            <div className="record-fields">
+              <Field
+                icon={Car}
+                label="Vehicle"
+                /* The subtitle already carries plate, year, make and model.
+                   Prefixing the name too printed "Honda Beat · ABC-123 ·
+                   2021 Honda Beat" — and the heading above says the name
+                   anyway, so this row is for the identifying specifics. */
+                value={vehicle ? (displayVehicleSubtitle(vehicle) || name) : null}
+              />
+              {DETAIL_FIELDS.map((field) => (
+                <Field
+                  key={field.key}
+                  icon={field.icon}
+                  label={field.label}
+                  value={field.value(record)}
+                  mono={field.mono}
+                />
+              ))}
+              <Field
+                icon={Wallet}
+                label="Total cost"
+                mono
+                value={record.totalCost != null ? `PHP ${formatAmount(record.totalCost)}` : null}
+              />
+            </div>
+
+            {/* Identifiers are for chasing a support question, not for reading.
+                Folded away rather than given four rows of the page. */}
+            <details className="record-trace">
+              <summary>Record identifiers</summary>
+              <dl>
+                <div>
+                  <dt className="ink-eyebrow">Record</dt>
+                  <dd className="ink-mono">{record.recordId}</dd>
+                </div>
+                <div>
+                  <dt className="ink-eyebrow">From draft</dt>
+                  <dd className="ink-mono">{record.draftId}</dd>
+                </div>
+                <div>
+                  <dt className="ink-eyebrow">Saved</dt>
+                  <dd>{record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Not recorded'}</dd>
+                </div>
+              </dl>
+            </details>
+          </section>
+        </div>
+
+        <aside className="record-side">
+          <AIExplanationPanel recordId={record.recordId} />
+
+          {record.receiptStoragePath && (
+            <section className="ink-card record-card">
+              <div className="record-card__head">
+                <h2 className="ink-section-title">The receipt</h2>
+              </div>
+              <StoredReceiptPreview source={record} title="Stored receipt" />
+            </section>
+          )}
+        </aside>
+      </div>
+
+      <footer className="record-actions">
+        <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}`}>Back to the vehicle</Link>
+        <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}/share`}>Share history</Link>
+      </footer>
     </main>
   );
 }

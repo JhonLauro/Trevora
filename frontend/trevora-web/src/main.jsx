@@ -28,6 +28,9 @@ import './styles/ink-landing.css';
 // add-record flow share no selectors — so their order relative to each other
 // carries no meaning. Both merely need to come after styles.css.
 import './styles/service-flow.css';
+// One confirmed record, opened. Disjoint from the two above it as well — it
+// shares no selectors with either, and only needs to follow styles.css.
+import './styles/ink-record.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
