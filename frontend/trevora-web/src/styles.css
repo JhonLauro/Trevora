@@ -7374,6 +7374,24 @@ p {
   color: #b42318;
 }
 
+/* Same collision as `.settings-row` above: these rows are buttons, and the
+   bare `button:hover` rule loaded later fills them near-black, taking the
+   label with it. */
+.settings-menu button:hover:not(:disabled) {
+  background: #efede8;
+  color: #1c1b19;
+}
+
+.settings-menu button.active:hover:not(:disabled) {
+  background: #f7f4ef;
+  color: #33302b;
+}
+
+.settings-menu button.danger:hover:not(:disabled) {
+  background: #fdf3f2;
+  color: #b42318;
+}
+
 .settings-card {
   padding: 1.5rem;
 }
@@ -7522,6 +7540,17 @@ p {
 
 .settings-row:last-child {
   border-bottom: 0;
+}
+
+/* Every row here is a <button>, so ink-app.css's bare
+   `button:hover:not(:disabled) { background: var(--ink-hover) }` (0,2,1)
+   applies to it and outranks `.settings-row` (0,1,0): the row filled
+   near-black on hover while its own dark `color` stayed, and the label
+   disappeared into the fill. `:hover:not(:disabled)` here reaches (0,3,0) and
+   states the row's own hover instead of inheriting the button one. */
+.settings-row:hover:not(:disabled) {
+  background: #faf8f5;
+  color: #1c1b19;
 }
 
 .settings-inline-message {
