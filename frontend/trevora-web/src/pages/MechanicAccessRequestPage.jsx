@@ -136,7 +136,11 @@ export default function MechanicAccessRequestPage() {
           <article className="mechanic-dashboard-card primary">
             <span className="badge subtle">Shared vehicle</span>
             <h2>{shareRequest.vehicleLabel}</h2>
-            <p>{shareRequest.plateNumber || 'Plate number not provided'}</p>
+            {/* No plate here. This page is reachable by anyone holding the link,
+                before the owner has approved anything, so it shows only the
+                label the owner chose. The plate arrives with the approved
+                history. */}
+            <p>The owner approves each request before any history is shared.</p>
             <dl className="compact-facts">
               <div>
                 <dt>Status</dt>

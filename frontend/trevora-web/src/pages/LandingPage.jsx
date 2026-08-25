@@ -6,7 +6,7 @@ import {
   Check,
   ChevronDown,
   Cpu,
-  Download,
+  Calculator,
   Eye,
   History,
   Lock,
@@ -21,7 +21,7 @@ import {
 import { isLoggedIn } from '../api/currentUser.js';
 
 const vehicleFields = [
-  ['Vehicle', 'Toyota Vios 2021 - ABC 1234', 'Verified', 'verified'],
+  ['Vehicle', 'Toyota Vios 2021 - ABC 1234', 'Selected', 'verified'],
   ['Service Date', 'May 7, 2026', 'High', 'high'],
   ['Service Type', 'Oil Change + Brake Service', 'High', 'high'],
   ['Total Cost', 'PHP 7,850', 'High', 'high'],
@@ -32,10 +32,10 @@ const vehicleFields = [
 const featureCards = [
   [ScanLine, 'Receipt OCR', 'Point your camera at any shop receipt. Trevora extracts line items, totals, dates, and shop info automatically.'],
   [Mic, 'Voice Capture', 'Speak your record on the way home. AI transcribes and structures it into a clean record instantly.'],
-  [ShieldCheck, 'Confidence Scoring', 'Every field is rated Verified, High, Medium, Low, or Not Found so there is no silent guessing.'],
+  [ShieldCheck, 'Confidence Scoring', 'Every field is rated High, Medium, Low, or Not Found so there is no silent guessing.'],
   [QrCode, 'Mechanic QR Access', 'Share a time-limited QR link with your mechanic. Full history, read-only, no app needed.'],
-  [TrendingUp, 'Resale Ready', 'Prove your car history to buyers with a verified service timeline they can trust.'],
-  [Sparkles, 'AI Explanations', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
+  [TrendingUp, 'Gap-Free History', 'See which years have service records and which do not, so you know what a buyer would question.'],
+  [Sparkles, 'Service, Explained', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
 ];
 
 const howCards = [
@@ -58,12 +58,12 @@ const howCards = [
     icon: History,
     title: 'Your History, Forever',
     text: 'Every confirmed record is searchable, shareable, and ready for mechanic handoff.',
-    tags: ['Searchable', 'Mechanic QR', 'PDF export'],
+    tags: ['Searchable', 'Mechanic QR', 'Owner-confirmed'],
   },
 ];
 
 const confidenceRows = [
-  ['Vehicle', 'Verified', 100, 'verified'],
+  ['Vehicle', 'Selected', 100, 'verified'],
   ['Service Date', 'High', 94, 'high'],
   ['Total Cost', 'High', 91, 'high'],
   ['Shop Name', 'Medium', 76, 'medium'],
@@ -73,7 +73,6 @@ const confidenceRows = [
 ];
 
 const confidenceBadges = [
-  ['Verified', 1, 'verified'],
   ['High', 2, 'high'],
   ['Medium', 2, 'medium'],
   ['Low', 1, 'low'],
@@ -82,9 +81,9 @@ const confidenceBadges = [
 
 const trustPoints = [
   [Check, 'No credit card required'],
-  [Lock, 'Bank-level encryption'],
+  [Lock, 'Server-verified sign-in'],
   [ShieldCheck, 'Private by default'],
-  [Download, 'Export anytime'],
+  [Calculator, 'Totals checked line by line'],
 ];
 
 const aiPoints = [
@@ -196,7 +195,7 @@ export default function LandingPage() {
             AI-Powered Vehicle Intelligence
           </span>
           <h1>Every service.<br />Every detail.<br /><strong>Never forgotten.</strong></h1>
-          <p>Trevora turns your receipts, voice memos, and manual notes into a complete, AI-verified vehicle maintenance record: searchable, shareable, and built to last.</p>
+          <p>Trevora turns your receipts, voice memos, and manual notes into a complete, owner-verified vehicle maintenance record: searchable, shareable, and built to last.</p>
           <div className="fig-actions">
             <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>
               Get Started Free

@@ -9,8 +9,11 @@ import InkLockup from './InkLockup.jsx';
 export default function InkAuthShell({ hero, lead, aside, mobileTitle, variant = 'signin', children }) {
   const isSheet = Boolean(mobileTitle);
 
+  // The variant reaches the root as well as the column: the headline in the
+  // dark panel is measured per screen, and only the root is an ancestor of
+  // both halves.
   return (
-    <div className={`ink-auth ${isSheet ? 'ink-auth--sheet' : 'ink-auth--paper'}`}>
+    <div className={`ink-auth ink-auth--${variant} ${isSheet ? 'ink-auth--sheet' : 'ink-auth--paper'}`}>
       <aside className="ink-panel">
         <InkLockup />
         <div className="ink-panel__body">

@@ -762,8 +762,12 @@
   grid-template-columns: var(--table-columns);
 }
 
+/* The header keeps the heavier `--rule` that separated it from the rows before
+   the per-cell borders were removed below — drawn on the row, so it spans the
+   full width instead of breaking at every column gap. */
 .ink-table thead tr {
   background: var(--surface-head);
+  border-bottom: 1px solid var(--rule);
   padding: 12px 24px;
 }
 
@@ -789,6 +793,16 @@
 .ink-table td {
   font-size: 16px;
   min-width: 0;
+}
+
+/* ink-app.css draws `border-bottom` on every `table th`/`table td` in the app.
+   These rows are laid out with `display: grid`, so that per-cell border stops
+   at each column and restarts after the 16px gap — six ragged dashes where the
+   design has one rule. The row already draws the real, continuous line (see
+   `.ink-table tbody tr`), so the cells must not draw their own. */
+.ink-table th,
+.ink-table td {
+  border-bottom: 0;
 }
 
 .ink-table .is-muted {
@@ -919,6 +933,7 @@
 /* --------------------------------------------------------------- records */
 
 .records-toolbar {
+  align-items: center;
   display: flex;
   gap: 12px;
 }
@@ -926,7 +941,182 @@
 .records-toolbar input {
   flex: 1;
   height: var(--field-h);
+  /* styles.css puts a top margin on inputs app-wide. Alone in the toolbar it
+     was invisible; beside the filter it sat the search box 6px lower. */
+  margin: 0;
   max-width: 520px;
+}
+
+/* The search box takes the room; the filter takes only what it needs. */
+.records-toolbar__filter {
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------ filter menu
+
+   Trigger and list both drawn here rather than left to a <select>, whose
+   popup the browser renders itself in system chrome. Measurements are the
+   combobox's (ink-vehicle.css) so the two dropdowns are the same object: the
+   same 6px list padding, 44px rows, 268px cap and detached shadow. */
+
+.ink-filter {
+  position: relative;
+}
+
+.ink-filter__trigger {
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  gap: 10px;
+  height: var(--field-h);
+  justify-content: space-between;
+  min-width: 200px;
+  padding: 0 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.ink-filter__trigger:hover {
+  border-color: var(--ink-faint);
+}
+
+/* Matches the 2px focus ring `input:focus` uses, and stays on while the list
+   is open so the pair reads as one control. */
+.ink-filter__trigger:focus-visible,
+.ink-filter__trigger.is-open {
+  border: 2px solid var(--ink);
+  outline: none;
+  padding: 0 13.5px;
+}
+
+.ink-filter__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ink-filter__caret {
+  color: var(--ink-muted);
+  flex: 0 0 auto;
+  transition: transform 120ms ease;
+}
+
+.ink-filter__trigger.is-open .ink-filter__caret {
+  transform: rotate(180deg);
+}
+
+/* Floats over the table below it, so like the combobox list it carries a
+   shadow — it has to read as detached, not as the first row. */
+.ink-filter__list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(28, 27, 25, 0.14);
+  list-style: none;
+  margin: 4px 0 0;
+  /* Roughly seven rows. Most garages are well under that and the list simply
+     sizes to its contents — no scrollbar at all. Past seven it scrolls, which
+     is the honest outcome; the bar below is styled so it is quiet when it
+     does appear rather than the chunky system one. */
+  max-height: 336px;
+  min-width: 100%;
+  overflow-y: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+  top: 100%;
+  white-space: nowrap;
+  z-index: 30;
+}
+
+.ink-filter__list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.ink-filter__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Inset with a transparent border so the thumb reads as a slim pill floating
+   in the padding, not a rail welded to the edge of the menu. */
+.ink-filter__list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+.ink-filter__list::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: content-box;
+}
+
+.ink-filter__list:focus {
+  outline: none;
+}
+
+.ink-filter__option {
+  align-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 9px 12px;
+}
+
+.ink-filter__option.is-highlighted {
+  background: var(--surface-sunken);
+}
+
+/* The selected row is marked with a tick rather than the combobox's inverted
+   fill: this list stays open under the pointer, and a solid black row that
+   the highlight then has to fight reads as two selections at once. */
+.ink-filter__option[aria-selected='true'] .ink-filter__option-label {
+  font-weight: 600;
+}
+
+.ink-filter__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ink-filter__option-label {
+  font-size: 16px;
+}
+
+/* The plate, so two vehicles sharing a nickname are still tellable apart. */
+.ink-filter__option-hint {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.ink-filter__tick {
+  color: var(--ink);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .records-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .records-toolbar input,
+  .records-toolbar__filter {
+    flex: 1 1 100%;
+    max-width: none;
+  }
 }
 
 /* --------------------------------------------------- narrow: table → cards
