@@ -1366,10 +1366,25 @@
   margin-top: 16px;
 }
 
+/* Sized against the container, not the viewport.
+
+   A fixed two-column grid was wrong here: each option carries 148px of
+   furniture it cannot give up — 20px radio, 72px silhouette, two 12px gaps
+   and 32px of padding — and this picker renders inside the signup panel,
+   which is around 420px wide however large the screen is. Two columns of
+   205px left the description 55px to wrap in, so "Four doors, with a
+   separate closed boot at the back" came out one word per line. The old
+   `max-width: 720px` breakpoint never rescued it, because the viewport was
+   1280px while the container was 420px — it was measuring the wrong box.
+
+   auto-fit asks the container instead: the signup panel gets one column, the
+   roomier in-app Add vehicle form gets two, and neither is told in advance
+   which it is. 260px is 148px of furniture plus enough room for the longest
+   description to break like a sentence. */
 .body-picker__options {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .body-picker__option {
@@ -1448,11 +1463,9 @@
   font-style: normal;
 }
 
-@media (max-width: 720px) {
-  .body-picker__options {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
+/* No breakpoint for this grid any more: auto-fit above already collapses it
+   to one column whenever the container cannot hold two, which covers a narrow
+   viewport as a side effect of covering a narrow panel. */
 
 /* ------------------------------------------------------ destructive actions
 

@@ -1,0 +1,359 @@
+/* ----------------------------------------------------------------------
+   Ink — one confirmed service record.
+
+   Migrated off the pre-Ink `record-detail-*` classes in styles.css. Loaded
+   after ink-vehicle.css and builds on its primitives (.ink-card, .ink-badge,
+   .ink-section-title, .vehicle-crumbs); it redefines none of them.
+   ---------------------------------------------------------------------- */
+
+.record-page {
+  max-width: 1100px;
+}
+
+.record-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+}
+
+.record-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* The number the owner came to see. Right-aligned so it reads as a figure
+   rather than as another line of the heading. */
+.record-header__cost {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.record-header__cost strong {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Only rendered when something actually was covered — a permanent
+   "PHP 0 covered" is noise for the many owners who never claim. */
+.record-header__covered {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin-top: 2px;
+}
+
+/* Says what is unverified about the record, once, in a full sentence. The
+   old page printed "Confirmed" beside every field instead, which was the
+   opposite claim and unearned. */
+.record-notice {
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn-border);
+  border-radius: var(--radius);
+  color: var(--status-warn-text);
+  font-size: 16px;
+  margin: 0;
+  padding: 14px 18px;
+}
+
+.record-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+}
+
+.record-main,
+.record-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.record-card {
+  padding: 22px 24px;
+}
+
+.record-card__head {
+  margin-bottom: 16px;
+}
+
+.record-card__head .ink-section-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+/* Two columns of label/value with an icon each. The icon is per field and
+   never repeats — the old page derived it from the label's first letter, so
+   Service Date, Shop Name and Shop Location all showed "S". */
+.record-fields {
+  display: grid;
+  gap: 18px 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.record-field {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+}
+
+.record-field__icon {
+  align-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--ink-muted);
+  display: flex;
+  flex: 0 0 auto;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.record-field__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.record-field__value {
+  color: var(--ink);
+  font-size: 16px;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+/* UUIDs, folded away. They matter when chasing a support question and never
+   otherwise, so they do not get four rows of the page. */
+.record-trace {
+  border-top: 1px solid var(--rule-hairline);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.record-trace summary {
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.record-trace summary:hover {
+  color: var(--ink);
+}
+
+.record-trace dl {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.record-trace dd {
+  font-size: 15px;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .record-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .record-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .record-header__cost {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .record-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .record-card {
+    padding: 18px;
+  }
+
+  .record-actions .ink-button {
+    width: 100%;
+  }
+}
+
+/* An absent value is a statement about the record, not a value in it. It
+   recedes and drops the mono treatment — "NOT RECORDED" set in tabular mono
+   read with more weight than the odometer readings it was standing in for. */
+.record-field__value.is-empty {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+/* ------------------------------------------------- the receipt, line by line
+
+   Restyles the read-only `ServiceItemsList` / `ServiceLineEntriesList` output.
+   Both places it appears are a confirmed record being read — this page and the
+   mechanic's copy of it — so the treatment is shared. The add-record flow uses
+   its own `flow/` editors and is untouched.
+
+   What was wrong, from styles.css:
+
+   - `gap: 0.2rem` put about three pixels between rows, so seven lines read as
+     one block of text rather than seven facts.
+   - `font-size: 0.88rem` is 14px, under Ink's 15px floor for secondary text.
+   - The kind tag was `flex: 0 0 auto`, so PART and SUPPLIES were different
+     widths and every description began at a different x. That ragged left edge
+     is most of what "clumped" describes.
+   - Tags were green and amber. Ink reserves chroma for record status, so
+     colouring a category spends the one signal that is supposed to mean
+     something. The words already say Part and Labour; the colour added
+     nothing except competition with the status badge above. */
+
+.record-page .service-item-card,
+.mechanic-page .service-item-card {
+  background: var(--surface);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+}
+
+.record-page .service-item-card + .service-item-card,
+.mechanic-page .service-item-card + .service-item-card {
+  margin-top: 12px;
+}
+
+/* Service type, its category, then the item's own total — with room to
+   breathe before the lines that make it up. */
+.record-page .service-item-card-header,
+.mechanic-page .service-item-card-header {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule-hairline);
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.record-page .service-item-card-header h3,
+.mechanic-page .service-item-card-header h3 {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: auto;
+}
+
+.record-page .service-item-cost,
+.mechanic-page .service-item-cost {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Three columns, so the descriptions share one left edge and the amounts
+   share one right edge no matter how long the kind label is. */
+.record-page .line-entry-readout,
+.mechanic-page .line-entry-readout {
+  display: block;
+  margin-top: 4px;
+}
+
+.record-page .line-entry-readout li,
+.mechanic-page .line-entry-readout li {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule-hairline);
+  display: grid;
+  font-size: 15px;
+  gap: 16px;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  padding: 11px 0;
+}
+
+.record-page .line-entry-readout li:last-child,
+.mechanic-page .line-entry-readout li:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+/* Outlined and achromatic. The label is the information; the box just keeps
+   the column aligned. */
+.record-page .line-entry-tag,
+.mechanic-page .line-entry-tag,
+.record-page .line-entry-tag-operation,
+.record-page .line-entry-tag-part,
+.record-page .line-entry-tag-material,
+.record-page .line-entry-tag-fee,
+.mechanic-page .line-entry-tag-operation,
+.mechanic-page .line-entry-tag-part,
+.mechanic-page .line-entry-tag-material,
+.mechanic-page .line-entry-tag-fee {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 3px 0;
+  text-align: center;
+  width: 100%;
+}
+
+/* Labour is the only kind that says which part of the vehicle was worked on
+   (migration 011), so it is the one that carries a little more weight — by
+   ink, not by hue. */
+.record-page .line-entry-tag-operation,
+.mechanic-page .line-entry-tag-operation {
+  border-color: var(--border);
+  color: var(--ink-muted);
+}
+
+.record-page .line-entry-readout-description,
+.mechanic-page .line-entry-readout-description {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* Right-aligned and tabular, so the pesos form a column the eye can add up. */
+.record-page .line-entry-readout-amount,
+.mechanic-page .line-entry-readout-amount {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .record-page .line-entry-readout li,
+  .mechanic-page .line-entry-readout li {
+    gap: 4px 12px;
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+
+  /* The amount drops under the description rather than squeezing it. */
+  .record-page .line-entry-readout-amount,
+  .mechanic-page .line-entry-readout-amount {
+    grid-column: 2;
+    text-align: left;
+  }
+}

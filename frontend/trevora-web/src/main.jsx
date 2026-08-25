@@ -14,6 +14,9 @@ import './styles/ink-auth.css';
 import './styles/ink-garage.css';
 // Vehicle page. Builds on ink-garage.css primitives, so it comes after.
 import './styles/ink-vehicle.css';
+// The mechanic's shared view. Last, because it builds on primitives from
+// every file above it and overrides none of them.
+import './styles/ink-mechanic.css';
 // Landing composition and section rhythm. Overrides the .fig-* rules in
 // styles.css without those needing to be edited in place.
 import './styles/ink-landing.css';
@@ -25,6 +28,9 @@ import './styles/ink-landing.css';
 // add-record flow share no selectors — so their order relative to each other
 // carries no meaning. Both merely need to come after styles.css.
 import './styles/service-flow.css';
+// One confirmed record, opened. Disjoint from the two above it as well — it
+// shares no selectors with either, and only needs to follow styles.css.
+import './styles/ink-record.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
