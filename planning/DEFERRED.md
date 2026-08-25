@@ -867,3 +867,84 @@ three things from the old `ServiceLineEntriesEditor`. Restored:
 
 **No dropdown option was ever missing** — the select maps the full four-element
 `LINE_KINDS`, verified rendering Labour / Part / Supplies / Fee.
+
+## The parts map on a phone — changed, with the reasoning — 2026-08-25
+
+`ink-vehicle.css` hid `.vehicle-diagram` outright below 720px. The note above
+the rule argued: the markers are smaller than a fingertip, a map you cannot
+reliably tap is worse than no map, and the list carries the same information at
+44px a row.
+
+**The first half is right and is kept. The conclusion is what changed**, at
+Brent's request after the drawing vanishing on a phone read as a bug rather
+than a decision.
+
+The original reasoning treats the drawing as *only* a tap target. On a phone
+its greater value is orientation — *where on my car is this* — which needs no
+tapping at all. So the drawing now stays and the markers stop being controls:
+`pointer-events: none` below 720px. Selection still flows the other way, from
+the list to the map, so tapping a 44px row lights up its marker. That makes the
+drawing an output on a phone rather than a second, worse copy of the list, and
+nothing is offered that cannot be hit.
+
+No accessibility change either way: `VehicleDiagram` already renders the whole
+SVG `aria-hidden="true" focusable="false"` with markers as `<g>` rather than
+buttons, so nothing here was ever in the tab order. Verified at 375px (diagram
+visible, markers inert, zero focusable descendants) and at 750px (unchanged —
+`pointer-events: auto`, `cursor: pointer`).
+
+**This is the vehicle-page slice, not `serviceinput`/`validation`.** It is on
+its own branch, `vehicle-diagram-on-mobile`, off `main` rather than folded into
+the add-record work, so whoever owns the vehicle page can take it or drop it on
+its own merits. If you disagree, the one-line revert is restoring
+`display: none` — but please leave a note saying why rather than deleting this
+one.
+
+---
+
+## Account settings rebuilt on Ink — two sections removed (2026-08-25)
+
+`/account-settings` was the last signed-in screen still served by the legacy
+`styles.css` block (~7329-7690). It is now a one-scrolling-page Ink screen in
+`src/styles/ink-settings.css`, imported last in `main.jsx`. The legacy block is
+untouched and simply stops matching - the new markup uses `set-*` class names.
+
+**This landed on top of the notification-preferences and profile-photo work
+(b009418..bebdc20), which was written against the old layout at the same time.**
+The layout here is mine; the data layer is theirs, unchanged:
+`api/notificationPreferences.js` owns the switches, `api/profilePhoto.js` owns
+the upload. Nothing in this slice reimplements either.
+
+The one deletion worth disagreeing with:
+
+**"Privacy & Access History" and "Active Shared Sessions" are gone from
+Settings.** Both called the same two endpoints as `/access/requests` (Shared
+Access) and showed a weaker read-only copy of it under different names - no
+filters, no approve/deny, no QR. Shared Access is now the single home of access
+control, and Settings no longer calls the mechanic-access endpoints at all. If
+you want a summary back on Settings, the argument for it is discoverability
+(the owner may not know Shared Access exists), and the fix is a one-line link,
+not a second list.
+
+An earlier draft of this screen had the two mechanic-access notifications as
+always-on facts rather than switches, on the grounds that they are the only
+ones with a consequence for who sees the owner's records. That is dropped: the
+preference module makes all three real, and a design that draws a working
+switch as an immovable fact is worse than the argument for it. The grouping
+survives - one row under "Your records", two under "Mechanic access" - because
+the split is still the honest description of what they are about.
+
+Copy follows the same rule and was corrected twice while writing it: the photo
+follows the account now (Supabase storage, migration 013) and saves on choice,
+so only the phone number is browser-local; and the preferences are no longer
+write-only, so the note says they control the notifications list and the
+sidebar count rather than claiming they do nothing.
+
+**Verified as far as it can be.** Production build passes. Layout, tokens,
+control heights, the <=820px phone layout, per-field password validation, the
+unsaved-changes count, and the sign-out confirm step were checked in a
+throwaway harness that mounts the page outside the route guard (removed
+afterwards). **Nobody has clicked this behind a real login** - the
+Supabase-backed paths (profile save, email change, password re-auth, photo
+upload, sign out) are unexercised, and the photo upload in particular is
+someone else's code meeting my markup for the first time.

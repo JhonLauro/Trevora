@@ -1,0 +1,671 @@
+/* ----------------------------------------------------------------------
+   Trevora "Ink" — Account settings.
+
+   The last signed-in screen still living in the legacy styles.css block
+   (~7329–7690). This sheet overrides it rather than editing that file in
+   place, which four people share.
+
+   The page is one scrolling column: your details, password, notifications,
+   sign out. There is no vertical menu and no tab state, so none of the old
+   .settings-menu / .settings-card / .account-settings-layout rules are
+   reused — the markup uses `set-*` class names of its own and the legacy
+   block simply stops matching.
+
+   Rules carried over from the rest of Ink — keep them:
+   - No decorative accent colour. Chroma means status, nothing else.
+   - No drop shadows. Surfaces separate by tone and hairline.
+   - Source Serif 4 for headings only.
+   - 16px body, 15px floor for secondary text, 52px controls.
+   ---------------------------------------------------------------------- */
+
+/* The page is one deliberate column, not a full-bleed sprawl: the rail, the
+   gap and the body add up to the max-width, so the right edge of every
+   section lands in the same place and the page centres in the shell. The
+   frame matches .ink-page in ink-garage.css — Settings should not sit on a
+   wider or airier frame than Garage and Records. */
+
+.ink-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin: 0 auto;
+  max-width: 1024px;
+  padding: 40px 44px 48px;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------- header */
+
+.set-head {
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 28px;
+}
+
+.set-head h1 {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.set-head p {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- sections */
+
+/* Each section is a two-column row: a fixed heading rail on the left, the
+   controls on the right. Below 820px the rail becomes a stacked heading. */
+.set-section {
+  align-items: flex-start;
+  display: flex;
+  gap: 56px;
+}
+
+.set-rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  width: 260px;
+}
+
+.set-rail h2 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.set-rail p {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.set-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 620px;
+  min-width: 0;
+}
+
+/* The password form keeps a short measure — a 620px-wide password field is
+   not better for being wider — but the section around it is the same width
+   as the other two, so the page has one right edge rather than three. */
+.set-body.narrow {
+  gap: 20px;
+}
+
+.set-body.narrow .set-field {
+  max-width: 440px;
+}
+
+.set-rule {
+  background: var(--rule);
+  height: 1px;
+}
+
+/* ---------------------------------------------------------------- notes */
+
+/* Both notes on this page say the same kind of thing: where the data
+   actually lives. They are not warnings, so they carry no status colour. */
+.set-note {
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  font-size: 15px;
+  padding: 14px 18px;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------- avatar */
+
+.set-avatar-row {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+}
+
+.set-avatar {
+  align-items: center;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink);
+  display: flex;
+  flex: none;
+  font-size: 20px;
+  font-weight: 600;
+  height: 64px;
+  justify-content: center;
+  overflow: hidden;
+  width: 64px;
+}
+
+.set-avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.set-avatar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.set-avatar-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------- fields */
+
+.set-grid {
+  display: grid;
+  gap: 20px 24px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.set-field {
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+  font-weight: 600;
+  gap: 8px;
+  min-width: 0;
+}
+
+.set-field input {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  height: var(--field-h);
+  margin: 0;
+  padding: 0 14px;
+  transition: border-color 120ms ease-out, background 120ms ease-out;
+  width: 100%;
+}
+
+.set-field input:focus-visible {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.set-hint {
+  color: var(--ink-muted);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.set-hint.faint {
+  color: var(--ink-faint);
+}
+
+/* Validation is per field, under the field it belongs to — never a banner
+   at the top of the page, and never cleared on the next keystroke. */
+.set-field.invalid input {
+  border-color: var(--status-bad-text);
+  border-width: 2px;
+}
+
+.set-error {
+  color: var(--status-bad-text);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+/* Reveal button, inset in the password field. 44px tall: the old 40x20 icon
+   button was under the touch minimum. */
+.set-reveal-wrap {
+  display: block;
+  position: relative;
+}
+
+.set-reveal-wrap input {
+  padding-right: 76px;
+}
+
+.ink-settings .set-reveal {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  position: absolute;
+  right: 6px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  top: 4px;
+  transition: color 120ms ease-out;
+}
+
+.ink-settings .set-reveal:hover {
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------- buttons */
+
+.ink-settings .set-button {
+  background: var(--ink);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--on-ink);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  min-height: var(--button-h);
+  padding: 0 24px;
+  transition: background 120ms ease-out;
+}
+
+.ink-settings .set-button:hover:not(:disabled) {
+  background: var(--ink-hover);
+}
+
+.ink-settings .set-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.ink-settings .set-button.quiet {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--ink);
+}
+
+.ink-settings .set-button.quiet:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--ink);
+}
+
+.ink-settings .set-button.danger {
+  background: var(--surface);
+  border: 1.5px solid var(--status-bad-border);
+  color: var(--status-bad-text);
+  flex: none;
+  transition: border-color 120ms ease-out;
+}
+
+.ink-settings .set-button.danger:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--status-bad-text);
+}
+
+/* Text button — "Change photo". 44px target on phone, where a bare 17px
+   line of text is not one. */
+.ink-settings .set-textbutton {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 0;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: color 120ms ease-out;
+}
+
+.ink-settings .set-textbutton:hover {
+  color: var(--ink-muted);
+}
+
+/* Submit row: the button, and this section's own status line beside it.
+   Replaces the single page-level banner the old page shared across five
+   sections. */
+.set-submit {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.set-status {
+  font-size: 15px;
+}
+
+.set-status.ok {
+  color: var(--status-ok-text);
+}
+
+.set-status.bad {
+  color: var(--status-bad-text);
+}
+
+.set-status.pending {
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------- notification groups */
+
+.set-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.set-group-head {
+  align-items: baseline;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.set-group-label {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.set-group-note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  text-wrap: pretty;
+}
+
+.set-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+}
+
+.set-row {
+  align-items: center;
+  border-bottom: 1px solid var(--rule-hairline);
+  box-sizing: border-box;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 16px 24px;
+  text-align: left;
+}
+
+.set-row:last-child {
+  border-bottom: 0;
+}
+
+/* The whole row is the target, so the row itself is the button. */
+.ink-settings button.set-row {
+  background: var(--surface);
+  border-left: 0;
+  border-radius: 0;
+  border-right: 0;
+  border-top: 0;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: background 120ms ease-out;
+  width: 100%;
+}
+
+.ink-settings button.set-row:first-child {
+  border-top-left-radius: var(--radius-card);
+  border-top-right-radius: var(--radius-card);
+}
+
+.ink-settings button.set-row:last-child {
+  border-bottom-left-radius: var(--radius-card);
+  border-bottom-right-radius: var(--radius-card);
+}
+
+.ink-settings button.set-row:hover {
+  background: var(--surface-sunken);
+}
+
+.set-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.set-row-title {
+  font-size: 16px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.set-row-sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+  font-weight: 400;
+  text-wrap: pretty;
+}
+
+.set-row-state {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 12px;
+}
+
+/* The state as a word, not only as a colour — Ink's rule everywhere else.
+   Fixed width so the tracks line up down the card. */
+.set-row-word {
+  color: var(--ink-muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  width: 26px;
+}
+
+.set-toggle {
+  background: var(--surface-sunken);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  box-sizing: border-box;
+  display: block;
+  height: 28px;
+  position: relative;
+  transition: background 120ms ease-out, border-color 120ms ease-out;
+  width: 46px;
+}
+
+.set-toggle::after {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-sizing: border-box;
+  content: '';
+  height: 20px;
+  left: 2px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: left 120ms ease-out;
+  width: 20px;
+}
+
+.set-row[aria-checked='true'] .set-toggle {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.set-row[aria-checked='true'] .set-toggle::after {
+  border-color: var(--ink);
+  left: 22px;
+}
+
+.set-row[aria-checked='true'] .set-row-word {
+  color: var(--ink);
+}
+
+
+/* ------------------------------------------------------------- sign out */
+
+.set-signout {
+  align-items: center;
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+}
+
+.set-signout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.set-signout-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.set-signout-sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.set-confirm {
+  align-items: center;
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* --------------------------------------------------------------- focus */
+
+.ink-settings button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------- ≤820px */
+
+@media (max-width: 820px) {
+  .ink-settings {
+    gap: 32px;
+    padding: 24px 20px 32px;
+  }
+
+  .set-head {
+    padding-bottom: 20px;
+  }
+
+  .set-head h1 {
+    font-size: 28px;
+  }
+
+  .set-body.narrow .set-field {
+    max-width: none;
+  }
+
+  .set-section {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .set-rail {
+    width: auto;
+  }
+
+  .set-rail h2 {
+    font-size: 22px;
+  }
+
+  .set-body,
+  .set-body.narrow {
+    gap: 20px;
+    max-width: none;
+    width: 100%;
+  }
+
+  .set-grid {
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+
+  .set-avatar-row {
+    gap: 16px;
+  }
+
+  .ink-settings .set-textbutton {
+    min-height: 44px;
+    padding: 12px 0;
+  }
+
+  .set-note {
+    padding: 14px 16px;
+  }
+
+  .set-group {
+    gap: 12px;
+  }
+
+  .set-group-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .set-row {
+    gap: 16px;
+    min-height: 60px;
+    padding: 14px 16px;
+  }
+
+  /* One line per row on a phone — the description is the first thing to go
+     when the row would otherwise wrap to four lines. */
+  .set-row-sub {
+    display: none;
+  }
+
+  .set-submit {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ink-settings .set-button {
+    padding: 0 20px;
+    width: 100%;
+  }
+
+  .set-signout {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .set-confirm {
+    flex-direction: column;
+  }
+}

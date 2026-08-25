@@ -7,6 +7,7 @@ import {
 } from '../api/notificationPreferences.js';
 import { describeAvatarLimit, uploadProfilePhoto } from '../api/profilePhoto.js';
 import { supabase } from '../api/supabaseClient.js';
+import ConfirmDialog from '../components/ink/ConfirmDialog.jsx';
 
 const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
 
@@ -93,6 +94,15 @@ export default function AccountSettingsPage() {
     newPassword: false,
     confirmPassword: false,
   });
+<<<<<<< HEAD
+  const [notificationPrefs, setNotificationPrefs] = useState(() => loadJson(NOTIFICATION_PREFS_KEY, defaultNotificationPrefs));
+  const [accessRequests, setAccessRequests] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+=======
   const [savedPrefs, setSavedPrefs] = useState(storedPrefs);
   const [notificationPrefs, setNotificationPrefs] = useState(storedPrefs);
   // One status line per section, shown beside that section's own submit
@@ -102,9 +112,7 @@ export default function AccountSettingsPage() {
   const [savingSection, setSavingSection] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signOutConfirming, setSignOutConfirming] = useState(false);
-  // Kept from the other branch: handleSignOut sets this, and it is what
-  // stops a second click while the sign-out request is in flight.
-  const [signingOut, setSigningOut] = useState(false);
+>>>>>>> 2f19b0287eddead38efc7147e895b5c283bb53ab
 
   const displayName = `${form.firstName} ${form.lastName}`.trim();
   const unsavedPrefCount = countChanges(savedPrefs, notificationPrefs);
@@ -319,13 +327,8 @@ export default function AccountSettingsPage() {
     }
   }
 
-  /* Confirmed before it runs. Signing out is recoverable, so this is not a
-     destructive-action dialog — it guards an in-progress draft and a round
-     trip through Supabase auth against a stray click.
-
-     The Supabase call was missing here and in the shell: clearing Trevora's
-     copy of the session left Supabase's own intact, and http.js refreshes
-     tokens from that, so an apparent sign-out was still recoverable. */
+  /* Asks first: this button sits in the same list as five navigation rows,
+     so a misclick here is a mis-navigation, not a decision. */
   async function handleSignOut() {
     setSigningOut(true);
     try {
@@ -420,7 +423,35 @@ export default function AccountSettingsPage() {
         </form>
       </section>
 
+<<<<<<< HEAD
+      <section className="account-settings-layout">
+        <aside className="settings-menu">
+          {settingsNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                className={activeTab === item.id ? 'active' : ''}
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setMessage(null);
+                }}
+              >
+                <Icon size={18} aria-hidden="true" />
+                {item.label}
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            );
+          })}
+          <button className="danger" type="button" onClick={() => setConfirmSignOut(true)}>
+            <LogOut size={18} aria-hidden="true" />
+            Sign Out
+          </button>
+        </aside>
+=======
       <div className="set-rule" />
+>>>>>>> 2f19b0287eddead38efc7147e895b5c283bb53ab
 
       <section className="set-section">
         <div className="set-rail">
@@ -551,9 +582,7 @@ export default function AccountSettingsPage() {
         </div>
         {signOutConfirming ? (
           <div className="set-confirm">
-            <button className="set-button danger" type="button" disabled={signingOut} onClick={handleSignOut}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
-            </button>
+            <button className="set-button danger" type="button" onClick={handleSignOut}>Sign out</button>
             <button className="set-button quiet" type="button" onClick={() => setSignOutConfirming(false)}>
               Stay signed in
             </button>
@@ -564,6 +593,22 @@ export default function AccountSettingsPage() {
           </button>
         )}
       </section>
+      <ConfirmDialog
+        open={confirmSignOut}
+        busy={signingOut}
+        title="Sign out of Trevora?"
+        confirmLabel="Sign out"
+        busyLabel="Signing out…"
+        tone="outline"
+        onCancel={() => { if (!signingOut) setConfirmSignOut(false); }}
+        onConfirm={handleSignOut}
+        body={(
+          <>
+            <p>Anything you are part-way through adding is not saved yet and will be lost.</p>
+            <p>Your records stay where they are. You will need to sign in again to reach them.</p>
+          </>
+        )}
+      />
 
     </main>
   );

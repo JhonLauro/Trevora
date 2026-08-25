@@ -8,6 +8,12 @@ import {
   getUserDisplayName,
   isLoggedIn,
 } from '../api/currentUser.js';
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_PREFERENCES_CHANGED_EVENT,
+  getNotificationPreferences,
+  isNotificationEnabled,
+} from '../api/notificationPreferences.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import { supabase } from '../api/supabaseClient.js';
 import ConfirmDialog from './ink/ConfirmDialog.jsx';
@@ -65,6 +71,7 @@ export default function AppShell({ children }) {
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
   const [pendingCount, setPendingCount] = useState(0);
+  const [notificationPreferences, setNotificationPreferences] = useState(getNotificationPreferences);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -72,6 +79,14 @@ export default function AppShell({ children }) {
   const menuButtonRef = useRef(null);
 
   const displayName = authenticated ? getUserDisplayName(currentUser) : 'Signed out';
+  const avatarUrl = authenticated ? currentUser?.avatar || '' : '';
+  // A photo that 404s -- deleted from the bucket, or a stale Google URL --
+  // would otherwise show as a broken-image glyph. Falling back to the initials
+  // needs state rather than removing the node: the initials are the other
+  // branch of the render, not something sitting underneath it. Keyed on the
+  // URL so a newly uploaded photo is always given its own chance to load.
+  const [brokenAvatarUrl, setBrokenAvatarUrl] = useState('');
+  const showAvatar = Boolean(avatarUrl) && avatarUrl !== brokenAvatarUrl;
   const canUseOwnerWorkflows = currentUser?.role === 'VEHICLE_OWNER';
 
   useEffect(() => {
@@ -84,7 +99,21 @@ export default function AppShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!canUseOwnerWorkflows) {
+    const sync = () => setNotificationPreferences(getNotificationPreferences());
+    window.addEventListener(NOTIFICATION_PREFERENCES_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(NOTIFICATION_PREFERENCES_CHANGED_EVENT, sync);
+  }, []);
+
+  // The badge counts pending mechanic requests, so turning that notification
+  // off has to silence the badge too -- a switch that leaves a count burning
+  // in the sidebar has not really turned anything off.
+  const mechanicRequestsEnabled = isNotificationEnabled(
+    NOTIFICATION_CATEGORIES.MECHANIC_REQUEST,
+    notificationPreferences,
+  );
+
+  useEffect(() => {
+    if (!canUseOwnerWorkflows || !mechanicRequestsEnabled) {
       setPendingCount(0);
       return undefined;
     }
@@ -93,7 +122,7 @@ export default function AppShell({ children }) {
       .then((data) => { if (active) setPendingCount(data.length); })
       .catch(() => { if (active) setPendingCount(0); });
     return () => { active = false; };
-  }, [canUseOwnerWorkflows, location.pathname]);
+  }, [canUseOwnerWorkflows, mechanicRequestsEnabled, location.pathname]);
 
   // Route change closes the sheet; without this, tapping a nav item on mobile
   // navigates behind a still-open overlay.
@@ -178,7 +207,11 @@ export default function AppShell({ children }) {
 
         <div className="ink-sidebar__account">
           <div className="ink-account-row">
-            <span className="ink-account-row__avatar" aria-hidden="true">{initialsFor(displayName)}</span>
+            <span className="ink-account-row__avatar" aria-hidden="true">
+              {showAvatar
+                ? <img alt="" src={avatarUrl} onError={() => setBrokenAvatarUrl(avatarUrl)} />
+                : initialsFor(displayName)}
+            </span>
             <span className="ink-account-row__name">{displayName}</span>
           </div>
           <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
@@ -234,7 +267,11 @@ export default function AppShell({ children }) {
             <ShellNav pendingCount={pendingCount} onNavigate={() => setMenuOpen(false)} />
             <div className="ink-sheet__account">
               <div className="ink-account-row">
-                <span className="ink-account-row__avatar" aria-hidden="true">{initialsFor(displayName)}</span>
+                <span className="ink-account-row__avatar" aria-hidden="true">
+              {showAvatar
+                ? <img alt="" src={avatarUrl} onError={() => setBrokenAvatarUrl(avatarUrl)} />
+                : initialsFor(displayName)}
+            </span>
                 <span className="ink-account-row__name">{displayName}</span>
               </div>
               <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>

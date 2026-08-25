@@ -53,7 +53,7 @@ export async function loginUser(payload) {
 
   const profile = profileFromSupabaseUser(data.user);
   const user = await syncSupabaseProfile(profile, data.session.access_token);
-  setLoggedInUser(user, data.session, { remember: payload.remember });
+  setLoggedInUser(withAvatar(user, profile), data.session, { remember: payload.remember });
   return user;
 }
 
@@ -86,7 +86,7 @@ export async function completeOAuthSignIn() {
 
   const profile = profileFromSupabaseUser(session.user);
   const user = await syncSupabaseProfile(profile, session.access_token);
-  setLoggedInUser(user, session);
+  setLoggedInUser(withAvatar(user, profile), session);
   return user;
 }
 
@@ -113,7 +113,7 @@ export async function verifyRegistrationOtp(payload) {
     role: payload.role || supabaseProfile.role,
   };
   const user = await syncSupabaseProfile(profile, data.session.access_token);
-  setLoggedInUser(user, data.session);
+  setLoggedInUser(withAvatar(user, profile), data.session);
   return user;
 }
 
@@ -128,6 +128,15 @@ async function requestRegistrationEmailCode(client, email) {
   if (error) {
     throw normalizeSupabaseAuthError(error);
   }
+}
+
+/**
+ * `/auth/sync` answers with the backend's own view of the user, which has no
+ * photo in it -- the pointer lives in Supabase Auth metadata. Without this the
+ * avatar would be dropped on every sign-in and reappear only after a save.
+ */
+function withAvatar(user, profile) {
+  return profile?.avatar ? { ...user, avatar: profile.avatar } : user;
 }
 
 async function syncSupabaseProfile(payload, accessToken) {
@@ -177,6 +186,10 @@ function profileFromSupabaseUser(user) {
     firstName: metadata.first_name || metadata.firstName || fallbackFirst || 'User',
     lastName: metadata.last_name || metadata.lastName || fallbackRest.join(' ') || 'Account',
     role: normalizeRole(metadata.role),
+    // `avatar_url` is what we write when a photo is uploaded; `picture` is
+    // what Google sends on OAuth sign-in. Reading both means a Google account
+    // arrives with its photo already in place.
+    avatar: metadata.avatar_url || metadata.avatarUrl || metadata.picture || '',
   };
 }
 

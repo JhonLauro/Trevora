@@ -31,6 +31,9 @@ import './styles/service-flow.css';
 // One confirmed record, opened. Disjoint from the two above it as well — it
 // shares no selectors with either, and only needs to follow styles.css.
 import './styles/ink-record.css';
+// Account settings. The last screen still served by the legacy styles.css
+// block; this sheet overrides it in place of editing that shared file.
+import './styles/ink-settings.css';
 // Shared access. Also supplies .ink-notice--ok, which ink-auth.css's
 // .ink-notice never needed because the auth screens show no success state.
 import './styles/ink-access.css';
