@@ -246,7 +246,17 @@
   font-weight: 700;
   height: 30px;
   justify-content: center;
+  /* Holds the photo inside the circle -- without it a square image spills
+     over the rounded corners. */
+  overflow: hidden;
   width: 30px;
+}
+
+/* A profile photo, when one is set; the initials are the fallback branch. */
+.ink-account-row__avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .ink-account-row__name {

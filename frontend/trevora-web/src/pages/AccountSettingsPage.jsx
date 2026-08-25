@@ -13,6 +13,7 @@ import {
 import { syncCurrentUserProfile } from '../api/auth.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
 import { getMechanicAccessRequests, getOwnerMechanicAccessSessions, revokeOwnerMechanicAccessSession } from '../api/qrAccess.js';
+import { describeAvatarLimit, uploadProfilePhoto } from '../api/profilePhoto.js';
 import { supabase } from '../api/supabaseClient.js';
 
 const NOTIFICATION_PREFS_KEY = 'trevora.notificationPreferences';
@@ -109,7 +110,10 @@ export default function AccountSettingsPage() {
     lastName: baseName.lastName,
     email: currentUser?.email || '',
     phone: profileExtras.phone || currentUser?.phone || '',
-    avatar: profileExtras.avatar || currentUser?.avatar || '',
+    // Account first, browser second: `profileExtras.avatar` is only ever a
+    // leftover base64 photo from the old localStorage scheme, and preferring
+    // it would hide the real one from anyone who had set a photo before.
+    avatar: currentUser?.avatar || profileExtras.avatar || '',
   });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -126,6 +130,7 @@ export default function AccountSettingsPage() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (activeTab !== 'privacy' && activeTab !== 'sessions') return undefined;
@@ -206,7 +211,9 @@ export default function AccountSettingsPage() {
         syncedUser = currentUser;
       }
 
-      const extras = { phone, avatar: form.avatar };
+      // The photo is not in here any more: it lives in Supabase Auth metadata,
+      // which is what lets it follow the account to another browser.
+      const extras = { phone };
       saveJson(PROFILE_EXTRAS_KEY, extras);
       setLoggedInUser({
         ...currentUser,
@@ -282,20 +289,29 @@ export default function AccountSettingsPage() {
     });
   }
 
-  function handlePhotoUpload(event) {
+  /**
+   * The photo saves on its own rather than waiting for Save Changes. It is not
+   * a form field -- there is nothing to review or correct before it applies,
+   * and pairing an immediate preview with a change that silently needed a
+   * second click was the surest way to lose it.
+   */
+  async function handlePhotoUpload(event) {
     const file = event.target.files?.[0];
+    // Clearing the input lets the same file be picked again after a failure.
+    event.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setMessage({ type: 'error', text: 'Choose an image file for your profile photo.' });
-      return;
-    }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({ ...current, avatar: reader.result }));
-      setMessage({ type: 'success', text: 'Photo selected. Save changes to keep it.' });
-    };
-    reader.readAsDataURL(file);
+    setUploadingPhoto(true);
+    setMessage(null);
+    try {
+      const avatar = await uploadProfilePhoto(file);
+      setForm((current) => ({ ...current, avatar }));
+      setMessage({ type: 'success', text: 'Profile photo updated.' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Could not update your profile photo.' });
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function revokeSession(sessionId) {
@@ -368,7 +384,14 @@ export default function AccountSettingsPage() {
               <div>
                 <strong>{displayName}</strong>
                 <small>Vehicle Owner</small>
-                <button type="button" onClick={() => fileInputRef.current?.click()}>Change photo</button>
+                <button
+                  type="button"
+                  disabled={uploadingPhoto}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? 'Uploading…' : 'Change photo'}
+                </button>
+                <small className="settings-photo-hint">JPG or PNG, up to {describeAvatarLimit()}.</small>
                 <input
                   ref={fileInputRef}
                   className="sr-only"
