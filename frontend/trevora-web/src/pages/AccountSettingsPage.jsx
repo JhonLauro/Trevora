@@ -13,10 +13,14 @@ import {
 import { syncCurrentUserProfile } from '../api/auth.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
 import { getMechanicAccessRequests, getOwnerMechanicAccessSessions, revokeOwnerMechanicAccessSession } from '../api/qrAccess.js';
+import {
+  defaultNotificationPreferences,
+  getNotificationPreferences,
+  saveNotificationPreferences,
+} from '../api/notificationPreferences.js';
 import { describeAvatarLimit, uploadProfilePhoto } from '../api/profilePhoto.js';
 import { supabase } from '../api/supabaseClient.js';
 
-const NOTIFICATION_PREFS_KEY = 'trevora.notificationPreferences';
 const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
 
 const settingsNav = [
@@ -27,24 +31,13 @@ const settingsNav = [
   { id: 'sessions', icon: Clock3, label: 'Active Shared Sessions' },
 ];
 
-const defaultNotificationPrefs = {
-  draftReview: true,
-  missingFields: true,
-  recordSaved: true,
-  mechanicRequest: true,
-  mechanicDecision: true,
-  temporaryExpired: true,
-  aiUnavailable: true,
-};
-
+// One row per category in api/notificationPreferences.js, and no more: a row
+// without a category is a switch that controls nothing, which is what four of
+// the seven here turned out to be.
 const notificationRows = [
   ['draftReview', 'Service draft needs review'],
-  ['missingFields', 'Missing required fields'],
-  ['recordSaved', 'Service record saved'],
   ['mechanicRequest', 'Mechanic requested access'],
-  ['mechanicDecision', 'Mechanic access approved/denied'],
   ['temporaryExpired', 'Temporary access expired'],
-  ['aiUnavailable', 'AI explanation unavailable'],
 ];
 
 function splitName(fullName) {
@@ -125,7 +118,7 @@ export default function AccountSettingsPage() {
     newPassword: false,
     confirmPassword: false,
   });
-  const [notificationPrefs, setNotificationPrefs] = useState(() => loadJson(NOTIFICATION_PREFS_KEY, defaultNotificationPrefs));
+  const [notificationPrefs, setNotificationPrefs] = useState(getNotificationPreferences);
   const [accessRequests, setAccessRequests] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
   const [message, setMessage] = useState(null);
@@ -283,8 +276,18 @@ export default function AccountSettingsPage() {
   function togglePreference(key) {
     setNotificationPrefs((current) => {
       const next = { ...current, [key]: !current[key] };
-      saveJson(NOTIFICATION_PREFS_KEY, next);
-      setMessage({ type: 'success', text: 'Notification preference saved.' });
+      // Saving through the shared module is what makes the switch mean
+      // something: it notifies the notification list and the sidebar badge,
+      // which now read these same values.
+      saveNotificationPreferences(next);
+      // Naming the row matters here: seven switches sit in one list and the
+      // banner appears at the bottom of all of them, so "Notification turned
+      // on." left you to remember which one you had just pressed.
+      const label = notificationRows.find(([rowKey]) => rowKey === key)?.[1] ?? 'Notification';
+      setMessage({
+        type: 'success',
+        text: `${label}: ${next[key] ? 'on' : 'off'}.`,
+      });
       return next;
     });
   }
