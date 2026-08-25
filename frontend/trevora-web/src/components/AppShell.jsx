@@ -8,6 +8,12 @@ import {
   getUserDisplayName,
   isLoggedIn,
 } from '../api/currentUser.js';
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_PREFERENCES_CHANGED_EVENT,
+  getNotificationPreferences,
+  isNotificationEnabled,
+} from '../api/notificationPreferences.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import InkLockup from './InkLockup.jsx';
 
@@ -63,6 +69,7 @@ export default function AppShell({ children }) {
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
   const [pendingCount, setPendingCount] = useState(0);
+  const [notificationPreferences, setNotificationPreferences] = useState(getNotificationPreferences);
   const [menuOpen, setMenuOpen] = useState(false);
   const sheetRef = useRef(null);
   const menuButtonRef = useRef(null);
@@ -88,7 +95,21 @@ export default function AppShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!canUseOwnerWorkflows) {
+    const sync = () => setNotificationPreferences(getNotificationPreferences());
+    window.addEventListener(NOTIFICATION_PREFERENCES_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(NOTIFICATION_PREFERENCES_CHANGED_EVENT, sync);
+  }, []);
+
+  // The badge counts pending mechanic requests, so turning that notification
+  // off has to silence the badge too -- a switch that leaves a count burning
+  // in the sidebar has not really turned anything off.
+  const mechanicRequestsEnabled = isNotificationEnabled(
+    NOTIFICATION_CATEGORIES.MECHANIC_REQUEST,
+    notificationPreferences,
+  );
+
+  useEffect(() => {
+    if (!canUseOwnerWorkflows || !mechanicRequestsEnabled) {
       setPendingCount(0);
       return undefined;
     }
@@ -97,7 +118,7 @@ export default function AppShell({ children }) {
       .then((data) => { if (active) setPendingCount(data.length); })
       .catch(() => { if (active) setPendingCount(0); });
     return () => { active = false; };
-  }, [canUseOwnerWorkflows, location.pathname]);
+  }, [canUseOwnerWorkflows, mechanicRequestsEnabled, location.pathname]);
 
   // Route change closes the sheet; without this, tapping a nav item on mobile
   // navigates behind a still-open overlay.
