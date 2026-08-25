@@ -32,6 +32,15 @@
   white-space: nowrap;
 }
 
+/* Set apart from the title rather than folded into it: a plate is read
+   character by character against the car, not skimmed as part of a name. */
+.mechanic-header__plate {
+  color: var(--ink-muted);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  margin: 6px 0 0;
+}
+
 /* The line that replaced four counters. One sentence, scannable, and it says
    nothing at all when there are no records — the empty state speaks then. */
 .mechanic-summary {

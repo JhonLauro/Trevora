@@ -1,8 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import StepIndicator from '../components/StepIndicator';
+import { useNavigate, useParams } from 'react-router-dom';
+import FlowChrome from '../components/flow/FlowChrome';
 import { createVoiceServiceDraft, transcribeVoiceAudio, translateVoiceTranscript } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+
+/**
+ * Step 3b.
+ *
+ * <p>The raw transcript lands first, in whatever language was spoken, and is
+ * editable from the moment it appears. **Translation adds a panel; it never
+ * replaces the original.** A translation that overwrites the raw transcript
+ * destroys the only copy of what the owner actually said, and the owner is the
+ * only one who can tell whether the translation got it right.
+ *
+ * <p>Because the original is the source of truth, editing it invalidates a
+ * translation made from it — the English panel clears rather than sitting
+ * there stale. What gets sent for extraction is the English when one exists,
+ * and the original otherwise; that is the behaviour the backend already had,
+ * and changing which language the extractor sees is an extraction change, not
+ * a layout one.
+ */
 
 function preferredAudioMimeType() {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -18,19 +35,29 @@ function filenameFor(blob) {
   return 'trevora-voice-note.webm';
 }
 
+function clock(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** Fifteen bars, lit up to however far the recording has run. */
+const WAVE = Array.from({ length: 15 }, (_, i) => 9 + ((i * 7) % 26));
+
 export default function VoiceInputPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
+  const tickRef = useRef(null);
   const [vehicle, setVehicle] = useState(null);
-  const [transcript, setTranscript] = useState('');
-  const [sourceTranscript, setSourceTranscript] = useState('');
-  const [translated, setTranslated] = useState(false);
+  const [original, setOriginal] = useState('');
+  const [translation, setTranslation] = useState('');
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState('');
   const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -64,6 +91,7 @@ export default function VoiceInputPage() {
 
   useEffect(() => () => {
     stopStream();
+    if (tickRef.current) window.clearInterval(tickRef.current);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
   }, [audioUrl]);
 
@@ -80,10 +108,11 @@ export default function VoiceInputPage() {
     recorderRef.current = null;
     stopStream();
     chunksRef.current = [];
+    if (tickRef.current) window.clearInterval(tickRef.current);
     setRecording(false);
-    setTranscript('');
-    setSourceTranscript('');
-    setTranslated(false);
+    setElapsed(0);
+    setOriginal('');
+    setTranslation('');
     setAudioBlob(null);
     setAudioUrl((current) => {
       if (current) URL.revokeObjectURL(current);
@@ -107,9 +136,7 @@ export default function VoiceInputPage() {
       chunksRef.current = [];
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
+        if (event.data.size > 0) chunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || 'audio/webm' });
@@ -120,6 +147,7 @@ export default function VoiceInputPage() {
         });
         recorderRef.current = null;
         stopStream();
+        if (tickRef.current) window.clearInterval(tickRef.current);
         setRecording(false);
         void transcribeBlob(blob);
       };
@@ -127,6 +155,8 @@ export default function VoiceInputPage() {
       recorderRef.current = recorder;
       recorder.start();
       setRecording(true);
+      setElapsed(0);
+      tickRef.current = window.setInterval(() => setElapsed((n) => n + 1), 1000);
     } catch {
       stopStream();
       setRecording(false);
@@ -135,9 +165,7 @@ export default function VoiceInputPage() {
   }
 
   function stopRecording() {
-    if (recorderRef.current?.state === 'recording') {
-      recorderRef.current.stop();
-    }
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
   }
 
   async function transcribeBlob(blob) {
@@ -148,17 +176,12 @@ export default function VoiceInputPage() {
 
     setTranscribing(true);
     setError('');
-    setSourceTranscript('');
-    setTranslated(false);
+    setTranslation('');
 
     try {
-      const audioFile = new File([blob], filenameFor(blob), {
-        type: blob.type || 'audio/webm',
-      });
+      const audioFile = new File([blob], filenameFor(blob), { type: blob.type || 'audio/webm' });
       const result = await transcribeVoiceAudio({ vehicleId, audioFile });
-      const rawTranscript = result.sourceTranscript || result.transcript || '';
-      setTranscript(rawTranscript);
-      setSourceTranscript(rawTranscript);
+      setOriginal(result.sourceTranscript || result.transcript || '');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -167,9 +190,9 @@ export default function VoiceInputPage() {
   }
 
   async function handleTranslate() {
-    const rawTranscript = (sourceTranscript || transcript).trim();
-    if (!rawTranscript) {
-      setError('Transcribe or type a voice note before translating.');
+    const raw = original.trim();
+    if (!raw) {
+      setError('Record or type a voice note before translating.');
       return;
     }
 
@@ -177,10 +200,14 @@ export default function VoiceInputPage() {
     setError('');
 
     try {
-      const result = await translateVoiceTranscript({ vehicleId, transcript: rawTranscript });
-      setSourceTranscript(result.sourceTranscript || rawTranscript);
-      setTranscript(result.transcript || rawTranscript);
-      setTranslated(Boolean(result.translated));
+      const result = await translateVoiceTranscript({ vehicleId, transcript: raw });
+      // Only keep it as a translation if it actually is one. When the note was
+      // already in English the two are the same string, and showing it twice
+      // would imply work was done that was not.
+      setTranslation(result.translated && result.transcript !== raw ? result.transcript : '');
+      if (!result.translated) {
+        setError('That already reads as English, so there was nothing to translate.');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -191,8 +218,9 @@ export default function VoiceInputPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!transcript.trim()) {
-      setError('Record and transcribe a voice note, or type the spoken service details before creating a draft.');
+    const toRead = (translation || original).trim();
+    if (!toRead) {
+      setError('Record a voice note, or type what you want to say, before going on.');
       return;
     }
 
@@ -200,10 +228,7 @@ export default function VoiceInputPage() {
     setError('');
 
     try {
-      const draft = await createVoiceServiceDraft({
-        vehicleId,
-        transcript: transcript.trim(),
-      });
+      const draft = await createVoiceServiceDraft({ vehicleId, transcript: toRead });
       navigate(`/service-drafts/${draft.draftId}`);
     } catch (err) {
       setError(err.message);
@@ -212,149 +237,128 @@ export default function VoiceInputPage() {
     }
   }
 
+  const vehicleName = vehicle ? vehicle.nickname || `${vehicle.make} ${vehicle.model}` : '';
+  const busy = recording || transcribing || translating || saving;
+
   return (
-    <main className="page-shell">
-      <section className="page-header">
-        <p className="eyebrow">
-          <Link className="inline-link" to="/vehicles">
-            Change method
-          </Link>
-          <span>Voice</span>
-        </p>
-        <h1>Say what was done</h1>
-        {loading ? (
-          <p>Loading selected vehicle...</p>
-        ) : vehicle ? (
-          <p>
-            Drafting for {vehicle.nickname || `${vehicle.make} ${vehicle.model}`}
-            {vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''}
-          </p>
-        ) : null}
-      </section>
+    <FlowChrome
+      step={3}
+      width="mid"
+      vehicleName={vehicleName}
+      title="Say what was done"
+      subtitle="Date, cost, shop, and what was replaced. Anything you leave out you can type on the next screen."
+      onExit={() => navigate('/')}
+    >
+      {error && <div className="flow-alert">{error}</div>}
 
-      <StepIndicator currentStep={3} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <section className="flow-card flow-recorder">
+          <button
+            className={`flow-recorder__btn${recording ? '' : ' is-idle'}`}
+            type="button"
+            onClick={recording ? stopRecording : startRecording}
+            disabled={transcribing || translating || saving}
+            aria-label={recording ? 'Stop recording' : 'Start recording'}
+          >
+            <span />
+          </button>
 
-      {error && <div className="alert">{error}</div>}
-
-      <section className="content-two">
-        <form className="panel record-panel" onSubmit={handleSubmit}>
-          <div className="panel-heading">
-            <div>
-              <h2>Record a note</h2>
-              <p>Stop recording and we write down what you said. Translate it to English if you spoke another language.</p>
+          <div className="flow-recorder__mid">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <span className="flow-recorder__time">{clock(elapsed)}</span>
+              <span className="flow-note">
+                {recording
+                  ? 'Recording — tap the square to stop'
+                  : transcribing
+                    ? 'Writing down what you said…'
+                    : audioBlob ? 'Recorded. Play it back or record again.' : 'Tap the circle to start'}
+              </span>
             </div>
-            <span className="method-badge">Raw then English</span>
+            <div className="flow-wave" aria-hidden="true">
+              {WAVE.map((height, index) => (
+                <i
+                  key={index}
+                  className={recording && index <= (elapsed % WAVE.length) ? 'is-live' : ''}
+                  style={{ height }}
+                />
+              ))}
+            </div>
           </div>
 
-          <div className={`voice-recorder-card${recording ? ' recording' : ''}`}>
-            <span className="voice-pulse">{recording ? 'REC' : 'V'}</span>
-            <div className="voice-recorder-copy">
-              <strong>{recording ? 'Recording voice note...' : 'Voice note recorder'}</strong>
-              <p>
-                {recording
-                  ? 'Speak clearly and include the service type, date, parts, cost, and shop if you know them.'
-                  : 'Use your microphone to capture the service details, or type them manually below.'}
-              </p>
-            </div>
-            <div className="voice-recorder-actions">
-              {!recording ? (
-                <button type="button" onClick={startRecording} disabled={loading || transcribing || saving}>
-                  Start recording
-                </button>
-              ) : (
-                <button type="button" onClick={stopRecording}>
-                  Stop recording
-                </button>
-              )}
-              <button className="button-secondary" type="button" onClick={clearRecording} disabled={!audioBlob && !recording}>
-                Re-record
-              </button>
-            </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {audioUrl && (
-              <audio className="voice-audio-preview" controls src={audioUrl}>
+              <audio controls src={audioUrl} style={{ height: 52 }}>
                 Your browser does not support audio playback.
               </audio>
             )}
             <button
-              className="button-secondary full-width"
+              className="flow-btn flow-btn--ghost"
               type="button"
-              onClick={handleTranslate}
-              disabled={!transcript.trim() || recording || transcribing || translating}
+              onClick={clearRecording}
+              disabled={!audioBlob && !recording && !original}
             >
-              {translating ? 'Translating...' : 'Translate to English'}
+              Record again
             </button>
-            {(transcribing || translating) && (
-              <p className="voice-processing-note">
-                {transcribing ? 'Generating raw transcript...' : 'Translating transcript to English...'}
+          </div>
+        </section>
+
+        <div className="flow-transcripts">
+          <section className="flow-card flow-transcript-card">
+            <span className="flow-eyebrow">What we heard</span>
+            <textarea
+              value={original}
+              onChange={(event) => {
+                setOriginal(event.target.value);
+                // The English was made from the old text. Keeping it would
+                // leave a translation of something nobody said any more.
+                if (translation) setTranslation('');
+                setError('');
+              }}
+              placeholder="Example: I changed the oil and replaced the filter today. Total cost was around 1200."
+              aria-label="What we heard"
+            />
+            <p className="flow-source__foot">
+              This is the copy we keep. Editing here changes what we read.
+            </p>
+          </section>
+
+          {translation ? (
+            <section className="flow-card flow-transcript-card">
+              <span className="flow-eyebrow">In English</span>
+              <p className="flow-transcript">{translation}</p>
+              <p className="flow-source__foot">
+                The original stays exactly as you said it. This is what we will read.
               </p>
-            )}
-          </div>
-
-          <div className="voice-entry-box">
-            <label>
-              Transcript
-              <textarea
-                value={transcript}
-                onChange={(event) => {
-                  setTranscript(event.target.value);
-                  if (!translated) {
-                    setSourceTranscript(event.target.value);
-                  }
-                  setError('');
-                }}
-                placeholder="Example: I changed the oil and replaced the filter today. Total cost was around 1200."
-                rows="8"
-              />
-            </label>
-          </div>
-
-          {translated && (
-            <div className="voice-summary">
-              <h2>Transcript preview</h2>
-              <p>{transcript.trim() || 'No transcript yet. Record audio or type the service details manually.'}</p>
-              {sourceTranscript.trim() && sourceTranscript.trim() !== transcript.trim() && (
-                <div className="voice-source-transcript">
-                  <strong>Original transcript</strong>
-                  <span>{sourceTranscript}</span>
-                </div>
-              )}
-            </div>
+            </section>
+          ) : (
+            <section className="flow-transcript-card flow-transcript-card--empty">
+              <span className="flow-eyebrow">In English</span>
+              <p className="flow-note">Not translated yet. The original beside this stays either way.</p>
+              <button
+                className="flow-btn flow-btn--ghost"
+                type="button"
+                onClick={handleTranslate}
+                disabled={!original.trim() || busy}
+              >
+                {translating ? 'Translating…' : 'Translate to English'}
+              </button>
+            </section>
           )}
+        </div>
 
-          <div className="actions">
-            <Link className="secondary-link" to={`/service-input/${vehicleId}`}>
-              Change method
-            </Link>
-            <button type="submit" disabled={saving || loading || transcribing || translating || recording}>
-              {saving ? 'Creating draft...' : 'Create voice draft'}
-            </button>
-          </div>
-        </form>
-
-        <aside className="guidance-stack">
-          <section className="helper-card">
-            <h2>How speech-to-text works</h2>
-            <dl className="compact-facts">
-              <div>
-                <dt>Audio</dt>
-                <dd>The browser records a short voice note from your microphone.</dd>
-              </div>
-              <div>
-                <dt>Transcript</dt>
-                <dd>The backend returns the raw transcript first, then translates only when requested.</dd>
-              </div>
-              <div>
-                <dt>Draft fields</dt>
-                <dd>We pull the service details out of what you said, for you to check next.</dd>
-              </div>
-            </dl>
-          </section>
-          <section className="helper-card warning">
-            <h2>Review before saving</h2>
-            <p>Speech transcripts can miss costs, dates, or shop names. Correct the transcript or fix fields in the review step.</p>
-          </section>
-        </aside>
-      </section>
-    </main>
+        <div className="flow-actions">
+          <button
+            className="flow-btn flow-btn--ghost"
+            type="button"
+            onClick={() => navigate(`/service-input/${vehicleId}`)}
+          >
+            Back
+          </button>
+          <button className="flow-btn" type="submit" disabled={busy || loading || !original.trim()}>
+            {saving ? 'Creating draft…' : 'Check the details'}
+          </button>
+        </div>
+      </form>
+    </FlowChrome>
   );
 }

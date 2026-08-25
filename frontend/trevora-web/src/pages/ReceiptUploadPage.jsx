@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Camera, CheckCircle2, FileImage, RotateCcw, Trash2, Video, X } from 'lucide-react';
-import StepIndicator from '../components/StepIndicator';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowDown, ArrowUp, Camera, Check, Plus, Sun, Upload } from 'lucide-react';
+import FlowChrome from '../components/flow/FlowChrome';
 import { createReceiptPagesServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
@@ -372,381 +372,347 @@ export default function ReceiptUploadPage() {
     }
   }
 
+  const vehicleName = vehicle ? vehicle.nickname || `${vehicle.make} ${vehicle.model}` : '';
+
   return (
-    <main className="page-shell">
-      {saving && (
-        <ReceiptProcessingOverlay progress={progress} />
-      )}
+    <FlowChrome
+      step={3}
+      width="mid"
+      vehicleName={vehicleName}
+      title="The receipt"
+      subtitle={pages.length === 0
+        ? 'Add every page of one visit. Photograph them, upload them, or both.'
+        : `${pages.length} page${pages.length === 1 ? '' : 's'}, in the order they print.`}
+      onExit={() => { stopCamera(); navigate('/'); }}
+    >
+      {saving && <ReadingOverlay progress={progress} />}
 
-      <section className="page-header">
-        <p className="eyebrow">
-          <Link className="inline-link" to={`/service-input/${vehicleId}`}>
-            Change method
-          </Link>
-          <span>Receipt</span>
-        </p>
-        <h1>Add a receipt</h1>
-        {loading ? (
-          <p>Loading selected vehicle...</p>
-        ) : vehicle ? (
-          <p>
-            Drafting for {vehicle.nickname || `${vehicle.make} ${vehicle.model}`}
-            {vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''}
-          </p>
-        ) : null}
-      </section>
+      {error && <div className="flow-alert">{error}</div>}
 
-      <StepIndicator currentStep={3} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {/* Two ways into ONE page list. They used to hold separate arrays and
+            submit sent only the active one, so photographing two pages and
+            then adding a third from the gallery filed a one-page receipt and
+            dropped the other two without saying so. */}
+        <div className="flow-tabs" role="tablist" aria-label="How to add pages">
+          <button
+            className={activeMode === 'UPLOAD' ? 'is-active' : ''}
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'UPLOAD'}
+            onClick={() => setActiveMode('UPLOAD')}
+          >
+            <Upload size={18} aria-hidden="true" />
+            Upload
+          </button>
+          <button
+            className={activeMode === 'SCAN' ? 'is-active' : ''}
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'SCAN'}
+            onClick={() => setActiveMode('SCAN')}
+          >
+            <Camera size={18} aria-hidden="true" />
+            Camera
+          </button>
+        </div>
 
-      {error && <div className="alert">{error}</div>}
+        <input
+          ref={uploadInputRef}
+          className="sr-only"
+          type="file"
+          accept="image/*,.heic,.heif"
+          multiple
+          onChange={(event) => { addUploadFiles(event.target.files); event.target.value = ''; }}
+        />
+        <input
+          ref={replaceInputRef}
+          className="sr-only"
+          type="file"
+          accept="image/*,.heic,.heif"
+          onChange={(event) => { handleReplaceFileSelected(event.target.files); event.target.value = ''; }}
+        />
+        <input
+          ref={scanInputRef}
+          className="sr-only"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(event) => { addScanFile(event.target.files); event.target.value = ''; }}
+        />
+        <canvas ref={canvasRef} className="sr-only" aria-hidden="true" />
+        <canvas ref={analysisCanvasRef} className="sr-only" aria-hidden="true" />
 
-      <section className="content-two">
-        <form className="panel record-panel" onSubmit={handleSubmit}>
-          <div className="panel-heading">
-            <div>
-              <h2>The receipt</h2>
-              <p>Add every page of one visit. Photograph them, upload them, or both.</p>
-            </div>
-            <span className="method-badge">Receipt</span>
-          </div>
-
-          <div className="receipt-mode-tabs" role="tablist" aria-label="Receipt input mode">
-            <button className={activeMode === 'UPLOAD' ? 'active' : ''} type="button" onClick={() => setActiveMode('UPLOAD')}>
-              <FileImage size={17} aria-hidden="true" />
-              Upload photos
-            </button>
-            <button className={activeMode === 'SCAN' ? 'active' : ''} type="button" onClick={() => setActiveMode('SCAN')}>
-              <Camera size={17} aria-hidden="true" />
-              Use camera
-            </button>
-          </div>
-
-          {activeMode === 'UPLOAD' ? (
-            <section className="receipt-input-panel" onDrop={handleDrop}>
-              <div className="receipt-input-copy">
-                <strong>Photos you already have</strong>
-                <p>Receipts, invoices, job orders — anything from the same visit.</p>
-              </div>
-              <ul className="receipt-upload-tips">
-                <li>
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Flat surface, good lighting, no glare or shadows</span>
-                </li>
-                <li>
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>All four corners of the page visible in frame</span>
-                </li>
-                <li>
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Sharp focus — hold steady before taking the photo</span>
-                </li>
-              </ul>
-              <input
-                ref={uploadInputRef}
-                className="sr-only"
-                type="file"
-                accept="image/*,.heic,.heif"
-                multiple
-                onChange={(event) => {
-                  addUploadFiles(event.target.files);
-                  event.target.value = '';
-                }}
-              />
-              <button className="receipt-input-cta" type="button" onClick={() => uploadInputRef.current?.click()} disabled={preparingUpload}>
-                <FileImage size={24} aria-hidden="true" />
-                <strong>{preparingUpload ? 'Preparing images...' : pages.length ? 'Add more pages' : 'Select receipt pages'}</strong>
-                <span>Select multiple images at once or drag them into this panel.</span>
-              </button>
-              <input
-                ref={replaceInputRef}
-                className="sr-only"
-                type="file"
-                accept="image/*,.heic,.heif"
-                onChange={(event) => {
-                  handleReplaceFileSelected(event.target.files);
-                  event.target.value = '';
-                }}
-              />
-            </section>
-          ) : (
-            <section className="receipt-input-panel">
-              <div className="receipt-input-copy">
-                <strong>Capture pages one at a time</strong>
-                <p>Start the camera, line up each page, capture, then add another page or finish scanning.</p>
-              </div>
-              <input
-                ref={scanInputRef}
-                className="sr-only"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(event) => {
-                  addScanFile(event.target.files);
-                  event.target.value = '';
-                }}
-              />
-              <canvas ref={canvasRef} className="sr-only" aria-hidden="true" />
-              <canvas ref={analysisCanvasRef} className="sr-only" aria-hidden="true" />
-
-              <div className="receipt-camera-stage">
-                {cameraActive ? (
-                  <>
-                    <video ref={videoRef} className="receipt-camera-preview" playsInline muted autoPlay />
-                    <div className="receipt-camera-guide" aria-hidden="true">
-                      <span className="receipt-camera-corner receipt-camera-corner-tl" />
-                      <span className="receipt-camera-corner receipt-camera-corner-tr" />
-                      <span className="receipt-camera-corner receipt-camera-corner-bl" />
-                      <span className="receipt-camera-corner receipt-camera-corner-br" />
+        {activeMode === 'SCAN' && (
+          <section className="flow-camera" onDrop={handleDrop}>
+            <div className="flow-camera__stage">
+              {cameraActive ? (
+                <>
+                  <video ref={videoRef} playsInline muted autoPlay />
+                  <span className="flow-camera__corner flow-camera__corner--tl" aria-hidden="true" />
+                  <span className="flow-camera__corner flow-camera__corner--tr" aria-hidden="true" />
+                  <span className="flow-camera__corner flow-camera__corner--bl" aria-hidden="true" />
+                  <span className="flow-camera__corner flow-camera__corner--br" aria-hidden="true" />
+                  {lightingHint && lightingHint !== 'good' && (
+                    <div className="flow-camera__hint" role="status">
+                      <Sun size={20} strokeWidth={1.7} aria-hidden="true" />
+                      {lightingHint === 'dark'
+                        ? 'Too dark to read — move nearer a light'
+                        : 'Too bright — turn away from the glare'}
                     </div>
-                    {lightingHint && lightingHint !== 'good' && (
-                      <div className="receipt-camera-lighting-hint" role="status">
-                        {lightingHint === 'dark'
-                          ? 'Low light — move to a brighter area'
-                          : 'Too bright — reduce glare or backlight'}
-                      </div>
-                    )}
-                  </>
+                  )}
+                </>
+              ) : (
+                <p className="flow-eyebrow">Camera preview</p>
+              )}
+            </div>
+
+            <div className="flow-camera__bar">
+              <span className="flow-camera__count">
+                <b>{pages.length}</b>
+                {pages.length === 1 ? 'page so far' : 'pages so far'}
+              </span>
+
+              {cameraActive ? (
+                <button
+                  className="flow-shutter"
+                  type="button"
+                  onClick={captureScanPage}
+                  aria-label="Capture this page"
+                />
+              ) : (
+                <button
+                  className="flow-btn flow-btn--ghost"
+                  type="button"
+                  onClick={startCamera}
+                  disabled={cameraStarting}
+                >
+                  {cameraStarting ? 'Starting…' : 'Start camera'}
+                </button>
+              )}
+
+              <button
+                className="flow-camera__done"
+                type="button"
+                onClick={() => { stopCamera(); setActiveMode('UPLOAD'); }}
+              >
+                Done
+              </button>
+            </div>
+
+            {cameraUnavailable && (
+              <div style={{ padding: '0 20px 22px' }}>
+                <button
+                  className="flow-btn flow-btn--ghost"
+                  type="button"
+                  onClick={() => scanInputRef.current?.click()}
+                >
+                  Use your phone&apos;s camera app instead
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        <div onDrop={handleDrop} onDragOver={(event) => event.preventDefault()}>
+          <div className="flow-pages">
+            {pages.map((page, index) => (
+              <article
+                className={`flow-page-card${page.isBlurry ? ' is-blurry' : ''}`}
+                key={page.id}
+              >
+                <button
+                  className="flow-page-card__img"
+                  type="button"
+                  onClick={() => setPreviewPage(page)}
+                  aria-label={`See page ${page.pageNumber} full size`}
+                >
+                  <img src={page.previewUrl} alt="" />
+                  <span className="flow-page-card__n">{page.pageNumber}</span>
+                </button>
+
+                {page.isBlurry ? (
+                  <div className="flow-page-card__blur">
+                    <span className="flow-page-card__blur-msg">Too blurry to read</span>
+                    <button
+                      className="flow-btn flow-btn--ghost"
+                      type="button"
+                      style={{ height: 38, fontSize: 14 }}
+                      onClick={() => (page.source === 'SCAN'
+                        ? retakeScanPage(page.id)
+                        : requestReplaceUploadPage(page.id))}
+                      disabled={replacingPageId === page.id}
+                    >
+                      {page.source === 'SCAN' ? 'Retake' : 'Replace'}
+                    </button>
+                  </div>
                 ) : (
-                  <div className="receipt-camera-empty">
-                    <Camera size={30} aria-hidden="true" />
-                    <strong>Camera preview</strong>
-                    <span>Camera access is required to scan receipts.</span>
+                  <div className="flow-page-card__foot">
+                    <button
+                      className="flow-link"
+                      type="button"
+                      onClick={() => (page.source === 'SCAN'
+                        ? retakeScanPage(page.id)
+                        : requestReplaceUploadPage(page.id))}
+                      disabled={replacingPageId === page.id}
+                    >
+                      {replacingPageId === page.id
+                        ? 'Replacing…'
+                        : page.source === 'SCAN' ? 'Retake' : 'Replace'}
+                    </button>
+                    <button
+                      className="flow-link"
+                      type="button"
+                      style={{ color: 'var(--ink-muted)' }}
+                      onClick={() => removePage(page.id)}
+                    >
+                      Remove
+                    </button>
                   </div>
                 )}
-              </div>
 
-              {cameraMessage && <div className="receipt-camera-message">{cameraMessage}</div>}
-
-              <div className="receipt-camera-actions">
-                {!cameraActive ? (
-                  <button className="receipt-input-cta receipt-camera-action" type="button" onClick={startCamera} disabled={cameraStarting}>
-                    <Video size={22} aria-hidden="true" />
-                    <strong>{cameraStarting ? 'Starting camera...' : 'Start camera'}</strong>
-                    <span>Uses your browser camera on localhost or HTTPS.</span>
-                  </button>
-                ) : (
-                  <>
-                    <button className="receipt-input-cta receipt-camera-action" type="button" onClick={captureScanPage}>
-                      <Camera size={22} aria-hidden="true" />
-                      <strong>{pages.length ? 'Add another page' : 'Capture page'}</strong>
-                      <span>Save the current frame as the next receipt page.</span>
+                {/* Reorder stays on buttons rather than drag. This is used
+                    one-handed on a phone with the paper in the other hand,
+                    where a drag target is the wrong control for a thumb. */}
+                {pages.length > 1 && (
+                  <div className="flow-page-card__foot" style={{ paddingTop: 0 }}>
+                    <button
+                      className="flow-x"
+                      type="button"
+                      onClick={() => movePage(page.id, -1)}
+                      disabled={index === 0}
+                      aria-label={`Move page ${page.pageNumber} earlier`}
+                    >
+                      <ArrowUp size={16} aria-hidden="true" />
                     </button>
-                    <button className="button-secondary" type="button" onClick={stopCamera}>
-                      <X size={16} aria-hidden="true" />
-                      Stop camera
+                    <button
+                      className="flow-x"
+                      type="button"
+                      onClick={() => movePage(page.id, 1)}
+                      disabled={index === pages.length - 1}
+                      aria-label={`Move page ${page.pageNumber} later`}
+                    >
+                      <ArrowDown size={16} aria-hidden="true" />
                     </button>
-                  </>
+                  </div>
                 )}
+              </article>
+            ))}
 
-                {pages.length > 0 && (
-                  <button className="button-secondary" type="button" onClick={retakeLastScanPage}>
-                    <RotateCcw size={16} aria-hidden="true" />
-                    Retake last page
-                  </button>
-                )}
-              </div>
-
-              {cameraUnavailable && (
-                <div className="receipt-camera-fallback">
-                  <p>If camera scanning is unavailable, you can upload receipt images instead.</p>
-                  <button className="button-secondary" type="button" onClick={() => scanInputRef.current?.click()}>
-                    <FileImage size={16} aria-hidden="true" />
-                    Use fallback capture picker
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
-
-          <div className="receipt-page-section-heading">
-            <div>
-              <strong>Pages in this receipt</strong>
-              <span>
-                {pages.length} page{pages.length === 1 ? '' : 's'} ready
-                {pages.length > 1 ? ', in the order shown' : ''}
-              </span>
-            </div>
-            {isScanMode && pages.length > 0 && (
-              <button className="button-secondary" type="button" onClick={cameraActive ? captureScanPage : startCamera}>
-                Add another page
-              </button>
-            )}
-          </div>
-
-          <ReceiptPageList
-            pages={pages}
-            onPreview={setPreviewPage}
-            onRemove={removePage}
-            onRetake={retakeScanPage}
-            onReplace={requestReplaceUploadPage}
-            onMove={movePage}
-            replacingPageId={replacingPageId}
-          />
-
-
-
-          {previewPage && (
-            <div className="image-preview-overlay" role="dialog" aria-modal="true" aria-label="Receipt page preview">
-              <button
-                className="image-preview-close"
-                type="button"
-                aria-label="Close receipt preview"
-                onClick={() => setPreviewPage(null)}
-              >
-                ×
-              </button>
-              <img src={previewPage.previewUrl} alt={`Receipt page ${previewPage.pageNumber} preview`} />
-            </div>
-          )}
-
-          <div className="actions">
-            <Link className="secondary-link" to={`/service-input/${vehicleId}`}>
-              Change method
-            </Link>
-            <button type="submit" disabled={saving || loading || pages.length === 0}>
-              {saving
-                ? 'Reading...'
-                : pages.length > 1
-                  ? `Read ${pages.length} pages`
-                  : 'Read this receipt'}
+            <button
+              className="flow-page-add"
+              type="button"
+              onClick={() => (activeMode === 'SCAN' && !cameraActive
+                ? startCamera()
+                : activeMode === 'SCAN' ? captureScanPage() : uploadInputRef.current?.click())}
+              disabled={preparingUpload}
+            >
+              <Plus size={24} strokeWidth={1.6} aria-hidden="true" />
+              {preparingUpload ? 'Preparing…' : 'Add a page'}
             </button>
           </div>
-        </form>
+        </div>
 
-        <aside className="guidance-stack">
-          <section className="helper-card">
-            <h2>What happens next</h2>
-            <ul className="feature-list">
-              <li>
-                <strong>One visit, one record</strong>
-                <span>Add every page of the same visit here, however many there are.</span>
-              </li>
-              <li>
-                <strong>Order matters</strong>
-                <span>Pages are read in the order shown, so put them the way they were printed.</span>
-              </li>
-              <li>
-                <strong>Nothing saves until you say so</strong>
-                <span>You see everything we read off the receipt, and can fix any of it first.</span>
-              </li>
-            </ul>
-          </section>
-        </aside>
-      </section>
-    </main>
+        {pages.length === 0 ? (
+          <ul className="flow-note" style={{ margin: 0, paddingLeft: 20 }}>
+            <li>Flat surface, good lighting, no glare or shadows</li>
+            <li>All four corners of the page visible in frame</li>
+            <li>Sharp focus — hold steady before taking the photo</li>
+          </ul>
+        ) : (
+          <p className="flow-note">The order here is the order we read them in.</p>
+        )}
+
+        {cameraMessage && <p className="flow-note">{cameraMessage}</p>}
+
+        <div className="flow-actions">
+          <button
+            className="flow-btn flow-btn--ghost"
+            type="button"
+            onClick={() => { stopCamera(); navigate(`/service-input/${vehicleId}`); }}
+          >
+            Back
+          </button>
+          <button className="flow-btn" type="submit" disabled={saving || loading || pages.length === 0}>
+            {pages.length > 1 ? `Read these ${pages.length} pages` : 'Read this receipt'}
+          </button>
+        </div>
+      </form>
+
+      {previewPage && (
+        <div
+          className="image-preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Receipt page preview"
+        >
+          <button
+            className="image-preview-close"
+            type="button"
+            aria-label="Close receipt preview"
+            onClick={() => setPreviewPage(null)}
+          >
+            ×
+          </button>
+          <img src={previewPage.previewUrl} alt={`Receipt page ${previewPage.pageNumber}`} />
+        </div>
+      )}
+    </FlowChrome>
   );
 }
 
-function ReceiptProcessingOverlay({ progress }) {
+/**
+ * Two steps, because two things happen, and both bars move with real page
+ * counts. There used to be four steps walked through on a 900ms timer with no
+ * connection to the request: it claimed to be "Analyzing service details" 1.8s
+ * in whether or not OCR had returned, then sat on the last step indefinitely.
+ */
+function ReadingOverlay({ progress }) {
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
+  const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
 
   return (
-    <div className="receipt-processing-overlay" role="status" aria-live="polite">
-      <section className="receipt-processing-card">
-        <div className="receipt-processing-orbit" aria-hidden="true">
-          <span />
-          <i />
-        </div>
+    <div className="flow-reading" role="status" aria-live="polite">
+      <div className="flow-reading__inner">
         <div>
-          <p className="eyebrow">Receipt</p>
-          <h2>{storing ? 'Saving your pages' : 'Reading your receipt'}</h2>
-          <p>
-            {storing
-              ? `${storedPages} of ${totalPages} saved.`
-              : `${totalPages} page${totalPages === 1 ? '' : 's'} saved. Reading them now - this is the slow part.`}
+          <h2 className="flow-reading__title">
+            {storing ? 'Saving your pages' : 'Reading your receipt'}
+          </h2>
+          <p className="flow-reading__sub">
+            Two steps. This is the slow part — leave it running and it will finish.
           </p>
         </div>
-        {/* Two steps, because two things happen. There used to be four, walked
-            through on a 900ms timer with no connection to the request: it
-            claimed to be "Analyzing service details" 1.8s in whether or not
-            OCR had returned, then sat on the last step indefinitely. */}
-        <div className="receipt-processing-steps">
-          <span className="active">Saving pages</span>
-          <span className={storing ? '' : 'active'}>Reading</span>
+
+        <div className="flow-reading__steps">
+          <div className="flow-reading__step">
+            <span className={`flow-reading__dot${storing ? '' : ' is-done'}`} aria-hidden="true">
+              <Check size={14} strokeWidth={3} />
+            </span>
+            <div style={{ flex: 1 }}>
+              <p className="flow-reading__name">Saving the pages</p>
+              <p className="flow-reading__count">{storedPages} of {totalPages} saved</p>
+              {storing && (
+                <div className="flow-reading__bar"><i style={{ width: `${storedPct}%` }} /></div>
+              )}
+            </div>
+          </div>
+
+          <div className="flow-reading__step">
+            <span className="flow-reading__dot" aria-hidden="true" />
+            <div style={{ flex: 1 }}>
+              <p className="flow-reading__name">Reading them</p>
+              <p className="flow-reading__count">
+                {storing
+                  ? 'Waiting for the pages'
+                  : `${totalPages} page${totalPages === 1 ? '' : 's'} to read`}
+              </p>
+            </div>
+          </div>
         </div>
-      </section>
-    </div>
-  );
-}
 
-function ReceiptPageList({ pages, onPreview, onRemove, onRetake, onReplace, onMove, replacingPageId }) {
-  if (pages.length === 0) {
-    return (
-      <div className="receipt-pages-empty">
-        <strong>No pages yet</strong>
-        <span>Pages you add will be listed here, in the order they will be read.</span>
+        <p className="flow-reading__foot">Both counts are real. Neither is a timer.</p>
       </div>
-    );
-  }
-
-  return (
-    <div className="receipt-page-grid">
-      {pages.map((page, index) => (
-        <article className={`receipt-page-card${page.isBlurry ? ' receipt-page-card-blurry' : ''}`} key={page.id}>
-          <button type="button" onClick={() => onPreview(page)}>
-            <img src={page.previewUrl} alt={`Receipt page ${page.pageNumber}`} />
-          </button>
-          <div>
-            <strong>Page {page.pageNumber}</strong>
-            <span>{page.file.name}</span>
-            <small>
-              {Math.round(page.file.size / 1024)} KB · {page.source === 'SCAN' ? 'Scanned' : 'Uploaded'}
-            </small>
-            {page.isBlurry && (
-              <span className="receipt-page-blur-flag">
-                Looks blurry — {page.source === 'SCAN' ? 'retake' : 'replace'} for a better read
-              </span>
-            )}
-          </div>
-          <div className="receipt-page-actions">
-            {pages.length > 1 && (
-              <div className="receipt-page-order">
-                <button
-                  className="button-secondary"
-                  type="button"
-                  onClick={() => onMove(page.id, -1)}
-                  disabled={index === 0}
-                  aria-label={`Move page ${page.pageNumber} earlier`}
-                >
-                  <ArrowUp size={15} aria-hidden="true" />
-                </button>
-                <button
-                  className="button-secondary"
-                  type="button"
-                  onClick={() => onMove(page.id, 1)}
-                  disabled={index === pages.length - 1}
-                  aria-label={`Move page ${page.pageNumber} later`}
-                >
-                  <ArrowDown size={15} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-            {page.source === 'SCAN' ? (
-              <button className="button-secondary" type="button" onClick={() => onRetake(page.id)}>
-                Retake
-              </button>
-            ) : (
-              <button
-                className={`button-secondary${page.isBlurry ? ' receipt-page-replace-flagged' : ''}`}
-                type="button"
-                onClick={() => onReplace(page.id)}
-                disabled={replacingPageId === page.id}
-              >
-                {replacingPageId === page.id ? 'Replacing...' : 'Replace'}
-              </button>
-            )}
-            <button
-              className="button-secondary danger-lite"
-              type="button"
-              onClick={() => onRemove(page.id)}
-              aria-label={`Remove page ${page.pageNumber}`}
-            >
-              <Trash2 size={15} aria-hidden="true" />
-            </button>
-          </div>
-        </article>
-      ))}
     </div>
   );
 }

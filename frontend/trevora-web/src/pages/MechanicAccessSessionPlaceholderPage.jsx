@@ -271,6 +271,15 @@ export default function MechanicAccessSessionPlaceholderPage() {
         <div>
           <span className="ink-eyebrow">Shared by the owner · read only</span>
           <h1 className="ink-page__title">{history.vehicleLabel}</h1>
+          {/* The plate is shown here and nowhere earlier: this page exists only
+              once the owner has approved, which is the point at which
+              confirming the right vehicle is worth disclosing it. It is also
+              the thing a mechanic can check against the car in front of them,
+              which the make and model alone cannot settle in a yard of
+              identical Civics. */}
+          {history.plateNumber && (
+            <p className="mechanic-header__plate ink-mono">{history.plateNumber}</p>
+          )}
           <Summary records={records} trust={trust} odometer={odometer} />
         </div>
         <span className="ink-badge ink-badge--none mechanic-header__expiry">

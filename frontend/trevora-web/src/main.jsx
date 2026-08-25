@@ -17,6 +17,17 @@ import './styles/ink-vehicle.css';
 // The mechanic's shared view. Last, because it builds on primitives from
 // every file above it and overrides none of them.
 import './styles/ink-mechanic.css';
+// Landing composition and section rhythm. Overrides the .fig-* rules in
+// styles.css without those needing to be edited in place.
+import './styles/ink-landing.css';
+// Adding a service record, and checking it before saving. Overrides the
+// pre-Ink tokens in styles.css, and neutralises the bare `button` rules there
+// and in ink-app.css that out-specify component classes.
+//
+// These last two sheets cover disjoint surfaces — the landing page and the
+// add-record flow share no selectors — so their order relative to each other
+// carries no meaning. Both merely need to come after styles.css.
+import './styles/service-flow.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

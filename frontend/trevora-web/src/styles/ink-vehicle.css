@@ -176,6 +176,123 @@
   border-left: 1px solid var(--rule-faint);
 }
 
+/* ------------------------------------------------------- vehicle details
+
+   The four registration fields, always drawn. Separate from `.vehicle-stats`
+   above on purpose: those are what the service history adds up to, these are
+   what the vehicle *is*. Mixing them would put a number that changes on every
+   visit beside one printed on a document. */
+
+.vehicle-details {
+  padding: 20px 24px 22px;
+}
+
+.vehicle-details__head {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.vehicle-details__title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Replaces the grid outright when nothing has been filled in, rather than
+   sitting above it. Supporting prose, so muted ink and nothing else — no
+   border, no icon, no accent. */
+.vehicle-details__empty {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 68ch;
+}
+
+.vehicle-details__grid {
+  display: grid;
+  gap: 18px 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.vehicle-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.vehicle-detail__value {
+  font-size: 17px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An unfilled field is stated, not hidden — but in the muted ink, so a row of
+   blanks reads as "nothing recorded yet" rather than as four real values. */
+.vehicle-detail__value.is-empty {
+  color: var(--ink-faint);
+}
+
+@media (max-width: 900px) {
+  .vehicle-details__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .vehicle-details__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------- form dialog (edit vehicle details) */
+
+.ink-modal--form {
+  max-width: 520px;
+}
+
+.ink-modal__lead {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 8px 0 0;
+}
+
+.ink-modal__fields {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0 4px;
+}
+
+/* The Add form's fields set their own top margin against a full page. In a
+   dialog that gap is already the grid's. */
+.ink-modal__fields .ink-combo input {
+  margin-top: 8px;
+  width: 100%;
+}
+
+/* A second hint line, for the one field that has a specific wrong answer. Its
+   own line so it is read rather than skimmed, still the same muted ink — it is
+   guidance, not an error. */
+.ink-combo__hint-aside {
+  display: block;
+}
+
+/* Sits below the input rather than above it: it describes what happens to the
+   value once saved, which only means anything after the field has been read. */
+.ink-combo__note {
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
 .vehicle-stat__value {
   font-family: var(--font-serif);
   font-size: 26px;
