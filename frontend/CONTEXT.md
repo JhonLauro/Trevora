@@ -41,7 +41,18 @@ The active design direction is **"Ink"** (handoff bundle `design_handoff_trevora
 
 Ink tokens now live at `:root` in `src/styles/ink-app.css`, which is loaded globally from `main.jsx`. `src/styles/ink-auth.css` keeps the auth-only rules; `src/styles/ink-garage.css` holds the shell, Garage and Records surfaces. Cascade order is stated once, in `main.jsx`: `styles.css` → `ink-app.css` → `ink-auth.css` → `ink-garage.css`. `.ink-button` is shared across auth and the app, so a rule that only makes sense in one of them must be scoped (see `.ink-auth .ink-button`).
 
-Migrated so far: auth (`LoginPage`, `RegisterPage`, `AuthCallbackPage`, password reset, `RegisterVehiclePage` via `InkAuthShell`), the app shell (`AppShell`), the Garage dashboard (`GaragePage`), the vehicle page (`VehiclePage`) and `RecordsPage`. Still on the older "Calm Professional" tokens in `src/styles.css`: Add Service Record, the record detail page, Shared Access, Notifications, Account Settings.
+Migrated so far: auth (`LoginPage`, `RegisterPage`, `AuthCallbackPage`, password reset, `RegisterVehiclePage` via `InkAuthShell`), the app shell (`AppShell`), the Garage dashboard (`GaragePage`), the vehicle page (`VehiclePage`), `RecordsPage`, and — as of 2026-08-24 — the whole add-a-service-record flow and its checking screen (`src/styles/service-flow.css`, `src/components/flow/`). Still on the older "Calm Professional" tokens in `src/styles.css`: the record detail page, Shared Access, Notifications, Account Settings.
+
+The service flow is an ordinary page **inside `AppShell`** — sidebar and all. `FlowChrome` supplies the six-step progress bar (spanning all six screens rather than the first three) and the shared `.ink-page__header` block; it does not replace app chrome. Its field badges are the three-tier ladder in `src/utils/fieldTier.js` — urgency by containment, so seven confidence states fit a palette where chroma may only mean status. Red is used on exactly the two states that block a save.
+
+**Gotcha for any new Ink surface — bare element rules out-specify your component classes.**
+Three of them bite:
+
+- `styles.css`: `button { min-height: var(--field-h) }` (52px). `min-height` beats `height`, so any control you specify smaller is silently floored, with nothing in the diff to show it.
+- `styles.css`: `button { background:#1c1b19; color:#fff; font-weight:700; padding:.75rem 1rem }`. Any button you style with a class that sets no background renders as a black slab.
+- `ink-app.css:284`: `button:hover:not(:disabled) { background: var(--ink-hover) }` at specificity **(0,2,1)**. A plain `.your-card:hover` is (0,2,0) and *loses* — so a button-shaped card fills near-black on hover while its own `color` stays dark. Measured at 1.31:1 on the vehicle cards before it was fixed.
+
+`service-flow.css` neutralises all three inside `.flow`: a zero-specificity `.flow :where(button)` reset, plus `.flow button:hover` (which ties the legacy rule at (0,2,1) and wins on import order, since this sheet loads last). Component hovers carry `:not(:disabled)` to reach (0,3,0) and win in turn. Copy that pattern rather than editing the shared sheets.
 
 Shared Ink components live in `src/components/ink/` — `RecordsTable` (cross-vehicle and single-vehicle shapes), `Timeline`, `PartsView`, `Tabs`, `MonthBars`. Derivations live in `src/utils/` and are shared by both pages: `recordStatus`, `serviceComponents`, `componentStatus`, `serviceCategory`, `completeness`, `monthlySeries`, `nextDue`, `format`, `vehicleText`.
 

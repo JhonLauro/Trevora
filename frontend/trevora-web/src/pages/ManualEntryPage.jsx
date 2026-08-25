@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import StepIndicator from '../components/StepIndicator';
-import ServiceItemsEditor from '../components/ServiceItemsEditor';
+import { useNavigate, useParams } from 'react-router-dom';
+import FlowChrome from '../components/flow/FlowChrome';
+import ServiceLinesEditor from '../components/flow/ServiceLinesEditor';
 import { createManualServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import { formatPeso, lineEntriesOf, pesosFromCentavos, reconciliation } from '../utils/serviceLines';
+
+/**
+ * Step 3c. The plainest of the three, and the only one where nothing is read
+ * or guessed — so no field here ever carries a confidence badge. What the
+ * owner types is what saves.
+ */
 
 const emptyDraft = {
   serviceDate: '',
@@ -14,6 +21,15 @@ const emptyDraft = {
   remarks: '',
   services: [],
 };
+
+const fields = [
+  ['serviceDate', 'Date of service', 'date', true, ''],
+  ['odometer', 'Odometer', 'number', false, 'Kilometres, if you noted it'],
+  ['totalCost', 'Total cost', 'number', true, '0.00'],
+  ['shopName', 'Shop name', 'text', false, 'Who did the work'],
+  ['location', 'Location', 'text', false, 'Where they are'],
+  ['remarks', 'Remarks', 'textarea', false, 'Anything worth remembering'],
+];
 
 export default function ManualEntryPage() {
   const { vehicleId } = useParams();
@@ -83,114 +99,86 @@ export default function ManualEntryPage() {
     }
   }
 
+  const vehicleName = vehicle
+    ? vehicle.nickname || `${vehicle.make} ${vehicle.model}`
+    : '';
+
+  const balance = reconciliation(form.services, form.totalCost);
+  const hasLines = (form.services || []).some((item) => lineEntriesOf(item).length > 0);
+
   return (
-    <main className="page-shell">
-      <section className="page-header">
-        <p className="eyebrow">
-          <Link className="inline-link" to="/vehicles">
-            Change method
-          </Link>
-          <span>Manual</span>
-        </p>
-        <h1>Type in a service</h1>
-        {loading ? (
-          <p>Loading selected vehicle...</p>
-        ) : vehicle ? (
-          <p>
-            Drafting for {vehicle.nickname || `${vehicle.make} ${vehicle.model}`}
-            {vehicle.plateNumber ? ` - ${vehicle.plateNumber}` : ''}
-          </p>
-        ) : null}
-      </section>
+    <FlowChrome
+      step={3}
+      width="mid"
+      vehicleName={vehicleName}
+      title="Type in the details"
+      subtitle="Only the date and the total are required."
+      onExit={() => navigate('/')}
+    >
+      {error && <div className="flow-alert">{error}</div>}
 
-      <StepIndicator currentStep={3} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <div className="flow-grid">
+          {fields.map(([key, label, type, required, placeholder]) => (
+            <label className="flow-field" key={key}>
+              <span>{label}{required ? ' *' : ''}</span>
+              {type === 'textarea' ? (
+                <textarea
+                  name={key}
+                  value={form[key]}
+                  onChange={updateField}
+                  placeholder={placeholder}
+                  rows="3"
+                />
+              ) : (
+                <input
+                  name={key}
+                  type={type}
+                  min={type === 'number' ? '0' : undefined}
+                  step={key === 'totalCost' ? '0.01' : undefined}
+                  value={form[key]}
+                  onChange={updateField}
+                  placeholder={placeholder}
+                  required={required}
+                />
+              )}
+            </label>
+          ))}
+        </div>
 
-      {error && <div className="alert">{error}</div>}
-
-      <section className="content-two">
-        <form className="panel record-panel" onSubmit={handleSubmit}>
-          <div className="panel-heading">
+        <section className="flow-card">
+          <div className="flow-done__head">
             <div>
-              <h2>Enter service details</h2>
-              <p>Everything you type here is recorded as your own entry, not a reading.</p>
-            </div>
-            <span className="method-badge">Owner verified</span>
-          </div>
-
-          <div className="form-grid">
-            <label>
-              Service date
-              <input
-                name="serviceDate"
-                type="date"
-                value={form.serviceDate}
-                onChange={updateField}
-                required
-              />
-            </label>
-            <label>
-              Odometer
-              <input name="odometer" type="number" min="0" value={form.odometer} onChange={updateField} />
-            </label>
-            <label>
-              Total cost
-              <input
-                name="totalCost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.totalCost}
-                onChange={updateField}
-                required
-              />
-            </label>
-            <label>
-              Shop Name
-              <input name="shopName" value={form.shopName} onChange={updateField} />
-            </label>
-            <label>
-              Location
-              <input name="location" value={form.location} onChange={updateField} />
-            </label>
-          </div>
-
-          <div className="panel-heading">
-            <div>
-              <h2>Services performed</h2>
-              <p>Add every distinct service rendered during this visit (e.g. oil change and tire rotation).</p>
+              <h2 className="flow-done__title">What was done</h2>
+              <p className="flow-note">A service, then the lines that paid for it.</p>
             </div>
           </div>
-          <ServiceItemsEditor value={form.services} onChange={updateServices} />
 
-          <label>
-            Remarks
-            <textarea name="remarks" value={form.remarks} onChange={updateField} rows="3" />
-          </label>
+          <ServiceLinesEditor value={form.services} onChange={updateServices} />
 
-          <div className="actions">
-            <Link className="secondary-link" to={`/service-input/${vehicleId}`}>
-              Change method
-            </Link>
-            <button type="submit" disabled={saving || loading}>
-              {saving ? 'Creating draft...' : 'Create service draft'}
-            </button>
-          </div>
-        </form>
+          {hasLines && (
+            <div className="flow-done__total">
+              <span className="flow-note">Lines add up to</span>
+              <span className="flow-done__total-value">
+                {formatPeso(pesosFromCentavos(balance.lineSum)) ?? '—'}
+              </span>
+            </div>
+          )}
+        </section>
 
-        <aside className="guidance-stack">
-          <section className="helper-card">
-            <h2>Required for manual</h2>
-            <ul className="check-list">
-              <li>Service date</li>
-              <li>Total cost</li>
-            </ul>
-          </section>
-          <section className="helper-card success">
-            <h2>Nothing is guessed</h2>
-            <p>Every value here is one you typed. Nothing is read off a photo or inferred, so nothing is flagged for checking.</p>
-          </section>
-        </aside>
-      </section>
-    </main>
+        <div className="flow-actions">
+          <button
+            className="flow-btn flow-btn--ghost"
+            type="button"
+            onClick={() => navigate(`/service-input/${vehicleId}`)}
+          >
+            Back
+          </button>
+          <button className="flow-btn" type="submit" disabled={saving || loading}>
+            {saving ? 'Creating draft…' : 'Check the details'}
+          </button>
+        </div>
+      </form>
+    </FlowChrome>
   );
 }

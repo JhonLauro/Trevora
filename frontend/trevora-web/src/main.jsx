@@ -14,9 +14,17 @@ import './styles/ink-auth.css';
 import './styles/ink-garage.css';
 // Vehicle page. Builds on ink-garage.css primitives, so it comes after.
 import './styles/ink-vehicle.css';
-// Landing composition and section rhythm. Last, so it wins over the .fig-*
-// rules in styles.css without those needing to be edited in place.
+// Landing composition and section rhythm. Overrides the .fig-* rules in
+// styles.css without those needing to be edited in place.
 import './styles/ink-landing.css';
+// Adding a service record, and checking it before saving. Overrides the
+// pre-Ink tokens in styles.css, and neutralises the bare `button` rules there
+// and in ink-app.css that out-specify component classes.
+//
+// These last two sheets cover disjoint surfaces — the landing page and the
+// add-record flow share no selectors — so their order relative to each other
+// carries no meaning. Both merely need to come after styles.css.
+import './styles/service-flow.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

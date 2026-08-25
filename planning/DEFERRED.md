@@ -630,3 +630,216 @@ of them synthetic — is not a sample anyone should quote a percentage from.
   explicit, e.g. "Vehicle types include both four-wheeled vehicles and
   motorcycles; the system is not specific to any vehicle class." The panel
   should not have to infer it.
+
+---
+
+## Add-record and validation UI redesign — claimed 2026-08-24
+
+Brent is doing the Ink migration and redesign of the add-record flow
+(`ServiceInputMethodPage`, `ReceiptUploadPage`, `VoiceInputPage`,
+`ManualEntryPage`) and the validation/review UI (`ServiceDraftReviewPage`,
+`ServiceRecordConfirmationPage`, `ServiceRecordSavedPage`).
+
+These are the last screens still on the old "Calm Professional" tokens in
+`styles.css`, which makes them a tempting thing to fix in passing. Please leave
+them alone until this lands — a partial migration by a second person is worse
+than the current inconsistency, because it splits one screen across two systems.
+
+The current-state brief for Claude Design is
+`planning/design-handoffs/add-record-and-validation-brief.md`. It documents what
+exists today, the Ink constraints it has to migrate into, and the design
+questions that are genuinely open. Two of those questions touch things outside
+this area and are worth other people's opinions:
+
+- **Ink reserves chroma for record status, but the review screen has a
+  seven-state field-confidence badge.** Whatever resolves that sets a precedent
+  for every other status-bearing surface, not just this one.
+- **`utils/fieldConfidence.js` is read across features** (per
+  `COLLABORATION.md` §2). If the redesign changes the badge vocabulary, the
+  confirmation screen and anything else reading `fieldSignal` changes with it.
+
+Ownership is recorded in `planning/CONTEXT.md`.
+
+## Receipt drafts never render their own warnings — found 2026-08-24
+
+`ServiceDraftReviewPage` has two layouts. The receipt one renders
+`BlockingCallout` but not `ValidationSidebar`, so on receipt drafts —
+the recommended path, and the common one — `flaggedFields`, `reviewSummary`,
+the odometer plausibility warnings and the possible-duplicate warning are
+never rendered at all. Voice and manual drafts show all of it.
+
+`attentionCount` still counts flagged fields, so the extraction bar can read
+"3 fields to check" on a screen that displays nothing to check and gives no
+field to click.
+
+The duplicate warning has a second problem underneath the first: it is filed
+under the synthetic field name `duplicate`, deliberately, because it describes
+the record rather than any one value — the comment in `DraftPlausibilityService`
+notes that filing it under `totalCost` would silently overwrite that field's
+confidence flag. So even with the sidebar present there is no field badge that
+could carry it. Any redesign of this screen needs a home for record-level
+issues, not only field-level ones.
+
+Not fixed, because the redesign of this screen is about to change where all of
+this lives. Worth fixing separately first if the redesign takes a while — a
+duplicate receipt that confirms silently inflates both the spend total and the
+years-covered figure on the Garage.
+
+## Add-record + validation redesign landed — 2026-08-24
+
+Built from the Claude Design canvas "Trevora Add Record" (project `23d5f5d3`,
+artboards 1A–1J), which was drawn from
+`planning/design-handoffs/add-record-and-validation-brief.md`. All six screens
+plus the badge system are implemented. `npm run build` is clean and the login
+screen is unaffected — but **nothing behind the login has been clicked by a
+human yet**, so treat the flow itself as unverified.
+
+What it decided, for anyone who has to extend it:
+
+- **Seven badge states, three tiers, ranked by containment** (`utils/fieldTier.js`).
+  Filled chip > outline > bare mono text. Red on exactly the two states that
+  block a save, which is the one thing Ink already lets chroma mean. Any eighth
+  state slots into a tier — nobody needs to invent a colour. This is the
+  precedent for other status surfaces, not just this one.
+- **One layout for all three input methods.** The receipt moved out of the
+  column layout into a page strip above the fields, which freed the second
+  column for a status rail. That is what puts the warnings, the duplicate
+  notice and the summary back on the receipt path.
+- **The counting bug is fixed structurally.** The rail is built from the same
+  signals the fields render with, so the count and the rows cannot disagree.
+  Every rail row is a jump link to its field.
+- **Record-level issues get a band** under the bar (`RecordIssueBand`), which
+  is where the duplicate warning now lives.
+
+### Three places the design could not be built faithfully
+
+1. **The conflicting-value chooser is not built.** Artboard 1G shows the "Two
+   different values found" state offering both readings as pickable cards
+   ("Using this one" / "Use this instead"). The payload cannot support it:
+   `CONFLICTING` is only a `sourceType` on the field, and `fieldSources[field]`
+   carries a single `sourceText`. **The second candidate value is never sent.**
+   The badge and the explanation render; the picker does not. Fixing it means
+   extraction emitting both readings — a `serviceinput` change, and one that
+   touches the extraction prompt, so it needs the golden set run before and
+   after.
+2. **"Compare the two" on the duplicate band is not built.** The issue carries
+   a human-readable message but no id for the record it matched, so there is
+   nothing to link to. Substituted a link to the vehicle's records. Dismissing
+   is local-only — there is no endpoint recording "the owner says this is a
+   different service", and inventing one silently would be worse than the
+   notice returning on reload.
+3. **The saved screen's "parts map" figure is not built.** Artboard 1J shows
+   what the record closed on the parts map ("Engine oil filled"). Nothing
+   computes that delta, so the third figure reports what was charged instead.
+
+### Smaller deviations, all deliberate
+
+- **Page reorder stays on buttons, not press-and-drag.** The artboard says
+  press and hold. The existing code comments argue buttons, because this is
+  used one-handed on a phone with the paper in the other hand, and a drag
+  target is the wrong control for a thumb. Kept the buttons.
+- **Voice: translation is additive, as drawn — but the English is still what
+  gets extracted.** The artboard says editing the original "changes what we
+  read". Editing it now clears a stale translation, so that stays true, but the
+  submitted transcript is the English when one exists. Sending the extractor a
+  different language is an extraction change, not a layout one, and was out of
+  scope for a redesign.
+- **Receipt lines stay editable on the checking screen.** Artboard 1G draws
+  them read-only, but its own balance copy says "change either side", and the
+  screen's founding rule is that everything on it saves. Editable won.
+
+### Dead code removed
+
+`StepIndicator.jsx`, `ServiceItemsEditor.jsx` and `ReceiptBalance.jsx` had no
+consumers left and are deleted. **`ServiceLineEntriesEditor.jsx` is kept even
+though its default export is now unused** — `ServiceItemsList` imports its
+`ServiceLineEntriesList` named export, and that reaches the mechanic-facing
+pages. Do not delete it on the strength of the default export looking orphaned.
+
+`.claude/launch.json` gained `"autoPort": true` on the web entry so two
+sessions can run a dev server at once.
+
+### Correction to the entry above — same day
+
+Two things in the first pass were wrong and are now fixed.
+
+**The flow was built as a full-screen takeover, and it should not have been.**
+The Claude Design artboards draw each screen standalone, with their own dark
+top bar and no navigation. That is a canvas convention for showing one screen
+in isolation; I read it as an instruction to replace the app's chrome. The
+result rendered inside `AppShell` and then covered it with a
+`position: fixed` overlay — so the 264px sidebar was still in the DOM,
+underneath, and a second dark bar sat directly against the already-dark
+sidebar. The flow is now an ordinary `.ink-page` inside the shell, using the
+shared `.ink-page__header` / `__title` / `__summary` classes. The six-segment
+progress bar stays: that part of the artboards was a real improvement over the
+old three-of-six indicator, and it does not require owning the chrome.
+
+**`styles.css` has a bare `button { min-height: var(--field-h) }` — 52px — and
+min-height beats height.** This is worth knowing outside this feature. Any new
+component with a control smaller than 52px gets silently floored, with no
+warning and nothing in the diff to suggest it. It was flattening the receipt
+tab pills, the duplicate band's actions, the icon buttons and the retake
+button, all of which are specified smaller. `service-flow.css` now scopes
+`.flow button { min-height: 0 }` and every control states its own height.
+Anyone building a new Ink surface will hit the same thing.
+
+A side effect worth naming: text buttons had been getting a 52px touch target
+by accident from that same rule. With it reset they needed an explicit mobile
+floor, which they now have.
+
+**Contrast, measured rather than eyeballed.** The artboards draw a disabled
+primary button as `#F7F4EF` on `#C4BDB0`. That is **1.70:1** — not a
+legibility opinion, an unreadable label — and `ink-auth.css` already shipped
+the same pair in `.ink-button--primary:disabled`. The flow now uses ink on the
+same grey (9.22:1), keeping the filled-pill shape. Disabled ghost buttons went
+from 3.12:1 to 6.53:1. **The identical bug is still live in
+`ink-auth.css:551`** on every auth screen; it is not mine to change, but
+whoever owns auth should know.
+
+### The hover bug, and the real root cause — 2026-08-25
+
+The reported symptom was a vehicle card on the pick-a-vehicle screen going
+near-black on hover with its text still dark: the label vanished. Measured,
+that was **1.31:1** for the card title and 1.72:1 for the subtitle.
+
+The cause is `ink-app.css:284`:
+
+    button:hover:not(:disabled) { background: var(--ink-hover); }
+
+A bare element hover at specificity **(0,2,1)**. Any component rule written as
+`.some-card:hover` is **(0,2,0)** and loses to it — so every button-shaped card
+in the app fills near-black on hover, and if the component sets its own dark
+`color` without a matching hover colour, the result is dark-on-dark.
+
+This is the third legacy element-level rule to leak into new work, after
+`button { min-height: var(--field-h) }` and `button { background:#1c1b19 }`.
+They share one shape: **bare element selectors in the global sheets that
+out-specify ordinary single-class component rules.** Anyone building a new Ink
+surface will hit all three.
+
+`service-flow.css` now handles them in two layers:
+
+1. `.flow :where(button)` — zero-specificity reset of the legacy fill, colour,
+   weight, padding, radius and min-height. Sits at (0,1,0), so every component
+   class still wins.
+2. `.flow button:hover` — also (0,2,1), and service-flow.css is imported last,
+   so the tie breaks our way and the legacy dark fill never lands. Component
+   hovers carry `:not(:disabled)` to reach (0,3,0) and win in turn.
+
+Verified by simulating the cascade over the live CSSOM with L4 specificity
+arithmetic across nine interactive surfaces: every one now resolves to a flow
+rule, none to the legacy hover, contrast 6.97–15.69:1. The vehicle card goes
+1.31 → **14.71:1**.
+
+**Note on how this was verified.** Live `:hover` could not be measured — with
+the browser pane not displayed the renderer does not apply hover styling, and
+an injected `background:red` on the same selector did not paint either, while
+`matches(':hover')` still reported true. So the check is cascade simulation
+against the real stylesheets, not a screenshot. A human should still look at it.
+
+**The bug is still live everywhere else.** `button:hover:not(:disabled)` is
+global, so any other screen with a button-shaped card that sets its own colour
+has the same failure. Not mine to fix, but worth a sweep — the Garage vehicle
+cards are `<article>` rather than `<button>` and so are safe, which is likely
+why nobody hit this before.

@@ -57,7 +57,14 @@ Fill this in and keep it current — it is the first thing a new session reads.
 
 | Person | Area | Feature packages / pages |
 |---|---|---|
+| Brent | Adding a service + checking and saving it — **including the UI redesign of both flows** | `features.serviceinput`, `features.validation`, `features.servicerecord`; `ServiceInputMethodPage`, `ReceiptUploadPage`, `VoiceInputPage`, `ManualEntryPage`, `ServiceDraftReviewPage`, `ServiceRecordConfirmationPage`, `ServiceRecordSavedPage`, and the shared editors they own (`ServiceItemsEditor`, `ServiceLineEntriesEditor`, `ReceiptBalance`, `StepIndicator`) |
 | | | |
+
+**Note (2026-08-24):** the Ink migration of the add-record flow and the
+validation/review UI is Brent's. Those screens are the last ones still on the
+old `styles.css` tokens, so they are an obvious thing for someone else to
+"tidy up" in passing — please do not. The brief is at
+`planning/design-handoffs/add-record-and-validation-brief.md`.
 
 ## Module 4 Goal
 
