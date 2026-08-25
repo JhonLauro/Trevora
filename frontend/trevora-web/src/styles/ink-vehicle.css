@@ -268,6 +268,26 @@
   display: grid;
   gap: 16px;
   margin: 20px 0 4px;
+
+  /* The scrolling region. `min-height: 0` is what actually makes it work:
+     a flex child defaults to min-height:auto and refuses to shrink below
+     its content, which would push the actions row back off screen. The
+     2px inset keeps focus rings from being clipped by the scroll box. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+  margin-inline: -2px;
+
+  /* The bar itself is hidden -- it only ever appears on the short windows
+     where the dialog scrolls, and a track running down the middle of a
+     four-field form reads as clutter. Scrolling itself is untouched:
+     wheel, trackpad, keyboard and touch all still work, and the content
+     cut off at the lower edge is what signals there is more below. */
+  scrollbar-width: none;
+}
+
+.ink-modal__fields::-webkit-scrollbar {
+  display: none;
 }
 
 /* The Add form's fields set their own top margin against a full page. In a
@@ -1573,6 +1593,19 @@
   max-width: 468px;
   padding: 26px 28px 24px;
   width: 100%;
+
+  /* A dialog taller than the viewport used to overflow the centred, fixed
+     backdrop in both directions at once -- the heading clipped off the top
+     and the actions row stranded below the fold, with no scrollable
+     ancestor to reach either. Capping the shell to the viewport and giving
+     it a column layout lets the content region scroll instead, so the
+     title and the buttons stay on screen at any window height.
+     vh first, dvh second: the fallback matters on browsers without dvh,
+     the override matters on mobile where the URL bar moves. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
 }
 
 .ink-modal h2 {
