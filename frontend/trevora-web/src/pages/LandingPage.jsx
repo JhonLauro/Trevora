@@ -20,19 +20,25 @@ import {
 } from 'lucide-react';
 import { isLoggedIn } from '../api/currentUser.js';
 
+/* The labels here are the ones `utils/fieldConfidence.js` actually prints on
+   the review screen. They used to read High / Medium / Low, which that module
+   retired on the grounds that a category an owner can act on beats a grade --
+   "check this one" is a task, "82%" is trivia. Marketing kept selling the
+   grades for months after the product stopped showing them, which meant the
+   first thing a new owner saw was a screen that did not match the pitch. */
 const vehicleFields = [
   ['Vehicle', 'Toyota Vios 2021 - ABC 1234', 'Selected', 'verified'],
-  ['Service Date', 'May 7, 2026', 'High', 'high'],
-  ['Service Type', 'Oil Change + Brake Service', 'High', 'high'],
-  ['Total Cost', 'PHP 7,850', 'High', 'high'],
-  ['Parts Replaced', 'Oil filter, Brake pads (F+R)', 'Medium', 'medium'],
-  ['Work Performed', 'Oil drain and refill, pad install...', 'Low', 'low'],
+  ['Service Date', 'May 7, 2026', 'Read from receipt', 'high'],
+  ['Service Type', 'Oil Change + Brake Service', 'Read from receipt', 'high'],
+  ['Total Cost', 'PHP 7,850', 'Read from receipt', 'high'],
+  ['Parts Replaced', 'Oil filter, Brake pads (F+R)', 'Check this one', 'medium'],
+  ['Work Performed', 'Oil drain and refill, pad install...', 'Read between the lines', 'low'],
 ];
 
 const featureCards = [
   [ScanLine, 'Receipt OCR', 'Point your camera at any shop receipt. Trevora extracts line items, totals, dates, and shop info automatically.'],
   [Mic, 'Voice Capture', 'Speak your record on the way home. AI transcribes and structures it into a clean record instantly.'],
-  [ShieldCheck, 'Confidence Scoring', 'Every field is rated High, Medium, Low, or Not Found so there is no silent guessing.'],
+  [ShieldCheck, 'Every Field, Sourced', 'Each field says where it came from -- read from the receipt, heard in your note, or flagged "check this one" -- so nothing is a silent guess.'],
   [QrCode, 'Mechanic QR Access', 'Share a time-limited QR link with your mechanic. Full history, read-only, no app needed.'],
   [TrendingUp, 'Gap-Free History', 'See which years have service records and which do not, so you know what a buyer would question.'],
   [Sparkles, 'Service, Explained', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
@@ -62,21 +68,25 @@ const howCards = [
   },
 ];
 
+/* No percentages. The numeric confidence these bars were drawn from does not
+   exist any more -- extraction reports categorically, and `fieldConfidence.js`
+   is explicit that the numbers went with it. A 94% bar on this page was
+   advertising a measurement the product cannot make. */
 const confidenceRows = [
-  ['Vehicle', 'Selected', 100, 'verified'],
-  ['Service Date', 'High', 94, 'high'],
-  ['Total Cost', 'High', 91, 'high'],
-  ['Shop Name', 'Medium', 76, 'medium'],
-  ['Parts Replaced', 'Medium', 63, 'medium'],
-  ['Work Performed', 'Low', 38, 'low'],
-  ['Odometer at Service', 'Not found', 0, 'missing'],
+  ['Vehicle', 'Selected', 'verified'],
+  ['Service Date', 'Read from receipt', 'high'],
+  ['Total Cost', 'Read from receipt', 'high'],
+  ['Shop Name', 'Check this one', 'medium'],
+  ['Parts Replaced', 'Check this one', 'medium'],
+  ['Work Performed', 'Read between the lines', 'low'],
+  ['Odometer at Service', 'Not on receipt', 'missing'],
 ];
 
 const confidenceBadges = [
-  ['High', 2, 'high'],
-  ['Medium', 2, 'medium'],
-  ['Low', 1, 'low'],
-  ['Not found', 1, 'missing'],
+  ['Read from receipt', 2, 'high'],
+  ['Check this one', 2, 'medium'],
+  ['Read between the lines', 1, 'low'],
+  ['Not on receipt', 1, 'missing'],
 ];
 
 const trustPoints = [
@@ -94,7 +104,7 @@ const aiPoints = [
 
 const mechanicPoints = [
   'No app download required for the mechanic',
-  'Access expires automatically, you control the duration',
+  'Access expires by itself after four hours, and you can end it sooner',
   'Read-only: mechanics can browse, never edit',
   'Built-in AI assistant helps them find what they need',
 ];
@@ -267,14 +277,11 @@ export default function LandingPage() {
               <span className={`fig-badge-${tone}`} key={label}>{label}: {count}</span>
             ))}
           </div>
-          {confidenceRows.map(([label, status, percent, tone]) => (
+          {confidenceRows.map(([label, status, tone]) => (
             <div className="fig-confidence-row" key={label}>
               <div>
                 <span>{label}</span>
                 <strong className={`fig-row-${tone}`}>{status}</strong>
-              </div>
-              <div>
-                <i className={`fig-bar-${tone}`} style={{ width: `${percent}%` }} />
               </div>
             </div>
           ))}
@@ -284,8 +291,8 @@ export default function LandingPage() {
             <Sparkles size={15} aria-hidden="true" />
             AI-powered extraction
           </span>
-          <h2>You always know how confident the AI is</h2>
-          <p>Every extracted field carries a live confidence rating. Trevora tells you when it is certain and flags when it needs your help.</p>
+          <h2>You always know where every field came from</h2>
+          <p>Each extracted field says whether it was read straight off the receipt, worked out from it, or never found at all &mdash; in those words, on the screen where you check it.</p>
           <ul>
             {aiPoints.map((point) => (
               <li key={point}>
