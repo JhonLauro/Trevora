@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import VehiclePhotoField from './VehiclePhotoField.jsx';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../../api/vehiclePhoto.js';
 import { validateVehicleField } from '../../pages/AddVehiclePage.jsx';
 
 /**
@@ -67,7 +69,11 @@ function formValues(vehicle) {
   };
 }
 
-export default function EditVehicleDetailsDialog({ open, vehicle, onSave, onCancel }) {
+export default function EditVehicleDetailsDialog({ open, vehicle, photoUrl = null, onSave, onCancel }) {
+  /* A newly chosen file, and whether the existing photo is being taken away.
+     Both start clean every time the dialog opens. */
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoCleared, setPhotoCleared] = useState(false);
   const [form, setForm] = useState(() => formValues(vehicle));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -82,6 +88,10 @@ export default function EditVehicleDetailsDialog({ open, vehicle, onSave, onCanc
     setForm(formValues(vehicle));
     setErrors({});
     setSaveError('');
+    // Reopening after a cancel must not remember a photo that was chosen and
+    // then abandoned, nor a Remove that was never saved.
+    setPhotoFile(null);
+    setPhotoCleared(false);
     firstFieldRef.current?.focus();
   }, [open, vehicle]);
 
@@ -146,12 +156,26 @@ export default function EditVehicleDetailsDialog({ open, vehicle, onSave, onCanc
     setSaving(true);
     setSaveError('');
     try {
+      /* The update endpoint takes the whole vehicle, so the photo pointer has
+         to travel with it -- omitting it would clear the photo every time
+         somebody corrected a plate. Three cases: a new file replaces it, the
+         Remove button clears it, and otherwise it is passed straight back
+         through untouched. */
+      let photo = { bucket: vehicle.photoBucket ?? null, path: vehicle.photoPath ?? null };
+      if (photoFile) {
+        photo = await uploadVehiclePhoto(photoFile);
+      } else if (photoCleared) {
+        photo = { bucket: null, path: null };
+      }
+
       await onSave({
         // Untouched, and required by the API — see the note above.
         make: vehicle.make,
         model: vehicle.model,
         bodyType: vehicle.bodyType || null,
         nickname: vehicle.nickname || null,
+        photoBucket: photo.bucket,
+        photoPath: photo.path,
         // Empty clears the field rather than saving "", so a plate typed by
         // mistake can be taken back out.
         plateNumber: form.plateNumber.trim() || null,
@@ -159,6 +183,14 @@ export default function EditVehicleDetailsDialog({ open, vehicle, onSave, onCanc
         year: form.year.trim() ? Number(form.year.trim()) : null,
         odometer: form.odometer.trim() ? Number(form.odometer.replace(/[\s,]/g, '')) : null,
       });
+
+      /* The save stuck, so the file the vehicle no longer points at is litter.
+         Best effort, and after the save rather than before -- a delete that
+         happened first would take the photo with it if the save then failed. */
+      const replaced = vehicle.photoPath && photo.path !== vehicle.photoPath;
+      if (replaced) {
+        await removeVehiclePhoto({ bucket: vehicle.photoBucket, path: vehicle.photoPath });
+      }
     } catch (err) {
       setSaveError(err.message);
     } finally {
@@ -216,6 +248,28 @@ export default function EditVehicleDetailsDialog({ open, vehicle, onSave, onCanc
               </div>
             );
           })}
+        </div>
+
+        {/* The current photo, and the three things that can happen to it:
+            leave it, replace it, remove it. Without this the dialog would be
+            the one place a photo could be lost without anybody choosing to
+            lose it. */}
+        <div className="ink-modal__photo">
+          <VehiclePhotoField
+            file={photoFile}
+            existingUrl={photoCleared ? null : photoUrl}
+            disabled={saving}
+            onChange={(file) => {
+              setPhotoFile(file);
+              // Choosing a file is not a removal; clearing the chooser when a
+              // stored photo exists is.
+              if (file) setPhotoCleared(false);
+            }}
+            onRemoveExisting={() => {
+              setPhotoFile(null);
+              setPhotoCleared(true);
+            }}
+          />
         </div>
 
         {saveError && <p className="ink-modal__error" role="alert">{saveError}</p>}

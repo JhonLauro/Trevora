@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import VehicleIdentityFields, { deriveVehicleIdentity } from '../components/ink/VehicleIdentityFields.jsx';
 import { createVehicle } from '../api/vehicles.js';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/vehiclePhoto.js';
+import VehiclePhotoField from '../components/ink/VehiclePhotoField.jsx';
 
 /**
  * Add a vehicle, from inside the app.
@@ -55,7 +57,7 @@ export function validateVehicleField(name, value) {
   }
 }
 
-export function vehiclePayload(form) {
+export function vehiclePayload(form, photo = null) {
   return {
     make: form.make.trim(),
     model: form.model.trim(),
@@ -63,6 +65,11 @@ export function vehiclePayload(form) {
     year: form.year.trim() ? Number(form.year.trim()) : null,
     plateNumber: form.plateNumber.trim() || null,
     odometer: form.odometer.trim() ? Number(form.odometer.replace(/[\s,]/g, '')) : null,
+    // Where the browser put the photo, if one was chosen. The file itself
+    // never reaches the API -- it goes straight to Supabase Storage, the same
+    // way receipts do.
+    photoBucket: photo?.bucket ?? null,
+    photoPath: photo?.path ?? null,
   };
 }
 
@@ -72,6 +79,9 @@ export default function AddVehiclePage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  /* The chosen file, not an upload. It is sent to Storage at submit time, so
+     abandoning this form leaves nothing behind. */
+  const [photoFile, setPhotoFile] = useState(null);
 
   // Every field validate() checks needs a ref, or focusing the first errored
   // field silently does nothing.
@@ -119,11 +129,18 @@ export default function AddVehiclePage() {
     }
 
     setSubmitting(true);
+    let photo = null;
     try {
-      const created = await createVehicle(vehiclePayload(form));
+      if (photoFile) {
+        photo = await uploadVehiclePhoto(photoFile);
+      }
+      const created = await createVehicle(vehiclePayload(form, photo));
       window.dispatchEvent(new Event('trevora:vehicles-changed'));
       navigate(created?.vehicleId ? `/vehicles/${created.vehicleId}` : '/');
     } catch (error) {
+      // The photo is uploaded before the vehicle exists, so a failed save
+      // would otherwise leave a file nothing points at.
+      if (photo) await removeVehiclePhoto(photo);
       setFormError(error.message);
       setSubmitting(false);
     }
@@ -207,6 +224,8 @@ export default function AddVehiclePage() {
           />
           {errors.odometer && <p className="ink-combo__error" id="vehicle-odometer-error">{errors.odometer}</p>}
         </div>
+
+        <VehiclePhotoField file={photoFile} onChange={setPhotoFile} disabled={submitting} />
 
         <div className="vehicle-form__actions">
           <button className="ink-button" type="submit" disabled={submitting}>
