@@ -151,9 +151,13 @@ export default function RegisterPage() {
 
     try {
       const user = await verifyRegistrationOtp({ ...pendingVerification, token });
-      // Owners continue to step 2 (their first vehicle); admins have no vehicle
-      // to add, so they go straight to the dashboard.
-      navigate(user.role === 'ADMIN' ? '/dashboard' : '/register/vehicle', { replace: true });
+      // Owners get the walkthrough first and the vehicle form it leads to
+      // second -- seeing what a record is for before being asked to make one.
+      // `/welcome` sends them straight on if they have already been shown it,
+      // so this cannot replay for an account that comes back through signup.
+      // Admins have no vehicle to add and no owner flow to learn, so they
+      // still go straight to the dashboard.
+      navigate(user.role === 'ADMIN' ? '/dashboard' : '/welcome', { replace: true });
     } catch (err) {
       setFormError(err.message || 'Unable to verify this code. Please try again.');
       setVerifying(false);

@@ -21,6 +21,7 @@ import RecordsPage from './pages/RecordsPage.jsx';
 import VehiclePage from './pages/VehiclePage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import RegisterVehiclePage from './pages/RegisterVehiclePage.jsx';
+import WelcomePage from './pages/WelcomePage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
@@ -112,6 +113,11 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register/vehicle" element={<RegisterVehiclePage />} />
+      {/* The onboarding walkthrough, between signing up and adding the
+          first vehicle. Outside AppShell like the rest of signup: there
+          is no garage to navigate yet, and the page previews the app
+          rather than being part of it. */}
+      <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />

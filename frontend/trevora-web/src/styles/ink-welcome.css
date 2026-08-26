@@ -1,0 +1,681 @@
+/* ----------------------------------------------------------------------
+   The onboarding walkthrough, shown once between signup and the first
+   vehicle.
+
+   Translated from a Claude Design mockup. The mockup's palette was hardcoded
+   hex (#F5F2EC paper, #1A1A18 ink, #6F6558 / #8A8172 / #9A9284 greys, #D6D0C4
+   rules) and every one of those has an existing token, so none of them appear
+   below. Its type stack was Source Serif 4 / DM Sans / IBM Plex Mono: the
+   serif is already ours, and the other two are not -- this uses --font-sans
+   (Public Sans) and --font-mono (JetBrains Mono) so the page reads as the same
+   product as the screens it is previewing.
+   ---------------------------------------------------------------------- */
+
+.wt-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 28px 24px 32px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* --- Masthead: wordmark, and the quiet way out ------------------------ */
+
+.wt-masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.wt-skip {
+  padding: 4px 2px;
+  background: none;
+  border: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.wt-skip:hover {
+  color: var(--ink);
+}
+
+.wt-skip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* --- The step itself --------------------------------------------------- */
+
+.wt-stage {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.wt-eyebrow {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wt-title {
+  margin: 0 0 14px;
+  max-width: 22ch;
+  font-family: var(--font-serif);
+  font-size: clamp(30px, 4.4vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.wt-body {
+  margin: 0 0 30px;
+  max-width: 58ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+/* --- The frame every mockup sits in ------------------------------------ --
+   The tag is not decoration. This page is shown to somebody who has never
+   seen the app and has no records of their own; the one reading that must be
+   impossible is "these are mine". */
+
+.wt-frame {
+  position: relative;
+  margin: 0;
+  padding: 38px 24px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.wt-frame__tag {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* --- 01 Capture -------------------------------------------------------- */
+
+.wt-preview--capture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr);
+  align-items: center;
+  gap: 20px;
+}
+
+.wt-shot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 168px;
+  padding: 16px;
+  background: var(--sunken);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.wt-shot__tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wt-shot__name {
+  margin-top: auto;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.wt-shot__meta {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.wt-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-faint);
+}
+
+.wt-arrow__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wt-arrow__glyph {
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.wt-filled {
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.wt-filled__head {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wt-filled dl {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.wt-filled dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-faint, var(--rule));
+}
+
+.wt-filled dl > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.wt-filled dt {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.wt-filled dd {
+  margin: 0;
+  font-size: 13.5px;
+  text-align: right;
+  color: var(--ink);
+}
+
+.wt-methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wt-methods li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.wt-methods__num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.wt-methods__name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wt-methods__badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--on-ink);
+  white-space: nowrap;
+}
+
+/* --- The inner "screen" the review and history previews sit in --------- */
+
+.wt-screen {
+  padding: 16px 18px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.wt-screen__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.wt-screen__title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.wt-screen__step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wt-screen__foot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.wt-fields,
+.wt-records {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wt-fields th,
+.wt-records th {
+  padding: 10px 8px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wt-fields td,
+.wt-records td {
+  padding: 11px 8px;
+  vertical-align: top;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule-faint, var(--rule));
+}
+
+.wt-fields tr:last-child td,
+.wt-records tr:last-child td {
+  border-bottom: 0;
+}
+
+.wt-fields__empty {
+  color: var(--ink-faint);
+}
+
+/* Flags carry the product's own wording, so they get the product's own status
+   colours -- amber for "look at this", never a fifth meaning for colour. */
+.wt-flag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wt-flag--ok {
+  background: var(--status-ok-bg);
+  border: 1px solid var(--status-ok-border);
+  color: var(--status-ok-text);
+}
+
+.wt-flag--warn {
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn-border);
+  color: var(--status-warn-text);
+}
+
+.wt-flag--quiet {
+  background: var(--sunken);
+  border: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+/* --- 03 History -------------------------------------------------------- */
+
+.wt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wt-search {
+  flex: 1;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.wt-count {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.wt-records__date {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.wt-records__what {
+  display: block;
+  color: var(--ink);
+}
+
+.wt-records__where {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* --- 04 Share ---------------------------------------------------------- */
+
+.wt-share-top {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.wt-qr {
+  display: grid;
+  grid-template-columns: repeat(6, 15px);
+  grid-auto-rows: 15px;
+  gap: 3px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  align-content: center;
+  flex-shrink: 0;
+}
+
+.wt-qr span {
+  background: var(--sunken);
+  border-radius: 2px;
+}
+
+.wt-qr span.is-on {
+  background: var(--ink);
+}
+
+.wt-request {
+  flex: 1;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.wt-request__eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wt-request__who {
+  margin: 0 0 4px;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.wt-request__what {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.wt-request__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Spans, not buttons: this is a picture of a decision, not the decision. */
+.wt-request__approve,
+.wt-request__decline {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wt-request__approve {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.wt-request__decline {
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+.wt-stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wt-stages li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 12px;
+  border-top: 2px solid var(--ink);
+}
+
+.wt-stages__num {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+
+.wt-stages__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.wt-stages__body {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+/* --- The closing call to action ---------------------------------------- */
+
+.wt-cta {
+  margin-top: 26px;
+}
+
+/* --- Footer: back, stepper, next --------------------------------------- */
+
+.wt-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.wt-foot__back,
+.wt-foot__next {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wt-foot__back {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+.wt-foot__back:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+
+.wt-foot__back:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.wt-foot__next {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  color: var(--on-ink);
+}
+
+.wt-foot__next:hover {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
+}
+
+.wt-foot__back:focus-visible,
+.wt-foot__next:focus-visible,
+.wt-stepper__dot:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.wt-stepper {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wt-stepper li {
+  flex: 1;
+  min-width: 0;
+}
+
+.wt-stepper__dot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wt-stepper__bar {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--rule);
+}
+
+.wt-stepper__dot.is-done .wt-stepper__bar {
+  background: var(--ink-faint);
+}
+
+.wt-stepper__dot.is-active .wt-stepper__bar {
+  background: var(--ink);
+}
+
+.wt-stepper__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wt-stepper__dot.is-active .wt-stepper__label {
+  color: var(--ink);
+}
+
+/* --- Phone: the mockup's 390 frame ------------------------------------- */
+
+@media (max-width: 860px) {
+  .wt-page { padding: 20px 16px 24px; gap: 24px; }
+  .wt-preview--capture { grid-template-columns: minmax(0, 1fr); }
+  .wt-arrow { flex-direction: row; gap: 8px; }
+  .wt-arrow__glyph { transform: rotate(90deg); }
+  .wt-methods { grid-template-columns: minmax(0, 1fr); }
+  .wt-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wt-share-top { flex-direction: column; }
+  .wt-qr { align-self: flex-start; }
+  .wt-fields thead,
+  .wt-records thead { display: none; }
+  .wt-fields td,
+  .wt-records td { display: block; padding: 4px 0; border-bottom: 0; }
+  .wt-fields tr,
+  .wt-records tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--rule-faint, var(--rule)); }
+  .wt-stepper__label { display: none; }
+  .wt-foot { gap: 12px; align-items: center; }
+}
