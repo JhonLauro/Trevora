@@ -15,6 +15,8 @@ public record VehicleResponse(
         String plateNumber,
         String vinChassisNumber,
         Integer odometer,
+        String photoBucket,
+        String photoPath,
         Instant createdAt
 ) {
     public static VehicleResponse from(VehicleProfile vehicle) {
@@ -29,6 +31,8 @@ public record VehicleResponse(
                 vehicle.getPlateNumber(),
                 vehicle.getVinChassisNumber(),
                 vehicle.getOdometer(),
+                vehicle.getPhotoBucket(),
+                vehicle.getPhotoPath(),
                 vehicle.getCreatedAt()
         );
     }
