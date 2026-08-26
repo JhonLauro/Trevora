@@ -36,4 +36,9 @@ public class AuthController {
     public CurrentUserResponse me() {
         return authService.getCurrentUser();
     }
+
+    @PostMapping("/me/walkthrough/seen")
+    public CurrentUserResponse markWalkthroughSeen() {
+        return authService.markWalkthroughSeen();
+    }
 }

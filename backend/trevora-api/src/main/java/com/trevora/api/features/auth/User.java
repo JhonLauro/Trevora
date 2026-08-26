@@ -34,6 +34,16 @@ public class User {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    /* Null until the owner has been shown the onboarding walkthrough. A
+       timestamp rather than a boolean so "seen it before or after the
+       walkthrough changed" stays answerable. See migration 014.
+
+       `walkthrough_furthest_step` exists in the database and is deliberately
+       not mapped: this feature shows the walkthrough once and does not resume
+       it, and an unmapped column is invisible to ddl-auto=validate. */
+    @Column(name = "walkthrough_completed_at")
+    private Instant walkthroughCompletedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -69,6 +79,14 @@ public class User {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public Instant getWalkthroughCompletedAt() {
+        return walkthroughCompletedAt;
+    }
+
+    public boolean hasSeenWalkthrough() {
+        return walkthroughCompletedAt != null;
     }
 
     public Instant getCreatedAt() {
@@ -107,6 +125,16 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    /** Write-once. The first time wins and every later call is ignored, so a
+        second tab, a retried request or a re-mounted page cannot move the
+        timestamp -- and, more to the point, cannot make an owner who has
+        already seen the walkthrough look like one who has not. */
+    public void markWalkthroughSeen(Instant seenAt) {
+        if (walkthroughCompletedAt == null) {
+            walkthroughCompletedAt = seenAt;
+        }
     }
 
     public String normalizedRole() {
