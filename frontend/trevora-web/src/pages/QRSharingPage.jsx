@@ -194,7 +194,8 @@ export default function QRSharingPage() {
           <p>
             Scanning it lets a mechanic <em>ask</em>. Until you approve, they see nothing. Once you
             do, they get read-only access to {name}'s confirmed records — no other vehicle, no
-            edits — and it expires by itself.
+            edits — and it ends by itself four hours after you approve. The link itself lasts a
+            day; the access it leads to lasts four hours.
           </p>
         </div>
       </section>
@@ -244,6 +245,10 @@ export default function QRSharingPage() {
                 <div>
                   <dt className="ink-eyebrow">And nothing else</dt>
                   <dd>No other vehicle, no drafts, no edits</dd>
+                </div>
+                <div>
+                  <dt className="ink-eyebrow">For</dt>
+                  <dd>Four hours from your approval</dd>
                 </div>
               </dl>
 
@@ -298,7 +303,7 @@ export default function QRSharingPage() {
 
                   <dl className="share-facts">
                     <div>
-                      <dt className="ink-eyebrow">Expires</dt>
+                      <dt className="ink-eyebrow">Link expires</dt>
                       <dd>
                         {shortDateTime(current.expiresAt)}
                         {timeLeft(current.expiresAt) && (
