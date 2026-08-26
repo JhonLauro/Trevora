@@ -1660,3 +1660,148 @@
     width: 100%;
   }
 }
+
+/* ----------------------------------------------------------------------
+   Vehicle photo: the field on the add and edit forms, and the picture it
+   puts in the vehicle header.
+
+   Appended rather than woven in, so the existing rules above are untouched.
+   ---------------------------------------------------------------------- */
+
+/* The header placeholder already reserves 184x124. A photo fills exactly that
+   box, so a vehicle with a picture and one without lay out identically. */
+.vehicle-identity__photo.has-photo {
+  border: 1px solid var(--rule);
+  border-style: solid;
+  overflow: hidden;
+  padding: 0;
+}
+
+.vehicle-identity__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.veh-photo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.veh-photo__head {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+}
+
+.veh-photo__label {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.veh-photo__optional {
+  color: var(--ink-faint);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.veh-photo__hint {
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 6px;
+  max-width: 52ch;
+}
+
+.veh-photo__body {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+}
+
+.veh-photo__frame {
+  align-items: center;
+  background: var(--sunken);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--ink-faint);
+  display: flex;
+  flex: 0 0 148px;
+  font-size: 13px;
+  height: 100px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.veh-photo__frame.has-photo {
+  border-style: solid;
+  border-color: var(--rule);
+}
+
+.veh-photo__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.veh-photo__actions {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.veh-photo__remove {
+  background: none;
+  border: 0;
+  color: var(--ink-faint);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.veh-photo__remove:hover {
+  color: var(--bad-text);
+}
+
+.veh-photo__name {
+  color: var(--ink-faint);
+  font-size: 12px;
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.veh-photo__error {
+  color: var(--bad-text);
+  font-size: 12.5px;
+  margin: 2px 0 0;
+}
+
+.ink-modal__photo {
+  border-top: 1px solid var(--rule-faint, var(--rule));
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .veh-photo__body {
+    flex-direction: column;
+  }
+
+  .veh-photo__frame {
+    flex: 0 0 auto;
+    height: 140px;
+    width: 100%;
+  }
+}

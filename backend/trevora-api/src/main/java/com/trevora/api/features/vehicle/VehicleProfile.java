@@ -51,6 +51,17 @@ public class VehicleProfile {
     @Column(name = "body_type")
     private String bodyType;
 
+    /* Where the owner's photo of this vehicle lives, if there is one. The
+       bucket is stored beside the path rather than assumed, because the
+       frontend reads its bucket name from an env var and a changed value must
+       not orphan every existing row. Never a URL: the bucket is private, so
+       what the app renders is a signed URL that expires. See migration 015. */
+    @Column(name = "photo_bucket")
+    private String photoBucket;
+
+    @Column(name = "photo_path")
+    private String photoPath;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -127,8 +138,29 @@ public class VehicleProfile {
         return bodyType;
     }
 
+    public String getPhotoBucket() {
+        return photoBucket;
+    }
+
+    public String getPhotoPath() {
+        return photoPath;
+    }
+
+    public boolean hasPhoto() {
+        return photoPath != null && !photoPath.isBlank();
+    }
+
     public void setBodyType(String bodyType) {
         this.bodyType = bodyType;
+    }
+
+    /** Both halves move together: a path without its bucket cannot be read
+        back, and a bucket without a path points at nothing. Clearing one
+        clears the other. */
+    public void setPhoto(String photoBucket, String photoPath) {
+        boolean cleared = photoPath == null || photoPath.isBlank();
+        this.photoPath = cleared ? null : photoPath;
+        this.photoBucket = cleared ? null : photoBucket;
     }
 
     public void setOdometer(Integer odometer) {

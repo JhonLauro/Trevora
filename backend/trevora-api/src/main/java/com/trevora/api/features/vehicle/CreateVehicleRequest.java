@@ -16,6 +16,11 @@ public record CreateVehicleRequest(
         String nickname,
         String plateNumber,
         String vinChassisNumber,
-        @Min(0) Integer odometer
+        @Min(0) Integer odometer,
+        /* Where the frontend put the photo it uploaded, or null. The file goes
+           to Supabase Storage from the browser, exactly as receipts and
+           profile photos do; only the pointer is sent here. */
+        String photoBucket,
+        String photoPath
 ) {
 }

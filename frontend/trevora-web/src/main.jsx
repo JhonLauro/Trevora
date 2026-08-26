@@ -38,6 +38,10 @@ import './styles/ink-settings.css';
 // .ink-notice never needed because the auth screens show no success state.
 import './styles/ink-access.css';
 
+// The onboarding walkthrough shown once after signup. Last of all: it only
+// ever adds, and shares no selectors with the app screens it previews.
+import './styles/ink-welcome.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>

@@ -7,6 +7,7 @@ import RecordsTable from '../components/ink/RecordsTable.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import Timeline from '../components/ink/Timeline.jsx';
 import { deleteVehicle, getVehicle, updateVehicle } from '../api/vehicles';
+import { createVehiclePhotoSignedUrl } from '../api/vehiclePhoto.js';
 import { deleteVehicleServiceRecord, getVehicleServiceHistory, markServiceRecordReviewed } from '../api/serviceHistory';
 import { componentStatuses } from '../utils/componentStatus';
 import { historyCompleteness, listYears } from '../utils/completeness';
@@ -155,6 +156,12 @@ export default function VehiclePage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
+  /* The bucket is private, so what the header renders is a signed URL rather
+     than a stored one. Null covers both "no photo" and "the URL could not be
+     signed" -- the header falls back to the placeholder either way, because a
+     picture failing to load is not a reason to shout over a car's history. */
+  const [photoUrl, setPhotoUrl] = useState(null);
+
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -163,6 +170,21 @@ export default function VehiclePage() {
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
   const [editingDetails, setEditingDetails] = useState(false);
+
+  /* Re-signed whenever the pointer changes, which covers the first load and a
+     photo added, replaced or removed from the edit dialog. The URL is good for
+     an hour; nobody sits on this page that long, and a reload re-signs. */
+  useEffect(() => {
+    let active = true;
+    if (!vehicle?.photoPath) {
+      setPhotoUrl(null);
+      return undefined;
+    }
+    createVehiclePhotoSignedUrl(vehicle).then((url) => {
+      if (active) setPhotoUrl(url);
+    });
+    return () => { active = false; };
+  }, [vehicle?.photoBucket, vehicle?.photoPath]);
 
   /* The response is the saved row, so it becomes the new state directly rather
      than re-fetching. The Garage listens for this event to pick up a changed
@@ -287,11 +309,12 @@ export default function VehiclePage() {
       {error && <div className="ink-alert">{error}</div>}
 
       <header className="vehicle-identity">
-        {/* Owner-supplied photos are not stored yet, so this is always the
-            placeholder. It holds the space the photo will take rather than
-            letting the header reflow when photos arrive. */}
-        <div className="vehicle-identity__photo" aria-hidden="true">
-          <span>No photo</span>
+        {/* The placeholder holds exactly the space the photo takes, so a
+            vehicle with a picture and one without lay out identically. */}
+        <div className={`vehicle-identity__photo${photoUrl ? ' has-photo' : ''}`}>
+          {photoUrl
+            ? <img src={photoUrl} alt={`Photo of ${name}`} />
+            : <span aria-hidden="true">No photo</span>}
         </div>
         <div className="vehicle-identity__copy">
           <h1 className="ink-page__title">{name}</h1>
@@ -468,6 +491,7 @@ export default function VehiclePage() {
       <EditVehicleDetailsDialog
         open={editingDetails}
         vehicle={vehicle}
+        photoUrl={photoUrl}
         onSave={saveVehicleDetails}
         onCancel={() => setEditingDetails(false)}
       />

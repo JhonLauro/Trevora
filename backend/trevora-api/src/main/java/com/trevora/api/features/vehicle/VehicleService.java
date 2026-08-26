@@ -82,6 +82,7 @@ public class VehicleService {
         vehicle.setPlateNumber(blankToNull(request.plateNumber()));
         vehicle.setVinChassisNumber(blankToNull(request.vinChassisNumber()));
         vehicle.setOdometer(request.odometer());
+        vehicle.setPhoto(blankToNull(request.photoBucket()), blankToNull(request.photoPath()));
 
         return vehicleRepository.save(vehicle);
     }
@@ -97,6 +98,7 @@ public class VehicleService {
         vehicle.setPlateNumber(blankToNull(request.plateNumber()));
         vehicle.setVinChassisNumber(blankToNull(request.vinChassisNumber()));
         vehicle.setOdometer(request.odometer());
+        vehicle.setPhoto(blankToNull(request.photoBucket()), blankToNull(request.photoPath()));
         return vehicleRepository.save(vehicle);
     }
 

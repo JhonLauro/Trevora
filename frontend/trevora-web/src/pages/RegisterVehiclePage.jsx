@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useRef, useState } from 'react';
 import { createVehicle } from '../api/vehicles.js';
+import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/vehiclePhoto.js';
+import VehiclePhotoField from '../components/ink/VehiclePhotoField.jsx';
 import InkAuthShell from '../components/InkAuthShell.jsx';
 import { InkField } from '../components/InkFormControls.jsx';
 import VehicleIdentityFields from '../components/ink/VehicleIdentityFields.jsx';
@@ -28,6 +30,10 @@ export default function RegisterVehiclePage() {
     year: useRef(null),
     odometer: useRef(null),
   };
+
+  /* Held as a file until submit, so a half-finished signup leaves no
+     orphaned upload behind. */
+  const [photoFile, setPhotoFile] = useState(null);
 
   const [form, setForm] = useState({
     make: '',
@@ -112,22 +118,30 @@ export default function RegisterVehiclePage() {
     }
 
     const odometer = form.odometer.trim().replace(/[\s,]/g, '');
-    const payload = {
-      make: form.make.trim(),
-      model: form.model.trim(),
-      bodyType: form.bodyType || null,
-      year: form.year.trim() ? Number(form.year.trim()) : null,
-      plateNumber: form.plateNumber.trim() || null,
-      odometer: odometer ? Number(odometer) : null,
-    };
 
     setSubmitting(true);
     setFormError('');
 
+    let photo = null;
     try {
-      const vehicle = await createVehicle(payload);
+      if (photoFile) {
+        photo = await uploadVehiclePhoto(photoFile);
+      }
+      const vehicle = await createVehicle({
+        make: form.make.trim(),
+        model: form.model.trim(),
+        bodyType: form.bodyType || null,
+        year: form.year.trim() ? Number(form.year.trim()) : null,
+        plateNumber: form.plateNumber.trim() || null,
+        odometer: odometer ? Number(odometer) : null,
+        photoBucket: photo?.bucket ?? null,
+        photoPath: photo?.path ?? null,
+      });
       navigate(`/service-input/${vehicle.vehicleId}`, { replace: true });
     } catch (err) {
+      // Uploaded before the vehicle existed, so clean it up rather than
+      // leaving a file nothing points at.
+      if (photo) await removeVehiclePhoto(photo);
       setFormError(err.message || 'We could not save this vehicle. Please try again.');
       setSubmitting(false);
     }
@@ -223,6 +237,8 @@ export default function RegisterVehiclePage() {
           error={fieldErrors.odometer}
           help="Optional, and roughly is fine — no need to go out and check. You can update it any time."
         />
+
+        <VehiclePhotoField file={photoFile} onChange={setPhotoFile} disabled={submitting} />
 
         {formError && (
           <p className="ink-form-error" role="alert" aria-live="polite">

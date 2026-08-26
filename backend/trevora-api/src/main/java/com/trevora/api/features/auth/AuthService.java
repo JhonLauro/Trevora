@@ -2,6 +2,7 @@ package com.trevora.api.features.auth;
 
 import com.trevora.api.shared.exception.AuthException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -71,22 +72,50 @@ public class AuthService {
     public CurrentUserResponse getCurrentUser() {
         CurrentUser currentUser = currentUserService.getCurrentUser();
         return userRepository.findById(currentUser.userId())
-                .map(user -> new CurrentUserResponse(
-                        user.getUserId(),
-                        user.getFirstName(),
-                        user.getLastName(),
-                        user.getFullName(),
-                        user.getEmail(),
-                        user.normalizedRole()
-                ))
+                .map(AuthService::toCurrentUserResponse)
                 .orElseGet(() -> new CurrentUserResponse(
                         currentUser.userId(),
                         "Current",
                         "User",
                         "Current User",
                         null,
-                        currentUser.role().name()
+                        currentUser.role().name(),
+                        null
                 ));
+    }
+
+    /**
+     * Records that the signed-in owner has been shown the walkthrough.
+     *
+     * <p>Idempotent, because the caller cannot be trusted to fire it exactly
+     * once -- skipping and finishing both report it, and a reload could repeat
+     * either. The entity keeps the first timestamp; this returns the whole
+     * profile so the frontend reconciles against the server's answer rather
+     * than the one it just sent.
+     */
+    public CurrentUserResponse markWalkthroughSeen() {
+        CurrentUser currentUser = currentUserService.getCurrentUser();
+        User user = userRepository.findById(currentUser.userId())
+                .orElseThrow(() -> new AuthException("Your profile is not synced yet. Sign in again to continue."));
+
+        if (user.hasSeenWalkthrough()) {
+            return toCurrentUserResponse(user);
+        }
+
+        user.markWalkthroughSeen(Instant.now());
+        return toCurrentUserResponse(userRepository.save(user));
+    }
+
+    private static CurrentUserResponse toCurrentUserResponse(User user) {
+        return new CurrentUserResponse(
+                user.getUserId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getFullName(),
+                user.getEmail(),
+                user.normalizedRole(),
+                user.getWalkthroughCompletedAt()
+        );
     }
 
     private String normalizeEmail(String email) {
