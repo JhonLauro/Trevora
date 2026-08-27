@@ -24,8 +24,11 @@ import org.junit.jupiter.api.Test;
 class LocalTokenVerificationTest {
     private static final String SECRET = "a-test-jwt-secret-long-enough-to-be-realistic";
 
+    private static final SupabaseJwkProvider NO_ASYMMETRIC_KEYS =
+            new SupabaseJwkProvider(new ObjectMapper(), "");
+
     private final SupabaseAuthService service = new SupabaseAuthService(
-            new ObjectMapper(), "https://example.supabase.co", "anon-key", SECRET);
+            new ObjectMapper(), NO_ASYMMETRIC_KEYS, "https://example.supabase.co", "anon-key", SECRET);
 
     private static String base64(String value) {
         return Base64.getUrlEncoder().withoutPadding()
@@ -107,8 +110,8 @@ class LocalTokenVerificationTest {
     }
 
     @Test
-    @DisplayName("an asymmetrically signed token is left to Supabase")
-    void defersOnOtherAlgorithms() throws Exception {
+    @DisplayName("an asymmetric token with no published key is left to Supabase")
+    void defersWhenNoKeyIsPublished() throws Exception {
         String jwt = token(
                 "{\"alg\":\"ES256\"}",
                 claims("3f1a2b4c-5d6e-4f80-9a1b-2c3d4e5f6071", "owner@example.com",
@@ -131,7 +134,7 @@ class LocalTokenVerificationTest {
     @DisplayName("with no secret configured, nothing is decided locally")
     void defersWhenUnconfigured() throws Exception {
         SupabaseAuthService unconfigured = new SupabaseAuthService(
-                new ObjectMapper(), "https://example.supabase.co", "anon-key", "");
+                new ObjectMapper(), NO_ASYMMETRIC_KEYS, "https://example.supabase.co", "anon-key", "");
         String jwt = token(
                 "{\"alg\":\"HS256\"}",
                 claims("3f1a2b4c-5d6e-4f80-9a1b-2c3d4e5f6071", "owner@example.com",
