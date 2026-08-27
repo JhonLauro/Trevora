@@ -164,7 +164,10 @@ function VehicleCarousel({ garages }) {
   }
 
   return (
-    <section className={`garage-carousel${single ? ' garage-carousel--single' : ''}`}>
+    <section
+      className={`garage-carousel tv-reveal${single ? ' garage-carousel--single' : ''}`}
+      style={{ '--reveal-index': 1 }}
+    >
       <div className="garage-carousel__head">
         <h2 className="ink-section-title">Your vehicles</h2>
         <div className="garage-carousel__controls">
@@ -299,7 +302,7 @@ function AttentionStrip({ reviewCount, requestCount }) {
   const target = reviewCount > 0 ? '/records' : '/access/requests';
 
   return (
-    <section className="garage-attention">
+    <section className="garage-attention tv-reveal">
       <div className="garage-attention__copy">
         <span className="garage-attention__count">
           {total === 1 ? '1 thing needs you' : `${total} things need you`}
@@ -350,12 +353,16 @@ export default function GaragePage() {
 
       {error && <div className="ink-alert">{error}</div>}
 
+      {/* Everything below arrives rather than appearing. The data lands in one
+          frame after a wait on the network, and painting it all at once reads
+          as a jolt; a step of 60ms between blocks reads as the page settling.
+          See styles/reveal.css. */}
       {!loading && hasVehicles && (
         <AttentionStrip reviewCount={reviewCount} requestCount={requestCount} />
       )}
 
       {!loading && !hasVehicles && (
-        <section className="ink-empty">
+        <section className="ink-empty tv-reveal">
           <h2 className="ink-empty__title">Add your first vehicle</h2>
           <p className="ink-empty__body">
             Everything in Trevora hangs off a vehicle &mdash; its records, its history and what you
@@ -370,7 +377,7 @@ export default function GaragePage() {
       {hasVehicles && <VehicleCarousel garages={garages} />}
 
       {hasVehicles && !hasRecords && !loading && (
-        <section className="ink-empty">
+        <section className="ink-empty tv-reveal" style={{ '--reveal-index': 2 }}>
           <h2 className="ink-empty__title">Start with your last receipt</h2>
           <p className="ink-empty__body">
             One receipt is enough to begin. Trevora reads the date, shop, services and cost off it,
@@ -385,12 +392,15 @@ export default function GaragePage() {
 
       {hasRecords && (
         <>
-          <div className="garage-panels">
+          <div className="garage-panels tv-reveal" style={{ '--reveal-index': 2 }}>
             <SpendingPanel records={allRecords} />
             <WhereItWentPanel records={allRecords} />
           </div>
 
-          <section className="ink-table-card">
+          {/* The table holds the reveal, not its rows: the rows re-render
+              whenever the data changes and would re-run the animation each
+              time. */}
+          <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 3 }}>
             <div className="ink-table-card__head">
               <h2 className="ink-section-title">Latest across all vehicles</h2>
               <Link className="ink-table-card__link" to="/records">View all {allRecords.length}</Link>
