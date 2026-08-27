@@ -214,7 +214,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <main className="ink-page notif">
+    <main className="ink-page notif tv-reveal-group">
       <header className="notif__head">
         <div>
           <h1 className="notif__title">Notifications</h1>

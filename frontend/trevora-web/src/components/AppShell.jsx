@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Bell, Car, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2, X } from 'lucide-react';
 import {
@@ -112,11 +112,17 @@ export default function AppShell({ children }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [notificationPreferences, setNotificationPreferences] = useState(getNotificationPreferences);
   const [menuOpen, setMenuOpen] = useState(false);
+  /* The sheet has to outlive the decision to close it: an element removed from
+     the tree cannot animate on its way out. `menuClosing` keeps it mounted for
+     the length of the exit, and every close path goes through `closeMenu`
+     rather than setting `menuOpen` directly. */
+  const [menuClosing, setMenuClosing] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const sheetRef = useRef(null);
   const menuButtonRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   const displayName = authenticated ? getUserDisplayName(currentUser) : 'Signed out';
   const avatarUrl = authenticated ? currentUser?.avatar || '' : '';
@@ -164,11 +170,38 @@ export default function AppShell({ children }) {
     return () => { active = false; };
   }, [canUseOwnerWorkflows, mechanicRequestsEnabled, location.pathname]);
 
+  /* Must match the exit animation in brand-app.css. A timer rather than
+     `animationend`: under `prefers-reduced-motion` that event may never
+     arrive, and a sheet that never unmounts is a worse bug than a stiff
+     animation. */
+  const SHEET_EXIT_MS = 240;
+
+  const closeMenu = useCallback(() => {
+    setMenuClosing((closing) => {
+      if (closing) return closing;
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = window.setTimeout(() => {
+        setMenuOpen(false);
+        setMenuClosing(false);
+      }, SHEET_EXIT_MS);
+      return true;
+    });
+  }, []);
+
+  const openMenu = useCallback(() => {
+    window.clearTimeout(closeTimerRef.current);
+    setMenuClosing(false);
+    setMenuOpen(true);
+  }, []);
+
+  // A pending close must not fire against a shell that has gone.
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), []);
+
   // Route change closes the sheet; without this, tapping a nav item on mobile
   // navigates behind a still-open overlay.
   useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
+    closeMenu();
+  }, [closeMenu, location.pathname]);
 
   // The sheet traps focus and closes on Escape. Focus moves back to the button
   // that opened it, so a keyboard user is not returned to the top of the page.
@@ -184,7 +217,7 @@ export default function AppShell({ children }) {
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setMenuOpen(false);
+        closeMenu();
         menuButtonRef.current?.focus();
         return;
       }
@@ -299,7 +332,7 @@ export default function AppShell({ children }) {
             ref={menuButtonRef}
             aria-expanded={menuOpen}
             aria-haspopup="dialog"
-            onClick={() => setMenuOpen(true)}
+            onClick={openMenu}
           >
             <Menu size={18} aria-hidden="true" />
             <span>Menu</span>
@@ -308,7 +341,10 @@ export default function AppShell({ children }) {
       </header>
 
       {menuOpen && (
-        <div className="ink-sheet__backdrop" onClick={() => setMenuOpen(false)}>
+        <div
+          className={`ink-sheet__backdrop${menuClosing ? ' is-closing' : ''}`}
+          onClick={closeMenu}
+        >
           <div
             className="ink-sheet"
             role="dialog"
@@ -322,13 +358,13 @@ export default function AppShell({ children }) {
               <button
                 className="ink-sheet__close"
                 type="button"
-                onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus(); }}
+                onClick={() => { closeMenu(); menuButtonRef.current?.focus(); }}
               >
                 <X size={18} aria-hidden="true" />
                 <span>Close</span>
               </button>
             </div>
-            <ShellNav pendingCount={pendingCount} onNavigate={() => setMenuOpen(false)} />
+            <ShellNav pendingCount={pendingCount} onNavigate={closeMenu} />
             <div className="ink-sheet__account">
               <div className="ink-account-row">
                 <span className="ink-account-row__avatar" aria-hidden="true">

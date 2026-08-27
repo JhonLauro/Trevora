@@ -308,7 +308,10 @@ export default function VehiclePage() {
 
       {error && <div className="ink-alert">{error}</div>}
 
-      <header className="vehicle-identity">
+      {/* The page returns a loading line until the vehicle and its records
+          are both in hand, so everything below mounts in one frame. The
+          stagger is what stops that frame reading as a jolt. */}
+      <header className="vehicle-identity tv-reveal">
         {/* The placeholder holds exactly the space the photo takes, so a
             vehicle with a picture and one without lay out identically. */}
         <div className={`vehicle-identity__photo${photoUrl ? ' has-photo' : ''}`}>
@@ -351,7 +354,7 @@ export default function VehiclePage() {
           now sits next to the inputs it applies to. Nothing here requires
           them: records join to a vehicle by vehicle_id, and a record saves on
           vehicle, date, service and cost alone. */}
-      <section className="ink-card vehicle-details">
+      <section className="ink-card vehicle-details tv-reveal" style={{ '--reveal-index': 1 }}>
         <div className="vehicle-details__head">
           <h2 className="vehicle-details__title">Vehicle details</h2>
           <button
@@ -383,7 +386,7 @@ export default function VehiclePage() {
 
       <Completeness summary={completeness} />
 
-      <section className="ink-card vehicle-stats">
+      <section className="ink-card vehicle-stats tv-reveal" style={{ '--reveal-index': 2 }}>
         <Stat label="Records" value={String(records.length)} />
         <Stat label="Last service" value={records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'None yet'} />
         <Stat label="Odometer" value={formatOdometer(vehicle?.odometer, 'Not recorded')} />
@@ -399,7 +402,7 @@ export default function VehiclePage() {
 
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
         {tab === 'records' && (
-          <div className="vehicle-records">
+          <div className="vehicle-records tv-reveal" style={{ '--reveal-index': 3 }}>
             <div className="vehicle-toolbar">
               {/* Components filters by part, not by text — the box would sit
                   there doing nothing, and it is the first control on the page

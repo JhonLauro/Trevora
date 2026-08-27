@@ -345,7 +345,7 @@ export default function AccountSettingsPage() {
   }
 
   return (
-    <main className="ink-settings">
+    <main className="ink-settings tv-reveal-group">
       <header className="set-head">
         <h1>Account settings</h1>
         <p>Your notifications, your details, and your password.</p>

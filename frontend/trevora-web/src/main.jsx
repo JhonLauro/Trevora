@@ -74,6 +74,10 @@ import './styles/ai-explanation.css';
 // the pre-Ink `stored-receipt-*` and `image-preview-*` rules.
 import './styles/stored-receipt.css';
 
+// Arrival motion for screens that wait on the network. Last, and additive:
+// one utility class, no selector it shares with anything else.
+import './styles/reveal.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>

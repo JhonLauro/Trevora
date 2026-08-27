@@ -1,0 +1,82 @@
+/* ----------------------------------------------------------------------
+   Arrival.
+
+   A screen that waits on the network and then paints everything in one frame
+   reads as a jolt: nothing, nothing, nothing, wall of data. The walkthrough
+   already solved this for its own steps, and the signup vehicle screen for its
+   form. This is the same motion, factored out so the data screens can use it
+   without a fourth copy of the same keyframes.
+
+   Deliberately the same numbers as `wt-in` and `veh-arrive`: 10px of travel,
+   380ms, and the same easing. One product should move one way.
+
+   HOW TO USE IT
+     <section className="tv-reveal">                       one element
+     <article className="tv-reveal" style={{ '--reveal-index': 2 }}>   staggered
+
+   `--reveal-index` is a position in a queue, not a delay in milliseconds --
+   the step is defined here so the rhythm stays consistent, and 0 is the
+   default.
+
+   WHERE NOT TO USE IT
+   On anything that re-mounts as a result of typing. A row inside a filtered
+   list re-runs its animation on every keystroke, which is jitter, not motion.
+   Put it on the container that holds the list instead: the container mounts
+   once when the data arrives, which is the moment worth marking.
+   ---------------------------------------------------------------------- */
+
+.tv-reveal {
+  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+  animation-delay: calc(var(--reveal-index, 0) * 60ms);
+}
+
+@keyframes tv-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Someone who has asked for less motion has asked for less motion. The content
+   still arrives -- it simply arrives without travelling. `both` on the shorthand
+   above means the element would otherwise hold the 0-opacity start frame, so
+   the animation has to be removed rather than merely shortened. */
+@media (prefers-reduced-motion: reduce) {
+  .tv-reveal {
+    animation: none;
+  }
+}
+
+/* ----------------------------------------------------------------------
+   The group variant.
+
+   Some screens are a stack of blocks that all arrive together -- settings
+   sections, an access page, a record. Marking each one by hand means an edit
+   per block and an index to keep in order; this stages the direct children of
+   one container instead, so those screens are a single class on the wrapper.
+
+   Only direct children, and only the first six get their own step. Past that
+   the delay stops growing: a stagger long enough to notice on the ninth block
+   is a page that feels slow to load, which is the opposite of the point.
+   ---------------------------------------------------------------------- */
+
+.tv-reveal-group > * {
+  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+  animation-delay: 300ms;
+}
+
+.tv-reveal-group > *:nth-child(1) { animation-delay: 0ms; }
+.tv-reveal-group > *:nth-child(2) { animation-delay: 60ms; }
+.tv-reveal-group > *:nth-child(3) { animation-delay: 120ms; }
+.tv-reveal-group > *:nth-child(4) { animation-delay: 180ms; }
+.tv-reveal-group > *:nth-child(5) { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-reveal-group > * {
+    animation: none;
+  }
+}
