@@ -94,7 +94,11 @@ export default function FlowChrome({
 
       {band}
 
-      <div className={contentClass}>{children}</div>
+      {/* `tv-reveal-group` stages whatever the screen puts inside: these
+          screens wait on a vehicle list, a draft or an upload, and without
+          it the whole form lands in a single frame. One place rather than
+          six -- every add-a-record screen renders through here. */}
+      <div className={`${contentClass} tv-reveal-group`}>{children}</div>
     </div>
   );
 }
