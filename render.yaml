@@ -28,6 +28,11 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+      # Project Settings -> API -> JWT Secret. Lets the API verify access
+      # tokens itself rather than calling Supabase Auth on every request,
+      # which is what kept the whole API tied to that service's health.
+      - key: SUPABASE_JWT_SECRET
+        sync: false
       # Browser origins allowed to call the API, comma-separated. Set to
       # the static site's URL, e.g. https://trevora-web.onrender.com
       # (no trailing slash), plus any custom domain.
