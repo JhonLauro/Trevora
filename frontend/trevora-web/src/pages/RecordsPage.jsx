@@ -109,7 +109,10 @@ export default function RecordsPage() {
 
       {error && <div className="ink-alert">{error}</div>}
 
-      <div className="records-toolbar">
+      {/* Toolbar first, then whatever it is filtering. The reveal sits on
+          the container, not the rows -- rows re-render on every keystroke
+          in the search box. */}
+      <div className="records-toolbar tv-reveal">
         <input
           type="search"
           value={query}
@@ -140,8 +143,18 @@ export default function RecordsPage() {
         )}
       </div>
 
-      {!loading && filtered.length === 0 ? (
-        <section className="ink-empty">
+      {/* Nothing below the toolbar until the records are actually in hand.
+
+          This used to render the table card straight away, empty, because the
+          `!loading` test only guarded the *empty state* branch -- so the card
+          mounted at first paint, ran its arrival animation against nothing,
+          and the rows appeared later in an element that had finished moving
+          half a second earlier. The header already says "Loading your
+          records…", so there is nothing lost by holding this back and
+          everything gained: the block now mounts when the data lands, which is
+          the moment the animation is for. */}
+      {loading ? null : filtered.length === 0 ? (
+        <section className="ink-empty tv-reveal" style={{ '--reveal-index': 1 }}>
           <h2 className="ink-empty__title">{emptyTitle()}</h2>
           <p className="ink-empty__body">{emptyBody()}</p>
           {allRecords.length === 0 && (
@@ -151,7 +164,7 @@ export default function RecordsPage() {
           )}
         </section>
       ) : (
-        <section className="ink-table-card">
+        <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 1 }}>
           <RecordsTable records={filtered} ariaLabel="All service records across your vehicles" />
         </section>
       )}
