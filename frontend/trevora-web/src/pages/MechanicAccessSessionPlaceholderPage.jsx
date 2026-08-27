@@ -266,7 +266,7 @@ export default function MechanicAccessSessionPlaceholderPage() {
   }
 
   return (
-    <main className="ink-page mechanic-page">
+    <main className="ink-page mechanic-page tv-reveal-group">
       <header className="mechanic-header">
         <div>
           <span className="ink-eyebrow">Shared by the owner · read only</span>

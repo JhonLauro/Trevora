@@ -1,5 +1,18 @@
 import { apiRequest } from './http';
 
+/**
+ * The whole garage in one request: every vehicle, with its confirmed records
+ * already grouped under it.
+ *
+ * <p>This replaces a vehicle list followed by one history call per vehicle.
+ * Each of those paid its own authentication and its own round trip to a
+ * region on the other side of a sea, and the count grew with the number of
+ * cars -- which is exactly the shape that makes an app feel slow.
+ */
+export function getGarageSummary() {
+  return apiRequest('/garage');
+}
+
 export function getVehicleServiceHistory(vehicleId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.sort) params.set('sort', filters.sort);

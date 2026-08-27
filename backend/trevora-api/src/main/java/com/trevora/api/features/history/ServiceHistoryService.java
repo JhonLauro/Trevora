@@ -2,6 +2,8 @@ package com.trevora.api.features.history;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.vehicle.VehicleProfile;
+import com.trevora.api.features.vehicle.VehicleResponse;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.history.ServiceHistoryResponse;
 import com.trevora.api.features.history.ServiceRecordDetailResponse;
@@ -42,6 +44,51 @@ public class ServiceHistoryService {
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
+    }
+
+    /**
+     * The whole garage in one call: the owner's vehicles, and every confirmed
+     * record grouped under the vehicle it belongs to.
+     *
+     * <p>Four queries regardless of how many cars there are -- vehicles,
+     * records, items, line entries -- against one request per vehicle before.
+     * Ownership is enforced by the queries themselves: both are filtered by the
+     * current owner id, so a vehicle that is not theirs cannot appear and
+     * neither can its records.
+     */
+    @Transactional(readOnly = true)
+    public GarageSummaryResponse getGarageSummary() {
+        currentUserService.requireVehicleOwner();
+        UUID ownerId = currentUserService.getCurrentUserId();
+
+        List<VehicleProfile> vehicles = vehicleService.getVehiclesForCurrentUser();
+        List<ServiceRecord> records = serviceRecordRepository
+                .findByOwnerId(ownerId, repositorySortFor(SORT_LATEST));
+
+        Map<UUID, List<ServiceRecordItem>> itemsByRecord = serviceRecordItemReader
+                .forRecords(records.stream().map(ServiceRecord::getRecordId).toList());
+
+        Map<UUID, List<ServiceRecordSummaryResponse>> byVehicle = new LinkedHashMap<>();
+        for (VehicleProfile vehicle : vehicles) {
+            byVehicle.put(vehicle.getVehicleId(), new java.util.ArrayList<>());
+        }
+        for (ServiceRecord record : records) {
+            List<ServiceRecordSummaryResponse> bucket = byVehicle.get(record.getVehicleId());
+            // A record whose vehicle is not in the list cannot belong to this
+            // owner; the queries already guarantee that, and this is the belt.
+            if (bucket == null) {
+                continue;
+            }
+            bucket.add(ServiceRecordSummaryResponse.from(
+                    record, itemsByRecord.getOrDefault(record.getRecordId(), List.of())));
+        }
+
+        return new GarageSummaryResponse(
+                vehicles.stream().map(VehicleResponse::from).toList(),
+                byVehicle.entrySet().stream()
+                        .map(entry -> new GarageSummaryResponse.VehicleRecords(entry.getKey(), entry.getValue()))
+                        .toList()
+        );
     }
 
     public ServiceHistoryResponse getVehicleHistory(

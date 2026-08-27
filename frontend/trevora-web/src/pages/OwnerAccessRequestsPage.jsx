@@ -219,7 +219,7 @@ export default function OwnerAccessRequestsPage() {
   }));
 
   return (
-    <main className="ink-page access-page">
+    <main className="ink-page access-page tv-reveal-group">
       <header className="ink-page__header">
         <div>
           <h1 className="ink-page__title">Shared access</h1>

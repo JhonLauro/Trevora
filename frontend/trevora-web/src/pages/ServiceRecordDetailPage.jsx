@@ -141,7 +141,7 @@ export default function ServiceRecordDetailPage() {
   const unreviewed = needsReview(record);
 
   return (
-    <main className="ink-page record-page">
+    <main className="ink-page record-page tv-reveal-group">
       {/* Breadcrumb and actions on one row. The two buttons used to be a
           footer under everything, which put "Back to the vehicle" below a
           receipt image, an explanation and a table — an exit you had to
