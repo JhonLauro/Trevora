@@ -1,0 +1,237 @@
+/* ----------------------------------------------------------------------
+   The plain-language explanation panel.
+
+   Its own `.aiex-` namespace, replacing the pre-Ink `ai-explanation-*` rules
+   in styles.css. Those are left where they are — nothing references them now.
+
+   The panel sits beside a record whose fields are terse and tabular, so this
+   is the one place on the page set as prose: longer measure, looser leading,
+   and the two kinds of content kept visibly apart. Facts the generator pulled
+   out of the record ("Parts noted: …") are a definition list; the sentences
+   around them stay sentences.
+   ---------------------------------------------------------------------- */
+
+.aiex {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.aiex__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.aiex .ink-section-title {
+  align-items: center;
+  color: var(--brand-hover);
+  display: flex;
+  gap: 10px;
+}
+
+/* Quiet: regenerating is a repair, not the reason anyone opened the panel. */
+.aiex .aiex__refresh {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 100px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  gap: 7px;
+  min-height: 0;
+  padding: 7px 12px;
+}
+
+.aiex .aiex__refresh:hover:not(:disabled),
+.aiex .aiex__refresh:active:not(:disabled) {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+}
+
+.aiex .aiex__refresh:disabled {
+  background: none;
+  color: var(--ink-faint);
+  cursor: progress;
+}
+
+.aiex .aiex__refresh:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.aiex__refresh--inline {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
+/* ------------------------------------------------------------------ body */
+
+.aiex__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.aiex__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aiex__section-title {
+  align-items: center;
+  color: var(--ink-faint);
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  letter-spacing: 0.06em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.aiex__prose {
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* The reason this component exists in its rewritten form. The generator
+   concatenates "Parts noted: …", "Materials used: …", "Work performed: …" and
+   "Total recorded cost: …" into a single paragraph; pulled out as rows, the
+   four things an owner scans for stop being buried in prose. */
+.aiex__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 0;
+}
+
+.aiex__facts > div {
+  display: grid;
+  gap: 2px 16px;
+  grid-template-columns: minmax(120px, 34%) minmax(0, 1fr);
+}
+
+.aiex__facts dt {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.aiex__facts dd {
+  color: var(--ink);
+  font-size: 15px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* One item per line. A receipt commonly lists seven or eight, and as a single
+   semicolon-separated sentence they were unreadable — which is the whole
+   reason `splitItems` exists.
+
+   These do carry a marker, reversing an earlier call in this file. The
+   argument against was that the label to the left already says what the list
+   is; that holds for two short items and stops holding at seven, where a line
+   that wraps needs something to show where the next item starts. */
+.aiex__items {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.aiex__items li {
+  padding-left: 14px;
+  position: relative;
+}
+
+.aiex__items li::before {
+  background: var(--brand);
+  border-radius: 50%;
+  content: '';
+  height: 4px;
+  left: 0;
+  position: absolute;
+  /* Aligned to the first line's optical centre rather than the box, so a
+     wrapped item keeps its dot beside the line it starts on. */
+  top: 0.62em;
+  width: 4px;
+}
+
+@media (max-width: 520px) {
+  /* Two columns inside a card inside a side column is one nesting too many on
+     a phone; the label sits above its value instead. */
+  .aiex__facts > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.aiex__watch {
+  color: var(--ink-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+  gap: 8px;
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.aiex__watch li::marker {
+  color: var(--warn-text);
+}
+
+/* --------------------------------------------------------------- states */
+
+.aiex__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.aiex__unavailable {
+  background: var(--brand-wash);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.aiex__unavailable-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* One line, not a boxed warning. An explanation written from the record
+   rather than by the model is a normal outcome, and the old panel announced
+   it as though something had failed. */
+.aiex__fallback {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin: 0;
+}
+
+.aiex__disclaimer {
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  padding-top: 14px;
+  text-wrap: pretty;
+}

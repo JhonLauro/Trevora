@@ -67,6 +67,9 @@ import './styles/legal.css';
 // The walkthrough -> vehicle form hand-off. A fixed overlay above everything,
 // own `.gt-` namespace, overrides nothing.
 import './styles/garage-transition.css';
+// The plain-language explanation panel, `.aiex-`. Replaces the pre-Ink
+// `ai-explanation-*` rules in styles.css rather than overriding them.
+import './styles/ai-explanation.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

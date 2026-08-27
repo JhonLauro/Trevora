@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, Car, FileText, Gauge, MapPin, Store, Wallet, Wrench } from 'lucide-react';
+import {
+  ArrowLeft, Calendar, Car, Clock, FileText, Gauge, MapPin,
+  ReceiptText, Share2, Store, Wallet, Wrench,
+} from 'lucide-react';
 import AIExplanationPanel from '../components/AIExplanationPanel';
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
@@ -39,6 +42,14 @@ import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText
    the wording, which is what keeps a missing reading from being dressed as a
    present one: "NOT RECORDED" set in tabular mono read with more weight than
    the odometer readings it was standing in for. */
+function formatSavedAt(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
 const DETAIL_FIELDS = [
   { key: 'serviceDate', label: 'Service date', icon: Calendar, value: (r) => (r.serviceDate ? formatDate(r.serviceDate) : null) },
   { key: 'odometer', label: 'Odometer', icon: Gauge, mono: true, value: (r) => (r.odometer != null ? formatOdometer(r.odometer) : null) },
@@ -131,13 +142,29 @@ export default function ServiceRecordDetailPage() {
 
   return (
     <main className="ink-page record-page">
-      <nav className="vehicle-crumbs" aria-label="Breadcrumb">
-        <Link to="/">Garage</Link>
-        <span aria-hidden="true">/</span>
-        <Link to={`/vehicles/${vehicleId}`}>{name}</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{formatDate(record.serviceDate)}</span>
-      </nav>
+      {/* Breadcrumb and actions on one row. The two buttons used to be a
+          footer under everything, which put "Back to the vehicle" below a
+          receipt image, an explanation and a table — an exit you had to
+          scroll the whole page to reach. */}
+      <div className="record-topbar">
+        <nav className="vehicle-crumbs" aria-label="Breadcrumb">
+          <Link to="/">Garage</Link>
+          <span aria-hidden="true">/</span>
+          <Link to={`/vehicles/${vehicleId}`}>{name}</Link>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">{formatDate(record.serviceDate)}</span>
+        </nav>
+        <div className="record-topbar__actions">
+          <Link className="ink-button ink-button--outline ink-button--sm" to={`/vehicles/${vehicleId}`}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back to the vehicle
+          </Link>
+          <Link className="ink-button ink-button--outline ink-button--sm" to={`/vehicles/${vehicleId}/share`}>
+            <Share2 size={16} aria-hidden="true" />
+            Share history
+          </Link>
+        </div>
+      </div>
 
       <header className="record-header">
         <div>
@@ -174,6 +201,21 @@ export default function ServiceRecordDetailPage() {
 
       <div className="record-layout">
         <div className="record-main">
+          {/* The receipt sits at the top of the column it explains: the paper
+              first, then what was read off it, then the fields it produced.
+              It was in the side column, which put the source document beside
+              its own summary rather than above it. */}
+          {record.receiptStoragePath && (
+            <section className="ink-card record-card">
+              <div className="record-card__head">
+                <h2 className="ink-section-title">
+                  <ReceiptText size={18} aria-hidden="true" /> The receipt
+                </h2>
+              </div>
+              <StoredReceiptPreview source={record} title="Stored receipt" />
+            </section>
+          )}
+
           <section className="ink-card record-card">
             <div className="record-card__head">
               <h2 className="ink-section-title">
@@ -213,48 +255,33 @@ export default function ServiceRecordDetailPage() {
                 mono
                 value={record.totalCost != null ? `PHP ${formatAmount(record.totalCost)}` : null}
               />
-            </div>
+              {/* The record id and the draft id that used to sit under here are
+                  gone. They were already folded away, but folded away is still
+                  shown — and a UUID is a diagnostic for us, not a fact about
+                  somebody's car. Nothing in the product ever asks an owner for
+                  one; anyone chasing a support question still has them on the
+                  API response.
 
-            {/* Identifiers are for chasing a support question, not for reading.
-                Folded away rather than given four rows of the page. */}
-            <details className="record-trace">
-              <summary>Record identifiers</summary>
-              <dl>
-                <div>
-                  <dt className="ink-eyebrow">Record</dt>
-                  <dd className="ink-mono">{record.recordId}</dd>
-                </div>
-                <div>
-                  <dt className="ink-eyebrow">From draft</dt>
-                  <dd className="ink-mono">{record.draftId}</dd>
-                </div>
-                <div>
-                  <dt className="ink-eyebrow">Saved</dt>
-                  <dd>{record.createdAt ? new Date(record.createdAt).toLocaleString() : 'Not recorded'}</dd>
-                </div>
-              </dl>
-            </details>
+                  The saved date stayed and was promoted to an ordinary field.
+                  When a record entered the history is a real thing to want to
+                  know, and it was hidden behind the same disclosure. */}
+              <Field
+                icon={Clock}
+                label="Saved to history"
+                value={record.createdAt ? formatSavedAt(record.createdAt) : null}
+              />
+            </div>
           </section>
         </div>
 
+        {/* The explanation has the right-hand column to itself now, and a
+            wider one. It is the only prose on the page and it was the thing
+            being squeezed. */}
         <aside className="record-side">
           <AIExplanationPanel recordId={record.recordId} />
-
-          {record.receiptStoragePath && (
-            <section className="ink-card record-card">
-              <div className="record-card__head">
-                <h2 className="ink-section-title">The receipt</h2>
-              </div>
-              <StoredReceiptPreview source={record} title="Stored receipt" />
-            </section>
-          )}
         </aside>
       </div>
 
-      <footer className="record-actions">
-        <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}`}>Back to the vehicle</Link>
-        <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}/share`}>Share history</Link>
-      </footer>
     </main>
   );
 }

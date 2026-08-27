@@ -1912,3 +1912,149 @@ purely visual on this project is unverifiable from here. The preview pane
 produces no screenshots, so vector artwork should be built from primitives
 whose relationships can be reasoned about, and anyone reviewing it should
 expect to be the first pair of eyes on it.
+
+### One record, opened: layout and the explanation panel (2026-08-27)
+
+Four changes, three of them answering a question about what belongs on the
+page at all rather than how it looks.
+
+**Actions moved to the top.** "Back to the vehicle" and "Share history" were a
+footer under everything — so the way out of the page sat below a receipt
+image, an explanation and a field table, and you had to scroll the whole
+record to reach it. They are a row beside the breadcrumb now, both with icons.
+
+**The receipt leads the side column.** It was last, underneath an explanation
+of itself. It is the document every other thing on the page was derived from,
+so it goes first.
+
+**The record identifiers are gone.** The question was the right one to ask:
+no, an owner does not need them. They were already folded into a `<details>`,
+but folded away is still shown, and a record id and a draft id are diagnostics
+for us — nothing in the product ever asks an owner for one, and anyone chasing
+a support question still has them on the API response.
+
+The **saved date** was promoted out of that disclosure to an ordinary field.
+When a record entered the history is a real thing to want to know, and it was
+hidden behind the same fold as the UUIDs purely because it happened to sit
+near them.
+
+**The explanation panel was rebuilt, and the run-on paragraph was the point.**
+It was the last thing on this page still wearing the pre-Ink classes
+(`ai-explanation-card`, `button-secondary`, `muted`). More importantly,
+`AIExplanationService` builds "what was done" by concatenating sentences into
+one string — "…completed on 7 May 2026 at Toyota Otis. Parts noted: oil
+filter, brake pads. Materials used: … Work performed: … Total recorded cost:
+…" — so the four facts an owner scans for were buried in prose.
+
+`splitStatements` breaks it at sentence boundaries and promotes any
+"Label: value" sentence to a row in a definition list. **This is presentation
+only and invents nothing**: a sentence without a leading label stays a
+sentence, so a freeform answer from the model degrades to ordinary paragraphs
+rather than to nonsense. The label pattern is capped at four words so a
+sentence that merely contains a colon is not mistaken for one.
+
+**The real fix is server-side** — `AIExplanationResponse` should carry parts,
+materials, labour and cost as fields instead of glued into `whatWasDone`.
+That is a change to a DTO the mechanic view also reads, so it wants its own
+pass and a grep for consumers first. Until then the frontend is unpicking a
+string that should not have been assembled.
+
+Also: the "generated fallback" notice is one quiet line now instead of a boxed
+warning. An explanation written from the record rather than by the model is a
+normal outcome, and announcing it in a bordered box read as a failure.
+
+One measurement worth keeping: `minmax(min(100%, 220px), 1fr)` — the usual
+idiom for stopping an auto-fit track overflowing a narrow container —
+collapsed the details grid to one full-width track and three zero-width ones.
+A plain `minmax(200px, 1fr)` with an explicit single column under 480px does
+the same job predictably. Verified at 620px: two columns of 296px.
+
+Verified: no `.record-trace` and no `.record-actions` remain in the DOM, the
+top bar is a space-between flex row, the panel takes the brand's card padding
+and green section titles, facts render as a two-column definition list, the
+disclaimer keeps its hairline. **Not seen with a real record** — the panel's
+content, which is the half of this that matters, needs an actual explanation
+from the API to judge.
+
+### Page width, record columns, list items, car outline (2026-08-27)
+
+**`.ink-page` grows now.** It was pinned at 1176px, which is a comfortable
+measure at 1440 and a lake of empty margin at 1920 — the app genuinely looked
+better on a small screen than a big one, because a big one only ever added
+whitespace. `--page-max` is 1440 and the horizontal padding scales with the
+viewport. Measured at 1920 with the rail collapsed: 1440px of page and 206px
+either side, against 338px before.
+
+Deliberately a ceiling rather than unlimited. Tables and cards benefit from
+more room; body copy does not, and every card holding prose keeps its own
+measure regardless. Account settings keeps a narrower 1120 — it is a column of
+forms, and a 1440px form row is not a better form row.
+
+**The record page reads top to bottom in the order things happened.** The
+receipt moved into the left column above everything derived from it: paper,
+then what was read off it, then the fields it produced. The explanation has
+the right column to itself and a wider one — 1.2/1 rather than 1.55/1, so 705
+against 587 at 1920. It is the only prose on the page and it was the thing
+being squeezed. It is also sticky above 1100px, because it is what you read
+*while* looking at the fields and a long record used to scroll it away.
+
+**Multiple parts are multiple lines.** `joinItemField` on the server glues
+items with ", ", so "Parts noted: oil filter, brake pads front, air filter"
+was three things wearing one label. `splitItems` breaks them back apart —
+**guarded, not eager**: it only splits when every resulting piece is under 48
+characters and contains no " and ", so a single value that happens to hold a
+comma ("Toyota Otis, Manila") stays one item. No bullets, because the label to
+the left already says what the list is.
+
+This is still the frontend unpicking a string the API should not have
+assembled. The note above about giving `AIExplanationResponse` real fields
+stands, and this makes it slightly more urgent rather than less: there are now
+two heuristics reading generated prose.
+
+**The car has an outline.** Brand green on the mint ground was a soft edge and
+it dissolved into the background. Body, glass, tyres and lamp are stroked in
+the brand's dark green, and the glass went white so it reads as glass rather
+than as a hole. The stroke across the join where the cabin meets the body is
+intentional — the two shapes overlap by two pixels and the line reads as a
+beltline.
+
+Verified: page 1440 at a 1920 viewport, layout columns 705/587 with the side
+sticky, list items on separate lines with no markers, every car shape carrying
+a `#0a5a3c` stroke. As always, the explanation panel's real content is
+unverified — it needs a live record.
+
+#### The parts list: right idea, wrong delimiter
+
+The previous entry claimed multi-value facts were split into lines. They were
+not, and the reason is a one-word mistake: `splitItems` looked for `", "`
+while `joinItemField` and `lineEntriesOfKind` on the server both reduce with
+`first + "; " + second`. Semicolons. So "Parts noted: JLLY SYNTHETIC ENGINE
+OIL; OIL FILTER; DRAIN PLUG WASHER; BRAKE PASTE; MISCELLANEOUS; HONDA OIL
+TREATMENT; HONDA FUEL CLEANER" stayed one paragraph, exactly as reported.
+
+Fixed, and verified against that exact string: seven items, one per line, each
+with a small brand-green dot.
+
+**The comma branch is gone entirely, and that is the more useful outcome.**
+Testing it turned up a false positive it would always have had:
+`"Toyota Otis, Manila"` split into two items. Both halves are short, neither
+contains " and ", so every guard passed and the answer was still wrong. A
+heuristic that cannot tell a list from a place name has no business guessing,
+and nothing on the server produces comma-joined values anyway. Splitting is
+now semicolons only, which is unambiguous and needs no guard.
+
+The bullets reverse an earlier decision in `ai-explanation.css`. The argument
+against markers — the label to the left already says what the list is — holds
+for two short items and stops holding at seven, where a wrapped line needs
+something to show where the next item begins.
+
+Verified by extracting `splitItems` and `splitStatements` from the shipped
+file and running them: the seven-part string splits correctly, `Toyota Otis,
+Manila` stays whole, `PHP 7,850` stays whole, a single item stays whole, and a
+two-item semicolon value splits. Mounting the real component in isolation was
+attempted and abandoned — two React copies in the same page do not render —
+so **the rendered result still needs a real record and your eyes.**
+
+This is the second bug in a heuristic reading generated prose. The case for
+giving `AIExplanationResponse` real fields instead of a glued string is now
+made twice over.

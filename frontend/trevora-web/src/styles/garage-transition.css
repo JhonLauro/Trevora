@@ -51,16 +51,32 @@
   width: 100%;
 }
 
+/* Outlined, not just filled. Brand green on the mint ground is a soft edge —
+   the car read as a shape dissolving into the background rather than an
+   object on it. The stroke is the brand's dark green, so it draws the
+   silhouette without introducing a colour.
+
+   The line where the cabin meets the body is deliberate: the two shapes
+   overlap by two pixels, and the stroke across that join reads as a car's
+   beltline rather than as a seam. */
 .gt__body {
   fill: var(--brand);
+  stroke: var(--brand-hover);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
 }
 
 .gt__glass {
-  fill: var(--brand-tint);
+  fill: #ffffff;
+  stroke: var(--brand-hover);
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 
 .gt__tyre {
   fill: #16211c;
+  stroke: var(--brand-hover);
+  stroke-width: 1.5;
 }
 
 .gt__hub {
@@ -71,6 +87,8 @@
    tells you which way the car is pointing before it starts moving. */
 .gt__lamp {
   fill: #fff7e8;
+  stroke: var(--brand-hover);
+  stroke-width: 1.5;
 }
 
 .gt__spoke {

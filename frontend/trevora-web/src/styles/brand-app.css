@@ -643,19 +643,95 @@
   color: var(--brand-hover);
 }
 
-/* The provenance disclosure — where each value came from. It is deliberately
-   quiet, so it gets the wash rather than the tint. */
-.record-page .record-trace {
-  background: var(--brand-wash);
-  /* The hairline above it went with the fill — a rule and a background doing
-     the same separating job is the pattern this rebrand keeps removing. */
-  border-radius: 16px;
-  border-top: 0;
-  padding: 14px 16px;
+/* =====================================================================
+   Page width
+   ===================================================================== */
+
+/* `.ink-page` was pinned at 1176px. With a 240px rail beside it that is a
+   comfortable measure at 1440 and a lake of empty margin at 1920 and above —
+   which is the complaint: the app looked better on a small screen than a big
+   one, because a big one only ever added whitespace.
+
+   It grows now, to a ceiling rather than forever. `--page-max` is the one
+   number to change; the padding grows with it so the content never ends up
+   pressed against the rail on a wide screen.
+
+   Deliberately not unlimited: the tables and cards inside benefit from more
+   room, but body copy does not, and every card that holds prose keeps its own
+   measure regardless of this. */
+:root {
+  --page-max: 1440px;
 }
 
-.record-page .record-trace summary:hover {
-  color: var(--brand-hover);
+.ink-page {
+  max-width: var(--page-max);
+  padding: clamp(28px, 3vw, 44px) clamp(20px, 3.4vw, 64px) 48px;
+}
+
+/* The settings page keeps its own narrower measure — it is a column of forms,
+   and a 1440px form row is not a better form row. */
+.ink-settings {
+  max-width: 1120px;
+}
+
+/* Breadcrumb left, actions right. Wraps to two rows on a narrow screen with
+   the actions underneath, which is the order they are wanted in. */
+.record-page .record-topbar {
+  align-items: center;
+  column-gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  row-gap: 12px;
+}
+
+.record-page .record-topbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.record-page .record-topbar__actions .ink-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* The details grid was two rigid columns, which put a shop address and a
+   four-digit odometer in halves of the same width. `auto-fit` lets a short
+   field sit beside a long one and collapses to one column when the card is
+   narrow, without a breakpoint of its own. */
+.record-page .record-fields {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* 1.55/1 gave the explanation a third of the page while the fields beside it
+   had room to spare. It is the only prose here and prose is what suffers from
+   a narrow column, so the split is closer to even now. */
+.record-page .record-layout {
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+/* Sticky on a tall screen: the explanation is what you read while looking at
+   the fields, and scrolling a long record used to leave it behind. `start`
+   rather than a fixed offset so it never covers the top bar. */
+@media (min-width: 1100px) {
+  .record-page .record-side {
+    position: sticky;
+    top: 24px;
+  }
+}
+
+/* `minmax(min(100%, 200px), …)` is the usual way to stop an auto-fit track
+   overflowing a container narrower than its floor, but measured here it
+   collapsed the grid to a single full-width track and three zero-width ones.
+   A plain floor plus an explicit single column below the phone breakpoint
+   does the same job and does it predictably. */
+@media (max-width: 480px) {
+  .record-page .record-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* =====================================================================
