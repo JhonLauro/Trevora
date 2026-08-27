@@ -265,13 +265,30 @@
   white-space: nowrap;
 }
 
+/* Centred by padding, not by `justify-content`.
+
+   `justify-content` cannot be animated: it flipped from flex-start to center
+   in a single frame, so the icon jumped the moment the toggle was pressed
+   while the rail was still sliding -- the slam. Worse, `center` centres
+   whatever the row currently holds, and the label's box does not collapse
+   until the fade has finished, so the icon was centred once against
+   icon-plus-label and again against the icon alone. That second re-centre
+   landed after the rail had stopped, which is the jitter at the end.
+
+   Padding animates, so the icon travels on the same clock and the same curve
+   as the column around it, and it only ever moves once.
+
+   The arithmetic: the rail is 68px, less its 1px right border and 10px of
+   padding on each side, leaves 47px of row. An 18px icon therefore centres at
+   (47 - 18) / 2 = 14.5px, and those three numbers exactly fill the row -- 15px
+   was a pixel too wide and pushed the icon under the clipped edge. Keep them in
+   step if the rail width, its padding or its border ever changes. */
 .ink-app[data-rail='collapsed'] .ink-nav__item {
-  justify-content: center;
-  padding: 0;
+  padding: 0 14.5px;
 }
 
 .ink-app[data-rail='collapsed'] .ink-nav__item.is-active {
-  padding-left: 0;
+  padding-left: 14.5px;
 }
 
 /* The count would have nothing to sit beside, so it rides the icon's corner
@@ -303,9 +320,10 @@
   border: 0;
 }
 
+/* Same reasoning as the nav rows above; the avatar is 30px, so it centres in
+   the 47px row at (47 - 30) / 2 = 8.5px. */
 .ink-app[data-rail='collapsed'] .ink-account-row {
-  justify-content: center;
-  padding: 0;
+  padding: 0 8.5px;
 }
 
 /* ------------------------------------------------- mobile topbar + sheet */
