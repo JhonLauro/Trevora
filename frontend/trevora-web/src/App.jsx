@@ -1,36 +1,47 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { isLoggedIn } from './api/currentUser.js';
 import AppShell from './components/AppShell.jsx';
-import AccountSettingsPage from './pages/AccountSettingsPage.jsx';
-import AddVehiclePage from './pages/AddVehiclePage.jsx';
-import AuthCallbackPage from './pages/AuthCallbackPage.jsx';
-import GaragePage from './pages/GaragePage.jsx';
+
+/* Every screen below is its own chunk, fetched the first time it is
+   opened rather than on first paint. The bundle was one 721KB file: every
+   page, every icon and the QR library downloaded before a signed-out
+   visitor could read the landing page.
+
+   The landing page, login and the app shell stay eager on purpose -- they
+   are the first thing rendered in each of the two entry paths, and a chunk
+   boundary there would add a round trip exactly where it hurts. */
+const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage.jsx'));
+const AddVehiclePage = lazy(() => import('./pages/AddVehiclePage.jsx'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
+const GaragePage = lazy(() => import('./pages/GaragePage.jsx'));
+const ManualEntryPage = lazy(() => import('./pages/ManualEntryPage.jsx'));
+const MechanicAccessRequestPage = lazy(() => import('./pages/MechanicAccessRequestPage.jsx'));
+const MechanicAccessSessionPlaceholderPage = lazy(() => import('./pages/MechanicAccessSessionPlaceholderPage.jsx'));
+const MechanicSharedRecordDetailPage = lazy(() => import('./pages/MechanicSharedRecordDetailPage.jsx'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
+const OwnerAccessRequestsPage = lazy(() => import('./pages/OwnerAccessRequestsPage.jsx'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage.jsx'));
+const QRSharingPage = lazy(() => import('./pages/QRSharingPage.jsx'));
+const ReceiptUploadPage = lazy(() => import('./pages/ReceiptUploadPage.jsx'));
+const RecordsPage = lazy(() => import('./pages/RecordsPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const RegisterVehiclePage = lazy(() => import('./pages/RegisterVehiclePage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
+const ServiceDraftReviewPage = lazy(() => import('./pages/ServiceDraftReviewPage.jsx'));
+const ServiceInputMethodPage = lazy(() => import('./pages/ServiceInputMethodPage.jsx'));
+const ServiceRecordConfirmationPage = lazy(() => import('./pages/ServiceRecordConfirmationPage.jsx'));
+const ServiceRecordDetailPage = lazy(() => import('./pages/ServiceRecordDetailPage.jsx'));
+const ServiceRecordSavedPage = lazy(() => import('./pages/ServiceRecordSavedPage.jsx'));
+const TermsPage = lazy(() => import('./pages/TermsPage.jsx'));
+const VehiclePage = lazy(() => import('./pages/VehiclePage.jsx'));
+const VoiceInputPage = lazy(() => import('./pages/VoiceInputPage.jsx'));
+const WelcomePage = lazy(() => import('./pages/WelcomePage.jsx'));
+
 import LandingPage from './pages/LandingPage.jsx';
-import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+
 import LoginPage from './pages/LoginPage.jsx';
-import ManualEntryPage from './pages/ManualEntryPage.jsx';
-import MechanicAccessRequestPage from './pages/MechanicAccessRequestPage.jsx';
-import MechanicAccessSessionPlaceholderPage from './pages/MechanicAccessSessionPlaceholderPage.jsx';
-import MechanicSharedRecordDetailPage from './pages/MechanicSharedRecordDetailPage.jsx';
-import NotificationsPage from './pages/NotificationsPage.jsx';
-import OwnerAccessRequestsPage from './pages/OwnerAccessRequestsPage.jsx';
-import QRSharingPage from './pages/QRSharingPage.jsx';
-import ReceiptUploadPage from './pages/ReceiptUploadPage.jsx';
-import RecordsPage from './pages/RecordsPage.jsx';
-import VehiclePage from './pages/VehiclePage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import RegisterVehiclePage from './pages/RegisterVehiclePage.jsx';
-import WelcomePage from './pages/WelcomePage.jsx';
-import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
-import TermsPage from './pages/TermsPage.jsx';
-import PrivacyPage from './pages/PrivacyPage.jsx';
-import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
-import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
-import ServiceRecordConfirmationPage from './pages/ServiceRecordConfirmationPage.jsx';
-import ServiceRecordDetailPage from './pages/ServiceRecordDetailPage.jsx';
-import ServiceRecordSavedPage from './pages/ServiceRecordSavedPage.jsx';
-import VoiceInputPage from './pages/VoiceInputPage.jsx';
 
 function RedirectToServiceInput({ method }) {
   const { vehicleId } = useParams();
@@ -47,6 +58,11 @@ function RedirectToServiceDraft() {
   return <Navigate to={`/service-drafts/${draftId}`} replace />;
 }
 
+/* Deliberately empty: a chunk usually arrives within a frame or two on a
+   warm connection, and a spinner flashing in and out is worse than a
+   moment of the previous screen staying put. */
+const Loading = null;
+
 function AppRoutes() {
   const location = useLocation();
 
@@ -56,6 +72,7 @@ function AppRoutes() {
 
   return (
     <AppShell>
+      <Suspense fallback={Loading}>
       <Routes>
         <Route path="/" element={<GaragePage />} />
         <Route path="/records" element={<RecordsPage />} />
@@ -97,6 +114,7 @@ function AppRoutes() {
         <Route path="/drafts/:draftId" element={<RedirectToServiceDraft />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </AppShell>
   );
 }
@@ -107,6 +125,7 @@ function RootRoute() {
 
 export default function App() {
   return (
+    <Suspense fallback={Loading}>
     <Routes>
       {/* `/` is the Garage for a signed-in owner and the marketing page for
           everyone else. It used to be the landing page unconditionally, which
@@ -133,6 +152,7 @@ export default function App() {
       <Route path="/mechanic/access/:sessionId/history/:recordId" element={<MechanicSharedRecordDetailPage />} />
       <Route path="*" element={<AppRoutes />} />
     </Routes>
+    </Suspense>
   );
 }
 

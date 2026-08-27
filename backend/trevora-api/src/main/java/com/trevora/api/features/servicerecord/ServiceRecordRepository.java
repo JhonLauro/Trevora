@@ -12,6 +12,10 @@ public interface ServiceRecordRepository extends JpaRepository<ServiceRecord, UU
 
     List<ServiceRecord> findByVehicleIdAndOwnerId(UUID vehicleId, UUID ownerId, Sort sort);
 
+    /** Every confirmed record the owner has, across every vehicle. Backs the
+        garage summary, which would otherwise be one request per vehicle. */
+    List<ServiceRecord> findByOwnerId(UUID ownerId, Sort sort);
+
     Optional<ServiceRecord> findByRecordIdAndOwnerId(UUID recordId, UUID ownerId);
 
     Optional<ServiceRecord> findByRecordIdAndVehicleIdAndOwnerId(UUID recordId, UUID vehicleId, UUID ownerId);
