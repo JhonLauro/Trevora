@@ -10,7 +10,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
@@ -61,12 +64,19 @@ public class SupabaseAuthService {
     private final HttpClient httpClient;
     private final String supabaseUrl;
     private final String supabaseAnonKey;
+    private final String jwtSecret;
     private final Map<String, CachedUser> verifiedTokens = new ConcurrentHashMap<>();
+
+    /* Tokens are checked against this before anything is sent anywhere. See
+       verifyLocally. */
+    private static final String HS256 = "HS256";
+    private static final long CLOCK_SKEW_MS = 30_000L;
 
     public SupabaseAuthService(
             ObjectMapper objectMapper,
             @Value("${supabase.url:}") String supabaseUrl,
-            @Value("${supabase.anon-key:}") String supabaseAnonKey
+            @Value("${supabase.anon-key:}") String supabaseAnonKey,
+            @Value("${supabase.jwt-secret:}") String jwtSecret
     ) {
         this.objectMapper = objectMapper;
         /* Without a connect timeout a slow Supabase holds a request thread for
@@ -77,6 +87,7 @@ public class SupabaseAuthService {
                 .build();
         this.supabaseUrl = trimTrailingSlash(supabaseUrl);
         this.supabaseAnonKey = supabaseAnonKey == null ? "" : supabaseAnonKey.trim();
+        this.jwtSecret = jwtSecret == null ? "" : jwtSecret.trim();
     }
 
     public Optional<SupabaseAuthenticatedUser> getCurrentUser(HttpServletRequest request) {
@@ -111,7 +122,8 @@ public class SupabaseAuthService {
             verifiedTokens.remove(key, cached);
         }
 
-        SupabaseAuthenticatedUser user = fetchUser(token);
+        SupabaseAuthenticatedUser local = verifyLocally(token);
+        SupabaseAuthenticatedUser user = local != null ? local : fetchUser(token);
         verifiedTokens.put(key, new CachedUser(user, cacheUntil(token, now)));
         pruneIfCrowded(now);
         return user;
@@ -178,6 +190,85 @@ public class SupabaseAuthService {
                 .orElseThrow(() -> new AuthException("A valid Supabase session is required."));
     }
 
+    /**
+     * The user behind this token, worked out from the token itself.
+     *
+     * <p>A Supabase access token is a signed JWT: everything needed to trust it
+     * -- the signature, the expiry, the user id, the metadata -- is inside it.
+     * Asking Supabase to read it back was a network call per request to learn
+     * something already in hand, and it made every endpoint in this API depend
+     * on the Auth service being up and quick. When Auth went unhealthy, sign-in
+     * failed with a twenty-second timeout even though the token in the request
+     * was perfectly valid.
+     *
+     * <p><b>This method can only ever accept, never reject.</b> Anything it
+     * cannot settle -- no secret configured, a signing algorithm it does not
+     * implement, a bad signature, an expired or malformed token -- returns null
+     * and leaves the decision to {@link #fetchUser}, which asks Supabase and is
+     * authoritative. That invariant is what makes a wrong or missing
+     * {@code SUPABASE_JWT_SECRET} a performance problem rather than an outage,
+     * and it is why a forged token cannot get through here: the worst it earns
+     * is the round trip it would have made anyway.
+     *
+     * @return the verified user, or null when this cannot be decided locally
+     */
+    SupabaseAuthenticatedUser verifyLocally(String token) {
+        if (jwtSecret.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) {
+                return null;
+            }
+
+            JsonNode header = objectMapper.readTree(decode(parts[0]));
+            if (!HS256.equalsIgnoreCase(text(header, "alg"))) {
+                // A project using asymmetric signing keys. Not implemented
+                // here; the HTTP path handles it.
+                return null;
+            }
+
+            byte[] expected = hmacSha256(parts[0] + "." + parts[1]);
+            if (!MessageDigest.isEqual(expected, Base64.getUrlDecoder().decode(parts[2]))) {
+                return null;
+            }
+
+            JsonNode claims = objectMapper.readTree(decode(parts[1]));
+            JsonNode expiry = claims.path("exp");
+            if (!expiry.isNumber()
+                    || expiry.asLong() * 1000L <= System.currentTimeMillis() - CLOCK_SKEW_MS) {
+                return null;
+            }
+
+            String subject = text(claims, "sub");
+            String email = text(claims, "email");
+            if (subject.isBlank() || email.isBlank()) {
+                return null;
+            }
+
+            return userFrom(UUID.fromString(subject), email, claims.path("user_metadata"));
+        } catch (RuntimeException | IOException unusable) {
+            // Malformed in some way this does not model. Let Supabase decide.
+            return null;
+        }
+    }
+
+    private byte[] hmacSha256(String signingInput) throws IOException {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return mac.doFinal(signingInput.getBytes(StandardCharsets.US_ASCII));
+        } catch (java.security.NoSuchAlgorithmException | java.security.InvalidKeyException exception) {
+            throw new IOException(exception);
+        }
+    }
+
+    private static String decode(String segment) {
+        return new String(Base64.getUrlDecoder().decode(segment), StandardCharsets.UTF_8);
+    }
+
     private SupabaseAuthenticatedUser fetchUser(String token) {
         if (supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
             throw new AuthException("Supabase Auth is not configured on the backend.");
@@ -237,10 +328,17 @@ public class SupabaseAuthService {
 
     private SupabaseAuthenticatedUser parseUser(String body) throws IOException {
         JsonNode root = objectMapper.readTree(body);
-        UUID userId = UUID.fromString(requiredText(root, "id"));
-        String email = requiredText(root, "email");
-        JsonNode metadata = root.path("user_metadata");
+        return userFrom(
+                UUID.fromString(requiredText(root, "id")),
+                requiredText(root, "email"),
+                root.path("user_metadata")
+        );
+    }
 
+    /* Shared by both paths on purpose: the token's `user_metadata` claim and
+       the Auth API's `user_metadata` field are the same object, so a name read
+       one way must come out the same read the other. */
+    private SupabaseAuthenticatedUser userFrom(UUID userId, String email, JsonNode metadata) {
         String firstName = text(metadata, "first_name");
         String lastName = text(metadata, "last_name");
         String fullName = text(metadata, "full_name");
