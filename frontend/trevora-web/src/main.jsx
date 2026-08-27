@@ -70,6 +70,9 @@ import './styles/garage-transition.css';
 // The plain-language explanation panel, `.aiex-`. Replaces the pre-Ink
 // `ai-explanation-*` rules in styles.css rather than overriding them.
 import './styles/ai-explanation.css';
+// The stored receipt and its full-size view, `.rcpt-`. Same story: replaces
+// the pre-Ink `stored-receipt-*` and `image-preview-*` rules.
+import './styles/stored-receipt.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

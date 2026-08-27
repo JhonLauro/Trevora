@@ -668,10 +668,30 @@
   padding: clamp(28px, 3vw, 44px) clamp(20px, 3.4vw, 64px) 48px;
 }
 
-/* The settings page keeps its own narrower measure — it is a column of forms,
-   and a 1440px form row is not a better form row. */
+/* Settings is not `.ink-page` — it is its own root with its own 1024px cap,
+   which left it visibly narrower than every other screen once the rest grew.
+   An inconsistent page width across an app reads as a mistake, so the frame
+   matches now.
+
+   The forms inside do not grow with it. That was the reason for keeping this
+   page narrow in the first place, and it was the right worry aimed at the
+   wrong element: a 1440px page is fine, a 900px text input is not. The frame
+   is the page's; the measure belongs to the form. */
 .ink-settings {
-  max-width: 1120px;
+  max-width: var(--page-max);
+  padding: clamp(28px, 3vw, 44px) clamp(20px, 3.4vw, 64px) 48px;
+}
+
+.ink-settings .set-body {
+  max-width: 660px;
+}
+
+/* The section rail can take a little more room at the wider frame — its
+   headings were wrapping to three lines against a 260px cap. */
+@media (min-width: 1200px) {
+  .ink-settings .set-rail {
+    width: 300px;
+  }
 }
 
 /* Breadcrumb left, actions right. Wraps to two rows on a narrow screen with

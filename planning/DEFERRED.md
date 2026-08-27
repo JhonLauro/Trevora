@@ -2058,3 +2058,101 @@ so **the rendered result still needs a real record and your eyes.**
 This is the second bug in a heuristic reading generated prose. The case for
 giving `AIExplanationResponse` real fields instead of a glued string is now
 made twice over.
+
+### The explanation API returns fields now, and the parsing is deleted (2026-08-27)
+
+The frontend was splitting prose the server had just assembled, and it went
+wrong twice — first on the delimiter, then on a shop name containing a comma.
+Both heuristics are gone. `AIExplanationPanel.jsx` contains zero references to
+`splitItems`, `splitStatements` or `LABELLED`.
+
+**Backend.** New `AIExplanationDetail(String label, List<String> values)`, and
+`AIExplanationResponse` gains `List<AIExplanationDetail> details`.
+`AIExplanationService` builds the groups directly instead of concatenating
+them into `whatWasDone`, which is now the opening sentence only — service
+summary, date, shop. Parts, materials, work performed and total cost travel as
+`details`, each with its values as a list. A single-valued group is a
+one-element list rather than a separate shape, so a client renders every group
+the same way.
+
+Two helpers changed shape with it: `lineEntriesOfKind` and the former
+`joinItemField` (now `itemFieldValues`) return `List<String>` instead of a
+"; "-joined string. `buildWhyItMatters` still matches keywords across parts
+and labour and does not care how they are separated, so `joinForMatching`
+hands it one string and its rule is unchanged.
+
+**Nothing else consumed this.** Checked before changing it: the only backend
+reference is `AIController`, the only frontend reference is the panel, and no
+test touches it. It is a `features.ai` DTO, not one of the shared ones
+`COLLABORATION.md` warns about.
+
+**Verified as far as it goes.** `mvnw compile` clean; the app **started** —
+the first attempt failed on "Port 8080 already in use" with the context
+already initialised, so 8080 was freed and it booted properly: Hikari
+connected, Hibernate validated, Tomcat up, `/health` 200. The frontend build
+passes. What has *not* happened is a request through the endpoint with a real
+record — the response shape is right by construction and by compilation, not
+by observation.
+
+**Settings width, same change.** It was the last page still on its own
+measure: not `.ink-page` at all, its own root with a 1024px cap, so it stayed
+narrow while everything else grew to 1440. It matches now — same max width,
+same clamped padding. The forms inside do not grow with it: `.set-body` is
+capped at 660px, because the original reason for keeping this page narrow was
+a real worry aimed at the wrong element. A 1440px page is fine; a 900px text
+input is not. The section rail gets 300px above 1200px, where its headings
+were wrapping to three lines. Measured at 1920: page 1440, padding 64, body
+660, rail 300.
+
+### The stored receipt: fixed frame, paging, and a real close button (2026-08-27)
+
+Rewritten from the pre-Ink version, on its own `.rcpt-` sheet. The
+`stored-receipt-*` and `image-preview-*` rules in styles.css are left where
+they are; nothing references them now.
+
+**The card has one height.** Every page used to be a tile in a grid, each
+sized by its own image, so a tall phone photo and a wide flatbed scan produced
+two different shapes and the card grew as each image arrived — on a page where
+this sits beside a field table, the layout moved while you were reading it.
+One page now, in a 3:4 frame that is the same before the image loads, after it
+loads, and if it fails.
+
+**`object-fit: contain`, never `cover`.** This image exists so a figure can be
+checked against the paper. Cropping to fill the frame is exactly how the total
+at the bottom of a long receipt disappears.
+
+**Multiple pages step rather than tile** — chevrons either side of "Page 1 of
+3", wrapping at both ends. With two or three pages a disabled arrow is more
+fiddling than it saves.
+
+**The full-size view was the worst of it.** A bare overlay whose close control
+was the literal lowercase letter "x" in an unstyled element: ambiguous at a
+glance and a twelve-pixel target. It is a 40px circular button with a real X
+icon now, on a titled bar, with the same paging as the card and:
+
+- **Escape closes, arrows page** — bound only while it is open, so the card
+  never swallows arrow keys from the page around it.
+- **The backdrop closes, the image does not.** The handler checks
+  `event.target === event.currentTarget`; without that, a click that starts on
+  the image and drifts a pixel closes the thing you were trying to look at.
+- **Focus moves to the close button on open and back to the thumbnail on
+  close**, so a keyboard user is never left on a control that has gone.
+- On a phone the arrows move from the sides to the bottom, where a thumb is —
+  at 360px a 48px control on each edge eats a quarter of the image.
+
+Verified: the frame measures 420x560 at a 420px column, an exact 3:4, with the
+16px radius and zoom-in cursor; pager steps are 34px, the overlay sits at
+z-index 80 above the shell, the close button is a 40px circle and the nav
+arrows 48px. `storedReceiptPages` still handles both shapes — the multi-page
+metadata, per-page bucket overrides, the pre-metadata single-path record — and
+drops pages with no path. The wrap arithmetic is right at both ends.
+
+**Not verified: the interaction itself.** Escape, the backdrop check and the
+focus handoff need a real record with more than one stored page, and mounting
+this component in isolation does not work here — two React copies in one page
+render nothing. Someone with a two-page receipt should click through it.
+
+Also worth knowing: `MechanicSharedRecordDetailPage` uses this component too,
+so the mechanic's read-only view gets the same frame and full-size view. That
+is intended — it is the same document doing the same job — but it is a second
+screen changed by this edit and nobody has looked at it either.

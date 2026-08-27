@@ -1,0 +1,256 @@
+/* ----------------------------------------------------------------------
+   The stored receipt, and its full-size view.
+
+   Own `.rcpt-` namespace, replacing the pre-Ink `stored-receipt-*` and
+   `image-preview-*` rules in styles.css. Those are left where they are.
+
+   The whole point of this file is that the card has one height. Before, every
+   page was a tile sized by its own image, so a tall phone photo and a wide
+   scan gave two different shapes, and the card grew as each image arrived —
+   on a page where this sits beside a field table, that meant the layout moved
+   under you while you read it.
+   ---------------------------------------------------------------------- */
+
+.rcpt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rcpt__caption {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- frame */
+
+/* 3:4, taller than wide, because a receipt is. Fixed before the image loads,
+   fixed if it fails, and the same whatever shape the paper turned out to be. */
+.rcpt .rcpt__frame {
+  align-items: center;
+  aspect-ratio: 3 / 4;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  cursor: zoom-in;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  width: 100%;
+}
+
+.rcpt .rcpt__frame:hover {
+  background: var(--surface-sunken);
+  border-color: var(--brand);
+}
+
+.rcpt .rcpt__frame:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.rcpt__frame--empty {
+  cursor: default;
+}
+
+/* `contain`, never `cover`. This image exists so a figure can be checked
+   against the paper, and cropping to fill the frame is exactly how the total
+   at the bottom of a long receipt disappears. */
+.rcpt__frame img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.rcpt__loading {
+  color: var(--ink-faint);
+  font-size: 14px;
+  position: absolute;
+}
+
+/* Sits over the corner of the image rather than beside it — the frame is the
+   button, and a separate "view" control would be a second thing to aim at. */
+.rcpt__zoom {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 10px;
+  bottom: 10px;
+  color: var(--ink);
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  position: absolute;
+  right: 10px;
+  width: 30px;
+}
+
+.rcpt__error {
+  color: var(--status-bad-text);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- pager */
+
+.rcpt__pager {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.rcpt .rcpt__step {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  width: 34px;
+}
+
+.rcpt .rcpt__step:hover,
+.rcpt .rcpt__step:active {
+  background: var(--brand-tint);
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+.rcpt .rcpt__step:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.rcpt__count {
+  color: var(--ink-muted);
+  font-size: 14px;
+  min-width: 11ch;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------ full size */
+
+.rcpt-full {
+  align-items: center;
+  background: rgba(12, 21, 18, 0.88);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 76px clamp(16px, 8vw, 96px) clamp(16px, 4vw, 48px);
+  position: fixed;
+  z-index: 80;
+}
+
+.rcpt-full__bar {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  left: 0;
+  padding: 16px clamp(16px, 3vw, 28px);
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.rcpt-full__title {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* A real button with a real icon. It was the letter "x" in a bare element —
+   ambiguous at a glance and a 12px target. */
+.rcpt-full .rcpt-full__close {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 0;
+  border-radius: 100px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  margin-left: auto;
+  min-height: 0;
+  padding: 0;
+  width: 40px;
+}
+
+.rcpt-full .rcpt-full__close:hover,
+.rcpt-full .rcpt-full__close:active {
+  background: rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+}
+
+.rcpt-full .rcpt-full__close:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.rcpt-full__image {
+  border-radius: 8px;
+  display: block;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.rcpt-full .rcpt-full__step {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 0;
+  border-radius: 100px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  height: 48px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+}
+
+.rcpt-full .rcpt-full__step:hover,
+.rcpt-full .rcpt-full__step:active {
+  background: rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+}
+
+.rcpt-full .rcpt-full__step:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.rcpt-full__step--prev { left: clamp(8px, 2vw, 24px); }
+.rcpt-full__step--next { right: clamp(8px, 2vw, 24px); }
+
+@media (max-width: 600px) {
+  /* The arrows move off the sides and onto the bottom, where a thumb is. At
+     360px a 48px control on each edge eats a quarter of the image. */
+  .rcpt-full {
+    padding: 68px 12px 84px;
+  }
+
+  .rcpt-full .rcpt-full__step {
+    top: auto;
+    bottom: 18px;
+    transform: none;
+  }
+
+  .rcpt-full__step--prev { left: 25%; }
+  .rcpt-full__step--next { right: 25%; }
+}

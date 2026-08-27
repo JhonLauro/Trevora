@@ -10,6 +10,11 @@ public record AIExplanationResponse(
         String source,
         boolean fallback,
         String whatWasDone,
+        /**
+         * The facts that used to be glued onto the end of {@code whatWasDone}.
+         * Empty when the record carries none, never null.
+         */
+        List<AIExplanationDetail> details,
         String whyItMatters,
         List<String> watchFor,
         String disclaimer,

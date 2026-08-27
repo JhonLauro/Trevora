@@ -70,15 +70,21 @@ public class AIExplanationService {
         // fitted to their vehicle. Pre-011 records fall back to the old
         // columns, which is all they have.
         boolean tagged = hasLineEntries(items);
-        String parts = blankToNull(tagged
+        List<String> parts = tagged
                 ? lineEntriesOfKind(items, ServiceLineKind.PART)
-                : joinItemField(items, ServiceRecordItem::getPartsReplaced));
-        String materials = tagged ? blankToNull(lineEntriesOfKind(items, ServiceLineKind.MATERIAL)) : null;
-        String labor = blankToNull(tagged
+                : itemFieldValues(items, ServiceRecordItem::getPartsReplaced);
+        List<String> materials = tagged
+                ? lineEntriesOfKind(items, ServiceLineKind.MATERIAL)
+                : List.of();
+        List<String> labor = tagged
                 ? lineEntriesOfKind(items, ServiceLineKind.OPERATION)
-                : joinItemField(items, ServiceRecordItem::getLaborPerformed));
+                : itemFieldValues(items, ServiceRecordItem::getLaborPerformed);
         String remarks = blankToNull(record.getRemarks());
 
+        // One sentence. Everything that used to be appended after it — parts,
+        // materials, labour, cost — is structured now and travels in
+        // `details`, because gluing lists into prose only forced the client to
+        // pull them apart again.
         StringBuilder whatWasDone = new StringBuilder("This confirmed record shows ")
                 .append(serviceSummary)
                 .append(" completed on ")
@@ -87,20 +93,16 @@ public class AIExplanationService {
             whatWasDone.append(" at ").append(shop);
         }
         whatWasDone.append(".");
-        if (parts != null) {
-            whatWasDone.append(" Parts noted: ").append(parts).append(".");
-        }
-        if (materials != null) {
-            whatWasDone.append(" Materials used: ").append(materials).append(".");
-        }
-        if (labor != null) {
-            whatWasDone.append(" Work performed: ").append(labor).append(".");
-        }
+
+        List<AIExplanationDetail> details = new ArrayList<>();
+        addDetail(details, "Parts noted", parts);
+        addDetail(details, "Materials used", materials);
+        addDetail(details, "Work performed", labor);
         if (record.getTotalCost() != null) {
-            whatWasDone.append(" Total recorded cost: ").append(formatMoney(record.getTotalCost())).append(".");
+            addDetail(details, "Total recorded cost", List.of(formatMoney(record.getTotalCost())));
         }
 
-        String whyItMatters = buildWhyItMatters(serviceSummary, parts, labor);
+        String whyItMatters = buildWhyItMatters(serviceSummary, joinForMatching(parts), joinForMatching(labor));
         List<String> watchFor = buildWatchFor(items, record.getOdometer());
         if (remarks != null) {
             watchFor.add("Keep the saved remarks in mind: " + remarks);
@@ -112,6 +114,7 @@ public class AIExplanationService {
                 SOURCE,
                 false,
                 whatWasDone.toString(),
+                List.copyOf(details),
                 whyItMatters,
                 watchFor,
                 DISCLAIMER,
@@ -126,6 +129,7 @@ public class AIExplanationService {
                 FALLBACK_SOURCE,
                 true,
                 "This confirmed service record was saved, but the detailed explanation could not be generated right now.",
+                List.of(),
                 "The saved service type, cost, odometer, parts, labor, and remarks remain available in the original record details.",
                 List.of("Review the original record details before making maintenance decisions.", "Ask a qualified mechanic if symptoms continue or the issue returns."),
                 DISCLAIMER,
@@ -166,15 +170,37 @@ public class AIExplanationService {
         return joined;
     }
 
-    private String joinItemField(List<ServiceRecordItem> items, java.util.function.Function<ServiceRecordItem, String> extractor) {
+    /**
+     * Pre-011 records keep parts and labour in a single column per item, so
+     * one item is one value here. The values are returned as a list rather
+     * than joined with "; " — the joining was only ever for display, and the
+     * client had to undo it.
+     */
+    private List<String> itemFieldValues(List<ServiceRecordItem> items, java.util.function.Function<ServiceRecordItem, String> extractor) {
         if (items == null || items.isEmpty()) {
-            return null;
+            return List.of();
         }
         return items.stream()
                 .map(extractor)
                 .filter(value -> value != null && !value.isBlank())
-                .reduce((first, second) -> first + "; " + second)
-                .orElse(null);
+                .map(String::trim)
+                .toList();
+    }
+
+    private void addDetail(List<AIExplanationDetail> details, String label, List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        details.add(new AIExplanationDetail(label, values));
+    }
+
+    /**
+     * `buildWhyItMatters` matches keywords over the text of the parts and
+     * labour, and does not care how they are separated. One string keeps that
+     * rule exactly as it was while the values travel as a list.
+     */
+    private String joinForMatching(List<String> values) {
+        return values == null || values.isEmpty() ? null : String.join(" ", values);
     }
 
     /**
@@ -206,18 +232,18 @@ public class AIExplanationService {
                 .toLowerCase(Locale.ROOT);
     }
 
-    /** Lines of one kind, joined for display. */
-    private String lineEntriesOfKind(List<ServiceRecordItem> items, ServiceLineKind kind) {
+    /** Lines of one kind, as values. */
+    private List<String> lineEntriesOfKind(List<ServiceRecordItem> items, ServiceLineKind kind) {
         if (items == null) {
-            return null;
+            return List.of();
         }
         return items.stream()
                 .flatMap(item -> item.getLineEntries().stream())
                 .filter(entry -> entry.getKind() == kind)
                 .map(ServiceRecordLineEntry::getDescription)
                 .filter(value -> value != null && !value.isBlank())
-                .reduce((first, second) -> first + "; " + second)
-                .orElse(null);
+                .map(String::trim)
+                .toList();
     }
 
     private boolean hasLineEntries(List<ServiceRecordItem> items) {

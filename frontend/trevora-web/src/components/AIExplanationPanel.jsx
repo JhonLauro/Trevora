@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
 import { getServiceRecordAIExplanation } from '../api/aiExplanations';
 
@@ -9,98 +9,28 @@ import { getServiceRecordAIExplanation } from '../api/aiExplanations';
  * `button-secondary`, `muted`), which is why it was the one panel on the
  * record page still wearing the old product's paint.
  *
- * <p>The other half of the problem was the copy, not the paint.
- * `AIExplanationService` builds "what was done" by concatenating sentences
- * into one string — "…completed on 7 May 2026 at Toyota Otis. Parts noted:
- * oil filter, brake pads. Materials used: … Work performed: … Total recorded
- * cost: …" — so the four facts an owner actually scans for were buried in a
- * run-on paragraph. `splitStatements` below breaks it back apart at sentence
- * boundaries and promotes any "Label: value" sentence to a labelled row.
+ * <p>It also used to parse. `AIExplanationService` concatenated the parts,
+ * materials, labour and cost onto the end of `whatWasDone` as prose, and this
+ * component split the sentence back apart to display them. That went wrong
+ * twice — first on the delimiter (the server joins with "; ", the split
+ * looked for ", "), then on a shop name, where "Toyota Otis, Manila" became
+ * two items and every guard passed.
  *
- * <p>That is deliberately a presentational split and nothing more. It invents
- * no structure: a sentence without a colon stays a sentence, so a freeform
- * answer from the model degrades to ordinary prose rather than to nonsense.
- * The real fix is for the API to return those as fields; see DEFERRED.md.
+ * <p>Both heuristics are gone. The API returns `details` — a list of
+ * `{ label, values }` — and this renders it. If a response arrives without
+ * that field the sentence is simply shown as written, which is the correct
+ * behaviour for a client that no longer pretends to know how prose was built.
  */
 
-/* A leading label is a short capitalised phrase before a colon — "Parts
-   noted:", "Total recorded cost:". Capped at four words so a sentence that
-   merely contains a colon is not mistaken for one. */
-const LABELLED = /^([A-Z][^:]{2,40}):\s*(.+)$/;
-
-/* `joinItemField` and `lineEntriesOfKind` on the server both reduce with
-   `first + "; " + second`, so several parts, materials or operations arrive
-   glued into one value: "JLLY SYNTHETIC ENGINE OIL; OIL FILTER; DRAIN PLUG
-   WASHER; BRAKE PASTE; …". Seven things wearing one label, set as a paragraph.
-
-   The semicolon is the delimiter the server actually uses and it is
-   unambiguous — a part name does not contain one — so the split needs no
-   guard beyond finding two pieces.
-
-   There was a comma branch here as well, on the theory that some values might
-   be comma-joined. It is gone. Testing it against "Toyota Otis, Manila"
-   showed it splitting a single shop into two items: both halves are short and
-   neither contains " and ", so every guard passed and the result was still
-   wrong. A heuristic that cannot tell a list from a place name has no business
-   guessing, and nothing on the server produces comma-joined items anyway. */
-function splitItems(value) {
-  if (!value.includes(';')) return null;
-  const items = value.split(';').map((item) => item.trim()).filter(Boolean);
-  return items.length > 1 ? items : null;
-}
-
-function splitStatements(text) {
-  if (!text) return [];
-
-  return String(text)
-    // Split after a full stop followed by a space and a capital, so decimals
-    // and abbreviations inside a value are left alone.
-    .split(/(?<=\.)\s+(?=[A-Z])/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((sentence) => {
-      const match = LABELLED.exec(sentence.replace(/\.$/, ''));
-      if (!match) return { kind: 'prose', text: sentence };
-      return { kind: 'fact', label: match[1], value: match[2] };
-    });
-}
-
-function Statements({ text }) {
-  const parts = useMemo(() => splitStatements(text), [text]);
-  if (!parts.length) return null;
-
-  const prose = parts.filter((p) => p.kind === 'prose');
-  const facts = parts.filter((p) => p.kind === 'fact');
+function DetailValues({ values }) {
+  if (values.length === 1) return values[0];
 
   return (
-    <>
-      {prose.map((p) => (
-        <p className="aiex__prose" key={p.text}>{p.text}</p>
-      ))}
-      {facts.length > 0 && (
-        <dl className="aiex__facts">
-          {facts.map((f) => {
-            const items = splitItems(f.value);
-            return (
-              <div key={f.label}>
-                <dt>{f.label}</dt>
-                <dd>
-                  {items
-                    ? (
-                      <ul className="aiex__items">
-                        {/* Index keys: a receipt can legitimately list the
-                            same line twice, and the value is all we have. */}
-                        {items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
-                      </ul>
-                    )
-                    : f.value}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      )}
-    </>
+    <ul className="aiex__items">
+      {/* Index keys: a receipt can legitimately list the same line twice, and
+          the value is all we have to tell them apart. */}
+      {values.map((value, index) => <li key={`${value}-${index}`}>{value}</li>)}
+    </ul>
   );
 }
 
@@ -134,6 +64,7 @@ export default function AIExplanationPanel({ recordId }) {
   }, [recordId, reloadKey]);
 
   const watchFor = explanation?.watchFor ?? [];
+  const details = (explanation?.details ?? []).filter((d) => d?.values?.length);
 
   return (
     <section className="ink-card aiex" aria-live="polite">
@@ -181,12 +112,22 @@ export default function AIExplanationPanel({ recordId }) {
 
           <section className="aiex__section">
             <h3 className="aiex__section-title">What was done</h3>
-            <Statements text={explanation.whatWasDone} />
+            <p className="aiex__prose">{explanation.whatWasDone}</p>
+            {details.length > 0 && (
+              <dl className="aiex__facts">
+                {details.map((detail) => (
+                  <div key={detail.label}>
+                    <dt>{detail.label}</dt>
+                    <dd><DetailValues values={detail.values} /></dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </section>
 
           <section className="aiex__section">
             <h3 className="aiex__section-title">Why it matters</h3>
-            <Statements text={explanation.whyItMatters} />
+            <p className="aiex__prose">{explanation.whyItMatters}</p>
           </section>
 
           {watchFor.length > 0 && (
