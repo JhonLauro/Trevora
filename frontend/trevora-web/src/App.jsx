@@ -23,6 +23,8 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import RegisterVehiclePage from './pages/RegisterVehiclePage.jsx';
 import WelcomePage from './pages/WelcomePage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import TermsPage from './pages/TermsPage.jsx';
+import PrivacyPage from './pages/PrivacyPage.jsx';
 import ServiceInputMethodPage from './pages/ServiceInputMethodPage.jsx';
 import ServiceDraftReviewPage from './pages/ServiceDraftReviewPage.jsx';
 import ServiceRecordConfirmationPage from './pages/ServiceRecordConfirmationPage.jsx';
@@ -118,6 +120,11 @@ export default function App() {
           is no garage to navigate yet, and the page previews the app
           rather than being part of it. */}
       <Route path="/welcome" element={<WelcomePage />} />
+      {/* Public and outside the auth guard: the account form links to both,
+          and somebody deciding whether to agree has to be able to read them
+          without an account. */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />

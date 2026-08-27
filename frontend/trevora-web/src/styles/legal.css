@@ -1,0 +1,190 @@
+/* ----------------------------------------------------------------------
+   Terms of Service and Privacy Policy.
+
+   Long-form prose, which nothing else in this product is. Two consequences
+   drive the whole file:
+
+   - **Measure over width.** The column caps at 68ch, not at a pixel value —
+     a legal document is read line by line, and a 1200px line is skimmed
+     instead. Everything else on this page is centred around that column.
+   - **Headings have to be findable.** Somebody arriving here is usually
+     looking for one clause, not reading start to finish, so the section
+     headings are heavier and better spaced than the body would suggest.
+
+   Signed out and outside AppShell — the account form links here, and a person
+   deciding whether to agree must be able to read it without an account.
+   ---------------------------------------------------------------------- */
+
+.legal {
+  background: var(--surface);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  gap: clamp(24px, 4vw, 40px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: clamp(20px, 3vw, 32px) clamp(20px, 5vw, 40px) clamp(48px, 6vw, 72px);
+}
+
+.legal *,
+.legal *::before,
+.legal *::after {
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------- chrome */
+
+.legal__bar,
+.legal__body,
+.legal__footer {
+  margin: 0 auto;
+  max-width: 68ch;
+  width: 100%;
+}
+
+.legal__bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.legal__nav {
+  display: flex;
+  gap: 20px;
+}
+
+.legal__nav a {
+  color: var(--ink-muted);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.legal__nav a:hover {
+  color: var(--brand-hover);
+}
+
+/* ----------------------------------------------------------------- head */
+
+.legal__intro {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 24px;
+}
+
+.legal__title {
+  font-family: var(--font-serif);
+  font-size: clamp(30px, 5vw, 42px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.legal__updated {
+  color: var(--ink-faint);
+  font-size: 15px;
+  margin: 10px 0 0;
+}
+
+.legal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ------------------------------------------------------------------ doc */
+
+.legal__doc {
+  color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.legal__doc p {
+  margin: 0 0 16px;
+  text-wrap: pretty;
+}
+
+.legal__lead {
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+/* Generous space above, tight below: the gap belongs to the heading and the
+   paragraph under it, not between them. */
+.legal__doc h2 {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 36px 0 12px;
+}
+
+.legal__doc h2:first-of-type {
+  margin-top: 28px;
+}
+
+.legal__doc strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.legal__doc ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding-left: 22px;
+}
+
+.legal__doc li {
+  text-wrap: pretty;
+}
+
+.legal__doc li::marker {
+  color: var(--brand);
+}
+
+.legal__doc a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal__doc a:hover {
+  color: var(--brand-hover);
+}
+
+/* The cross-reference to the other document, set apart from the clauses so it
+   does not read as one of them. */
+.legal__tail {
+  background: var(--brand-wash);
+  border-radius: 16px;
+  font-size: 16px;
+  margin: 32px 0 0;
+  padding: 16px 20px;
+}
+
+/* --------------------------------------------------------------- footer */
+
+.legal__footer {
+  border-top: 1px solid var(--rule);
+  padding-top: 22px;
+}
+
+.legal__footer a {
+  color: var(--ink-muted);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.legal__footer a:hover {
+  color: var(--brand-hover);
+}

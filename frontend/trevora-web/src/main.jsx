@@ -62,6 +62,8 @@ import './styles/mechanic-request.css';
 // Notifications. Own `.notif-` namespace, but it borrows `.ink-segmented`
 // for its filter, so it must come after ink-vehicle.css and brand-app.css.
 import './styles/notifications.css';
+// Terms and Privacy. Signed out, long-form prose, own `.legal-` namespace.
+import './styles/legal.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

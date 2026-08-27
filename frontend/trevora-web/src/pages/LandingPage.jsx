@@ -414,6 +414,8 @@ export default function LandingPage() {
         <div className="tvl-footer__inner">
           <span className="tvl-footer__mark">Trevora</span>
           <div className="tvl-footer__links">
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
             {!signedIn && <Link to="/login">Sign in</Link>}
             <Link to={primaryHref}>{primaryLabel}</Link>
           </div>

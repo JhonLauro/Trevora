@@ -1608,3 +1608,55 @@ brand green at 100px, filter pill 100px with a white-on-green active segment,
 empty state on the wash, "Mark all read" correctly disabled and grey at zero
 unread, no horizontal scroll. **The list itself was empty** — no real
 notification has been rendered through this markup by anyone.
+
+### Terms and Privacy Policy — real pages (2026-08-27)
+
+The account form linked to `/terms` and `/privacy`, which did not exist. As
+bare `<a href>` they did a full page load into a route with no match, so the
+catch-all sent the reader to `/login` — a person who clicked "Privacy Policy"
+before agreeing to it lost their half-filled signup form and landed on a sign
+in screen. Both are real routes now, public and outside the auth guard,
+because somebody deciding whether to agree has to be able to read them without
+an account.
+
+**READ THIS BEFORE THE PROJECT IS SHOWN TO ANYONE OUTSIDE THE TEAM.** I am not
+a lawyer and neither document has been reviewed by one. What I could do, and
+did, is make every factual claim in them true of this system — checked against
+the code, not against a template:
+
+- the four-hour approved session and the 24-hour share link;
+- that scanning a code grants nothing until the owner approves;
+- that the plate number is withheld until approval;
+- that voice audio goes to OpenAI for transcription and is **not** stored,
+  while the transcript is;
+- the actual processor list: Supabase (auth, database, file storage), OpenAI
+  (extraction, transcription, translation, mechanic search), Google Cloud
+  Vision (OCR), Google (optional sign-in);
+- that there is **no self-service account deletion**, because there is not
+  one — `.set-button.danger` on the settings page is Sign out. Both documents
+  say to email instead. Claiming a delete button that does not exist is the
+  same class of lie as the "Validated" badge, and on a page with legal weight.
+
+Accuracy is not legal sufficiency. Get both read by someone qualified.
+
+Three placeholders live in `src/legal/constants.js` and nowhere else, so
+filling them is one edit and cannot be done to one document and not the other:
+`LEGAL_ENTITY` (currently "the Trevora team"), `LEGAL_CONTACT` (currently
+`privacy@trevora.example` — the Privacy Policy promises a reply within thirty
+days at that address, so it has to be a mailbox someone reads), and
+`LEGAL_UPDATED`. Governing law is stated as the Philippines and the rights
+section is written against the Data Privacy Act of 2012; if the entity is not
+Philippine, that section is wrong rather than merely incomplete.
+
+**A separate bug fixed on the way.** The agreement sentence was inside the
+`<label>` for its checkbox, so a click on either link activated the label and
+toggled the tick instead of opening the document. The sentence is now a
+sibling of the input rather than its label — the input keeps its own
+`aria-label`, so it is still named, and what is traded away is
+click-the-words-to-tick, which is the right thing to lose on a sentence made
+mostly of links.
+
+Verified at 1440px and 375px: both documents render signed out, the
+register-page links reach them client-side without losing the form, the 68ch
+measure holds, cross-links between the two work, and there is no horizontal
+scroll at either width.

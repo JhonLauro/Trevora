@@ -267,7 +267,13 @@ export default function RegisterPage() {
 
         <div className="ink-spacer ink-show-mobile-only" />
 
-        <label className="ink-check">
+        {/* Not a <label>. The sentence contains two links, and inside a label
+            a click on either one activates the label — toggling the checkbox
+            instead of opening the document the reader is being asked to
+            agree to. The input keeps its own `aria-label`, so it is still
+            named; what is lost is click-the-words-to-tick, which is the
+            right thing to trade away here. */}
+        <div className="ink-check">
           <input
             type="checkbox"
             name="agreedToTerms"
@@ -277,16 +283,19 @@ export default function RegisterPage() {
           />
           <span className="ink-check__label ink-check__label--small">
             I agree to the{' '}
-            <a className="ink-link" href="/terms">
+            {/* Router links, not bare anchors. As <a href> these did a full
+                page load into a route that did not exist, so the catch-all
+                bounced the reader to /login and lost the half-filled form. */}
+            <Link className="ink-link" to="/terms">
               Terms of Service
-            </a>{' '}
+            </Link>{' '}
             and{' '}
-            <a className="ink-link" href="/privacy">
+            <Link className="ink-link" to="/privacy">
               Privacy Policy
-            </a>
+            </Link>
             .
           </span>
-        </label>
+        </div>
 
         <p className="ink-form-error" role="alert" aria-live="polite">
           {formError}
