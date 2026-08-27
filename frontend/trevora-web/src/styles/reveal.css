@@ -25,8 +25,25 @@
    once when the data arrives, which is the moment worth marking.
    ---------------------------------------------------------------------- */
 
+/* FILL MODE, and why it is `backwards` rather than `both`.
+
+   `both` holds the last keyframe forever, which keeps the animation "in
+   effect" after it has finished -- and an element with an in-effect animation
+   of opacity or transform creates a stacking context that never goes away.
+   That is not academic: it put the vehicle filter's dropdown on the Records
+   page *behind* the history card below it, because the toolbar's z-index: 30
+   was trapped inside a stacking context the reveal had created, and the card
+   -- later in the DOM, revealed the same way -- painted over it.
+
+   `backwards` gives the same result with no residue: the first keyframe is
+   held during the delay, which is what stops the flash, and once the animation
+   ends the element goes back to its own styles. Those styles are already
+   opacity 1 and no transform, so the end state is identical and the stacking
+   context disappears with the animation.
+   ---------------------------------------------------------------------- */
+
 .tv-reveal {
-  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) backwards;
   animation-delay: calc(var(--reveal-index, 0) * 60ms);
 }
 
@@ -65,7 +82,8 @@
    ---------------------------------------------------------------------- */
 
 .tv-reveal-group > * {
-  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+  /* `backwards`, for the stacking reason above. */
+  animation: tv-reveal-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) backwards;
   animation-delay: 300ms;
 }
 
