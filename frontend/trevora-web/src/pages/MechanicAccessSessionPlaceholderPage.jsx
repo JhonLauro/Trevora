@@ -30,15 +30,42 @@ import { vehicleClassFor } from '../data/vehicleCatalog';
  *   one sentence that says so.
  */
 
-/* Search is a tool for a long history. Below this many records, reading the
-   list is faster than describing what you want from it. */
-const SEARCH_WORTH_SHOWING = 4;
+/* Search is a tool for a long history, and on a three-record vehicle reading
+   the list really is faster than describing what you want from it. That was
+   the reasoning for hiding the panel below four records, and as a UX argument
+   it still holds.
+
+   It is set to 1 anyway, because it was answering the wrong question. The
+   mechanic cannot know whether searching is worth it until they have already
+   read the list -- and a vehicle whose history is short today grows. Hiding
+   the feature on small histories mostly meant it was invisible on exactly the
+   vehicles people demo and test with, so it read as missing rather than as
+   considerately withheld.
+
+   Zero is still the floor: with no records the page shows the undocumented
+   vehicle state instead, and there is nothing to search. */
+const SEARCH_WORTH_SHOWING = 1;
 
 const VIEWS = [
   { id: 'timeline', label: 'Timeline' },
   { id: 'components', label: 'Components' },
   { id: 'table', label: 'Table' },
 ];
+
+/* The search already works out which view answers the question -- a question
+   about a part belongs on the components map, a "when was it last..." on the
+   timeline -- and returns that as recommendedView. The page used to drop it on
+   the floor, so the mechanic got their answer and then had to go find the
+   right tab by hand, which is the exact cost this feature exists to remove.
+
+   The two sides also named one view differently: the API says "parts-map",
+   the tabs say "components". Mapped rather than renamed, because the API name
+   is part of a response contract other callers may already read. */
+const VIEW_FOR_RECOMMENDATION = {
+  'parts-map': 'components',
+  timeline: 'timeline',
+  table: 'table',
+};
 
 function expiryLabel(expiresAt) {
   if (!expiresAt) return 'Session active';
@@ -203,6 +230,16 @@ export default function MechanicAccessSessionPlaceholderPage() {
   const [history, setHistory] = useState(null);
   const [searchResult, setSearchResult] = useState(null);
   const [view, setView] = useState('timeline');
+
+  function handleSearch(result) {
+    setSearchResult(result);
+    // Only ever move the mechanic towards an answer: clearing the search
+    // leaves them on whatever view they were reading.
+    const suggested = VIEW_FOR_RECOMMENDATION[result?.recommendedView];
+    if (suggested) {
+      setView(suggested);
+    }
+  }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -300,6 +337,16 @@ export default function MechanicAccessSessionPlaceholderPage() {
         </section>
       ) : (
         <>
+          {/* First thing on the page. It used to sit under the history, on the
+              reasoning that a short list is faster to read than to describe --
+              which is true, but it assumed the mechanic arrives wanting to
+              read. They usually arrive with a question, and burying the place
+              to ask it behind the whole history is the delay this feature
+              exists to remove. */}
+          {records.length >= SEARCH_WORTH_SHOWING && (
+            <MechanicAISearchPanel sessionId={sessionId} onSearch={handleSearch} />
+          )}
+
           <Briefing odometer={odometer} gaps={gaps} recurring={recurring} trust={trust} />
 
           <Tabs tabs={VIEWS} activeId={view} onChange={setView} label="History views" />
@@ -373,11 +420,6 @@ export default function MechanicAccessSessionPlaceholderPage() {
             )}
           </div>
 
-          {/* Below the history, not above it: with a handful of records,
-              reading them beats describing what you want from them. */}
-          {records.length >= SEARCH_WORTH_SHOWING && (
-            <MechanicAISearchPanel sessionId={sessionId} onSearch={(result) => setSearchResult(result)} />
-          )}
         </>
       )}
 

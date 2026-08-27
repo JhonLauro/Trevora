@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { searchMechanicSessionHistory } from '../api/mechanicAccess';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
 
+/* Three, not four, and each one a whole question.
+   The point of these is to teach that plain language works, so shortening
+   them to labels ("Last oil change") would sell the feature short. Three full
+   questions fit on one line where four wrapped to three -- measured at 53px of
+   row against 95px -- which matters now that the card opens the page. */
 const suggestions = [
-  'What is the most recent service?',
-  'Any brake work done?',
-  'Oil change history',
-  'Battery replacement history',
+  'What was done most recently?',
+  'When was the last oil change?',
+  'Any brake or clutch work?',
 ];
 
 export default function MechanicAISearchPanel({ sessionId, onSearch }) {
@@ -60,10 +64,19 @@ export default function MechanicAISearchPanel({ sessionId, onSearch }) {
   return (
     <section className="mechanic-ask-card">
       <div className="mechanic-ask-heading">
-        <span>*</span>
+        {/* Was a literal asterisk standing in for an icon. Harmless when the
+            card sat at the foot of the page; as the first thing a mechanic
+            sees it just read as unfinished. currentColor so it inherits the
+            heading colour rather than introducing one. */}
+        <span aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <circle cx="8.75" cy="8.75" r="5.25" />
+            <line x1="12.6" y1="12.6" x2="17" y2="17" strokeLinecap="round" />
+          </svg>
+        </span>
         <div>
           <strong>Ask about this vehicle&apos;s history</strong>
-          <p>Keyword-based MVP search checks only the approved shared records.</p>
+          <p>Ask in plain words. Searches only the records this owner approved for you.</p>
         </div>
       </div>
 

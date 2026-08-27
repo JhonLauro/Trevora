@@ -10,6 +10,8 @@ import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,10 +32,53 @@ public class MechanicSearchService {
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
     private static final Set<String> ALLOWED_VIEWS = Set.of("parts-map", "timeline", "table");
 
+    /*
+     * Words a mechanic types to form a question rather than to name a part.
+     * Dropping them is what lets "was the clutch ever replaced?" behave like
+     * "clutch" instead of matching nothing.
+     */
+    private static final Set<String> STOPWORDS = Set.of(
+            "a", "an", "and", "any", "anything", "are", "at", "be", "been", "before", "but", "by",
+            "can", "did", "do", "does", "done", "for", "from", "get", "had", "has", "have", "how",
+            "i", "if", "in", "is", "it", "its", "just", "me", "my", "of", "on", "or", "show", "so",
+            "that", "the", "their", "them", "there", "these", "they", "this", "to", "up", "was",
+            "were", "what", "when", "where", "which", "who", "why", "will", "with", "work", "you"
+    );
+
+    /*
+     * A part a mechanic asks about is rarely the word on the receipt: someone
+     * asking about "brakes" wants the record that says "rotor". Each entry is
+     * a family of terms that should find each other, and it is applied in both
+     * directions, so any member of a family matches any other.
+     *
+     * This is deliberately a fixed vocabulary rather than a learned one. It is
+     * the fallback path -- what runs when OpenAI is unreachable or the key is
+     * unset -- so it has to be predictable and free.
+     */
+    private static final List<Set<String>> TERM_FAMILIES = List.of(
+            Set.of("brake", "brakes", "pad", "pads", "rotor", "rotors", "caliper", "disc", "stopping"),
+            Set.of("oil", "lubricant", "lube", "filter", "change"),
+            Set.of("battery", "alternator", "starter", "electrical", "charging"),
+            Set.of("tire", "tires", "tyre", "tyres", "wheel", "wheels", "alignment", "balancing", "rim"),
+            Set.of("clutch", "transmission", "gear", "gearbox", "flywheel"),
+            Set.of("coolant", "radiator", "overheat", "overheating", "thermostat", "water"),
+            Set.of("suspension", "shock", "shocks", "absorber", "strut", "spring", "bushing"),
+            Set.of("aircon", "ac", "air", "conditioning", "compressor", "freon", "refrigerant"),
+            Set.of("engine", "motor", "piston", "valve", "timing", "belt", "spark", "plug"),
+            Set.of("light", "lights", "headlight", "bulb", "lamp", "signal"),
+            Set.of("tune", "tuneup", "maintenance", "pms", "service", "checkup", "inspection")
+    );
+
     private final MechanicAccessService mechanicAccessService;
     private final ServiceRecordItemReader serviceRecordItemReader;
     private final ObjectMapper objectMapper;
-    private final RestClient restClient;
+    /*
+     * Built on first use rather than in the constructor. Creating it eagerly
+     * opened a client socket for every deployment, including the ones with no
+     * API key configured that will never make a call -- and it made the class
+     * impossible to construct anywhere without network access, tests included.
+     */
+    private RestClient restClient;
     private final String apiKey;
     private final String model;
 
@@ -47,7 +92,6 @@ public class MechanicSearchService {
         this.mechanicAccessService = mechanicAccessService;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.create();
         this.apiKey = blankToNull(apiKey);
         this.model = blankToDefault(model, "gpt-4o");
     }
@@ -61,7 +105,21 @@ public class MechanicSearchService {
 
         MechanicAccessSession session = mechanicAccessService.requireActiveReadOnlySession(sessionId);
         List<ServiceRecord> records = mechanicAccessService.getSessionRecords(session);
-        MechanicSearchDecision decision = aiDecision(normalizedQuery, records).orElseGet(() -> fallbackDecision(normalizedQuery, records));
+
+        /*
+         * Every path below needs each record's line items, and previously each
+         * one fetched them on its own -- scoring, then the answer sentence,
+         * then the AI prompt summaries, all calling forRecord in a loop. On a
+         * forty-record history that was eighty-odd round trips for a single
+         * search. ServiceRecordItemReader already exposes a batch form for
+         * exactly this reason, so it is loaded once here and passed down.
+         */
+        Map<UUID, List<ServiceRecordItem>> itemsByRecord = serviceRecordItemReader.forRecords(
+                records.stream().map(ServiceRecord::getRecordId).toList()
+        );
+
+        MechanicSearchDecision decision = aiDecision(normalizedQuery, records, itemsByRecord)
+                .orElseGet(() -> fallbackDecision(normalizedQuery, records, itemsByRecord));
         Map<UUID, ServiceRecord> recordsById = records.stream()
                 .collect(Collectors.toMap(ServiceRecord::getRecordId, record -> record, (first, ignored) -> first, LinkedHashMap::new));
         List<ServiceRecord> matches = decision.matchingRecordIds().stream()
@@ -87,7 +145,21 @@ public class MechanicSearchService {
         );
     }
 
-    private java.util.Optional<MechanicSearchDecision> aiDecision(String query, List<ServiceRecord> records) {
+    /*
+     * Two threads racing here would each build a client and one would win; both
+     * are usable and RestClient is thread-safe, so the race is not worth a lock.
+     */
+    private RestClient restClient() {
+        RestClient existing = this.restClient;
+        if (existing == null) {
+            existing = RestClient.create();
+            this.restClient = existing;
+        }
+        return existing;
+    }
+
+    private java.util.Optional<MechanicSearchDecision> aiDecision(
+            String query, List<ServiceRecord> records, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
         if (apiKey == null || records.isEmpty()) {
             return java.util.Optional.empty();
         }
@@ -98,10 +170,10 @@ public class MechanicSearchService {
             request.put("response_format", Map.of("type", "json_object"));
             request.put("messages", List.of(
                     Map.of("role", "system", "content", mechanicSearchSystemPrompt()),
-                    Map.of("role", "user", "content", mechanicSearchUserPrompt(query, records))
+                    Map.of("role", "user", "content", mechanicSearchUserPrompt(query, records, itemsByRecord))
             ));
 
-            String responseBody = restClient.post()
+            String responseBody = restClient().post()
                     .uri(OPENAI_CHAT_COMPLETIONS_URL)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -149,74 +221,166 @@ public class MechanicSearchService {
         return java.util.Optional.of(new MechanicSearchDecision(answer, recommendedView, matchingIds, "AI"));
     }
 
-    private MechanicSearchDecision fallbackDecision(String query, List<ServiceRecord> records) {
-        List<ServiceRecord> matches = findMatches(records, query);
+    private MechanicSearchDecision fallbackDecision(
+            String query, List<ServiceRecord> records, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
+        List<ServiceRecord> matches = findMatches(records, query, itemsByRecord);
         return new MechanicSearchDecision(
-                answerFor(query, matches),
+                answerFor(query, matches, itemsByRecord),
                 fallbackRecommendedView(query),
                 matches.stream().map(ServiceRecord::getRecordId).toList(),
                 "KEYWORD_FALLBACK"
         );
     }
 
-    private List<ServiceRecord> findMatches(List<ServiceRecord> records, String query) {
+    /*
+     * The fallback used to lowercase the entire question and ask whether any
+     * field contained it as one substring. That works for "clutch" and fails
+     * for "was the clutch replaced", because no service type contains that
+     * sentence -- so the most natural way to ask a question returned nothing.
+     * Anything that did work only worked through a short hardcoded list of
+     * four part families.
+     *
+     * This scores instead. The question is split into terms, question words
+     * are dropped, each surviving term is widened to its family, and records
+     * are ranked by where the hits land: the service type is what the job was,
+     * so it counts for more than the shop's name.
+     */
+    private List<ServiceRecord> findMatches(
+            List<ServiceRecord> records, String query, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
         String lowerQuery = query.toLowerCase(Locale.ROOT);
-        if (containsAny(lowerQuery, "latest", "most recent", "last service", "recent service")) {
-            return records.stream().limit(1).toList();
+        boolean wantsLatest = containsAny(lowerQuery, "latest", "most recent", "last service", "recent service");
+
+        List<String> terms = queryTerms(lowerQuery);
+        if (terms.isEmpty()) {
+            // Nothing but question words -- "what happened most recently?"
+            return wantsLatest ? records.stream().limit(1).toList() : List.of();
         }
-        return records.stream()
-                .filter(record -> matches(record, itemsFor(record), lowerQuery))
+
+        List<ScoredRecord> scored = new ArrayList<>();
+        for (ServiceRecord record : records) {
+            int score = scoreRecord(record, itemsFor(record, itemsByRecord), terms);
+            if (score > 0) {
+                scored.add(new ScoredRecord(record, score));
+            }
+        }
+
+        /*
+         * Best match first, and the newer record wins a tie -- on a service
+         * history the recent one is nearly always the one being asked about.
+         * The response preserves this order; it is the ranking.
+         */
+        scored.sort(Comparator
+                .comparingInt(ScoredRecord::score).reversed()
+                .thenComparing(entry -> entry.record().getServiceDate(),
+                               Comparator.nullsLast(Comparator.reverseOrder())));
+
+        List<ServiceRecord> ranked = scored.stream().map(ScoredRecord::record).toList();
+        if (wantsLatest && !ranked.isEmpty()) {
+            return ranked.subList(0, 1);
+        }
+        return ranked;
+    }
+
+    private List<String> queryTerms(String lowercaseQuery) {
+        return Arrays.stream(lowercaseQuery.split("[^a-z0-9]+"))
+                .filter(term -> term.length() > 1)
+                .filter(term -> !STOPWORDS.contains(term))
+                .distinct()
                 .toList();
     }
 
-    private List<ServiceRecordItem> itemsFor(ServiceRecord record) {
-        return serviceRecordItemReader.forRecord(record.getRecordId());
+    /*
+     * Widen one term to every term that should find it. Membership is checked
+     * in both directions, so "rotor" finds a record that says "brake" just as
+     * "brake" finds one that says "rotor".
+     */
+    private Set<String> expand(String term) {
+        Set<String> family = new java.util.LinkedHashSet<>();
+        family.add(term);
+        for (Set<String> candidate : TERM_FAMILIES) {
+            if (candidate.contains(term)) {
+                family.addAll(candidate);
+            }
+        }
+        return family;
     }
 
-    private boolean matches(ServiceRecord record, List<ServiceRecordItem> items, String lowercaseQuery) {
-        boolean itemMatch = items.stream().anyMatch(item ->
-                containsIgnoreCase(item.getServiceType(), lowercaseQuery)
-                        || containsIgnoreCase(item.getPartsReplaced(), lowercaseQuery)
-                        || containsIgnoreCase(item.getLaborPerformed(), lowercaseQuery)
-        );
-        return itemMatch
-                || containsIgnoreCase(record.getShopName(), lowercaseQuery)
-                || containsIgnoreCase(record.getRemarks(), lowercaseQuery)
-                || semanticMatch(items, lowercaseQuery);
+    private int scoreRecord(ServiceRecord record, List<ServiceRecordItem> items, List<String> terms) {
+        String serviceTypes = joinLower(items, ServiceRecordItem::getServiceType);
+        String categories = joinLower(items, ServiceRecordItem::getServiceCategory);
+        String partsAndLabor = joinLower(items, ServiceRecordItem::getPartsReplaced)
+                + " " + joinLower(items, ServiceRecordItem::getLaborPerformed);
+        String remarks = lower(record.getRemarks());
+        String shop = lower(record.getShopName());
+
+        int score = 0;
+        for (String term : terms) {
+            Set<String> family = expand(term);
+            boolean exact = family.size() == 1;
+
+            /*
+             * A term the mechanic actually typed is worth more than one this
+             * code inferred, so an exact hit on the service type outranks a
+             * record reached only through the synonym family.
+             */
+            if (containsAnyOf(serviceTypes, family)) {
+                score += exact ? 6 : 5;
+            }
+            if (containsAnyOf(categories, family)) {
+                score += 4;
+            }
+            if (containsAnyOf(partsAndLabor, family)) {
+                score += 3;
+            }
+            if (containsAnyOf(remarks, family)) {
+                score += 2;
+            }
+            if (containsAnyOf(shop, family)) {
+                score += 1;
+            }
+        }
+        return score;
     }
 
-    private boolean semanticMatch(List<ServiceRecordItem> items, String lowercaseQuery) {
-        String searchable = items.stream()
-                .flatMap(item -> java.util.stream.Stream.of(
-                        valueOrEmpty(item.getServiceType()),
-                        valueOrEmpty(item.getPartsReplaced()),
-                        valueOrEmpty(item.getLaborPerformed())
-                ))
-                .reduce("", (a, b) -> a + " " + b)
+    private String joinLower(List<ServiceRecordItem> items, java.util.function.Function<ServiceRecordItem, String> field) {
+        return items.stream()
+                .map(field)
+                .map(this::valueOrEmpty)
+                .collect(Collectors.joining(" "))
                 .toLowerCase(Locale.ROOT);
+    }
 
-        if (containsAny(lowercaseQuery, "oil", "filter")) {
-            return containsAny(searchable, "oil", "filter");
+    private String lower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    private boolean containsAnyOf(String haystack, Set<String> needles) {
+        if (haystack.isEmpty()) {
+            return false;
         }
-        if (containsAny(lowercaseQuery, "brake", "stopping")) {
-            return containsAny(searchable, "brake", "pad", "rotor");
-        }
-        if (containsAny(lowercaseQuery, "battery", "start", "electrical")) {
-            return containsAny(searchable, "battery", "alternator", "electrical");
-        }
-        if (containsAny(lowercaseQuery, "tire", "tyre", "wheel")) {
-            return containsAny(searchable, "tire", "tyre", "wheel", "alignment");
+        for (String needle : needles) {
+            if (haystack.contains(needle)) {
+                return true;
+            }
         }
         return false;
     }
 
-    private String answerFor(String query, List<ServiceRecord> matches) {
+    private List<ServiceRecordItem> itemsFor(ServiceRecord record, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
+        return itemsByRecord.getOrDefault(record.getRecordId(), List.of());
+    }
+
+    private record ScoredRecord(ServiceRecord record, int score) {
+    }
+
+    private String answerFor(
+            String query, List<ServiceRecord> matches, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
         if (matches.isEmpty()) {
             return "No approved shared records matched \"" + query + "\".";
         }
 
         ServiceRecord first = matches.get(0);
-        String serviceLabel = serviceLabelFor(first);
+        String serviceLabel = serviceLabelFor(itemsFor(first, itemsByRecord));
         String date = first.getServiceDate() == null
                 ? "an unknown service date"
                 : first.getServiceDate().format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -237,7 +401,7 @@ public class MechanicSearchService {
         }
         return "I found "
                 + matches.size()
-                + " approved shared records. The most recent match is "
+                + " approved shared records. The closest match is "
                 + serviceLabel
                 + " on "
                 + date
@@ -246,8 +410,7 @@ public class MechanicSearchService {
                 + ".";
     }
 
-    private String serviceLabelFor(ServiceRecord record) {
-        List<ServiceRecordItem> items = itemsFor(record);
+    private String serviceLabelFor(List<ServiceRecordItem> items) {
         if (items.isEmpty()) {
             return "service work";
         }
@@ -286,10 +449,12 @@ public class MechanicSearchService {
                 """;
     }
 
-    private String mechanicSearchUserPrompt(String query, List<ServiceRecord> records) throws JsonProcessingException {
+    private String mechanicSearchUserPrompt(
+            String query, List<ServiceRecord> records, Map<UUID, List<ServiceRecordItem>> itemsByRecord)
+            throws JsonProcessingException {
         List<Map<String, Object>> summaries = records.stream()
                 .limit(40)
-                .map(this::recordSummary)
+                .map(record -> recordSummary(record, itemsFor(record, itemsByRecord)))
                 .toList();
         return "Mechanic question:\n"
                 + query
@@ -297,8 +462,7 @@ public class MechanicSearchService {
                 + objectMapper.writeValueAsString(summaries);
     }
 
-    private Map<String, Object> recordSummary(ServiceRecord record) {
-        List<ServiceRecordItem> items = itemsFor(record);
+    private Map<String, Object> recordSummary(ServiceRecord record, List<ServiceRecordItem> items) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("recordId", record.getRecordId());
         summary.put("serviceDate", record.getServiceDate());
