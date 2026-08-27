@@ -1,0 +1,1130 @@
+/* ----------------------------------------------------------------------
+   Trevora landing — v2, the green brand.
+
+   Own class prefix (`.tvl-`), so none of the ~300 `.fig-*` rules in
+   styles.css are touched, overridden or relied on. The old sheet still
+   serves nothing now that LandingPage.jsx has stopped naming those classes;
+   it is left in place rather than deleted because it is a shared file.
+
+   Colour, type and the drift keyframes come from styles/trevora-brand.css.
+   This file is composition only: the section rhythm, the grids, and the two
+   pieces of motion that belong to this page alone (the receipt scan line and
+   the saved-record pulse).
+
+   Ported from the "Trevora Landing v2" board. Its fixed pixel widths become
+   fluid grids — the board is one 1220px frame, this has to survive a phone.
+   ---------------------------------------------------------------------- */
+
+.tvl {
+  /* The board is one 1220px frame. On a real 1440–1728px monitor that reads
+     as a narrow column with everything packed into it, so the measure and the
+     vertical rhythm both open up above 1200px — see the wide-screen block at
+     the foot of this file. The values here are the phone/laptop floor. */
+  --tvl-max: 1220px;
+  --tvl-gutter: clamp(20px, 4vw, 36px);
+  --tvl-section: clamp(56px, 8vw, 88px);
+  --tvl-card-pad: 28px;
+  --tvl-shot-h: 460px;
+  background: #ffffff;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.tvl *,
+.tvl *::before,
+.tvl *::after {
+  box-sizing: border-box;
+}
+
+.tvl-wrap {
+  margin: 0 auto;
+  max-width: var(--tvl-max);
+  padding-left: var(--tvl-gutter);
+  padding-right: var(--tvl-gutter);
+  width: 100%;
+}
+
+.tvl-display {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.tvl-eyebrow {
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.tvl-lede {
+  color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.65;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.tvl-btn {
+  align-items: center;
+  border: 0;
+  border-radius: 100px;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  gap: 8px;
+  height: 44px;
+  justify-content: center;
+  padding: 0 22px;
+  text-decoration: none;
+  transition: background 120ms ease;
+  white-space: nowrap;
+}
+
+.tvl-btn--lg {
+  font-size: 16px;
+  height: 52px;
+  padding: 0 28px;
+}
+
+.tvl-btn--primary {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.tvl-btn--primary:hover {
+  background: var(--brand-hover);
+  color: #ffffff;
+}
+
+.tvl-btn--quiet {
+  background: #f2f6f4;
+  color: var(--ink);
+}
+
+.tvl-btn--quiet:hover {
+  background: #e7eeea;
+  color: var(--ink);
+}
+
+/* Same rule as the auth buttons: pressed moves, it does not darken further. */
+.tvl-btn--primary:active,
+.tvl-btn--quiet:active {
+  transform: translateY(1px);
+}
+
+.tvl-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------- nav */
+
+.tvl-nav {
+  padding-top: 20px;
+}
+
+.tvl-nav__bar {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e5eae7;
+  border-radius: 100px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 10px 12px 10px 22px;
+}
+
+.tvl-nav__brand {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.tvl-nav__brand svg {
+  color: var(--brand);
+  height: 30px;
+  width: 30px;
+}
+
+.tvl-nav__word {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tvl-nav__links {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+}
+
+.tvl-nav__link {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.tvl-nav__link:hover {
+  color: var(--brand-hover);
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.tvl-hero {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: clamp(40px, 6vw, 64px);
+  position: relative;
+  text-align: center;
+}
+
+.tvl-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Three slow discs behind the headline. Decorative and inert: `aria-hidden`
+   in the markup, `pointer-events:none` here, and stilled entirely under
+   prefers-reduced-motion by the rule at the foot of this file. */
+.tvl-glows {
+  inset: -40px 0 0 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.tvl-glow {
+  border-radius: 50%;
+  filter: blur(6px);
+  position: absolute;
+}
+
+.tvl-glow--a {
+  animation: tv-drift-a 17s ease-in-out infinite;
+  background: radial-gradient(circle at 35% 35%, rgba(127, 211, 174, 0.33), rgba(127, 211, 174, 0) 70%);
+  height: 280px;
+  left: 6%;
+  top: 10%;
+  width: 280px;
+}
+
+.tvl-glow--b {
+  animation: tv-drift-b 23s ease-in-out infinite;
+  background: radial-gradient(circle at 60% 40%, rgba(169, 227, 203, 0.3), rgba(169, 227, 203, 0) 70%);
+  filter: blur(8px);
+  height: 340px;
+  right: 4%;
+  top: 0;
+  width: 340px;
+}
+
+.tvl-glow--c {
+  animation: tv-drift-c 19s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%, rgba(207, 239, 224, 0.3), rgba(207, 239, 224, 0) 70%);
+  height: 220px;
+  left: 38%;
+  top: 52%;
+  width: 220px;
+}
+
+.tvl-hero__title {
+  font-size: clamp(40px, 7vw, 74px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  max-width: 880px;
+}
+
+.tvl-hero__lede {
+  font-size: clamp(17px, 2vw, 19px);
+  max-width: 600px;
+}
+
+.tvl-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding-top: 6px;
+}
+
+.tvl-hero__fineprint {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin: 0;
+  padding-bottom: 8px;
+}
+
+/* -------------------------------------------------------------- showcase */
+
+.tvl-showcase {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  padding-top: 16px;
+}
+
+.tvl-shot {
+  background: #f2f6f4;
+  border-radius: 28px;
+  height: var(--tvl-shot-h);
+  overflow: hidden;
+  position: relative;
+}
+
+/* The scan line, and the four corner ticks that frame it. The whole overlay
+   is inert — it sits above the photo and must never eat a click. */
+.tvl-scan {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.tvl-scan__line {
+  animation: tv-scan 4.6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  background: linear-gradient(180deg, rgba(14, 122, 82, 0) 0%, rgba(14, 122, 82, 0.12) 70%, rgba(14, 122, 82, 0) 100%);
+  border-bottom: 2px solid rgba(14, 122, 82, 0.67);
+  height: 34%;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.tvl-scan__tick {
+  border-color: rgba(255, 255, 255, 0.8);
+  border-style: solid;
+  border-width: 0;
+  height: 26px;
+  position: absolute;
+  width: 26px;
+}
+
+.tvl-scan__tick--tl { border-radius: 8px 0 0 0; border-top-width: 2px; border-left-width: 2px; left: 20px; top: 20px; }
+.tvl-scan__tick--tr { border-radius: 0 8px 0 0; border-top-width: 2px; border-right-width: 2px; right: 20px; top: 20px; }
+.tvl-scan__tick--br { border-radius: 0 0 8px 0; border-bottom-width: 2px; border-right-width: 2px; right: 20px; bottom: 20px; }
+
+.tvl-saved {
+  align-items: center;
+  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 20px;
+  bottom: 24px;
+  display: flex;
+  gap: 12px;
+  left: 24px;
+  padding: 16px 20px;
+  position: absolute;
+  right: 24px;
+}
+
+.tvl-saved__dot {
+  animation: tv-pulse 2.4s ease-in-out infinite;
+  background: var(--brand);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  height: 8px;
+  width: 8px;
+}
+
+.tvl-saved__text {
+  font-size: 15px;
+}
+
+.tvl-shot-card {
+  background: #f2f6f4;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.tvl-shot-card__frame {
+  background: #ffffff;
+  border-radius: 20px;
+  flex: 1;
+  min-height: 300px;
+  overflow: hidden;
+}
+
+.tvl-shot-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  padding: 0 4px;
+}
+
+.tvl-shot-card__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0 4px 4px;
+}
+
+/* ------------------------------------------------------------ image slot */
+
+/* Every photo on this page is a slot, not a hard-coded asset: it renders the
+   image when one is present at the path and a labelled frame when it is not,
+   so the page ships and reads correctly before art direction lands. Drop a
+   file at the `src` path and it appears — no code change. */
+.tvl-slot {
+  align-items: center;
+  background: linear-gradient(140deg, #eef6f1, #f7faf8);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  padding: 20px;
+  width: 100%;
+}
+
+.tvl-slot__img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.tvl-slot__label {
+  color: #7a867f;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 10px;
+  align-items: center;
+  line-height: 1.45;
+  max-width: 220px;
+  text-align: center;
+}
+
+.tvl-slot__label svg {
+  color: #a9c4b7;
+  height: 26px;
+  width: 26px;
+}
+
+/* -------------------------------------------------------------- sections */
+
+.tvl-section {
+  padding-top: var(--tvl-section);
+}
+
+.tvl-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.tvl-section__title {
+  font-size: clamp(30px, 4.4vw, 44px);
+}
+
+/* ----------------------------------------------------------- input cards */
+
+.tvl-ways {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding-top: 32px;
+}
+
+.tvl-way {
+  background: #f7faf8;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--tvl-card-pad);
+}
+
+.tvl-way__icon {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 50%;
+  color: var(--brand);
+  display: flex;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.tvl-way__title {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tvl-way__text {
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- review row */
+
+.tvl-split {
+  align-items: start;
+  display: grid;
+  gap: clamp(28px, 4vw, 56px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  padding-top: var(--tvl-section);
+}
+
+.tvl-split__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tvl-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.tvl-tier {
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.tvl-tier--stop { background: #fdf2f1; }
+.tvl-tier--look { background: #f2f6f4; }
+.tvl-tier--source { background: #f7faf8; }
+
+.tvl-tier__label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.tvl-tier--stop .tvl-tier__label { color: #a8342a; }
+.tvl-tier--look .tvl-tier__label { color: #3b4a43; }
+.tvl-tier--source .tvl-tier__label { color: #7a867f; }
+
+.tvl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tvl-chip {
+  border-radius: 100px;
+  font-size: 15px;
+  padding: 6px 12px;
+}
+
+.tvl-chip--stop { background: #ffffff; color: #a8342a; }
+.tvl-chip--look { background: #16211c; color: #ffffff; }
+
+.tvl-sources {
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 15px;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ------------------------------------------------------------ review card */
+
+.tvl-review {
+  background: #ffffff;
+  border: 1px solid #e5eae7;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.tvl-review__head {
+  align-items: center;
+  background: #f7faf8;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.tvl-review__head strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tvl-review__page {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.tvl-review__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.tvl-review__pages {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tvl-review__thumb {
+  border-radius: 14px;
+  height: 92px;
+  overflow: hidden;
+}
+
+.tvl-row {
+  align-items: baseline;
+  border-bottom: 1px solid #eff3f1;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+
+.tvl-row--flagged {
+  background: #f2f6f4;
+  border-bottom: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.tvl-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tvl-row__label {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.tvl-row__value {
+  font-size: 17px;
+}
+
+.tvl-row__source {
+  color: var(--ink-faint);
+  font-size: 14px;
+  text-align: right;
+}
+
+.tvl-row__flag {
+  background: #16211c;
+  border-radius: 100px;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+
+.tvl-mismatch {
+  background: #fff7e8;
+  border-radius: 16px;
+  color: #6a5320;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 18px;
+}
+
+.tvl-mismatch__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tvl-mismatch__line strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.tvl-mismatch__note {
+  border-top: 1px solid #f0e3c6;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+  padding-top: 8px;
+}
+
+.tvl-review__confirm {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tvl-review__fake-btn {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 100px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 600;
+  height: 44px;
+  padding: 0 22px;
+}
+
+.tvl-review__hint {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- handoff */
+
+.tvl-handoff {
+  align-items: center;
+  background: var(--brand-tint);
+  border-radius: 32px;
+  display: grid;
+  gap: clamp(28px, 4vw, 48px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  margin-top: var(--tvl-section);
+  padding: clamp(28px, 4vw, 44px);
+}
+
+.tvl-handoff__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tvl-handoff__lede {
+  color: #3b4a43;
+  font-size: 17px;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 520px;
+}
+
+/* Four steps, so an even 2x2 — `auto-fit` fitted three across and orphaned
+   the fourth, which read as a mistake rather than a sequence. One column on a
+   phone, where four narrow cards would be unreadable. */
+.tvl-steps {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+}
+
+.tvl-step {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.tvl-step--you {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.tvl-step__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.tvl-step__note {
+  color: #5c6a63;
+  font-size: 14px;
+  margin: 0;
+}
+
+.tvl-step--you .tvl-step__note {
+  color: #c6e3d6;
+}
+
+.tvl-handoff__shot {
+  background: #ffffff;
+  border-radius: 24px;
+  height: 380px;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ views */
+
+.tvl-views-head {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(16px, 3vw, 40px);
+  justify-content: space-between;
+}
+
+.tvl-views-head__title {
+  font-size: clamp(30px, 4.4vw, 44px);
+  max-width: 600px;
+}
+
+.tvl-views-head__note {
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 330px;
+}
+
+.tvl-views {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding-top: 28px;
+}
+
+.tvl-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tvl-view__frame {
+  background: #f2f6f4;
+  border-radius: 24px;
+  height: 200px;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+.tvl-view__title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tvl-view__text {
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* The one promise the product makes by omission, said out loud. It is not a
+   footnote — owners ask for reminders, and the answer is no. */
+.tvl-nopredict {
+  background: #f7faf8;
+  border-radius: 20px;
+  color: #3b4a43;
+  font-size: 17px;
+  line-height: 1.65;
+  margin: 28px 0 0;
+  padding: 22px 26px;
+}
+
+/* -------------------------------------------------------------- close/faq */
+
+.tvl-close {
+  align-items: start;
+  display: grid;
+  gap: clamp(28px, 4vw, 56px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  padding-top: var(--tvl-section);
+}
+
+.tvl-close__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tvl-close__title {
+  font-size: clamp(34px, 5vw, 52px);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.tvl-close__lede {
+  color: var(--ink-muted);
+  font-size: 18px;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 440px;
+}
+
+.tvl-close__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.tvl-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tvl-faq__item {
+  background: #f7faf8;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.tvl-faq__q {
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 20px;
+  text-align: left;
+  width: 100%;
+}
+
+/* `button:hover:not(:disabled)` in ink-app.css sets a near-black background,
+   and it outweighs a bare `.tvl-faq__q:hover` — same two class-level tokens,
+   plus an element name. Without the `.tvl` ancestor to break the tie the whole
+   FAQ row went dark-on-dark the moment the pointer touched it. */
+.tvl .tvl-faq__q:hover,
+.tvl .tvl-faq__q:active,
+.tvl .tvl-faq__q:focus {
+  background: #eef6f1;
+  color: var(--ink);
+}
+
+.tvl .tvl-faq__q:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.tvl-faq__q svg {
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+  transition: transform 140ms ease;
+}
+
+.tvl-faq__item[data-open='true'] .tvl-faq__q svg {
+  transform: rotate(180deg);
+}
+
+.tvl-faq__a {
+  color: #5c6a63;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0 20px 18px;
+}
+
+/* ----------------------------------------------------------------- footer */
+
+.tvl-footer {
+  padding-bottom: 44px;
+  padding-top: clamp(40px, 6vw, 64px);
+}
+
+.tvl-footer__inner {
+  align-items: center;
+  border-top: 1px solid #e5eae7;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  padding-top: 22px;
+}
+
+.tvl-footer__mark {
+  color: var(--ink-faint);
+  font-size: 15px;
+}
+
+.tvl-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+
+.tvl-footer__links a {
+  color: var(--ink-muted);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.tvl-footer__links a:hover {
+  color: var(--brand);
+}
+
+/* ------------------------------------------------------------ narrow view */
+
+@media (max-width: 640px) {
+  .tvl-shot {
+    height: 340px;
+  }
+
+  .tvl-handoff__shot {
+    height: 260px;
+  }
+
+  .tvl-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The nav bar keeps the pill but drops the ghost link: at 360px the two
+     actions plus the wordmark do not fit, and the primary one is the one
+     worth keeping. Sign in is still in the hero and the footer. */
+  .tvl-nav__link {
+    display: none;
+  }
+
+  .tvl-saved {
+    left: 16px;
+    padding: 14px 16px;
+    right: 16px;
+  }
+
+  .tvl-saved__text {
+    font-size: 14px;
+  }
+}
+
+/* -------------------------------------------------------------- wide view */
+
+/* The design board is a single 1220px frame, which on a 1440px-and-up monitor
+   leaves the page reading as a narrow strip of tightly packed cards. Above
+   1200px the measure widens, the sections breathe, and the type takes the
+   extra room — nothing is re-composed, everything is given more air. */
+@media (min-width: 1200px) {
+  .tvl {
+    --tvl-max: 1320px;
+    --tvl-gutter: 48px;
+    --tvl-section: 112px;
+    --tvl-card-pad: 34px;
+    --tvl-shot-h: 520px;
+  }
+
+  .tvl-hero {
+    gap: 24px;
+    padding-top: 80px;
+  }
+
+  .tvl-hero__title {
+    font-size: clamp(74px, 5.8vw, 88px);
+    max-width: 960px;
+  }
+
+  .tvl-hero__lede {
+    font-size: 20px;
+    max-width: 660px;
+  }
+
+  .tvl-showcase,
+  .tvl-ways,
+  .tvl-views {
+    gap: 22px;
+  }
+
+  .tvl-section__title,
+  .tvl-views-head__title {
+    font-size: 48px;
+  }
+
+  .tvl-close__title {
+    font-size: 58px;
+  }
+
+  .tvl-way__title {
+    font-size: 25px;
+  }
+
+  .tvl-way__text,
+  .tvl-view__text,
+  .tvl-lede {
+    font-size: 17px;
+  }
+
+  .tvl-review__body {
+    gap: 16px;
+    padding: 26px;
+  }
+
+  .tvl-review__thumb {
+    height: 108px;
+  }
+
+  .tvl-handoff {
+    padding: 56px;
+  }
+
+  .tvl-handoff__shot {
+    height: 440px;
+  }
+
+  .tvl-step {
+    padding: 20px;
+  }
+
+  .tvl-faq__q {
+    font-size: 17px;
+    padding: 22px 24px;
+  }
+
+  .tvl-faq__a {
+    font-size: 16px;
+    padding: 0 24px 22px;
+  }
+
+  .tvl-nopredict {
+    font-size: 18px;
+    padding: 28px 32px;
+  }
+}
+
+/* Beyond ~1600px the measure stops growing — a 90-character line is not more
+   readable for being on a bigger monitor — but the gutter keeps the column
+   off the bezel. */
+@media (min-width: 1600px) {
+  .tvl {
+    --tvl-max: 1420px;
+    --tvl-gutter: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tvl-glow,
+  .tvl-scan__line,
+  .tvl-saved__dot {
+    animation: none;
+  }
+}

@@ -42,6 +42,27 @@ import './styles/ink-access.css';
 // ever adds, and shares no selectors with the app screens it previews.
 import './styles/ink-welcome.css';
 
+// The green brand. Last of the shared sheets on purpose: it is a token
+// redefinition, not a screen, and it has to win over every `:root` block
+// above it. Nothing before it needs to know the palette changed.
+import './styles/trevora-brand.css';
+// The landing page, v2. After the brand layer because it reads its tokens,
+// and under its own `.tvl-` prefix so it collides with nothing.
+import './styles/landing-v2.css';
+// Signup step 2. Styles the `vehicle` shell variant, which ink-auth.css has
+// no rules for — it only ever knew `signin` and `signup`.
+import './styles/signup-vehicle.css';
+// The green brand inside the app, one signed-in surface at a time. Last,
+// because it overrides the feature sheets above rather than replacing them.
+// Temporary by design — see the header of that file.
+import './styles/brand-app.css';
+// The mechanic's request page. Signed out, no shell, its own `.mreq-`
+// namespace — it overrides nothing, so its position here is arbitrary.
+import './styles/mechanic-request.css';
+// Notifications. Own `.notif-` namespace, but it borrows `.ink-segmented`
+// for its filter, so it must come after ink-vehicle.css and brand-app.css.
+import './styles/notifications.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>

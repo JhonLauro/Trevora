@@ -1,0 +1,458 @@
+/* ----------------------------------------------------------------------
+   Trevora brand layer — the green palette.
+
+   Loaded last in main.jsx. Every sheet before this one already routes its
+   colour, type and radius through tokens (`--tv-*` in styles.css, `--ink*`
+   and `--font-*` in ink-app.css / ink-auth.css), so the whole product can be
+   re-skinned by redefining those tokens in one place rather than by editing
+   eleven thousand lines four people have open.
+
+   What this file is NOT: a layout change. It sets colour, type, radius and
+   the handful of component rules a token cannot reach (a pill button's
+   shape, the auth panel flipping from dark to mint). Anything structural
+   belongs in the sheet that owns the screen.
+
+   Source of truth: the "Trevora Landing v2" and "Trevora Auth v2" boards in
+   Claude Design. When those move, this file moves; the screens do not.
+   ---------------------------------------------------------------------- */
+
+:root {
+  /* ------------------------------------------------------------ brand */
+  --brand: #0e7a52;
+  --brand-hover: #0a5a3c;
+  --brand-tint: #eef6f1;   /* the mint panel / feature-band ground */
+  --brand-wash: #f7faf8;   /* one step lighter — cards on white */
+  --brand-glow-a: #7fd3ae;
+  --brand-glow-b: #a9e3cb;
+  --brand-glow-c: #cfefe0;
+
+  /* -------------------------------------------------- Ink token family */
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --ink: #16211c;
+  --ink-hover: #22322b;
+  --ink-active: #0c1512;
+  --ink-muted: #4c5a54;
+  --ink-faint: #7a867f;
+  --border: #d8e1dc;
+  --rule: #e5eae7;
+  --sunken: #f2f6f4;
+  --surface-sunken: #f2f6f4;
+  --surface-head: #f7faf8;
+  --rule-faint: #e9efec;
+  --rule-hairline: #eff3f1;
+
+  --on-ink: #ffffff;
+  --on-ink-muted: #c6e3d6;
+  --on-ink-faint: #93a89e;
+  --on-ink-rule: #2a3a33;
+
+  /* Status. Chroma still means state and nothing else — but the "ok" step
+     can no longer be a green badge on a green product, so it reads as the
+     brand's own dark green and leans on its word, not its hue. */
+  --ok-text: #0a5a3c;
+  --ok-fill: #eef6f1;
+  --ok-border: #bcdcca;
+  --warn-text: #6a5320;
+  --warn-fill: #fff7e8;
+  --warn-border: #f0e3c6;
+  --bad-text: #a8342a;
+  --bad-fill: #fdf2f1;
+  --bad-border: #f2d3cf;
+  --error: #a8342a;
+
+  --status-ok-bg: #eef6f1;
+  --status-ok-border: #bcdcca;
+  --status-ok-text: #0a5a3c;
+  --status-warn-bg: #fff7e8;
+  --status-warn-border: #f0e3c6;
+  --status-warn-text: #6a5320;
+  --status-bad-bg: #fdf2f1;
+  --status-bad-border: #f2d3cf;
+  --status-bad-text: #a8342a;
+  --status-none-bg: #f2f6f4;
+  --status-none-border: #e5eae7;
+  --status-none-text: #4c5a54;
+
+  /* ------------------------------------------------------------- type */
+  /* Headings ride `--font-serif` everywhere in the app. The brand has no
+     serif — it has a display face — so the token keeps its name and changes
+     its value rather than every call site changing its token. */
+  --font-serif: 'Bricolage Grotesque', 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* ----------------------------------------------------------- shape */
+  --radius: 14px;
+  --radius-card: 20px;
+  --radius-pill: 100px;
+  --field-h: 52px;
+  --button-h: 54px;
+
+  /* ------------------------------------------- legacy `--tv-*` family */
+  --tv-navy-900: #16211c;
+  --tv-navy-800: #16211c;
+  --tv-navy-700: #22322b;
+  --tv-blue-600: #0e7a52;
+  --tv-blue-700: #0a5a3c;
+  --tv-blue-50: #eef6f1;
+  --tv-amber-600: #6a5320;
+  --tv-amber-50: #fff7e8;
+  --tv-ink: #16211c;
+  --tv-body: #4c5a54;
+  --tv-muted: #7a867f;
+  --tv-line: #e5eae7;
+  --tv-surface: #ffffff;
+  --tv-surface-2: #f7faf8;
+  --tv-ok: #0a5a3c;
+  --tv-warn: #6a5320;
+  --tv-risk: #a8342a;
+  --tv-r-sm: 14px;
+  --tv-r-md: 18px;
+  --tv-r-lg: 24px;
+  --tv-r-xl: 28px;
+  --tv-shadow-sm: 0 1px 2px rgba(22, 33, 28, 0.05), 0 1px 3px rgba(22, 33, 28, 0.06);
+  --tv-shadow-md: 0 4px 12px rgba(22, 33, 28, 0.05), 0 12px 28px rgba(22, 33, 28, 0.07);
+  --tv-shadow-lg: 0 8px 24px rgba(22, 33, 28, 0.07), 0 24px 60px rgba(22, 33, 28, 0.1);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* ------------------------------------------------------------- lockup */
+
+/* The mark is three plates in depth; at 30px the rear two are three pixels
+   of tone each, which is the whole point of them — do not shrink it further
+   without dropping to a single plate. */
+.ink-lockup__mark,
+.trevora-logo__mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.ink-lockup {
+  align-items: center;
+  color: var(--brand);
+  display: inline-flex;
+  gap: 10px;
+}
+
+.ink-lockup--dark {
+  color: var(--brand);
+}
+
+/* The lockup is a link on the auth screens. It must not pick up the green
+   link colour or an underline — it is a logo, and it already carries its own
+   two colours. */
+.ink-lockup-link {
+  border-radius: 12px;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.ink-lockup-link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
+}
+
+.ink-lockup__wordmark {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* The shell's chrome is still dark — sidebar, mobile topbar, mobile menu
+   drawer — and brand green on ink is nowhere near enough contrast. There the
+   lockup goes to paper and keeps its depth through the rear plates' alpha. */
+.ink-sidebar .ink-lockup,
+.ink-sidebar .ink-lockup__wordmark,
+.ink-topbar .ink-lockup,
+.ink-topbar .ink-lockup__wordmark,
+.ink-sheet__head .ink-lockup,
+.ink-sheet__head .ink-lockup__wordmark {
+  color: var(--on-ink);
+}
+
+/* --------------------------------------------------------- auth screens */
+
+.ink-auth {
+  --paper: #f7faf8;
+  --surface: #ffffff;
+  --ink: #16211c;
+  --ink-muted: #4c5a54;
+  --ink-faint: #7a867f;
+  --border: #d8e1dc;
+  --rule: #e5eae7;
+  --surface-sunken: #f2f6f4;
+  --error: #a8342a;
+  --radius: 14px;
+  --field-h: 52px;
+  --button-h: 54px;
+  --oauth-h: 50px;
+  --font-serif: 'Bricolage Grotesque', 'Figtree', ui-sans-serif, sans-serif;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The panel was ink with paper type. In the green brand it is the mint
+   ground with ordinary dark type, so every `--on-ink*` reader inside it is
+   re-pointed rather than re-written. */
+.ink-auth .ink-panel {
+  --on-ink: #16211c;
+  --on-ink-muted: #3b4a43;
+  --on-ink-faint: #7a867f;
+  --on-ink-rule: #d3e4da;
+  background: var(--brand-tint);
+  color: var(--ink);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Two slow blurred discs behind the panel copy — the same drift the landing
+   hero uses, so signing in and arriving read as one surface. Painted on the
+   panel's own ::before/::after to keep the markup untouched. */
+.ink-auth .ink-panel::before,
+.ink-auth .ink-panel::after {
+  border-radius: 50%;
+  content: '';
+  filter: blur(8px);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.ink-auth .ink-panel::before {
+  animation: tv-drift-a 17s ease-in-out infinite;
+  background: radial-gradient(circle at 40% 40%, rgba(127, 211, 174, 0.42), rgba(127, 211, 174, 0) 70%);
+  height: 340px;
+  left: -8%;
+  top: 6%;
+  width: 340px;
+}
+
+.ink-auth .ink-panel::after {
+  animation: tv-drift-b 23s ease-in-out infinite;
+  background: radial-gradient(circle at 55% 45%, rgba(169, 227, 203, 0.45), rgba(169, 227, 203, 0) 70%);
+  bottom: 4%;
+  height: 380px;
+  right: -10%;
+  width: 380px;
+}
+
+.ink-auth .ink-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ink-panel__hero {
+  letter-spacing: -0.03em;
+}
+
+/* Numbered steps: white chip, green numeral. Was paper-on-ink, which is now
+   the panel's own background. */
+.ink-steps__number {
+  background: #ffffff;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- controls */
+
+.ink-auth input[type='text'],
+.ink-auth input[type='email'],
+.ink-auth input[type='password'],
+.ink-auth input[type='tel'],
+.ink-auth select,
+.ink-auth textarea {
+  border-radius: 14px;
+}
+
+.ink-auth input:focus,
+.ink-auth input:focus-visible,
+.ink-auth select:focus-visible,
+.ink-auth textarea:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 122, 82, 0.14);
+  outline: none;
+}
+
+.ink-auth .ink-field[data-invalid='true'] input {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(168, 52, 42, 0.1);
+}
+
+.ink-auth .ink-check input {
+  accent-color: var(--brand);
+  border-radius: 5px;
+}
+
+.ink-auth .ink-check input:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+/* Buttons are pills in this brand, everywhere, including the app shell. */
+.ink-button,
+.ink-auth .ink-button,
+.ink-button--primary,
+.ink-button--oauth,
+.ink-back-button {
+  border-radius: var(--radius-pill);
+}
+
+.ink-button--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ink-button--primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+/* Pressed does not go darker again. Base -> hover already spends most of the
+   green's headroom, and a third step down reads as black rather than as a
+   button being pushed — which is what it was reported as. The press is shown
+   by movement instead, at the hover colour. */
+.ink-button--primary:active:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* `button:hover:not(:disabled) { background: var(--ink) }` in ink-app.css
+   out-specifies any single-class rule, so every button whose own hover state
+   only touched a border fell through to near-black — the Google button most
+   visibly. Each variant states its own hover background here rather than the
+   bare rule being weakened, which would change buttons nobody has looked at. */
+.ink-button--oauth {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.ink-button--oauth:hover:not(:disabled),
+.ink-button--oauth:active:not(:disabled) {
+  background: #f2f6f4;
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.ink-button--oauth:disabled {
+  background: #ffffff;
+  color: var(--ink-faint);
+}
+
+.ink-button:focus-visible {
+  box-shadow: 0 0 0 4px rgba(14, 122, 82, 0.12);
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Same fall-through, on the two auth controls that are <button> only so they
+   can be operated from the keyboard: the password Show toggle and the
+   "use a different email" link. Neither is a button to look at. */
+.ink-toggle,
+.ink-link-button {
+  background: none;
+}
+
+.ink-toggle:hover:not(:disabled),
+.ink-toggle:active:not(:disabled),
+.ink-link-button:hover:not(:disabled),
+.ink-link-button:active:not(:disabled) {
+  background: none;
+  color: var(--brand-hover);
+}
+
+.ink-link,
+.ink-auth a {
+  color: var(--brand);
+}
+
+.ink-link:hover,
+.ink-auth a:hover {
+  color: var(--brand-hover);
+}
+
+.ink-toggle {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.ink-notice {
+  background: var(--brand-tint);
+  border-color: #cfe4d9;
+  color: #3b4a43;
+}
+
+.ink-progress__bar[data-active='true'],
+.ink-meter__bar[data-filled='true'] {
+  background: var(--brand);
+}
+
+/* -------------------------------------------------------- app surfaces */
+
+/* Cards and panels across the signed-in app soften to the brand's radius.
+   Scoped to the Ink component classes so no legacy `.fig-*` block is caught
+   by accident. `.ink-sheet` is deliberately absent — that is the full-height
+   mobile menu drawer, not a card, and rounding it would be wrong. */
+.ink-card,
+.ink-panel-card,
+.ink-tile {
+  border-radius: var(--radius-card);
+}
+
+/* On a phone the sign-in screen is an ink header with the paper sheet pulled
+   up over it. Ink under a green lockup does not work, and the brand already
+   owns a "second surface" — so the header becomes the mint panel, which is
+   what the rest of the screen is at desktop width anyway. */
+@media (max-width: 767px) {
+  .ink-auth--sheet .ink-auth__main,
+  .ink-auth--sheet .ink-auth__mobile-header {
+    background: var(--brand-tint);
+    color: var(--ink);
+  }
+}
+
+/* Shared drift keyframes. Named `tv-` to match the design boards; declared
+   here so both the auth panel above and the landing sheet can use them. */
+@keyframes tv-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(40px, -30px, 0) scale(1.12); }
+}
+
+@keyframes tv-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-50px, 26px, 0) scale(1.08); }
+}
+
+@keyframes tv-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, 34px, 0) scale(0.92); }
+}
+
+@keyframes tv-scan {
+  0% { transform: translateY(-15%); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateY(115%); opacity: 0; }
+}
+
+@keyframes tv-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-auth .ink-panel::before,
+  .ink-auth .ink-panel::after {
+    animation: none;
+  }
+}

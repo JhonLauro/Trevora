@@ -1,21 +1,22 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import React, { useRef, useState } from 'react';
 import { createVehicle } from '../api/vehicles.js';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/vehiclePhoto.js';
 import VehiclePhotoField from '../components/ink/VehiclePhotoField.jsx';
-import InkAuthShell from '../components/InkAuthShell.jsx';
+import InkLockup from '../components/InkLockup.jsx';
 import { InkField } from '../components/InkFormControls.jsx';
 import VehicleIdentityFields from '../components/ink/VehicleIdentityFields.jsx';
 
-const HERO = 'Now, the vehicle.';
-const LEAD =
-  'The car, van or motorcycle you want to keep records for. You can add more vehicles later.';
-
-const NEXT_STEPS = [
-  'Add the vehicle you drive',
-  'File your first receipt against it',
-  'Everything after that builds on it',
-];
+/* Not InkAuthShell any more. The shell is a two-column split with a panel on
+   the left, which is right for sign in and for creating an account — both are
+   short forms with room to spare beside them. This one is eight fields and a
+   photo dropzone, and pushing it into the shell's other half was what made it
+   a tall thin stack. It is a full-width page now.
+   *
+   * The root keeps the `ink-auth` class regardless: every input, label, help
+   * and error style in ink-auth.css is scoped under it. That is the whole
+   * reason this is not a bare <main> — dropping the class would mean
+   * restyling every control on the page for no gain. */
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -147,113 +148,104 @@ export default function RegisterVehiclePage() {
     }
   }
 
-  const aside = (
-    <ol className="ink-steps">
-      {NEXT_STEPS.map((step, index) => (
-        <li key={step}>
-          <span className="ink-steps__number">{index + 1}</span>
-          <span className="ink-steps__label">{step}</span>
-        </li>
-      ))}
-    </ol>
-  );
-
   return (
-    <InkAuthShell hero={HERO} lead={LEAD} variant="signup" aside={aside}>
-      {/* No back affordance: step 1 already created the account, so there is
-          nothing coherent to go back to. */}
-      <div className="ink-auth__mobile-top-row">
-        <div className="ink-progress ink-progress--fluid">
-          <div className="ink-progress__bars">
-            <span className="ink-progress__bar" data-active="true" />
-            <span className="ink-progress__bar" data-active="true" />
+    <div className="ink-auth ink-auth--vehicle veh-setup">
+      {/* No back affordance and no step counter: the account already exists,
+          so there is nothing coherent to go back to and nothing left to
+          count. The heading says what the page is for instead. */}
+      <header className="veh-setup__bar">
+        <Link className="ink-lockup-link" to="/" aria-label="Trevora, back to the home page">
+          <InkLockup />
+        </Link>
+      </header>
+
+      <main className="veh-setup__body">
+        <div className="veh-setup__card">
+          <div className="ink-heading ink-heading--signup">
+            <h1>Add your vehicle</h1>
+            <p>
+              The car, van or motorcycle you want to keep records for. This is what everything
+              gets filed against — you can add more vehicles later.
+            </p>
           </div>
-          <span className="ink-progress__label">2 of 2</span>
+
+          <form className="ink-form ink-form--signup ink-form--vehicle" onSubmit={handleSubmit} noValidate>
+            {/* Same three fields as the in-app Add vehicle page, from one
+                component, so signup and the app cannot drift apart. */}
+            <VehicleIdentityFields
+              form={form}
+              errors={fieldErrors}
+              refs={fieldRefs}
+              onChange={updateIdentity}
+            />
+
+            {/* Year, plate and odometer are all short, all optional, and were
+                three more full-width rows in a column that already had five. Two
+                up where there is room; ink-name-grid stacks them below 768px. */}
+            <div className="ink-name-grid">
+              <InkField
+                inputRef={fieldRefs.year}
+                label="Model year (optional)"
+                name="year"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="2018"
+                maxLength={4}
+                value={form.year}
+                onChange={updateField}
+                onBlur={handleBlur}
+                /* Names the document it is on and the mistake it invites: "Year
+                   Model" on the OR/CR is not the year the vehicle was bought. */
+                help="On your OR/CR as “Year Model”. Not the year you bought it."
+                error={fieldErrors.year}
+              />
+
+              <InkField
+                label="Plate number"
+                name="plateNumber"
+                type="text"
+                autoComplete="off"
+                placeholder="ABC 1234"
+                value={form.plateNumber}
+                onChange={updateField}
+                help="Leave blank if it has no plates yet."
+              />
+            </div>
+
+            <InkField
+              inputRef={fieldRefs.odometer}
+              label="Current odometer"
+              name="odometer"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="45000"
+              value={form.odometer}
+              onChange={updateField}
+              onBlur={handleBlur}
+              error={fieldErrors.odometer}
+              help="Optional, and roughly is fine. You can update it any time."
+            />
+
+            <VehiclePhotoField file={photoFile} onChange={setPhotoFile} disabled={submitting} />
+
+            {formError && (
+              <p className="ink-form-error" role="alert" aria-live="polite">
+                {formError}
+              </p>
+            )}
+
+                <button
+                  className={`ink-button ink-button--primary ${submitting ? 'ink-button--loading' : ''}`.trim()}
+                  type="submit"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Saving vehicle…' : 'Save and continue'}
+                </button>
+          </form>
         </div>
-      </div>
-
-      <div className="ink-heading ink-heading--signup">
-        <h1>Add your vehicle</h1>
-        <div className="ink-progress ink-hide-mobile">
-          <div className="ink-progress__bars">
-            <span className="ink-progress__bar" data-active="true" />
-            <span className="ink-progress__bar" data-active="true" />
-          </div>
-          <p className="ink-progress__label">Step 2 of 2 — your vehicle</p>
-        </div>
-        <p className="ink-show-mobile-only">This is what your records get filed against.</p>
-      </div>
-
-      <form className="ink-form ink-form--signup" onSubmit={handleSubmit} noValidate>
-        {/* Same three fields as the in-app Add vehicle page, from one
-            component, so signup and the app cannot drift apart. */}
-        <VehicleIdentityFields
-          form={form}
-          errors={fieldErrors}
-          refs={fieldRefs}
-          onChange={updateIdentity}
-        />
-
-        <InkField
-          inputRef={fieldRefs.year}
-          label="Model year (optional)"
-          name="year"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="2018"
-          maxLength={4}
-          value={form.year}
-          onChange={updateField}
-          onBlur={handleBlur}
-          /* Names the document it is on and the mistake it invites: "Year
-             Model" on the OR/CR is not the year the vehicle was bought. */
-          help="On your OR/CR as “Year Model”. Not the year you bought it — leave blank if you are not sure."
-          error={fieldErrors.year}
-        />
-
-        <InkField
-          label="Plate number"
-          name="plateNumber"
-          type="text"
-          autoComplete="off"
-          placeholder="ABC 1234"
-          value={form.plateNumber}
-          onChange={updateField}
-          help="Leave this blank if the vehicle doesn't have plates yet."
-        />
-
-        <InkField
-          inputRef={fieldRefs.odometer}
-          label="Current odometer"
-          name="odometer"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="45000"
-          value={form.odometer}
-          onChange={updateField}
-          onBlur={handleBlur}
-          error={fieldErrors.odometer}
-          help="Optional, and roughly is fine — no need to go out and check. You can update it any time."
-        />
-
-        <VehiclePhotoField file={photoFile} onChange={setPhotoFile} disabled={submitting} />
-
-        {formError && (
-          <p className="ink-form-error" role="alert" aria-live="polite">
-            {formError}
-          </p>
-        )}
-
-        <button
-          className={`ink-button ink-button--primary ${submitting ? 'ink-button--loading' : ''}`.trim()}
-          type="submit"
-          disabled={submitting}
-        >
-          {submitting ? 'Saving vehicle…' : 'Save and continue'}
-        </button>
-      </form>
-    </InkAuthShell>
+      </main>
+    </div>
   );
 }

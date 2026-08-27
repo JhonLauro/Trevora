@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import React, { useRef, useState } from 'react';
-import { registerUser, signInWithGoogle, verifyRegistrationOtp } from '../api/auth.js';
+import { registerUser, signInWithGoogle } from '../api/auth.js';
 import InkAuthShell from '../components/InkAuthShell.jsx';
 import {
   InkDivider,
@@ -15,7 +15,7 @@ const EMAIL_ERROR = "That address doesn't look right — check the spelling.";
 const PASSWORD_HELP = 'At least 8 characters, with a number.';
 
 const HERO = 'Start your vehicle’s file.';
-const LEAD = 'Two short steps. Your account first, then the vehicle you want to keep records for.';
+const LEAD = 'One short form, then you are in. Add your first vehicle whenever you are ready — nothing here expires.';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ export default function RegisterPage() {
     lastName: useRef(null),
     email: useRef(null),
     password: useRef(null),
+    confirmPassword: useRef(null),
   };
 
   const [form, setForm] = useState({
@@ -31,6 +32,7 @@ export default function RegisterPage() {
     lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     agreedToTerms: false,
   });
   const [fieldErrors, setFieldErrors] = useState({});
@@ -38,10 +40,9 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [pendingVerification, setPendingVerification] = useState(null);
-  const [verificationNotice, setVerificationNotice] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [verifying, setVerifying] = useState(false);
+  // Set only when Supabase is configured to require email confirmation, in
+  // which case there is no session to sign the owner in with. See registerUser.
+  const [confirmEmailNotice, setConfirmEmailNotice] = useState('');
 
   const strength = passwordStrength(form.password);
 
@@ -59,6 +60,9 @@ export default function RegisterPage() {
         if (value.length < 8) return 'Use at least 8 characters.';
         if (!/\d/.test(value)) return 'Include at least one number.';
         return '';
+      case 'confirmPassword':
+        if (!value) return 'Re-type your password.';
+        return value === form.password ? '' : 'These two passwords do not match.';
       default:
         return '';
     }
@@ -71,6 +75,16 @@ export default function RegisterPage() {
     setFormError('');
     if (fieldErrors[name]) {
       setFieldErrors((current) => ({ ...current, [name]: validateField(name, nextValue) }));
+    }
+    // Editing the first password can fix or break the confirmation, and the
+    // confirmation's own onChange will not fire. Re-check it here, but only
+    // once it has already been flagged — nobody wants "does not match" the
+    // moment they start typing.
+    if (name === 'password' && fieldErrors.confirmPassword) {
+      setFieldErrors((current) => ({
+        ...current,
+        confirmPassword: form.confirmPassword === nextValue ? '' : 'These two passwords do not match.',
+      }));
     }
   }
 
@@ -92,7 +106,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    const required = ['firstName', 'lastName', 'email', 'password'];
+    const required = ['firstName', 'lastName', 'email', 'password', 'confirmPassword'];
     const errors = {};
     required.forEach((name) => {
       errors[name] = validateField(name, form[name]);
@@ -123,12 +137,23 @@ export default function RegisterPage() {
 
     try {
       const result = await registerUser(payload);
-      setPendingVerification({ ...payload, otpType: result.otpType });
-      setVerificationNotice(`${result.message} Enter the code sent to ${payload.email}.`);
+
+      if (result.requiresVerification) {
+        setConfirmEmailNotice(result.message);
+        return;
+      }
+
+      // Owners get the walkthrough, then the vehicle form it leads to —
+      // seeing what a record is for before being asked to make one.
+      // `/welcome` forwards anyone who has already been shown it, so this
+      // cannot replay for an account that comes back through signup. Admins
+      // have no vehicle to add and no owner flow to learn.
+      navigate(result.user?.role === 'ADMIN' ? '/dashboard' : '/welcome', { replace: true });
     } catch (err) {
       if (err.code === 'EMAIL_VERIFICATION_REQUIRED') {
-        setPendingVerification(payload);
-        setVerificationNotice(`Enter the verification code sent to ${payload.email}.`);
+        setConfirmEmailNotice(
+          `Check ${payload.email} and click the confirmation link, then sign in.`,
+        );
         return;
       }
       setFormError(err.message);
@@ -137,126 +162,27 @@ export default function RegisterPage() {
     }
   }
 
-  async function handleVerifyAccount(event) {
-    event.preventDefault();
-    const token = otpCode.trim().replace(/\s+/g, '');
-
-    if (!token) {
-      setFormError('Enter the verification code from your email.');
-      return;
-    }
-
-    setVerifying(true);
-    setFormError('');
-
-    try {
-      const user = await verifyRegistrationOtp({ ...pendingVerification, token });
-      // Owners get the walkthrough first and the vehicle form it leads to
-      // second -- seeing what a record is for before being asked to make one.
-      // `/welcome` sends them straight on if they have already been shown it,
-      // so this cannot replay for an account that comes back through signup.
-      // Admins have no vehicle to add and no owner flow to learn, so they
-      // still go straight to the dashboard.
-      navigate(user.role === 'ADMIN' ? '/dashboard' : '/welcome', { replace: true });
-    } catch (err) {
-      setFormError(err.message || 'Unable to verify this code. Please try again.');
-      setVerifying(false);
-    }
-  }
-
-  const asideCard = (
-    <div className="ink-quote-card">
-      <p className="ink-quote-card__eyebrow">Why owners keep one</p>
-      <p className="ink-quote-card__quote">
-        A complete, validated history is the difference between haggling and naming your price.
-      </p>
-    </div>
-  );
-
-  if (pendingVerification) {
-    return (
-      <InkAuthShell hero={HERO} lead={LEAD} variant="signup" aside={asideCard}>
-        <div className="ink-heading">
-          <h1>Check your email</h1>
-          <p>Enter the code we sent so we can finish setting up your account.</p>
-        </div>
-
-        {verificationNotice && <p className="ink-notice">{verificationNotice}</p>}
-
-        <form className="ink-form ink-form--signup" onSubmit={handleVerifyAccount} noValidate>
-          <InkField
-            label="Verification code"
-            name="otpCode"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={otpCode}
-            onChange={(event) => {
-              setOtpCode(event.target.value);
-              setFormError('');
-            }}
-          />
-
-          <p className="ink-form-error" role="alert" aria-live="polite">
-            {formError}
-          </p>
-
-          <button
-            type="submit"
-            className={`ink-button ink-button--primary ${verifying ? 'ink-button--loading' : ''}`.trim()}
-            disabled={verifying}
-          >
-            {verifying ? 'Verifying…' : 'Verify account'}
-          </button>
-        </form>
-
-        <div className="ink-spacer" />
-
-        <p className="ink-footer-note">
-          Wrong address?{' '}
-          <button
-            type="button"
-            className="ink-link ink-link-button"
-            onClick={() => {
-              setPendingVerification(null);
-              setVerificationNotice('');
-              setOtpCode('');
-              setFormError('');
-            }}
-          >
-            Use a different email
-          </button>
-        </p>
-      </InkAuthShell>
-    );
-  }
-
   return (
-    <InkAuthShell hero={HERO} lead={LEAD} variant="signup" aside={asideCard}>
+    <InkAuthShell hero={HERO} lead={LEAD} variant="signup">
       <div className="ink-auth__mobile-top-row">
         <Link className="ink-back-button" to="/login" aria-label="Back to sign in">
           ←
         </Link>
-        <div className="ink-progress ink-progress--fluid">
-          <div className="ink-progress__bars">
-            <span className="ink-progress__bar" data-active="true" />
-            <span className="ink-progress__bar" />
-          </div>
-          <span className="ink-progress__label">1 of 2</span>
-        </div>
       </div>
 
+      {/* One step, so no step meter: a progress bar reading "1 of 1" is
+          noise, and the vehicle form it used to count towards is out of the
+          flow for now. */}
       <div className="ink-heading ink-heading--signup">
         <h1>Create your account</h1>
-        <div className="ink-progress ink-hide-mobile">
-          <div className="ink-progress__bars">
-            <span className="ink-progress__bar" data-active="true" />
-            <span className="ink-progress__bar" />
-          </div>
-          <p className="ink-progress__label">Step 1 of 2 — your details</p>
-        </div>
-        <p className="ink-show-mobile-only">You&apos;ll add your vehicle next.</p>
+        <p>Name, email, a password — that is the whole of it.</p>
       </div>
+
+      {confirmEmailNotice && (
+        <p className="ink-notice" role="status" aria-live="polite">
+          {confirmEmailNotice}
+        </p>
+      )}
 
       <form className="ink-form ink-form--signup" onSubmit={handleSubmit} noValidate>
         <InkGoogleButton loading={googleLoading} disabled={submitting} onClick={handleGoogleSignIn} />
@@ -316,11 +242,28 @@ export default function RegisterPage() {
             error={fieldErrors.password}
           />
           {/* The requirement rides with the meter now, so the field no longer
-              renders it separately — it was appearing twice over otherwise. */}
-          <div className="ink-hide-mobile">
-            <InkStrengthMeter score={strength} hint={PASSWORD_HELP} />
-          </div>
+              renders it separately — it was appearing twice over otherwise.
+              Both stay hidden until there is a password to measure: four empty
+              bars and a rule beside an untouched field is a demand, and it was
+              the first thing on the form that looked like a failure. */}
+          {form.password && (
+            <div className="ink-hide-mobile">
+              <InkStrengthMeter score={strength} hint={PASSWORD_HELP} />
+            </div>
+          )}
         </div>
+
+        <InkPasswordField
+          label="Confirm password"
+          inputRef={fieldRefs.confirmPassword}
+          name="confirmPassword"
+          autoComplete="new-password"
+          value={form.confirmPassword}
+          onChange={updateField}
+          onBlur={handleBlur}
+          error={fieldErrors.confirmPassword}
+          help={fieldErrors.confirmPassword ? undefined : 'Re-type it so we know it is what you meant.'}
+        />
 
         <div className="ink-spacer ink-show-mobile-only" />
 
@@ -354,7 +297,7 @@ export default function RegisterPage() {
           className={`ink-button ink-button--primary ${submitting ? 'ink-button--loading' : ''}`.trim()}
           disabled={submitting}
         >
-          {submitting ? 'Creating account…' : 'Continue'}
+          {submitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>
 

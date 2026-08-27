@@ -1,449 +1,504 @@
 /* ----------------------------------------------------------------------
-   The onboarding walkthrough, shown once between signup and the first
-   vehicle.
+   The onboarding walkthrough — green brand.
 
-   Translated from a Claude Design mockup. The mockup's palette was hardcoded
-   hex (#F5F2EC paper, #1A1A18 ink, #6F6558 / #8A8172 / #9A9284 greys, #D6D0C4
-   rules) and every one of those has an existing token, so none of them appear
-   below. Its type stack was Source Serif 4 / DM Sans / IBM Plex Mono: the
-   serif is already ours, and the other two are not -- this uses --font-sans
-   (Public Sans) and --font-mono (JetBrains Mono) so the page reads as the same
-   product as the screens it is previewing.
+   Rewritten in place rather than overridden by a second sheet. This file has
+   exactly one consumer (pages/WelcomePage.jsx) and every selector in it is
+   `wt-`-prefixed, so there is no shared surface to protect and a second sheet
+   fighting this one would be worse than replacing it.
+
+   What changed from the Ink version: the palette (paper/ink -> white/green),
+   the type (Source Serif -> Bricolage Grotesque, via `--font-serif`, which the
+   brand layer repoints), pill buttons, softer radii — and motion, which it had
+   none of. Every step now enters; see the `wt-in` keyframes at the foot.
+
+   Colour is taken from tokens, never hard-coded, so the next palette move is
+   again a one-file change.
    ---------------------------------------------------------------------- */
 
 .wt-page {
-  min-height: 100vh;
+  --wt-max: 1080px;
+  --wt-gutter: clamp(20px, 4vw, 40px);
+  background: var(--brand-wash);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  padding: 28px 24px 32px;
-  background: var(--paper);
-  color: var(--ink);
   font-family: var(--font-sans);
+  gap: clamp(20px, 3vw, 32px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: clamp(20px, 3vw, 32px) var(--wt-gutter) clamp(20px, 3vw, 28px);
 }
 
-/* --- Masthead: wordmark, and the quiet way out ------------------------ */
+.wt-page *,
+.wt-page *::before,
+.wt-page *::after {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------- masthead */
 
 .wt-masthead {
-  display: flex;
   align-items: center;
+  display: flex;
   justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-  max-width: 1080px;
   margin: 0 auto;
+  max-width: var(--wt-max);
+  width: 100%;
 }
 
 .wt-skip {
-  padding: 4px 2px;
   background: none;
   border: 0;
-  font-family: var(--font-sans);
-  font-size: 13px;
   color: var(--ink-faint);
-  text-decoration: underline;
-  text-underline-offset: 3px;
   cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 0;
+  padding: 8px 4px;
 }
 
-.wt-skip:hover {
-  color: var(--ink);
+/* The bare `button` rules in ink-app.css set an ink background on hover and
+   press and outscore a single class. Skip is a text link that happens to be a
+   button, so it states all three states itself. */
+.wt-page .wt-skip:hover,
+.wt-page .wt-skip:active,
+.wt-page .wt-skip:focus {
+  background: none;
+  color: var(--brand);
 }
 
-.wt-skip:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+.wt-page .wt-skip:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
-/* --- The step itself --------------------------------------------------- */
+/* ---------------------------------------------------------------- stage */
 
 .wt-stage {
+  animation: wt-in 420ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+  display: flex;
   flex: 1;
-  width: 100%;
-  max-width: 1080px;
+  flex-direction: column;
+  gap: 14px;
   margin: 0 auto;
+  max-width: var(--wt-max);
+  width: 100%;
 }
 
 .wt-eyebrow {
-  margin: 0 0 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: 0;
   text-transform: uppercase;
-  color: var(--ink-faint);
 }
 
 .wt-title {
-  margin: 0 0 14px;
-  max-width: 22ch;
   font-family: var(--font-serif);
-  font-size: clamp(30px, 4.4vw, 46px);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  font-size: clamp(30px, 4.6vw, 46px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+  max-width: 20ch;
+  text-wrap: balance;
 }
 
 .wt-body {
-  margin: 0 0 30px;
-  max-width: 58ch;
-  font-size: 16px;
-  line-height: 1.6;
   color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 62ch;
+  text-wrap: pretty;
 }
 
-/* --- The frame every mockup sits in ------------------------------------ --
-   The tag is not decoration. This page is shown to somebody who has never
-   seen the app and has no records of their own; the one reading that must be
-   impossible is "these are mine". */
-
+/* The preview frame carries its own label. Nothing inside it is the owner's
+   data and the frame is what says so — do not remove the tag to tidy it up. */
 .wt-frame {
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  border-radius: 24px;
+  margin: 8px 0 0;
+  padding: 40px 22px 22px;
   position: relative;
-  margin: 0;
-  padding: 38px 24px 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
 }
 
 .wt-frame__tag {
+  background: var(--brand-tint);
+  border-radius: 100px;
+  color: var(--brand-hover);
+  font-size: 12px;
+  font-weight: 600;
+  left: 22px;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
   position: absolute;
-  top: 12px;
-  left: 16px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  top: 14px;
 }
 
-/* --- 01 Capture -------------------------------------------------------- */
+.wt-cta {
+  display: flex;
+  padding-top: 6px;
+}
+
+.wt-page .wt-cta .ink-button {
+  width: auto;
+}
+
+/* ------------------------------------------------------------- previews */
+
+.wt-preview {
+  display: flex;
+  gap: 16px;
+}
 
 .wt-preview--capture {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr);
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .wt-shot {
+  background: linear-gradient(140deg, var(--brand-tint), var(--brand-wash));
+  border-radius: 18px;
   display: flex;
+  flex: 0 0 220px;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  justify-content: flex-end;
   min-height: 168px;
-  padding: 16px;
-  background: var(--sunken);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
+  padding: 18px;
+  position: relative;
+}
+
+/* The scan sweep, borrowed from the landing hero so the two pages read as one
+   product. Purely decorative and inert. */
+.wt-shot::after {
+  animation: tv-scan 4.6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  background: linear-gradient(180deg, rgba(14, 122, 82, 0) 0%, rgba(14, 122, 82, 0.14) 70%, rgba(14, 122, 82, 0) 100%);
+  border-bottom: 2px solid rgba(14, 122, 82, 0.55);
+  content: '';
+  height: 34%;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 .wt-shot__tag {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
+  color: var(--brand-hover);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ink-faint);
 }
 
 .wt-shot__name {
-  margin-top: auto;
-  font-size: 14px;
-  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .wt-shot__meta {
-  font-size: 12.5px;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
+  font-size: 14px;
 }
 
 .wt-arrow {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
   color: var(--ink-faint);
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .wt-arrow__label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .wt-arrow__glyph {
-  font-size: 20px;
-  color: var(--ink);
+  animation: wt-nudge 2.4s ease-in-out infinite;
+  color: var(--brand);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .wt-filled {
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  background: var(--brand-wash);
+  border-radius: 18px;
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 18px 20px;
 }
 
 .wt-filled__head {
-  margin: 0 0 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--ink);
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .wt-filled dl {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
 }
 
 .wt-filled dl > div {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--rule-faint, var(--rule));
-}
-
-.wt-filled dl > div:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
+  justify-content: space-between;
 }
 
 .wt-filled dt {
-  font-size: 12.5px;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
+  font-size: 15px;
 }
 
 .wt-filled dd {
+  font-size: 15px;
+  font-weight: 600;
   margin: 0;
-  font-size: 13.5px;
   text-align: right;
-  color: var(--ink);
 }
+
+/* Each row fades in a beat after the one above it, so the preview reads as
+   the fields being filled rather than as a table that was always there. */
+.wt-filled dl > div {
+  animation: wt-in 380ms ease-out both;
+}
+
+.wt-filled dl > div:nth-child(1) { animation-delay: 220ms; }
+.wt-filled dl > div:nth-child(2) { animation-delay: 320ms; }
+.wt-filled dl > div:nth-child(3) { animation-delay: 420ms; }
+.wt-filled dl > div:nth-child(4) { animation-delay: 520ms; }
 
 .wt-methods {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 20px 0 0;
-  padding: 0;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
 }
 
 .wt-methods li {
-  display: flex;
   align-items: center;
+  background: var(--brand-wash);
+  border-radius: 16px;
+  display: flex;
   gap: 10px;
-  padding: 12px 14px;
-  background: var(--sunken);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  padding: 14px 16px;
 }
 
 .wt-methods__num {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-faint);
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .wt-methods__name {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--ink);
 }
 
 .wt-methods__badge {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--ink);
-  font-size: 10px;
+  background: var(--brand);
+  border-radius: 100px;
+  color: #ffffff;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--on-ink);
-  white-space: nowrap;
+  margin-left: auto;
+  padding: 4px 10px;
 }
 
-/* --- The inner "screen" the review and history previews sit in --------- */
+/* --------------------------------------------------- screen-shaped previews */
+
+.wt-preview--review,
+.wt-preview--history {
+  display: block;
+}
 
 .wt-screen {
-  padding: 16px 18px 18px;
-  background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .wt-screen__head {
+  align-items: center;
+  background: var(--brand-wash);
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--rule);
+  justify-content: space-between;
+  padding: 14px 18px;
 }
 
 .wt-screen__title {
-  font-family: var(--font-serif);
-  font-size: 17px;
-  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .wt-screen__step {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--ink-faint);
+  font-size: 14px;
 }
 
 .wt-screen__foot {
-  margin: 12px 0 0;
-  font-size: 12.5px;
+  border-top: 1px solid var(--rule-hairline);
   color: var(--ink-muted);
+  font-size: 14px;
+  margin: 0;
+  padding: 14px 18px;
 }
 
 .wt-fields,
 .wt-records {
-  width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
+  width: 100%;
 }
 
 .wt-fields th,
 .wt-records th {
-  padding: 10px 8px;
-  text-align: left;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--ink-faint);
-  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 12px 18px;
+  text-align: left;
+  text-transform: uppercase;
 }
 
 .wt-fields td,
 .wt-records td {
-  padding: 11px 8px;
+  border-top: 1px solid var(--rule-hairline);
+  padding: 12px 18px;
   vertical-align: top;
-  color: var(--ink);
-  border-bottom: 1px solid var(--rule-faint, var(--rule));
 }
 
-.wt-fields tr:last-child td,
-.wt-records tr:last-child td {
-  border-bottom: 0;
+/* Rows arrive one after another, top to bottom. Capped at six because past
+   that the last row lands late enough to feel like a stall. */
+.wt-fields tbody tr,
+.wt-records tbody tr {
+  animation: wt-in 360ms ease-out both;
 }
+
+.wt-fields tbody tr:nth-child(1),
+.wt-records tbody tr:nth-child(1) { animation-delay: 180ms; }
+.wt-fields tbody tr:nth-child(2),
+.wt-records tbody tr:nth-child(2) { animation-delay: 250ms; }
+.wt-fields tbody tr:nth-child(3),
+.wt-records tbody tr:nth-child(3) { animation-delay: 320ms; }
+.wt-fields tbody tr:nth-child(4) { animation-delay: 390ms; }
+.wt-fields tbody tr:nth-child(5) { animation-delay: 460ms; }
 
 .wt-fields__empty {
   color: var(--ink-faint);
 }
 
-/* Flags carry the product's own wording, so they get the product's own status
-   colours -- amber for "look at this", never a fifth meaning for colour. */
 .wt-flag {
+  border-radius: 100px;
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
+  padding: 4px 11px;
   white-space: nowrap;
 }
 
 .wt-flag--ok {
   background: var(--status-ok-bg);
-  border: 1px solid var(--status-ok-border);
   color: var(--status-ok-text);
 }
 
 .wt-flag--warn {
   background: var(--status-warn-bg);
-  border: 1px solid var(--status-warn-border);
   color: var(--status-warn-text);
 }
 
 .wt-flag--quiet {
-  background: var(--sunken);
-  border: 1px solid var(--rule);
+  background: var(--surface-sunken);
   color: var(--ink-muted);
 }
 
-/* --- 03 History -------------------------------------------------------- */
-
 .wt-toolbar {
-  display: flex;
   align-items: center;
+  background: var(--brand-wash);
+  display: flex;
   gap: 12px;
-  margin-bottom: 14px;
+  justify-content: space-between;
+  padding: 12px 18px;
 }
 
 .wt-search {
-  flex: 1;
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  background: var(--surface);
+  background: #ffffff;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 13px;
+  border-radius: 100px;
   color: var(--ink-faint);
+  flex: 1 1 auto;
+  font-size: 14px;
+  max-width: 380px;
+  padding: 9px 16px;
 }
 
 .wt-count {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-faint);
-  white-space: nowrap;
+  color: var(--ink-muted);
+  font-size: 14px;
 }
 
 .wt-records__date {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
   white-space: nowrap;
 }
 
-.wt-records__what {
+.wt-records__what,
+.wt-records__where {
   display: block;
-  color: var(--ink);
+}
+
+.wt-records__what {
+  font-weight: 600;
 }
 
 .wt-records__where {
-  display: block;
-  margin-top: 3px;
-  font-size: 12px;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
+  font-size: 14px;
 }
 
-/* --- 04 Share ---------------------------------------------------------- */
+/* ------------------------------------------------------------- share step */
 
 .wt-share-top {
-  display: flex;
   align-items: stretch;
-  gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .wt-qr {
-  display: grid;
-  grid-template-columns: repeat(6, 15px);
-  grid-auto-rows: 15px;
-  gap: 3px;
-  padding: 12px;
-  background: var(--surface);
+  background: #ffffff;
   border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  align-content: center;
-  flex-shrink: 0;
+  border-radius: 18px;
+  display: grid;
+  flex: 0 0 auto;
+  gap: 3px;
+  grid-template-columns: repeat(6, 16px);
+  padding: 16px;
 }
 
 .wt-qr span {
-  background: var(--sunken);
-  border-radius: 2px;
+  background: var(--surface-sunken);
+  border-radius: 3px;
+  height: 16px;
 }
 
 .wt-qr span.is-on {
@@ -451,168 +506,160 @@
 }
 
 .wt-request {
-  flex: 1;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
+  background: var(--brand-tint);
+  border-radius: 18px;
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 18px 20px;
 }
 
 .wt-request__eyebrow {
+  color: var(--brand-hover);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   margin: 0 0 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-faint);
 }
 
 .wt-request__who {
+  font-size: 18px;
+  font-weight: 600;
   margin: 0 0 4px;
-  font-family: var(--font-serif);
-  font-size: 16px;
-  color: var(--ink);
 }
 
 .wt-request__what {
-  margin: 0 0 12px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink-muted);
+  color: #3b4a43;
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 14px;
 }
 
 .wt-request__actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* Spans, not buttons: this is a picture of a decision, not the decision. */
 .wt-request__approve,
 .wt-request__decline {
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  font-size: 12.5px;
+  border-radius: 100px;
+  font-size: 14px;
   font-weight: 600;
+  padding: 9px 20px;
 }
 
 .wt-request__approve {
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--brand);
+  color: #ffffff;
 }
 
 .wt-request__decline {
-  border: 1px solid var(--border);
+  background: #ffffff;
   color: var(--ink-muted);
 }
 
 .wt-stages {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin: 18px 0 0;
-  padding: 0;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
 }
 
 .wt-stages li {
+  background: var(--brand-wash);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding-top: 12px;
-  border-top: 2px solid var(--ink);
+  gap: 3px;
+  padding: 16px 18px;
 }
 
 .wt-stages__num {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  color: var(--ink-faint);
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 .wt-stages__title {
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--ink);
 }
 
 .wt-stages__body {
-  font-size: 12.5px;
-  line-height: 1.45;
   color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-/* --- The closing call to action ---------------------------------------- */
-
-.wt-cta {
-  margin-top: 26px;
-}
-
-/* --- Footer: back, stepper, next --------------------------------------- */
+/* ------------------------------------------------------------------ foot */
 
 .wt-foot {
+  align-items: center;
   display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  width: 100%;
-  max-width: 1080px;
+  gap: clamp(16px, 3vw, 32px);
+  justify-content: space-between;
   margin: 0 auto;
-  padding-top: 20px;
-  border-top: 1px solid var(--rule);
+  max-width: var(--wt-max);
+  width: 100%;
 }
 
-.wt-foot__back,
-.wt-foot__next {
-  min-height: 40px;
-  padding: 0 18px;
-  border-radius: var(--radius);
+.wt-page .wt-foot__back,
+.wt-page .wt-foot__next {
+  border-radius: 100px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
+  height: 46px;
+  min-height: 0;
+  padding: 0 24px;
 }
 
-.wt-foot__back {
-  background: transparent;
+.wt-page .wt-foot__back {
+  background: #ffffff;
   border: 1px solid var(--border);
-  color: var(--ink-muted);
-}
-
-.wt-foot__back:hover:not(:disabled) {
   color: var(--ink);
-  border-color: var(--ink-faint);
 }
 
-.wt-foot__back:disabled {
-  opacity: 0.4;
+.wt-page .wt-foot__back:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.wt-page .wt-foot__back:disabled {
+  color: var(--ink-faint);
   cursor: not-allowed;
+  opacity: 0.55;
 }
 
-.wt-foot__next {
-  background: var(--ink);
-  border: 1px solid var(--ink);
-  color: var(--on-ink);
+.wt-page .wt-foot__next {
+  background: var(--brand);
+  border: 0;
+  color: #ffffff;
 }
 
-.wt-foot__next:hover {
-  background: var(--ink-hover);
-  border-color: var(--ink-hover);
+.wt-page .wt-foot__next:hover:not(:disabled) {
+  background: var(--brand-hover);
 }
 
-.wt-foot__back:focus-visible,
-.wt-foot__next:focus-visible,
-.wt-stepper__dot:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+.wt-page .wt-foot__next:active:not(:disabled) {
+  background: var(--brand-hover);
+  transform: translateY(1px);
 }
 
+/* The stepper is the progress bar: one segment per position, filling as you
+   go. Labels are hidden on narrow screens, where six of them do not fit — the
+   segment and `aria-current` still carry the state. */
 .wt-stepper {
   display: flex;
   flex: 1;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
+  gap: 8px;
   list-style: none;
+  margin: 0;
+  max-width: 560px;
+  padding: 0;
 }
 
 .wt-stepper li {
@@ -620,62 +667,151 @@
   min-width: 0;
 }
 
-.wt-stepper__dot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  padding: 0;
+.wt-page .wt-stepper__dot {
   background: none;
   border: 0;
-  text-align: left;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 6px 0;
+  width: 100%;
+}
+
+.wt-page .wt-stepper__dot:hover,
+.wt-page .wt-stepper__dot:active,
+.wt-page .wt-stepper__dot:focus {
+  background: none;
+}
+
+.wt-page .wt-stepper__dot:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .wt-stepper__bar {
-  display: block;
-  height: 2px;
-  width: 100%;
   background: var(--rule);
+  border-radius: 100px;
+  display: block;
+  height: 5px;
+  transition: background-color 260ms ease, transform 260ms ease;
+  width: 100%;
 }
 
 .wt-stepper__dot.is-done .wt-stepper__bar {
-  background: var(--ink-faint);
+  background: var(--brand-glow-b);
 }
 
 .wt-stepper__dot.is-active .wt-stepper__bar {
-  background: var(--ink);
+  background: var(--brand);
+  transform: scaleY(1.4);
 }
 
 .wt-stepper__label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--ink-faint);
+  font-size: 13px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wt-stepper__dot.is-active .wt-stepper__label {
   color: var(--ink);
+  font-weight: 600;
 }
 
-/* --- Phone: the mockup's 390 frame ------------------------------------- */
+.ink-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- narrow view */
 
 @media (max-width: 860px) {
-  .wt-page { padding: 20px 16px 24px; gap: 24px; }
-  .wt-preview--capture { grid-template-columns: minmax(0, 1fr); }
-  .wt-arrow { flex-direction: row; gap: 8px; }
-  .wt-arrow__glyph { transform: rotate(90deg); }
-  .wt-methods { grid-template-columns: minmax(0, 1fr); }
-  .wt-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .wt-share-top { flex-direction: column; }
-  .wt-qr { align-self: flex-start; }
-  .wt-fields thead,
-  .wt-records thead { display: none; }
-  .wt-fields td,
-  .wt-records td { display: block; padding: 4px 0; border-bottom: 0; }
-  .wt-fields tr,
-  .wt-records tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--rule-faint, var(--rule)); }
-  .wt-stepper__label { display: none; }
-  .wt-foot { gap: 12px; align-items: center; }
+  .wt-stages,
+  .wt-methods {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wt-stepper__label {
+    display: none;
+  }
+
+  /* Both tables carry more columns than a phone can hold. They scroll inside
+     their own screen rather than the page scrolling sideways. */
+  .wt-screen {
+    overflow-x: auto;
+  }
+
+  .wt-fields,
+  .wt-records {
+    min-width: 520px;
+  }
+}
+
+@media (max-width: 600px) {
+  .wt-foot {
+    flex-wrap: wrap;
+  }
+
+  .wt-stepper {
+    order: -1;
+    max-width: none;
+    width: 100%;
+  }
+
+  .wt-page .wt-foot__back,
+  .wt-page .wt-foot__next {
+    flex: 1;
+  }
+
+  .wt-preview--capture {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wt-arrow {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .wt-arrow__glyph {
+    transform: rotate(90deg);
+  }
+}
+
+/* ---------------------------------------------------------------- motion */
+
+@keyframes wt-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes wt-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-stage,
+  .wt-filled dl > div,
+  .wt-fields tbody tr,
+  .wt-records tbody tr,
+  .wt-arrow__glyph,
+  .wt-shot::after {
+    animation: none;
+  }
+
+  .wt-stepper__bar {
+    transition: none;
+  }
 }

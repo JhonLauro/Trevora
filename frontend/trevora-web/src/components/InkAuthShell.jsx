@@ -1,5 +1,17 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import InkLockup from './InkLockup.jsx';
+
+/* The lockup is the way back out of the auth screens. Someone who lands on
+   /login from a shared link and wants to know what Trevora is has no other
+   exit — every other control on the page commits them to an account. */
+function HomeLockup({ tone }) {
+  return (
+    <Link className="ink-lockup-link" to="/" aria-label="Trevora, back to the home page">
+      <InkLockup tone={tone} />
+    </Link>
+  );
+}
 
 /**
  * `mobileTitle` switches the <768px layout: when present the screen gets the
@@ -15,7 +27,7 @@ export default function InkAuthShell({ hero, lead, aside, mobileTitle, variant =
   return (
     <div className={`ink-auth ink-auth--${variant} ${isSheet ? 'ink-auth--sheet' : 'ink-auth--paper'}`}>
       <aside className="ink-panel">
-        <InkLockup />
+        <HomeLockup />
         <div className="ink-panel__body">
           <h1 className="ink-panel__hero">{hero}</h1>
           <p className="ink-panel__lead">{lead}</p>
@@ -26,12 +38,12 @@ export default function InkAuthShell({ hero, lead, aside, mobileTitle, variant =
 
       <div className="ink-auth__main">
         <div className="ink-auth__tablet-brand">
-          <InkLockup tone="dark" />
+          <HomeLockup tone="dark" />
         </div>
 
         {isSheet && (
           <header className="ink-auth__mobile-header">
-            <InkLockup />
+            <HomeLockup />
             <p className="ink-auth__mobile-title">{mobileTitle}</p>
           </header>
         )}

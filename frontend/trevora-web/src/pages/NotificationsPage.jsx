@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Bell, Clock, FileText, UserRoundCheck } from 'lucide-react';
 import { getActiveCurrentUser } from '../api/currentUser.js';
 import { LOCAL_NOTIFICATIONS_CHANGED_EVENT, getLocalNotifications } from '../api/localNotifications.js';
 import {
@@ -10,6 +11,17 @@ import {
   getNotificationPreferences,
 } from '../api/notificationPreferences.js';
 import { getMechanicAccessRequests, getOwnerMechanicAccessSessions } from '../api/qrAccess';
+
+/* The glyph is chosen from the category at render time rather than stored on
+   the notification. The builders used to carry a literal character each —
+   '!', '⏱' and '•' — which meant an exclamation mark in a circle standing in
+   for "somebody wants to read your service history", and a bullet standing in
+   for anything else. */
+const CATEGORY_ICONS = {
+  [NOTIFICATION_CATEGORIES.MECHANIC_REQUEST]: UserRoundCheck,
+  [NOTIFICATION_CATEGORIES.TEMPORARY_EXPIRED]: Clock,
+  [NOTIFICATION_CATEGORIES.DRAFT_REVIEW]: FileText,
+};
 
 function notificationStorageKey(userId) {
   return `trevora.readNotifications.${userId || 'anonymous'}`;
@@ -202,61 +214,95 @@ export default function NotificationsPage() {
   }
 
   return (
-    <main className="page-shell notifications-page">
-      <section className="notifications-header">
+    <main className="ink-page notif">
+      <header className="notif__head">
         <div>
-          <h1>Notifications</h1>
-          <p>{loading ? 'Loading notifications...' : `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`}</p>
+          <h1 className="notif__title">Notifications</h1>
+          <p className="notif__summary">
+            {loading
+              ? 'Loading…'
+              : `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`}
+          </p>
         </div>
-        <button className="button-link-secondary" type="button" onClick={markAllRead} disabled={unreadCount === 0}>
+        <button
+          className="notif__markread"
+          type="button"
+          onClick={markAllRead}
+          disabled={unreadCount === 0}
+        >
           Mark all read
         </button>
-      </section>
+      </header>
 
-      {error && <div className="alert">{error}</div>}
+      {error && <p className="notif__alert" role="alert">{error}</p>}
 
-      <div className="notification-tabs">
-        <button className={filter === 'all' ? 'active' : ''} type="button" onClick={() => setFilter('all')}>
+      {/* Same segmented pill as the vehicle page's view switcher, so a
+          two-way filter looks like a two-way filter wherever it appears. */}
+      <div className="ink-segmented notif__tabs" role="group" aria-label="Filter notifications">
+        <button
+          className={filter === 'all' ? 'is-active' : undefined}
+          type="button"
+          aria-pressed={filter === 'all'}
+          onClick={() => setFilter('all')}
+        >
           All ({notifications.length})
         </button>
-        <button className={filter === 'unread' ? 'active' : ''} type="button" onClick={() => setFilter('unread')}>
+        <button
+          className={filter === 'unread' ? 'is-active' : undefined}
+          type="button"
+          aria-pressed={filter === 'unread'}
+          onClick={() => setFilter('unread')}
+        >
           Unread ({unreadCount})
         </button>
       </div>
 
-      <section className="notification-page-list">
-        {loading ? (
-          <section className="notification-empty-state">
-            <h2>Loading notifications...</h2>
-          </section>
-        ) : shown.length === 0 ? (
-          <section className="notification-empty-state">
-            <h2>{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</h2>
-            <p>Mechanic access requests for your vehicles will appear here.</p>
-          </section>
-        ) : (
-          shown.map((notification) => (
-            <article className={notification.unread ? 'notification-page-card unread' : 'notification-page-card'} key={notification.id}>
-              <span className={`notification-icon ${notification.tone}`}>{notification.icon}</span>
-              <div>
-                <div className="notification-title-row">
-                  <h2>
-                    {notification.title}
-                    {notification.unread && <span className="unread-dot" />}
-                  </h2>
-                  <small>{notification.time}</small>
+      {loading ? (
+        <section className="notif__empty">
+          <h2 className="notif__empty-title">Loading…</h2>
+        </section>
+      ) : shown.length === 0 ? (
+        <section className="notif__empty">
+          <h2 className="notif__empty-title">
+            {filter === 'unread' ? 'Nothing unread' : 'Nothing yet'}
+          </h2>
+          <p className="notif__empty-body">
+            Mechanic access requests for your vehicles arrive here.
+          </p>
+        </section>
+      ) : (
+        <ul className="notif__list">
+          {shown.map((notification) => {
+            const Icon = CATEGORY_ICONS[notification.category] ?? Bell;
+            return (
+              <li
+                className={`notif__item${notification.unread ? ' is-unread' : ''}`}
+                key={notification.id}
+              >
+                <span className="notif__icon" aria-hidden="true">
+                  <Icon size={18} strokeWidth={1.9} />
+                </span>
+                <div className="notif__body">
+                  <div className="notif__row">
+                    <h2 className="notif__item-title">{notification.title}</h2>
+                    {/* The word, not only the tint. Unread is a state, and
+                        this product's rule is that a state carries its own
+                        word rather than relying on a colour. */}
+                    {notification.unread && <span className="notif__new">New</span>}
+                    <span className="notif__time">{notification.time}</span>
+                  </div>
+                  <p className="notif__text">{notification.body}</p>
+                  {notification.action && (
+                    <Link className="notif__action" to={notification.href}>
+                      {notification.action}
+                    </Link>
+                  )}
                 </div>
-                <p>{notification.body}</p>
-                {notification.action && (
-                  <Link className="inline-link" to={notification.href}>
-                    {notification.action}
-                  </Link>
-                )}
-              </div>
-            </article>
-          ))
-        )}
-      </section>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </main>
   );
 }

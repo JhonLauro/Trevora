@@ -339,7 +339,7 @@ export default function GaragePage() {
   const hasRecords = allRecords.length > 0;
 
   return (
-    <main className="ink-page">
+    <main className="ink-page garage-page">
       <header className="ink-page__header">
         <div>
           <h1 className="ink-page__title">{greetingFor(new Date().getHours())}, {firstName}</h1>
@@ -358,8 +358,8 @@ export default function GaragePage() {
         <section className="ink-empty">
           <h2 className="ink-empty__title">Add your first vehicle</h2>
           <p className="ink-empty__body">
-            Everything in Trevora hangs off a vehicle &mdash; records, reminders and what you share
-            with a mechanic. Start with the car you drive most.
+            Everything in Trevora hangs off a vehicle &mdash; its records, its history and what you
+            share with a mechanic. Start with the car you drive most.
           </p>
           <div className="ink-empty__actions">
             <Link className="ink-button" to="/vehicles/new">Add a vehicle</Link>

@@ -1,0 +1,236 @@
+/* ----------------------------------------------------------------------
+   Notifications.
+
+   The second of the two pages still wearing the pre-Ink classes from
+   styles.css — `page-shell notifications-page`, `notification-page-card`,
+   `notification-tabs`, `button-link-secondary`. Like the mechanic request
+   page there was no Ink sheet to re-skin, so it is rewritten here under a
+   `.notif-` prefix. The legacy rules are left where they are.
+
+   The filter reuses `.ink-segmented` from ink-vehicle.css rather than
+   inventing a second two-way switch. That control is a pill of segments in
+   the brand (see brand-app.css), and a filter that looks like the view
+   switcher on the vehicle page is one fewer thing to learn.
+   ---------------------------------------------------------------------- */
+
+.notif {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ----------------------------------------------------------------- head */
+
+.notif__head {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.notif__title {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 4vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.notif__summary {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 6px 0 0;
+}
+
+/* A text button, not a filled one. Marking everything read is a tidying
+   action — it should not compete with the request each row links to. */
+.notif .notif__markread {
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--brand);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 0;
+  padding: 8px 4px;
+}
+
+.notif .notif__markread:hover:not(:disabled),
+.notif .notif__markread:active:not(:disabled) {
+  background: none;
+  color: var(--brand-hover);
+}
+
+.notif .notif__markread:disabled {
+  background: none;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.notif .notif__markread:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.notif__alert {
+  background: var(--status-bad-bg);
+  border-radius: 18px;
+  color: var(--status-bad-text);
+  font-size: 15px;
+  margin: 0;
+  padding: 14px 18px;
+}
+
+.notif__tabs {
+  align-self: flex-start;
+}
+
+/* ----------------------------------------------------------------- list */
+
+.notif__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notif__item {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+/* Unread is the tint plus the word — see the "New" pill in the markup. The
+   two together are the product's standing rule: a state is never colour
+   alone. Removing the pill to tidy the row breaks the rule the tint relies
+   on; removing the tint just makes the list harder to scan. */
+.notif__item.is-unread {
+  background: var(--brand-wash);
+  border-color: #dcebe3;
+}
+
+.notif__icon {
+  align-items: center;
+  background: var(--surface-sunken);
+  border-radius: 12px;
+  color: var(--ink-muted);
+  display: flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.notif__item.is-unread .notif__icon {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+}
+
+.notif__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.notif__row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.notif__item-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.notif__new {
+  background: var(--brand);
+  border-radius: 100px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+}
+
+/* Pushed to the end of the row rather than given a column of its own: the
+   title is variable length and a fixed timestamp column left a gap on every
+   short one. */
+.notif__time {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.notif__text {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.notif__action {
+  align-self: flex-start;
+  color: var(--brand);
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 6px;
+  text-decoration: none;
+}
+
+.notif__action:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ---------------------------------------------------------------- empty */
+
+.notif__empty {
+  background: var(--brand-wash);
+  border-radius: var(--radius-card);
+  padding: 40px 28px;
+  text-align: center;
+}
+
+.notif__empty-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.notif__empty-body {
+  color: var(--ink-muted);
+  font-size: 16px;
+  margin: 8px 0 0;
+}
+
+/* --------------------------------------------------------- narrow view */
+
+@media (max-width: 600px) {
+  .notif__item {
+    padding: 16px;
+  }
+
+  /* The timestamp drops under the title rather than being pushed off the
+     end of a 375px row. */
+  .notif__time {
+    margin-left: 0;
+    width: 100%;
+  }
+}

@@ -121,10 +121,19 @@ function ReviewPreview() {
 }
 
 function HistoryPreview() {
+  /* Columns match RecordsTable: date, service, odometer, cost, status.
+     The status is "Needs review", not "Validated", and that is not a
+     pessimistic mockup — `utils/recordStatus.js` returns exactly that for
+     any record without a `validationStatus`, and the backend does not expose
+     one on confirmed records yet. This preview shipped with a green
+     "Validated" on all three rows, which is the same false claim migration
+     009 exists to prevent and the same one the record detail page and the
+     mechanic view both had removed. Showing it here taught owners to expect
+     a badge the app will never give them. */
   const records = [
-    ['24 Aug 2026', 'Preventive maintenance', 'Toyota Talisay · 42,190 km', '10,586'],
-    ['7 May 2026', 'Oil change + brake service', 'Toyota Talisay · 38,400 km', '7,850'],
-    ['24 Oct 2025', 'Tyres, front pair', 'Rimtek, Mandaue · Voice note', '4,564'],
+    ['24 Aug 2026', 'Preventive maintenance', 'Toyota Talisay', '42,190 km', '10,586'],
+    ['7 May 2026', 'Oil change + brake service', 'Toyota Talisay', '38,400 km', '7,850'],
+    ['24 Oct 2025', 'Tyres, front pair', 'Rimtek, Mandaue · Voice note', '31,020 km', '4,564'],
   ];
 
   return (
@@ -139,20 +148,22 @@ function HistoryPreview() {
             <tr>
               <th>Date</th>
               <th>Service</th>
+              <th>Odometer</th>
               <th>Cost (PHP)</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {records.map(([date, what, where, cost]) => (
+            {records.map(([date, what, where, odometer, cost]) => (
               <tr key={date}>
                 <td className="wt-records__date">{date}</td>
                 <td>
                   <span className="wt-records__what">{what}</span>
                   <span className="wt-records__where">{where}</span>
                 </td>
+                <td className="ink-mono">{odometer}</td>
                 <td className="ink-mono">{cost}</td>
-                <td><span className="wt-flag wt-flag--ok">Validated</span></td>
+                <td><span className="wt-flag wt-flag--warn">Needs review</span></td>
               </tr>
             ))}
           </tbody>
@@ -238,7 +249,7 @@ const STEPS = [
     label: 'History',
     eyebrow: '03 · History',
     title: 'One vehicle, one story, in order.',
-    body: 'Confirmed records stack up date by date. Search a service, a part, a shop or a note.',
+    body: 'Confirmed records stack up date by date. Search a service, a part, a shop or a note. A record carries its own status — nothing is marked validated on your behalf.',
     preview: <HistoryPreview />,
   },
   {
@@ -322,7 +333,11 @@ export default function WelcomePage() {
         <button className="wt-skip" type="button" onClick={leave}>Skip walkthrough</button>
       </header>
 
-      <section className="wt-stage" aria-live="polite">
+      {/* `key` is the animation. Changing it remounts the stage, so the CSS
+          entry transition on .wt-stage runs again on every step instead of
+          only on first paint — no animation library, and no state to keep in
+          sync with the step index. */}
+      <section className="wt-stage" key={current.id} data-step={current.id} aria-live="polite">
         <p className="wt-eyebrow">{current.eyebrow}</p>
         <h1 className="wt-title">{current.title}</h1>
         <p className="wt-body">{current.body}</p>
@@ -336,7 +351,9 @@ export default function WelcomePage() {
 
         {step === LAST && (
           <div className="wt-cta">
-            <button className="ink-button" type="button" onClick={leave}>Add your first vehicle</button>
+            <button className="ink-button ink-button--primary" type="button" onClick={leave}>
+              Add your first vehicle
+            </button>
           </div>
         )}
       </section>

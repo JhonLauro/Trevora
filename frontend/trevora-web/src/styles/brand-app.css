@@ -1,0 +1,941 @@
+/* ----------------------------------------------------------------------
+   The green brand, inside the app.
+
+   `trevora-brand.css` re-pointed every colour and type token, so the signed-in
+   screens already stopped being cream — but they carried on *reading* as Ink,
+   for a reason that is worth stating plainly: Ink's own rule was "no
+   decorative accent colour, chroma means record status and nothing else", and
+   a palette swap cannot undo a design decision. Not one app stylesheet
+   referenced `--brand`. The green has to be put back in deliberately, one
+   surface at a time, and that is what this file is for.
+
+   It grows a section per surface as each is converted, rather than a new
+   override sheet each time. When the app is fully across, these rules should
+   be folded back into the sheets they override and this file deleted — it is
+   a migration, not a permanent layer.
+
+   Everything here is scoped to a page-level class (`.garage-page` and so on)
+   so converting one screen cannot silently repaint another that has not been
+   looked at yet.
+   ---------------------------------------------------------------------- */
+
+/* =====================================================================
+   Global, and deliberately not scoped: two bugs the brand layer exposed.
+   ===================================================================== */
+
+/* `.ink-button--outline:hover` in ink-garage.css scores (0,2,0). The bare
+   `button:hover:not(:disabled)` in ink-app.css scores (0,2,1) and therefore
+   wins, filling every outline button in the product near-black on hover. It
+   was wrong before the rebrand too; it is just far more visible now that the
+   fill it lands on is a green-black rather than a warm one. */
+.ink-button--outline:hover:not(:disabled),
+.ink-button--outline:active:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: var(--brand);
+  color: var(--ink);
+}
+
+/* Same fall-through, on the carousel's page dots. They are 9px, so the fill
+   showed up as a black speck rather than as a button turning dark. */
+.garage-dots button:hover:not(:disabled),
+.garage-dots button:active:not(:disabled) {
+  background: var(--ink-faint);
+}
+
+/* =====================================================================
+   The app shell — the one thing on every screen.
+
+   The rail was the last piece of pure Ink in the product: a 264px slab of
+   #16211c with square edges, hairline dividers and a 3px left rule for the
+   active row. Nothing wrong with it — it just spoke a different language from
+   the mint panels, 20px cards and pills everywhere else, and that mismatch is
+   what read as clutter.
+
+   It is light now. The one concrete gain beyond consistency: brand green on
+   #16211c fails contrast badly, which is why the active marker had to be a
+   pale tint. On a light rail the accent is finally #0e7a52 itself.
+   ===================================================================== */
+
+.ink-sidebar {
+  background: var(--brand-wash);
+  border-right: 1px solid var(--rule);
+  color: var(--ink);
+  flex-basis: 240px;
+  gap: 6px;
+  padding: 22px 12px 16px;
+  width: 240px;
+}
+
+/* No divider under the wordmark. In this brand space separates things and
+   rules are for tables — the padding below is what makes it read as a
+   header. */
+.ink-sidebar__brand {
+  border-bottom: 0;
+  margin-bottom: 10px;
+  padding: 0 12px 8px;
+}
+
+/* The lockup goes back to its own colours. trevora-brand.css forces it to
+   paper inside the rail, which was right only while the rail was dark. */
+.ink-sidebar .ink-lockup,
+.ink-topbar .ink-lockup,
+.ink-sheet__head .ink-lockup {
+  color: var(--brand);
+}
+
+.ink-sidebar .ink-lockup__wordmark,
+.ink-topbar .ink-lockup__wordmark,
+.ink-sheet__head .ink-lockup__wordmark {
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------------- rows */
+
+.ink-nav {
+  gap: 2px;
+}
+
+/* Three children now, not two: icon, label, optional count. `space-between`
+   was fine for two and pushes the icon away from its label with three, so the
+   row packs from the start and the count is what floats right. */
+.ink-nav__item {
+  border-left: 0;
+  border-radius: 12px;
+  color: var(--ink-muted);
+  gap: 12px;
+  height: 44px;
+  justify-content: flex-start;
+  padding: 0 12px;
+}
+
+.ink-nav__icon {
+  color: var(--ink-faint);
+  flex: 0 0 auto;
+}
+
+.ink-nav__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ink-nav__item:hover {
+  background: #e7efea;
+  color: var(--ink);
+}
+
+/* The active row is a filled pill, the shape this product uses for every
+   selected or actionable thing. `padding-left` is reset because the Ink rule
+   offset the text by 21px to compensate for its 3px left border. */
+.ink-nav__item.is-active {
+  background: var(--brand-tint);
+  border-left: 0;
+  color: var(--brand-hover);
+  font-weight: 600;
+  padding-left: 12px;
+}
+
+.ink-nav__item.is-active .ink-nav__icon {
+  color: var(--brand);
+}
+
+.ink-nav__count {
+  background: var(--brand);
+  color: #ffffff;
+  margin-left: auto;
+}
+
+/* --------------------------------------------------------------- account */
+
+/* Two rows divided by a hairline become one rounded tile — the same move as
+   the nav pill, for the same reason. */
+.ink-sidebar__account {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  border-top: 1px solid var(--rule);
+  overflow: hidden;
+  padding-top: 0;
+}
+
+.ink-account-row {
+  height: 52px;
+  padding: 0 14px;
+}
+
+.ink-account-row__avatar {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+}
+
+.ink-signout-row {
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-muted);
+  font-size: 15px;
+  height: 42px;
+  padding: 0 14px;
+}
+
+.ink-sidebar .ink-signout-row:hover:not(:disabled) {
+  background: var(--brand-wash);
+  color: var(--brand-hover);
+}
+
+/* ------------------------------------------------------ collapsed rail */
+
+/* Icon-only rather than gone. Hiding the nav outright means every navigation
+   costs a click to bring it back, and the icons added above are exactly what
+   makes the narrow state readable — this was not an option before them.
+   The choice is remembered per browser; see RAIL_STORAGE_KEY in AppShell. */
+.ink-sidebar__brand {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.ink-rail-toggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 32px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  width: 32px;
+}
+
+/* The bare `button:hover:not(:disabled)` again — (0,2,1), and it beats a
+   single class. Fourth time. */
+.ink-rail-toggle:hover:not(:disabled),
+.ink-rail-toggle:active:not(:disabled) {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+}
+
+.ink-rail-toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.ink-app[data-rail='collapsed'] .ink-sidebar {
+  flex-basis: 68px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 68px;
+}
+
+/* The wordmark goes, the mark stays. Both are inside one inline-flex lockup,
+   so hiding the word leaves the mark centred without touching the markup. */
+.ink-app[data-rail='collapsed'] .ink-lockup__wordmark {
+  display: none;
+}
+
+.ink-app[data-rail='collapsed'] .ink-sidebar__brand {
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0 8px;
+}
+
+/* Clipped, not removed: it is the row's accessible name. `display:none` here
+   would leave five links a screen reader announces as nothing at all. */
+.ink-app[data-rail='collapsed'] .ink-nav__label {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.ink-app[data-rail='collapsed'] .ink-nav__item {
+  justify-content: center;
+  padding: 0;
+}
+
+.ink-app[data-rail='collapsed'] .ink-nav__item.is-active {
+  padding-left: 0;
+}
+
+/* The count would have nothing to sit beside, so it rides the icon's corner
+   the way an app badge does. */
+.ink-app[data-rail='collapsed'] .ink-nav__count {
+  font-size: 11px;
+  height: 17px;
+  margin: 0;
+  min-width: 17px;
+  position: absolute;
+  right: 6px;
+  top: 5px;
+}
+
+.ink-app[data-rail='collapsed'] .ink-nav__item {
+  position: relative;
+}
+
+/* The account tile keeps the avatar and drops the name and the sign-out row.
+   Sign out is still one click away — widen the rail, or use the account
+   settings page — and a 68px column has no room for a text row. */
+.ink-app[data-rail='collapsed'] .ink-account-row__name,
+.ink-app[data-rail='collapsed'] .ink-signout-row {
+  display: none;
+}
+
+.ink-app[data-rail='collapsed'] .ink-sidebar__account {
+  background: none;
+  border: 0;
+}
+
+.ink-app[data-rail='collapsed'] .ink-account-row {
+  justify-content: center;
+  padding: 0;
+}
+
+/* ------------------------------------------------- mobile topbar + sheet */
+
+/* Both were dark for the same reason the rail was. Leaving them dark would
+   mean the phone layout and the desktop one disagreeing about what the app
+   chrome is. */
+@media (max-width: 900px) {
+  /* The rail is `display:none` below here and the topbar takes over, so the
+     toggle has nothing to act on. */
+  .ink-rail-toggle {
+    display: none;
+  }
+
+  .ink-topbar {
+    background: var(--brand-wash);
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+  }
+
+  .ink-topbar a,
+  .ink-topbar__button {
+    color: var(--ink);
+  }
+
+  .ink-sheet {
+    background: var(--brand-wash);
+    color: var(--ink);
+  }
+
+  .ink-sheet__head {
+    border-bottom: 0;
+  }
+
+  .ink-sheet .ink-nav {
+    padding: 0 12px;
+  }
+}
+
+/* =====================================================================
+   Garage
+   ===================================================================== */
+
+/* ------------------------------------------------------------- surfaces */
+
+/* Ink's 12px card is the single biggest reason these screens still looked
+   like the old product. The brand's card radius is 20px. */
+.garage-page .garage-card,
+.garage-page .garage-panel,
+.garage-page .ink-table-card,
+.garage-page .ink-empty,
+.garage-page .ink-card {
+  border-radius: var(--radius-card);
+}
+
+.garage-page .garage-attention,
+.garage-page .ink-alert {
+  border-radius: 18px;
+}
+
+/* One tinted band per vehicle card, on the row that carries its name. The
+   card was white on white with a hairline doing all the work; this gives each
+   vehicle a head that reads at a glance down a row of them. */
+.garage-page .garage-card__head {
+  background: var(--brand-wash);
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+/* --------------------------------------------------------------- accents */
+
+/* The eyebrow is the landing page's pattern: uppercase, tracked, brand green.
+   Scoped to the stat blocks — this is the Garage's turn, and `.ink-eyebrow`
+   is shared with screens nobody has looked at yet. */
+.garage-page .garage-stat .ink-eyebrow {
+  color: var(--brand);
+}
+
+/* Plain `.ink-button` in the app is ink-filled — `.ink-button--primary` is an
+   auth-screen class the Garage never uses. The page's actions are the primary
+   action on the screen, so here they are the brand's. */
+.garage-page .ink-button:not(.ink-button--outline):not(.garage-attention__action) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.garage-page .ink-button:not(.ink-button--outline):not(.garage-attention__action):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
+/* Pressed moves rather than darkening again — a third step down from this
+   green reads as black. Same rule as the auth screens. */
+.garage-page .ink-button:not(.ink-button--outline):not(.garage-attention__action):active:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+.garage-page .garage-dots button.is-active {
+  background: var(--brand);
+}
+
+.garage-page .ink-table-card__link {
+  color: var(--brand);
+}
+
+.garage-page .ink-table-card__link:hover {
+  color: var(--brand-hover);
+}
+
+/* The spend breakdown stepped down the ink ramp: black, grey, lighter grey,
+   border. It is ordering, not category identity — a hue per category would
+   imply a meaning the categories do not have — so it is still one ramp, now
+   the brand's. The comment in ink-garage.css explaining that reasoning still
+   applies; only the hue changed. */
+.garage-page .garage-breakdown__row:nth-child(1) .garage-breakdown__fill { background: var(--brand); }
+.garage-page .garage-breakdown__row:nth-child(2) .garage-breakdown__fill { background: #3f9a75; }
+.garage-page .garage-breakdown__row:nth-child(3) .garage-breakdown__fill { background: var(--brand-glow-a); }
+.garage-page .garage-breakdown__row:nth-child(4) .garage-breakdown__fill { background: var(--brand-glow-c); }
+
+/* The empty states are where a new owner starts, and they were the plainest
+   thing on the page — a white box with a hairline. */
+.garage-page .ink-empty {
+  background: var(--brand-wash);
+  border-color: transparent;
+}
+
+/* =====================================================================
+   Vehicle
+   ===================================================================== */
+
+/* ------------------------------------------------------------- surfaces */
+
+.vehicle-page .ink-card,
+.vehicle-page .ink-table-card,
+.vehicle-page .ink-empty {
+  border-radius: var(--radius-card);
+}
+
+.vehicle-page .ink-alert {
+  border-radius: 18px;
+}
+
+/* The identity block is the page's hero — photo, name, badges, actions — and
+   it was sitting bare on the white with nothing holding it together. It gets
+   the tinted ground, the same move as the vehicle card head in the Garage,
+   so the two screens agree about what "this vehicle" looks like. */
+.vehicle-page .vehicle-identity {
+  background: var(--brand-wash);
+  border-radius: 24px;
+  padding: 22px 24px;
+}
+
+/* The dashed placeholder keeps its dash — it is holding space for a photo
+   that has not been added, and a solid box would read as one that has. */
+.vehicle-page .vehicle-identity__photo {
+  background: var(--surface);
+  border-radius: 18px;
+}
+
+.vehicle-page .ink-empty {
+  background: var(--brand-wash);
+  border-color: transparent;
+}
+
+/* --------------------------------------------------------------- accents */
+
+.vehicle-page .vehicle-stat .ink-eyebrow,
+.vehicle-page .vehicle-detail .ink-eyebrow {
+  color: var(--brand);
+}
+
+/* A documented year was ink — the same near-black as body text, so the bar
+   read as a chart rather than as coverage. Green is the point of it: this is
+   the one place the page says "there are records here". The empty block keeps
+   its dash, for the reason ink-vehicle.css gives — a hole in the history is
+   not a quiet year. */
+/* `:not(.is-empty)` is load-bearing. Without it this rule ties with
+   `.vehicle-years__block.is-empty` on specificity, wins on source order, and
+   paints every undocumented year the same green as a documented one — which
+   turns the coverage bar into one solid block that says nothing. Caught in
+   review; it is an easy thing to "tidy" back out. */
+.vehicle-page .vehicle-years__block:not(.is-empty) {
+  background: var(--brand);
+}
+
+.vehicle-page .vehicle-years__block {
+  border-radius: 5px;
+}
+
+.vehicle-page .vehicle-completeness__score {
+  border-left-color: var(--rule);
+}
+
+.vehicle-page .vehicle-crumbs a:hover {
+  color: var(--brand-hover);
+}
+
+/* Page actions, same rule as the Garage: plain `.ink-button` in the app is
+   ink-filled, and the page's primary action should be the brand's. */
+.vehicle-page .ink-button:not(.ink-button--outline):not(.ink-button--quiet) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.vehicle-page .ink-button:not(.ink-button--outline):not(.ink-button--quiet):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
+.vehicle-page .ink-button:not(.ink-button--outline):not(.ink-button--quiet):active:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* ------------------------------------------------------- view switcher */
+
+/* Timeline / Components / Table. A pill of segments rather than a boxed one:
+   the same shape as every other selected thing in this product, and the
+   selected segment is finally the brand rather than near-black. */
+.ink-segmented {
+  background: var(--surface);
+  border-radius: 100px;
+  padding: 3px;
+}
+
+.ink-segmented button {
+  border-radius: 100px;
+  font-size: 15px;
+  height: 38px;
+}
+
+/* The divider between segments existed to separate two white buttons. With a
+   filled pill marking the selected one it is a second device saying the same
+   thing. */
+.ink-segmented button + button {
+  border-left: 0;
+}
+
+.ink-segmented button:hover:not(.is-active) {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+}
+
+.ink-segmented button.is-active,
+.ink-segmented button.is-active:hover {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+/* =====================================================================
+   Records — the list, and one record opened
+   ===================================================================== */
+
+/* ------------------------------------------------------------- surfaces */
+
+.records-page .ink-table-card,
+.records-page .ink-empty,
+.record-page .ink-card,
+.record-page .ink-empty {
+  border-radius: var(--radius-card);
+}
+
+.records-page .ink-alert,
+.record-page .record-notice {
+  border-radius: 18px;
+}
+
+.records-page .ink-empty,
+.record-page .ink-empty {
+  background: var(--brand-wash);
+  border-color: transparent;
+}
+
+/* --------------------------------------------------------------- search */
+
+/* The search box and the filter are the whole toolbar, and they were two grey
+   boxes with square-ish corners sitting above a table. Rounded to the field
+   radius the rest of the product uses, and the search takes the brand's focus
+   ring rather than the ink one. */
+.records-page .records-toolbar input {
+  border-radius: var(--radius);
+}
+
+.records-page .records-toolbar input:focus,
+.records-page .records-toolbar input:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 122, 82, 0.14);
+  outline: none;
+}
+
+.records-page .ink-filter__trigger {
+  border-radius: var(--radius);
+}
+
+.records-page .ink-filter__trigger:hover {
+  border-color: var(--brand);
+}
+
+/* --------------------------------------------------------------- accents */
+
+.records-page .ink-button:not(.ink-button--outline),
+.record-page .ink-button:not(.ink-button--outline) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.records-page .ink-button:not(.ink-button--outline):hover:not(:disabled),
+.record-page .ink-button:not(.ink-button--outline):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
+.records-page .ink-button:not(.ink-button--outline):active:not(:disabled),
+.record-page .ink-button:not(.ink-button--outline):active:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* ------------------------------------------------------- one record open */
+
+.record-page .vehicle-crumbs a:hover {
+  color: var(--brand-hover);
+}
+
+.record-page .record-header__cost .ink-eyebrow,
+.record-page .record-field .ink-eyebrow {
+  color: var(--brand);
+}
+
+/* The per-field icons were 36px outlined boxes — thirty-odd hairline squares
+   down a page whose subject is one service visit. Filled with the tint and
+   rounded, they stop competing with the values beside them. */
+.record-page .record-field__icon {
+  background: var(--brand-tint);
+  border-color: transparent;
+  border-radius: 12px;
+  color: var(--brand-hover);
+}
+
+/* The provenance disclosure — where each value came from. It is deliberately
+   quiet, so it gets the wash rather than the tint. */
+.record-page .record-trace {
+  background: var(--brand-wash);
+  /* The hairline above it went with the fill — a rule and a background doing
+     the same separating job is the pattern this rebrand keeps removing. */
+  border-radius: 16px;
+  border-top: 0;
+  padding: 14px 16px;
+}
+
+.record-page .record-trace summary:hover {
+  color: var(--brand-hover);
+}
+
+/* =====================================================================
+   Adding a record — the six-screen flow
+
+   `service-flow.css` is the best-behaved sheet in the project: its own
+   `.flow-*` namespace, its own root class, and it already routes the main
+   primitives through `--radius` and `--radius-card`, so the card and button
+   shapes came across with the token swap on their own. What it does not have
+   is the accent, for the reason its own header gives — "No decorative accent
+   colour. Chroma means record status."
+
+   That rule is kept where it means something. The blocking tier stays red
+   (`--tier1`), because a field that stops the save is not brand expression.
+   Green goes on the things the owner acts on: the primary button, progress,
+   and selection.
+   ===================================================================== */
+
+/* Pills, like every other button in the product. `.ink-button` picks this up
+   from the brand layer; `.flow-btn` is a separate class in a separate sheet
+   and was left at the 14px field radius, so the add-record flow was the one
+   place with square-ish buttons. Easy to miss — the two never appear on the
+   same screen. */
+.flow .flow-btn {
+  border-radius: var(--radius-pill);
+}
+
+/* The flow's primary action, on every one of the six screens. */
+.flow .flow-btn:not(.flow-btn--ghost) {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.flow .flow-btn:not(.flow-btn--ghost):hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.flow .flow-btn:not(.flow-btn--ghost):active:not(:disabled) {
+  background: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* Disabled keeps its filled grey and its ink label. service-flow.css argues
+   that case on contrast grounds — paper on #c4bdb0 measures 1.70:1 — and the
+   argument is unchanged by the palette. Restated only so the brand fill above
+   cannot leak into it. */
+.flow .flow-btn:not(.flow-btn--ghost):disabled {
+  background: var(--border);
+  color: var(--ink);
+}
+
+.flow .flow-btn--ghost:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+/* Six segments across six screens. Completed steps were ink, which made the
+   bar read as a chart; green makes it read as progress. */
+.flow .flow-progress__seg.is-done {
+  background: var(--brand);
+}
+
+.flow .flow-eyebrow {
+  color: var(--brand);
+}
+
+/* Selection stays a *thickened border* rather than a colour change, so it
+   still survives greyscale — that is service-flow.css's reasoning and it is
+   worth keeping. The border is simply the brand's now, and the tick with it. */
+.flow .flow-pick__card.is-selected {
+  border-color: var(--brand);
+}
+
+.flow .flow-pick__card:hover:not(:disabled) {
+  background: var(--brand-wash);
+  border-color: var(--brand);
+}
+
+.flow .flow-pick__card.is-selected:hover {
+  background: var(--brand-wash);
+}
+
+.flow .is-selected .flow-pick__tick {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+/* Fields take the brand focus ring, matching the auth screens and the records
+   search. A blocking field keeps its red ring — see `--tier1`. */
+.flow .flow-field input:focus,
+.flow .flow-field textarea:focus,
+.flow .flow-field select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 122, 82, 0.14);
+  outline: none;
+}
+
+.flow :where(button):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.flow .flow-alert {
+  border-radius: 18px;
+}
+
+/* =====================================================================
+   Account settings
+   ===================================================================== */
+
+/* ------------------------------------------------------------- controls */
+
+/* Pills, like every other button in the product. `.set-button` is its own
+   class in its own sheet, so it did not pick this up from the brand layer —
+   the same gap `.flow-btn` had. */
+.ink-settings .set-button {
+  background: var(--brand);
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+}
+
+.ink-settings .set-button:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.ink-settings .set-button:active:not(:disabled) {
+  background: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* `.quiet` and `.danger` state their own fills further up ink-settings.css,
+   and the rule above would otherwise paint both brand green — a green Delete
+   account being the worst of the two outcomes. */
+.ink-settings .set-button.quiet {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.ink-settings .set-button.quiet:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.ink-settings .set-button.danger,
+.ink-settings .set-button.danger:hover:not(:disabled) {
+  background: var(--status-bad-bg);
+  color: var(--status-bad-text);
+}
+
+.ink-settings .set-field input:focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 122, 82, 0.14);
+  outline: none;
+}
+
+.ink-settings .set-reveal:hover,
+.ink-settings .set-textbutton:hover {
+  color: var(--brand-hover);
+}
+
+/* --------------------------------------------------------------- accents */
+
+.ink-settings .set-avatar {
+  background: var(--brand-tint);
+  border-color: transparent;
+  color: var(--brand-hover);
+}
+
+.ink-settings .set-group-label {
+  color: var(--brand);
+}
+
+/* The notification switches. Green for on is the one place in this product
+   where a colour carries state without a word beside it — except it does not:
+   `.set-row-word` prints "On" or "Off" next to every track, and that rule
+   ("the state as a word, not only as a colour") is why the switch can be
+   coloured at all. Do not remove the word to tidy the row. */
+.ink-settings .set-row[aria-checked='true'] .set-toggle {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+/* =====================================================================
+   Shared access (owner) and the mechanic's read-only view
+   ===================================================================== */
+
+/* ------------------------------------------------------- shared access */
+
+.access-page .ink-card,
+.access-page .ink-empty {
+  border-radius: var(--radius-card);
+}
+
+.access-page .ink-button:not(.ink-button--outline) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.access-page .ink-button:not(.ink-button--outline):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
+.access-page .ink-button:not(.ink-button--outline):active:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+/* The privacy notice's shield, and the numbered steps of the how-it-works
+   panel: outlined boxes, filled with the tint like the record fields. */
+.access-page .access-notice__icon,
+.access-page .access-how__step {
+  background: var(--brand-tint);
+  border-color: transparent;
+  border-radius: 12px;
+  color: var(--brand-hover);
+}
+
+/* A live count is the only figure on this strip worth full weight — the rest
+   are context. It was ink; green is what makes "someone is reading your
+   records right now" findable in a row of four numbers. The greyed-out
+   `:not(.is-live)` rule above it in ink-access.css still does the other half. */
+.access-page .access-summary__cell strong.is-live {
+  color: var(--brand);
+}
+
+.access-page .share-scope {
+  background: var(--brand-wash);
+}
+
+/* Left white deliberately. A scanner needs the contrast the code was
+   generated for, and a tinted ground behind a QR code is the kind of styling
+   that works on a screenshot and fails in a workshop. */
+.access-page .share-qr {
+  background: #ffffff;
+}
+
+/* --------------------------------------------- the mechanic's read view */
+
+/* This is the one screen someone outside the account ever sees, and it is
+   read-only by design. The brand appears, but quietly: it has no actions to
+   colour, so the green goes on orientation — the expiry chip and the year
+   rules — and nowhere near the records themselves. */
+.mechanic-page .ink-card,
+.mechanic-page .ink-empty {
+  border-radius: var(--radius-card);
+}
+
+.mechanic-page .mechanic-header__expiry {
+  background: var(--brand-tint);
+  border-radius: 100px;
+  color: var(--brand-hover);
+  font-weight: 600;
+  padding: 6px 14px;
+}
+
+.mechanic-page .mechanic-timeline__head h2 {
+  color: var(--brand-hover);
+}
+
+.mechanic-page .ink-button:not(.ink-button--outline) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.mechanic-page .ink-button:not(.ink-button--outline):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
+.mechanic-page .ink-link-button:hover {
+  color: var(--brand-hover);
+}
+
+/* `--status-warn-text` and `--status-bad-text` keep the warn and bad notes.
+   A mechanic reading "this record was never reviewed" needs that to be the
+   loudest thing on the line, not a brand colour. */

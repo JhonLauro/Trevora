@@ -948,3 +948,663 @@ afterwards). **Nobody has clicked this behind a real login** - the
 Supabase-backed paths (profile save, email change, password re-auth, photo
 upload, sign out) are unexercised, and the photo upload in particular is
 someone else's code meeting my markup for the first time.
+
+---
+
+## The green brand — landing v2, auth v2, and the token layer (2026-08-27)
+
+The palette is now green, not the warm paper "Ink" one. Source of truth is the
+`Trevora Landing v2` and `Trevora Auth v2` boards in the Claude Design project
+(`23d5f5d3-ea99-44d8-a814-2bb688f56f9c`). This is a whole-product change, not a
+landing-page change, so read this before you next touch a stylesheet.
+
+**How it was done, and why that way.** One new sheet,
+`src/styles/trevora-brand.css`, imported last in `main.jsx`. Every existing
+sheet already routes colour, type and radius through tokens (`--tv-*` in
+`styles.css`, `--ink*` / `--font-*` in `ink-app.css` and `ink-auth.css`), so the
+whole app re-skins by redefining those tokens in one place. Nothing in
+`styles.css` was edited — it is 11k lines and four people have it open.
+
+Two token decisions that will look wrong until you know the reason:
+
+- `--font-serif` no longer names a serif. The brand's display face is
+  Bricolage Grotesque. Every heading in the app already reads that token, so
+  the token changed value rather than several hundred call sites changing
+  token.
+- `--ok-*` / `--status-ok-*` are the brand's own dark green. A green "ok" badge
+  on a green product stops being a signal, so those states lean on their word.
+  Status is still never colour-only.
+
+**The logo changed.** Three plates offset in depth, the top one carrying the
+lines — records piling up. It lives in `components/TrevoraMark.jsx`, which
+`InkLockup` and `BrandLogo` both wrap, plus `public/trevora-mark.svg` for the
+favicon. It takes `currentColor`, so the dark shell chrome (sidebar, mobile
+topbar, menu drawer) gets it in paper and everywhere else in green. Do not
+shrink it below 30px: the rear two plates are three pixels of tone each and
+that is the entire idea.
+
+**The landing page was rebuilt, not restyled.** `LandingPage.jsx` and
+`styles/landing-v2.css`, under a `.tvl-` prefix that collides with nothing. It
+no longer names any `.fig-*` class — those ~300 rules in `styles.css` and all
+of `styles/ink-landing.css` are now dead, but they are left in place because
+deleting from a shared file mid-sprint is how you lose an afternoon. Someone
+should remove them once nothing else is in flight.
+
+Its photographs are slots (`ImageSlot`), not fixed assets: they render a
+labelled frame until a real file exists at the path, and the real image the
+moment one does. **Nine of them are still frames.** Drop files into
+`public/landing/` — `receipt.jpg`, `vehicle-page.png`, `mechanic.jpg`,
+`view-timeline.png`, `view-components.png`, `view-table.png`,
+`receipt-p1..3.jpg` — and no code changes.
+
+**Verified as far as it can be from here.** Production build passes. The
+landing page and `/login`, `/register` were checked in the running dev server
+at 1280px and 375px: tokens resolve, the mint auth panel and its drift render,
+fields are 14px, buttons are pills, the mark is green at 30px, and neither
+width scrolls horizontally. **Every screen behind the login is unverified** —
+the token layer re-skins the Garage, Vehicle, Records, settings and mechanic
+surfaces sight-unseen, and nobody has looked at them. Expect a handful of
+places where a colour was hard-coded rather than tokenised and so did not
+follow; those need finding by eye, one screen at a time.
+
+### Addendum, same day — signup goes straight through
+
+The two-step signup is one step for now, at the owner's request. Concretely:
+
+- **No OTP screen.** `registerUser` used to sign the new account back out and
+  post a six-digit code even when Supabase had already returned a session. It
+  now uses that session: sync the profile, set the local user, done.
+  `verifyRegistrationOtp` is parked in `api/auth.js`, unreferenced, because the
+  step is expected back and rewriting it against `verifyOtp`'s type/session
+  handling twice is a waste.
+- **No vehicle step.** Signup lands on the Garage. `/welcome` and
+  `/register/vehicle` still exist and are still routed — they are simply no
+  longer linked from signup, and `WelcomePage` (someone else's file, landed in
+  the same pull) was not touched. The walkthrough is therefore unreachable
+  until someone re-points it; that is a decision waiting, not an oversight.
+
+**The one thing to know before testing this:** whether signup lands straight in
+the app depends on the Supabase project's **Confirm email** setting, not on our
+code. With it on, `signUp` returns no session and the owner genuinely has to
+click a link in their inbox first — the page says so and stops. With it off,
+they are in. If signup appears to "not work", check that toggle before
+reading the code.
+
+Also fixed here: a specificity trap worth knowing about, because it will bite
+again. `button:hover:not(:disabled)` in `ink-app.css` scores (0,2,1), so it
+beats any plain `.some-class:hover` at (0,2,0) and repaints the element
+near-black on hover — this is why the FAQ rows and the Google button went dark.
+A component hover rule on a `<button>` needs either a third class-level token
+(`.x:hover:not(:disabled)`) or an ancestor class to clear it.
+
+### "Supabase Auth is not configured" after pulling — read this before debugging it
+
+Nothing to do with the brand work. The `vite.config.js` that arrived in the
+same batch sets `envDir: '../..'`, moving the frontend's configuration from
+`frontend/trevora-web/.env` to a single `.env` at the repository root — which
+is what `.env.example` has always described. The frontend `.env` is no longer
+read, and on a machine with no root `.env` every `VITE_*` variable comes back
+empty, so `requireSupabaseClient()` throws on the first sign-in attempt.
+
+`.env` is gitignored, so this hits each person exactly once and looks like a
+regression in whatever they touched last. **The fix is to create `.env` at the
+repository root** — copy the `VITE_*` lines out of
+`frontend/trevora-web/.env`, and restart the dev server, because Vite reads
+env files only at start. Done on this machine already.
+
+Two things still open on it: the root `.env` here holds only the two `VITE_*`
+variables that existed in the frontend file, not the backend block
+`.env.example` lists, so the single-shared-file arrangement is half done. And
+`VITE_API_BASE_URL`, `VITE_SUPABASE_RECEIPT_BUCKET`,
+`VITE_SUPABASE_AVATAR_BUCKET` and `VITE_SUPABASE_VEHICLE_PHOTO_BUCKET` are all
+read by the app and are all absent — they have defaults, but whether those
+defaults are the right ones for this project is unverified.
+
+#### Same root cause, backend half: `Connection to localhost:5432 refused`
+
+The note above was only half the story. Commit `0b92554` ("refined mechanic
+view") moved **both** halves of the project onto a single repository-root
+`.env` in one go — `envDir: '../..'` in `vite.config.js`, and
+
+    spring.config.import=optional:file:.env[.properties],optional:file:../../.env[.properties]
+
+in `application.properties`. Neither import is required, so with no root `.env`
+the backend reads no configuration at all and silently falls through to the
+defaults — including `spring.datasource.url`'s
+`jdbc:postgresql://localhost:5432/postgres`. Hence a stack trace about a local
+Postgres nobody is running, on a project that has never used one.
+
+`file:.env` does resolve to `backend/trevora-api/.env` **if** Maven is invoked
+from `backend/trevora-api`. Run from the repository root — which is what
+`.claude/launch.json` does — that same path resolves to the root `.env`, and
+`../../.env` resolves outside the repo entirely. So whether the API boots
+depends on which directory you were standing in, which is not a property a
+project should have.
+
+Fixed here by merging the backend variables from `backend/trevora-api/.env`
+into the root `.env`, which makes both invocation directories work. **Verified
+by actually starting it**: Hikari opens a Supabase connection, Hibernate
+validates the schema, Tomcat comes up on 8080 and `/health` answers 200.
+
+Left deliberately undone, because it is a call for whoever owns deployment:
+the values now exist in two files, and `backend/trevora-api/.env` and
+`frontend/trevora-web/.env` are both dead weight that will drift. One of them
+should be deleted and `.env.example` made the only description of the layout.
+
+While in here: the primary button's pressed state was `#084a31`, a third step
+down from base -> hover, and it read as black rather than as a press. It is now
+the hover green plus a 1px nudge. Base -> hover -> darker-still does not work
+with a green this deep; move the button, do not keep dimming it.
+
+### The walkthrough is back in the signup flow, rebuilt (2026-08-27)
+
+Signup is account -> `/welcome` -> `/register/vehicle` again. `RegisterPage`
+routes owners to the walkthrough on success; admins still go straight to the
+dashboard.
+
+**One accuracy fix that matters more than the paint.** `HistoryPreview` showed
+a green "Validated" badge on all three rows. That is the exact claim migration
+009 exists to prevent, and the same one that was deliberately removed from
+`ServiceRecordDetailPage` and the mechanic view. `utils/recordStatus.js` is
+explicit: the backend exposes no validation status on confirmed records, so a
+record without one is **"Needs review"**, never "Validated". Onboarding was
+teaching owners to expect a badge the app will never give them. The preview now
+shows what they will actually see, its columns match `RecordsTable`
+(date / service / odometer / cost / status), and the step copy says a record
+carries its own status rather than one being assigned on their behalf.
+
+Three claims were checked and are correct, so nobody needs to re-check them:
+four-hour session expiry (`AccessApprovalService.SESSION_EXPIRATION`, distinct
+from the 24-hour QR link), "Step 4 of 6 / Check the details" on the review
+screen, and the search placeholder wording.
+
+**`styles/ink-welcome.css` was rewritten in place**, not overlaid. It has one
+consumer and every selector is `wt-`-prefixed, so a second sheet fighting it
+would be worse. It reads brand tokens throughout — no hard-coded colour.
+
+Motion is `key={current.id}` on the stage: changing the key remounts it, so the
+CSS entry animation re-runs per step with no animation library and no state to
+keep in sync with the step index. Preview rows stagger in beneath it. All of it
+is off under `prefers-reduced-motion`.
+
+**Signup step 2 got its own shell variant.** `InkAuthShell` builds class names
+from `variant`, and the vehicle form was passing `signup` — inheriting a 420px
+column meant for five short fields while carrying eight plus a photo dropzone.
+That is what made it a tall thin stack. It now passes `vehicle`, and
+`styles/signup-vehicle.css` gives that variant a 620px column with year and
+plate paired. `/register` is untouched.
+
+Also: the password strength meter and its rule are hidden until something is
+typed, on both signup and password reset. Four empty bars beside an untouched
+field read as a failure state, which is a poor first impression of a form.
+
+**Still unverified end to end.** Nobody has walked signup with a real account.
+The walkthrough was checked by stubbing `trevora.authUser` in the browser to
+get past the route guard — enough to confirm layout, tokens, animation and the
+corrected table, not enough to confirm that `hasSeenWalkthrough` /
+`markWalkthroughSeen` behave against a live session, or that the once-only
+redirect actually fires for a returning owner.
+
+#### Correction to the above: signup step 2 left the auth shell entirely
+
+The `vehicle` shell variant described in the previous note lasted about an
+hour. Widening the shell's column was treating the symptom — the real problem
+is that `InkAuthShell` is a two-column split with a panel down the left, which
+suits sign in and create-account (short forms with room to spare beside them)
+and does not suit eight fields plus a photo dropzone. `RegisterVehiclePage` no
+longer uses the shell: no panel, no "Step 2 of 2" meter, no next-steps list —
+a centred 720px sheet on the page instead, edge-to-edge below 768px.
+
+**It still carries the `ink-auth` root class, and that is deliberate.** Every
+input, label, help and error rule in `ink-auth.css` is scoped under it.
+Dropping the class would mean restyling every control on the page to gain
+nothing. `styles/signup-vehicle.css` undoes the shell's *layout* — the flex
+row, the panel, the fixed column — and leaves its control styling alone. If
+you are tempted to "clean up" that class, this is why it is there.
+
+The step counter went with the panel. Signup is now account -> walkthrough ->
+vehicle, and the walkthrough already has its own six-position stepper, so a
+second "2 of 2" counting something different was two progress indicators
+disagreeing about how long signup is.
+
+Verified at 1440px and 375px: no panel, no progress meter, controls keep their
+52px height and 14px radius, no horizontal scroll at either width. Still not
+walked with a real account — see the note above.
+
+### Bringing the green into the app: the Garage, and the method (2026-08-27)
+
+The palette swap alone did not make the signed-in screens look rebranded, and
+the reason is worth writing down before anyone repeats the diagnosis: the app
+sheets were already fully tokenised — `ink-garage.css`, `ink-record.css`,
+`ink-settings.css` and `ink-mechanic.css` contain **zero** hard-coded hex — so
+`trevora-brand.css` did move every colour. What it could not move is a design
+decision. Ink's own header says "No decorative accent colour. Chroma means
+record status, nothing else", and a grep confirms it: before this change, not
+one app stylesheet referenced `--brand`. Nothing after the login was green
+because nothing after the login was *meant* to be coloured.
+
+So this is not a token job. It is a per-surface design pass, and there are
+four parts to it:
+
+1. **Radius literals -> tokens.** Ink's 12px card against the brand's 20px is
+   the single biggest reason a screen still reads as the old product. There
+   are ~78 hard-coded `border-radius` values left across the app sheets;
+   `service-flow.css` alone has 33 against 16 token uses.
+2. **Pick where green goes** — primary action, active nav, selected state,
+   eyebrow. One or two per screen. Spraying it everywhere loses the meaning.
+3. **One tinted ground per screen** (`--brand-wash` / `--brand-tint`), so
+   something sits off the white.
+4. **Fix the hover/press fall-through** on anything restyled. See below.
+
+**`styles/brand-app.css` is where this lives**, one section per surface as
+each is converted, scoped to a page-level class so converting one screen
+cannot silently repaint another nobody has looked at. It is a migration, not a
+layer: when the app is fully across, fold these rules into the sheets they
+override and delete the file.
+
+Garage is done — cards and panels at 20px, a `--brand-wash` head on each
+vehicle card, brand green on the page actions, the eyebrows, the active
+carousel dot, the table link and the spend ramp. The spend ramp is still one
+ramp rather than a hue per category, for the reason `ink-garage.css` already
+gives: ordering is not category identity.
+
+**The rail stays dark.** It is the app's only dark surface, and mint there
+would leave the product one flat field with nothing anchoring the layout.
+Brand green on `#16211c` fails contrast badly, so the active nav marker and
+the nav count use `--brand-glow-b`, the palest tint in the ramp. Revisit if
+someone wants it, but revisit it deliberately.
+
+**Two pre-existing bugs surfaced and are fixed globally, not per screen.**
+`.ink-button--outline:hover` scores (0,2,0) and loses to ink-app.css's bare
+`button:hover:not(:disabled)` at (0,2,1), so **every outline button in the
+product** filled near-black on hover — wrong before the rebrand too, just far
+more visible now. The carousel's page dots had the same problem. This is the
+third time this exact fall-through has bitten; assume it applies to every
+`<button>` you restyle with a single class.
+
+Also fixed in passing: the Garage's empty state promised "records, reminders
+and what you share with a mechanic". Trevora does not do reminders — the
+landing page says so out loud. It now says history.
+
+**Unverified by a human, as ever.** Checked by stubbing `trevora.authUser` to
+get past the route guard and reading computed styles, including on injected
+probe nodes for the card, panel, breakdown and empty-state rules that need
+real data to render. That confirms every selector matches and wins the
+cascade. It does not confirm the screen looks good with actual vehicles in it.
+
+#### The rail went light (2026-08-27)
+
+Reversing the call made a few hours earlier in the note above, deliberately and
+with the owner's agreement rather than by drift. The argument for keeping it
+dark was that it anchored the layout. The argument against turned out to be
+stronger: it was the last piece of pure Ink in the product — a 264px slab of
+`#16211c`, square edges, hairline dividers, a 3px left rule for the active row
+— and it spoke a different language from the mint panels, 20px cards and pills
+on every other surface. That mismatch is what read as clutter, not the content.
+
+What it is now: 240px on `--brand-wash` with a hairline right edge, no
+dividers (space separates things in this brand; rules are for tables), an icon
+per row, the active row as a filled mint pill, and the account block as one
+rounded white tile instead of two hairline-divided rows.
+
+**The concrete gain, beyond consistency:** brand green on `#16211c` fails
+contrast badly, which is the only reason the active marker was `--brand-glow-b`
+rather than the brand colour. On a light rail the accent is `#0e7a52` itself
+and the active label is `#0a5a3c` on `#eef6f1`.
+
+Active state has now changed three times, always for the same reason — two
+devices saying one thing. It was a filled row *and* a left rule; then weight
+plus the rule; now the pill alone. If you find yourself adding a second marker
+to it, that is the mistake repeating.
+
+The mobile topbar and the menu drawer went light with it. They were dark for
+the same reason the rail was, and leaving them would have meant the phone and
+desktop layouts disagreeing about what the app chrome is.
+
+Verified at 1440px and 375px by stubbing the session: rail `#f7faf8` at 240px,
+five icons, active pill `#eef6f1` with `#0a5a3c` text and no left border,
+account tile white at 16px, lockup back to brand green, topbar light with dark
+type, no horizontal scroll. Still nobody has clicked it with a real account.
+
+#### The rail collapses (2026-08-27)
+
+A toggle beside the wordmark narrows the rail from 240px to 68px: icons only,
+wordmark hidden, mark kept, account tile down to the avatar. Not a full hide —
+hiding the nav outright makes every navigation cost a click to bring it back,
+and the icons added in the previous change are exactly what makes an icon-only
+state readable. This was not a viable option before them.
+
+Three details that are load-bearing and easy to undo by accident:
+
+- **The labels are clipped, not removed.** `display:none` on
+  `.ink-nav__label` would leave five links a screen reader announces as
+  nothing at all — the label *is* the row's accessible name. It gets the
+  sr-only clip treatment instead, and `title` gives sighted users the same
+  thing on hover. Verified: the collapsed row still reports "Garage".
+- **The state is per browser, not per account.** It is about the screen you
+  are sitting at, so it is localStorage (`trevora.railCollapsed`), read
+  defensively — private mode and blocked site data throw on access rather
+  than returning null.
+- **The localStorage write is outside the state updater.** React StrictMode
+  calls updater functions twice in development to surface impure ones, so a
+  side effect in there fires twice per click. Harmless when writing the same
+  value; not harmless as a habit.
+
+Sign out is not reachable from the collapsed rail — a 68px column has no room
+for a text row. It is one click away via widening the rail, and it is also on
+the account settings page. If that turns out to annoy people, the answer is an
+icon row, not a squeezed label.
+
+Below 900px the rail is `display:none` and the topbar takes over, so the
+toggle is hidden there; it would have nothing to act on.
+
+**On the verification:** collapsing, expanding, the accessible name, the width
+change, and restoring the collapsed state on load were all confirmed. Getting
+there was messier than it should have been — the stubbed session keeps being
+cleared by a 401 from the fake token, which redirects to /login and remounts
+the shell mid-test, and that produced one run that looked like the preference
+was not persisting when it was. Worth knowing before anyone repeats the
+stub trick: if the rail state looks wrong, check the session is still there
+before you go looking at the code.
+
+### Vehicle page across to the brand (2026-08-27)
+
+Same four-part pass as the Garage, in `styles/brand-app.css` under
+`.vehicle-page`, which the page already carried.
+
+Cards, table card and empty states to 20px; the identity block — photo, name,
+badges, actions — gets the tinted ground, deliberately the same move as the
+vehicle card head in the Garage so the two screens agree about what "this
+vehicle" looks like. The photo placeholder keeps its dashed border: it is
+holding space for a photo nobody has added, and a solid box would read as one
+that has been.
+
+**The completeness bar is the interesting one.** A documented year was `--ink`
+— the same near-black as body text — so the bar read as a chart rather than as
+coverage. It is green now, because this is the one place the page says "there
+are records here".
+
+That change shipped broken for about ten minutes and the bug is worth
+recording, because it is the kind that reviews miss. `.vehicle-page
+.vehicle-years__block` and `.vehicle-years__block.is-empty` tie on specificity
+(both 0,2,0), so the new rule won on source order and painted **every**
+undocumented year the same green as a documented one — turning a coverage bar
+into one solid block that says nothing, on a screen whose entire job is
+showing gaps. The fix is `:not(.is-empty)` on the brand rule, and it is
+load-bearing rather than decorative: anyone "tidying" that selector away
+reintroduces it silently, because the page still looks fine, it just lies.
+
+The Timeline / Components / Table switcher is a pill of segments now instead
+of a boxed group, and the divider between segments is gone — with a filled
+pill marking the selection, the rule was a second device saying the same
+thing. That is the same reasoning that took the left rule off the nav rows.
+`.ink-segmented` is used only by this page, so those rules are unscoped.
+
+Verified by probe nodes under a stubbed session: identity ground `#f7faf8` at
+24px, cards 20px, filled year `#0e7a52` and empty year `#f2f6f4` still dashed,
+eyebrows and page actions brand green, segmented pill 100px with a white-on-
+green active segment. Nobody has seen it with a real vehicle in it.
+
+### Records across to the brand — the list and one record open (2026-08-27)
+
+Both, because "records" without the detail page would leave the two halves of
+the same feature in different design languages. `RecordsPage` had no
+page-level class of its own, so it gained `records-page`; the detail page
+already carried `record-page`.
+
+The list: table card and empty state to 20px, the empty state on the wash, and
+the toolbar's two controls — search and filter — to the 14px field radius with
+the brand's focus ring instead of the ink one. Those two were the only
+interactive things on the screen and they still looked like the old product.
+
+One record open, two changes worth naming:
+
+- **The per-field icons** were 36px outlined boxes — thirty-odd hairline
+  squares down a page whose subject is a single service visit. Filled with the
+  tint, rounded to 12px, border dropped. They stop competing with the values
+  beside them, which are the reason anyone opened the page.
+- **The provenance disclosure** (`record-trace`, where each value came from)
+  sits on the wash now, and its hairline top border went with the fill. A rule
+  *and* a background doing the same separating job is the pattern this rebrand
+  keeps removing — it is the third time, after the nav rows and the segmented
+  control. Treat it as a rule: pick one.
+
+The trace stays deliberately quiet — wash rather than tint — because it is
+reference material, not the subject.
+
+Verified by probe under a stubbed session: search and filter 14px, table card
+and record card 20px, notice 18px, field icons `#eef6f1` on 12px with
+`#0a5a3c` glyphs, trace on `#f7faf8` at 16px with no top border, eyebrows and
+page actions brand green. Neither screen has been seen with real records in
+it, and the detail page in particular has states I cannot reach — an AI
+explanation present, a stored receipt, line entries.
+
+### The .env pruning, settled (2026-08-27)
+
+Three `.env` files existed; one is correct. **The repository root is the single
+source**, because that is what both halves of the project were pointed at by
+commit `0b92554` — `envDir: '../..'` in `vite.config.js` and
+`spring.config.import=…file:../../.env` in `application.properties` — and it is
+what `.env.example` has always documented. Keeping per-module copies means
+three files that drift silently, and the drift shows up as a runtime failure
+in whichever one you did not edit.
+
+Checked before touching anything: the root file's key set is a strict superset
+of both module files, and every shared key has an identical value. So nothing
+was lost.
+
+`frontend/trevora-web/.env` and `backend/trevora-api/.env` are **renamed to
+`.env.superseded-20260827`, not deleted.** Neither Vite nor Spring loads that
+name, `.env.*` is gitignored so they stay out of the repo, and one `mv` puts
+them back. Deleting gitignored secrets has no undo and that is not a risk worth
+taking on someone else's machine — **delete them yourself once you are
+satisfied.**
+
+Verified rather than assumed: the API was stopped and restarted from the
+repository root with only the root `.env` present. Hikari opened a Supabase
+connection, Hibernate validated the schema, Tomcat came up, `/health` returned
+200. The frontend build passes and the browser reports Supabase configured.
+
+Six variables `.env.example` documents are set nowhere: `PORT`,
+`VITE_API_BASE_URL`, `VITE_SUPABASE_RECEIPT_BUCKET`,
+`VITE_SUPABASE_AVATAR_BUCKET`, `OPENAI_RAW_TRANSCRIPTION_MODEL`,
+`OPENAI_TEXT_TRANSLATION_MODEL`. All have code defaults that match the
+migrations (`service-receipts`, `profile-photos`, `http://localhost:8080/api`),
+so local development is fine without them. **Deployment is a different
+question** — `VITE_API_BASE_URL` defaulting to localhost is exactly the kind of
+thing that ships broken to Render.
+
+### Add-record flow across to the brand (2026-08-27)
+
+`service-flow.css` is the best-behaved sheet in the project: its own `.flow-*`
+namespace, its own root class, and it already routes its primitives through
+`--radius` and `--radius-card`, so card and button *shapes* came across with
+the token swap unaided. What it lacked was the accent, for the reason its own
+header gives.
+
+**That rule is kept where it means something.** The blocking tier stays red
+(`--tier1`) — a field that stops the save is not brand expression. Green goes
+only on what the owner acts on: the primary button, the six-segment progress,
+and selection.
+
+Two of its arguments are restated rather than overridden, because both survive
+the palette change and both are easy to "fix" back into bugs:
+
+- **Disabled keeps its filled grey with an ink label.** Paper on `#c4bdb0`
+  measures 1.70:1 — an unreadable label, not a style opinion.
+- **Selection is a thickened border, not a colour change**, so it survives
+  greyscale. Only the hue moved.
+
+One inconsistency found and fixed while in here: `.ink-button` picks up the
+pill radius from the brand layer, but `.flow-btn` is a different class in a
+different sheet and was left at the 14px field radius — so the add-record flow
+was the one place in the product with square-ish buttons. Easy to miss,
+because the two classes never appear on the same screen.
+
+Verified by probe under a stubbed session: primary `#0e7a52` at 100px,
+disabled `#d8e1dc` with `#16211c` text, completed progress segments green,
+eyebrows green, selection a 2px brand border with a filled brand tick, all
+three button sizes pilled. Nobody has walked the six screens with a real
+draft — and the camera, receipt-upload and voice screens have states
+(a live stream, an uploaded image, a recording in progress) I cannot reach.
+
+### Account settings across to the brand (2026-08-27)
+
+Scoped under `.ink-settings`, which the page already carried. Buttons to brand
+green and to pills — `.set-button` is its own class in its own sheet, so like
+`.flow-btn` it never picked the pill radius up from the brand layer. That is
+now three separate button classes in three sheets; worth collapsing when this
+migration file gets folded back in.
+
+**Two variants had to be restated, and the reason is not stylistic.** The
+brand fill is written against `.set-button`, which also matches
+`.set-button.quiet` and `.set-button.danger` — both of which set their own
+fills further up `ink-settings.css`. Left alone, the new rule wins on source
+order and paints both green, and *a green "Delete account" button* is the
+worst outcome available on this page. Danger keeps the red pair, quiet keeps
+white. If either looks redundant later, it is not.
+
+Field focus takes the brand ring, the avatar takes the tint, group labels take
+the green.
+
+**The notification switches are green when on**, which is the one place in this
+product where a colour appears to carry state on its own. It does not:
+`.set-row-word` prints "On" or "Off" beside every track, and `ink-settings.css`
+is explicit that the word is why the switch may be coloured at all. Removing
+the word to tidy the row would break the rule the colour depends on.
+
+Verified by probe under a stubbed session: primary `#0e7a52` at 100px, quiet
+white with ink text, danger `#fdf2f1` with `#a8342a` text, avatar `#eef6f1`,
+group labels green, cards 20px, inputs 14px, toggle `#0e7a52` when checked and
+`#f2f6f4` when not. The page's real work — saving a profile, changing an email,
+re-authenticating for a password change, uploading a photo — is untouched and
+still unexercised by anyone.
+
+### Shared access and the mechanic view (2026-08-27)
+
+Both scoped to page classes they already carried, `.access-page` and
+`.mechanic-page`.
+
+Shared access: cards to 20px, actions to brand green, and the two sets of
+outlined icon boxes — the privacy notice's shield and the numbered
+how-it-works steps — filled with the tint, the same move as the record fields.
+The **live-sessions count** is green: it was ink like the other three, and
+green is what makes "somebody is reading your records right now" findable in a
+row of four numbers. The greyed `:not(.is-live)` rule already in
+`ink-access.css` does the other half of that job.
+
+**The QR code is explicitly left on white.** A scanner needs the contrast the
+code was generated for, and a tinted ground behind a QR code is the kind of
+styling that works in a screenshot and fails in a workshop. There is a rule
+restating `background: #ffffff` purely so a later "tint everything" pass
+cannot take it.
+
+The mechanic view is the one screen someone outside the account ever sees, and
+it is read-only by design — it has no actions to colour. So the green goes on
+orientation only: the expiry chip becomes a mint pill, the timeline year
+headings take the dark green, and nothing near the records themselves changes.
+The warn and bad notes keep their status colours: a mechanic reading "this
+record was never reviewed" needs that to be the loudest thing on the line.
+
+**One page is not done, and it is not a brand pass.**
+`MechanicAccessRequestPage` — the page a mechanic lands on after scanning,
+before the owner approves — is still on the pre-Ink `styles.css` classes:
+`page-shell module-four-page`, `mechanic-dashboard-card`, `button-secondary`,
+`modal-backdrop`. It never got rebuilt on Ink, so there is no Ink sheet to
+re-skin. It has taken the green *palette* through the `--tv-*` tokens, so it
+does not look broken, but it is in the old layout language and none of the
+brand's shapes reach it. Rebuilding it is a page rewrite on the scale of the
+vehicle-signup one, not an entry in `brand-app.css`. **It is also the only
+screen in the product a stranger sees before they trust it**, which is an
+argument for doing it sooner than its size suggests.
+
+Verified by probe under a stubbed session — access: summary and cards 20px,
+live count `#0e7a52` against `#7a867f` for the idle ones, notice and step icons
+`#eef6f1` at 12px, scope panel on the wash, QR still `#ffffff`, actions green.
+Mechanic: expiry a 100px `#eef6f1` pill with `#0a5a3c` text, year headings
+`#0a5a3c`, warn note still `#f0e3c6`, cards 20px. Neither screen has been seen
+with a real access request or a real session.
+
+### The mechanic's request page, rebuilt (2026-08-27)
+
+The last page still wearing the pre-Ink classes from `styles.css` —
+`page-shell module-four-page`, `mechanic-dashboard-card`, `button-secondary`,
+`modal-backdrop`. There was no Ink sheet to re-skin, so it is rewritten on its
+own sheet, `styles/mechanic-request.css`, under a `.mreq-` prefix. None of the
+legacy classes were touched.
+
+**Three things changed that are not paint, and the first one matters most.**
+
+- **The form shipped pre-filled with a person who does not exist.** Its
+  initial state was "Juan Santos" of "Superior Auto Repairs", with a phone
+  number and a written-out reason — demo data left in a live form. A mechanic
+  who tapped Send without editing four fields sent the owner a request under
+  that name, and the owner's approval screen would have shown it to them as
+  the person asking. On the one screen in this product that exists to
+  establish trust between two strangers. Fields start empty, with placeholders
+  that say what each is for, and the name is the one required field because
+  the owner approves or declines on the strength of it.
+- **The request form is inline rather than a modal that opened itself.** It
+  appeared over the page before the reader had seen what they were being asked
+  to agree to, and a backdrop dialog is the wrong container for four text
+  fields on a phone held at arm's length in a workshop.
+- **The status enum is no longer printed raw.** "PENDING" went straight from
+  the API into a sentence a stranger reads. There is a map now, and
+  "Waiting for the owner" is deliberately *not* amber — waiting is not a
+  warning, and colouring it would tell a mechanic something had gone wrong
+  when the owner simply has not looked at their phone yet.
+
+Unchanged on purpose: **no plate number appears here.** The page is reachable
+by anyone holding the link, before any approval, so it shows only the label
+the owner chose. That was already right and the comment saying so is kept.
+
+The page assumes mobile first — no shell, no nav, full-width controls, and
+16px inputs so iOS Safari does not zoom the viewport on focus.
+
+Verified at 1440px and 375px: a bogus token correctly resolves to "Access link
+was not found" rather than hanging; cards 20px on white, scope panel on the
+tint with a brand shield, inputs 14px/52px/16px, invalid state red, action a
+full-width brand pill, no horizontal scroll at either width. The states that
+need a live token — a valid link, a sent request, an approval arriving through
+the five-second poll — are unexercised. Someone should scan a real code.
+
+### Notifications, rebuilt (2026-08-27)
+
+The other page still on the pre-Ink classes — `page-shell
+notifications-page`, `notification-page-card`, `notification-tabs`,
+`button-link-secondary`. Same situation as the mechanic request page: nothing
+to re-skin, so it is rewritten on `styles/notifications.css` under a `.notif-`
+prefix. The legacy rules in styles.css are untouched.
+
+**The filter reuses `.ink-segmented`** rather than inventing a second two-way
+switch. It is the vehicle page's view switcher — a pill of segments in the
+brand — and a filter that looks like the switcher one screen over is one
+fewer thing to learn. If that control changes, both change together, which is
+the point.
+
+**Unread is the tint plus the word.** The old row carried a `.unread-dot`
+*and* a card modifier; the row now takes a wash background, a tinted icon, and
+a small "New" pill. That is not the "two devices saying one thing" problem
+this rebrand has removed three times elsewhere — the standing rule here is the
+opposite one: *a state is never colour alone, each badge carries its word*.
+Removing the pill to tidy the row breaks the rule the tint depends on.
+Removing the tint only makes the list harder to scan.
+
+**The icons were literal characters.** Each builder stored a glyph: `'!'` for
+"somebody wants to read your service history", `'⏱'` for an expired session,
+`'•'` for anything else. An exclamation mark in a circle is the icon for
+"error" everywhere else on the web, which is not what a mechanic asking
+politely for access is. The glyph is now chosen from the notification's
+`category` at render time — a lucide icon per category, falling back to a
+bell — and the `icon` field on the builders is left in place, unread, rather
+than touched in three functions for no gain.
+
+"Mark all read" is a text button rather than a filled one: it is a tidying
+action and should not compete with the request each row links to.
+
+Verified at 1440px and 375px under a stubbed session: rows 20px, unread
+`#f7faf8` with an `#eef6f1` icon against white/`#f2f6f4` for read, "New" pill
+brand green at 100px, filter pill 100px with a white-on-green active segment,
+empty state on the wash, "Mark all read" correctly disabled and grey at zero
+unread, no horizontal scroll. **The list itself was empty** — no real
+notification has been rendered through this markup by anyone.

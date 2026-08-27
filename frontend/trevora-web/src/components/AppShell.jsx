@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Bell, Car, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2, X } from 'lucide-react';
 import {
   clearLoggedInUser,
   AUTH_USER_CHANGED_EVENT,
@@ -28,12 +28,34 @@ import InkLockup from './InkLockup.jsx';
  * you checked a control somewhere else. Vehicle identity is now in the route.
  */
 const NAV_ITEMS = [
-  { to: '/', label: 'Garage', end: true },
-  { to: '/records', label: 'Records' },
-  { to: '/access/requests', label: 'Shared access' },
-  { to: '/notifications', label: 'Notifications', badge: 'notifications' },
-  { to: '/account-settings', label: 'Settings' },
+  { to: '/', label: 'Garage', end: true, icon: Car },
+  { to: '/records', label: 'Records', icon: FileText },
+  { to: '/access/requests', label: 'Shared access', icon: Share2 },
+  { to: '/notifications', label: 'Notifications', badge: 'notifications', icon: Bell },
+  { to: '/account-settings', label: 'Settings', icon: Settings },
 ];
+
+/* The rail's collapsed state is a per-browser preference, not account data:
+   it is about the screen you are sitting at, so it belongs in localStorage
+   rather than on the user. Read defensively — private mode and blocked site
+   data both throw on access rather than returning null. */
+const RAIL_STORAGE_KEY = 'trevora.railCollapsed';
+
+function readRailCollapsed() {
+  try {
+    return window.localStorage.getItem(RAIL_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeRailCollapsed(collapsed) {
+  try {
+    window.localStorage.setItem(RAIL_STORAGE_KEY, String(collapsed));
+  } catch {
+    // A preference that cannot be remembered is not worth failing a render for.
+  }
+}
 
 function initialsFor(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -47,16 +69,33 @@ function navClass({ isActive }) {
 }
 
 /**
- * Nav rows, shared by the desktop rail and the mobile sheet. Active state is a
- * single device — weight plus a left rule. The earlier version also filled the
- * row background, which fought the rule for the same job.
+ * Nav rows, shared by the desktop rail and the mobile sheet.
+ *
+ * Active state is one device, and it has changed twice for the same reason
+ * each time: two things saying it at once. It was a filled row *and* a left
+ * rule; then the fill was dropped and it became weight plus the rule. In the
+ * green brand it is a filled pill — the shape the rest of the product uses
+ * for every selected or actionable thing — and the rule is gone.
  */
 function ShellNav({ pendingCount, onNavigate }) {
   return (
     <nav className="ink-nav" aria-label="Primary">
       {NAV_ITEMS.map((item) => (
-        <NavLink key={item.to} to={item.to} end={item.end} className={navClass} onClick={onNavigate}>
-          <span>{item.label}</span>
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          className={navClass}
+          title={item.label}
+          onClick={onNavigate}
+        >
+          {/* Decorative: the label beside it is the accessible name, so an
+              icon with its own would have every row announced twice. */}
+          <item.icon className="ink-nav__icon" size={18} strokeWidth={1.9} aria-hidden="true" />
+          {/* Collapsed, this is clipped rather than removed — it is the row's
+              accessible name, and an icon-only link with no name is a link
+              screen readers announce as nothing. */}
+          <span className="ink-nav__label">{item.label}</span>
           {item.badge === 'notifications' && pendingCount > 0 && (
             <span className="ink-nav__count">{pendingCount}</span>
           )}
@@ -73,6 +112,7 @@ export default function AppShell({ children }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [notificationPreferences, setNotificationPreferences] = useState(getNotificationPreferences);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(readRailCollapsed);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const sheetRef = useRef(null);
@@ -192,13 +232,37 @@ export default function AppShell({ children }) {
     }
   }
 
+  function toggleRail() {
+    // The write is deliberately outside the updater. React's StrictMode calls
+    // updater functions twice in development to surface impure ones, so a
+    // side effect in there runs twice per click.
+    const next = !railCollapsed;
+    setRailCollapsed(next);
+    writeRailCollapsed(next);
+  }
+
   return (
-    <div className="ink-app">
+    <div className="ink-app" data-rail={railCollapsed ? 'collapsed' : 'expanded'}>
       <aside className="ink-sidebar">
         <div className="ink-sidebar__brand">
           <Link to="/" aria-label="Trevora, go to Garage">
             <InkLockup />
           </Link>
+          {/* A toggle, not a disclosure: the nav is still there and still
+              operable when collapsed, only narrower. `aria-expanded` would
+              claim it had been hidden. */}
+          <button
+            className="ink-rail-toggle"
+            type="button"
+            aria-pressed={railCollapsed}
+            aria-label={railCollapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
+            title={railCollapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
+            onClick={toggleRail}
+          >
+            {railCollapsed
+              ? <ChevronsRight size={18} aria-hidden="true" />
+              : <ChevronsLeft size={18} aria-hidden="true" />}
+          </button>
         </div>
 
         <ShellNav pendingCount={pendingCount} />

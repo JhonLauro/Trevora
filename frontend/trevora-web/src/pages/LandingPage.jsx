@@ -1,175 +1,106 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  Camera,
-  Check,
-  ChevronDown,
-  Cpu,
-  Calculator,
-  Eye,
-  History,
-  Lock,
-  Mic,
-  QrCode,
-  ScanLine,
-  ShieldCheck,
-  Sparkles,
-  TrendingUp,
-  TriangleAlert,
-} from 'lucide-react';
+import { Camera, ChevronDown, ImageIcon, Keyboard, Mic } from 'lucide-react';
 import { isLoggedIn } from '../api/currentUser.js';
+import TrevoraMark from '../components/TrevoraMark.jsx';
 
-/* The labels here are the ones `utils/fieldConfidence.js` actually prints on
-   the review screen. They used to read High / Medium / Low, which that module
-   retired on the grounds that a category an owner can act on beats a grade --
-   "check this one" is a task, "82%" is trivia. Marketing kept selling the
-   grades for months after the product stopped showing them, which meant the
-   first thing a new owner saw was a screen that did not match the pitch. */
-const vehicleFields = [
-  ['Vehicle', 'Toyota Vios 2021 - ABC 1234', 'Selected', 'verified'],
-  ['Service Date', 'May 7, 2026', 'Read from receipt', 'high'],
-  ['Service Type', 'Oil Change + Brake Service', 'Read from receipt', 'high'],
-  ['Total Cost', 'PHP 7,850', 'Read from receipt', 'high'],
-  ['Parts Replaced', 'Oil filter, Brake pads (F+R)', 'Check this one', 'medium'],
-  ['Work Performed', 'Oil drain and refill, pad install...', 'Read between the lines', 'low'],
-];
+/* Trevora landing — v2.
+ *
+ * Rebuilt from the "Trevora Landing v2" design board. Two things it does that
+ * the previous page did not, and that are the reason it was redrawn:
+ *
+ * - It sells what the product does rather than what the category does. No
+ *   percentages, no confidence scores, no "AI-powered" pill: the review screen
+ *   reports in words, so the page does too, and the words here are the ones
+ *   `utils/fieldConfidence.js` actually prints.
+ * - It says out loud that Trevora does not remind you when something is due.
+ *   Owners ask for that constantly; leaving it unsaid sold a feature the
+ *   product deliberately does not have.
+ *
+ * Styling is styles/landing-v2.css under its own `.tvl-` prefix. The old
+ * `.fig-*` rules in styles.css are no longer referenced by anything here.
+ */
 
-const featureCards = [
-  [ScanLine, 'Receipt OCR', 'Point your camera at any shop receipt. Trevora extracts line items, totals, dates, and shop info automatically.'],
-  [Mic, 'Voice Capture', 'Speak your record on the way home. AI transcribes and structures it into a clean record instantly.'],
-  [ShieldCheck, 'Every Field, Sourced', 'Each field says where it came from -- read from the receipt, heard in your note, or flagged "check this one" -- so nothing is a silent guess.'],
-  [QrCode, 'Mechanic QR Access', 'Share a time-limited QR link with your mechanic. Full history, read-only, no app needed.'],
-  [TrendingUp, 'Gap-Free History', 'See which years have service records and which do not, so you know what a buyer would question.'],
-  [Sparkles, 'Service, Explained', 'Trevora explains every service in plain language: what was done, why it matters, and what to watch for.'],
-];
+/* Photographs and screenshots are slots, not fixed assets — see ImageSlot
+   below. Paths are relative to /public; drop a file in and it appears. */
+const SHOTS = {
+  receipt: { src: '/landing/receipt.jpg', label: 'Hand holding a shop receipt' },
+  vehiclePage: { src: '/landing/vehicle-page.png', label: 'The vehicle page on a phone' },
+  mechanic: { src: '/landing/mechanic.jpg', label: 'A mechanic scanning a phone' },
+  timeline: { src: '/landing/view-timeline.png', label: 'Timeline view' },
+  components: { src: '/landing/view-components.png', label: 'Component map' },
+  table: { src: '/landing/view-table.png', label: 'Table view' },
+  page1: { src: '/landing/receipt-p1.jpg', label: 'Page 1' },
+  page2: { src: '/landing/receipt-p2.jpg', label: 'Page 2' },
+  page3: { src: '/landing/receipt-p3.jpg', label: 'Page 3' },
+};
 
-const howCards = [
+const WAYS_IN = [
   {
-    number: '01',
     icon: Camera,
-    title: 'Capture Your Receipt',
-    text: 'Snap a photo of your service receipt, record a voice memo at the shop, or type it in manually.',
-    tags: ['Receipt OCR', 'Voice memo', 'Manual entry'],
+    title: 'Photograph the receipt',
+    text: 'The main path. Multi-page receipts are fine — the order you shoot them in is the order they keep.',
   },
   {
-    number: '02',
-    icon: Cpu,
-    title: 'AI Extracts Every Detail',
-    text: 'Trevora pulls out service type, cost, parts, shop info, and confidence ratings for review.',
-    tags: ['Field extraction', 'Confidence scoring', 'Auto-categorized'],
+    icon: Mic,
+    title: 'Say it out loud',
+    text: 'In whatever language you said it in. You get the raw transcript first; translating is a separate tap you take.',
   },
   {
-    number: '03',
-    icon: History,
-    title: 'Your History, Forever',
-    text: 'Every confirmed record is searchable, shareable, and ready for mechanic handoff.',
-    tags: ['Searchable', 'Mechanic QR', 'Owner-confirmed'],
+    icon: Keyboard,
+    title: 'Type it in',
+    text: 'For the service you remember but never got paper for, and the receipt that printed too faint to read.',
   },
 ];
 
-/* No percentages. The numeric confidence these bars were drawn from does not
-   exist any more -- extraction reports categorically, and `fieldConfidence.js`
-   is explicit that the numbers went with it. A 94% bar on this page was
-   advertising a measurement the product cannot make. */
-const confidenceRows = [
-  ['Vehicle', 'Selected', 'verified'],
-  ['Service Date', 'Read from receipt', 'high'],
-  ['Total Cost', 'Read from receipt', 'high'],
-  ['Shop Name', 'Check this one', 'medium'],
-  ['Parts Replaced', 'Check this one', 'medium'],
-  ['Work Performed', 'Read between the lines', 'low'],
-  ['Odometer at Service', 'Not on receipt', 'missing'],
+/* The three tiers the review screen sorts every field into. Loudness tracks
+   one thing only: whether the field stops you saving. */
+const STOPPERS = ['Needed to save', 'Cannot be right'];
+const WORTH_A_LOOK = ['Two different values found', 'Not on receipt', 'Check this one'];
+const SOURCES = ['Read between the lines', 'Read from receipt', 'Heard in your note', 'You entered this'];
+
+const HANDOFF_STEPS = [
+  { title: 'They scan', note: 'No account, no app.' },
+  { title: 'They ask', note: 'A request lands with you.' },
+  { title: 'You approve', note: 'One vehicle. Revocable.', highlight: true },
+  { title: 'They read', note: 'Read-only, and it expires.' },
 ];
 
-const confidenceBadges = [
-  ['Read from receipt', 2, 'high'],
-  ['Check this one', 2, 'medium'],
-  ['Read between the lines', 1, 'low'],
-  ['Not on receipt', 1, 'missing'],
+const VIEWS = [
+  { shot: SHOTS.timeline, title: 'Timeline', text: 'Newest first, with the empty years left visible as gaps.' },
+  { shot: SHOTS.components, title: 'Components', text: 'A side-on map of your own vehicle. Two states: has records, or no record found.' },
+  { shot: SHOTS.table, title: 'Table', text: 'Dates, shops and figures in columns, for when you want one number.' },
 ];
 
-const trustPoints = [
-  [Check, 'No credit card required'],
-  [Lock, 'Server-verified sign-in'],
-  [ShieldCheck, 'Private by default'],
-  [Calculator, 'Totals checked line by line'],
+const FAQS = [
+  ['Does my mechanic need an account?', 'No. They scan, you approve, they read. Access is read-only and expires.'],
+  ['What if the receipt is unreadable?', 'Type it in instead. The record comes out the same.'],
+  ['Can I keep more than one vehicle?', 'Yes — cars and motorcycles, each with its own page and history.'],
 ];
 
-const aiPoints = [
-  'Line items checked against the printed total, so a misread price shows up',
-  'Anything we are unsure of is flagged for you to check',
-  'Missing data clearly shown, never silently dropped',
-];
+/**
+ * A photograph that has not been shot yet still has to lay out. This renders
+ * the real image once a file exists at `src`, and a labelled frame until then,
+ * swapping back to the frame if the file 404s. No code change when the art
+ * lands — only a file in /public/landing.
+ */
+function ImageSlot({ src, label }) {
+  const [failed, setFailed] = useState(false);
 
-const mechanicPoints = [
-  'No app download required for the mechanic',
-  'Access expires by itself after four hours, and you can end it sooner',
-  'Read-only: mechanics can browse, never edit',
-  'Built-in AI assistant helps them find what they need',
-];
-
-const faqs = [
-  ['How accurate is the AI extraction from receipts?', 'Trevora works best with clear receipt photos. Every value it reads is shown to you beside the receipt, anything uncertain is flagged, and the itemised lines are added up against the printed total so a misread figure is caught. Nothing is saved until you confirm it.'],
-  ['What receipt formats are supported?', 'The MVP is designed around common auto shop receipts, itemized service slips, and owner-entered references. Manual entry remains available when a receipt is unclear.'],
-  ['Is my vehicle data private and secure?', 'Owner workflows stay tied to the signed-in account. Mechanic access is temporary, read-only, and limited to the vehicle approved by the owner.'],
-  ['Can I manage multiple vehicles?', 'Yes. Vehicle profiles keep separate service histories, record counts, costs, and mechanic access sessions.'],
-  ['Does my mechanic need to install anything?', 'No. Mechanics use a shared access link or QR flow and only see approved read-only records.'],
-];
-
-const aiPaneRows = [
-  [Check, 'What was done'],
-  [Sparkles, 'Why it matters'],
-  [TriangleAlert, 'Watch for'],
-];
-
-const qrCells = Array.from({ length: 196 }, (_, index) => {
-  const finder =
-    (index < 42 && index % 14 < 6) ||
-    (index < 42 && index % 14 > 8) ||
-    (index > 140 && index % 14 < 6);
-  return finder || (index * 17) % 5 === 0 || (index * 11) % 7 === 0;
-});
-
-function AppMockup() {
-  return (
-    <div className="fig-mockup">
-      <div className="fig-appframe">
-        <aside className="fig-mini-sidebar">
-          <img src="/logo/tr.png" alt="" />
-          <i />
-          <i />
-          <i className="active" />
-          <i />
-        </aside>
-        <section className="fig-record-pane">
-          <h2>Oil Change + Brake Service</h2>
-          <div className="fig-badges">
-            <span>Validated</span>
-            <span>Receipt + AI</span>
-            <span>May 7, 2026</span>
-          </div>
-          {vehicleFields.map(([label, value, confidence, tone]) => (
-            <div className="fig-field-row" key={label}>
-              <div>
-                <small>{label}</small>
-                <strong>{value}</strong>
-              </div>
-              <em className={`fig-${tone}`}>{confidence}</em>
-            </div>
-          ))}
-        </section>
-        <section className="fig-ai-pane">
-          <small>AI Explanation</small>
-          <p>Regular oil changes prevent sludge buildup and protect your engine from long-term wear.</p>
-          {aiPaneRows.map(([Icon, label]) => (
-            <div key={label}>
-              <Icon size={15} aria-hidden="true" />
-              {label}
-            </div>
-          ))}
-        </section>
+  if (failed) {
+    return (
+      <div className="tvl-slot">
+        <span className="tvl-slot__label">
+          <ImageIcon aria-hidden="true" />
+          {label}
+        </span>
       </div>
+    );
+  }
+
+  return (
+    <div className="tvl-slot">
+      <img className="tvl-slot__img" src={src} alt="" onError={() => setFailed(true)} />
     </div>
   );
 }
@@ -178,185 +109,288 @@ export default function LandingPage() {
   const signedIn = isLoggedIn();
   const [openFaq, setOpenFaq] = useState(0);
 
+  // A signed-in owner who lands here wants their garage, not a pitch.
+  const primaryHref = signedIn ? '/' : '/register';
+  const primaryLabel = signedIn ? 'Open Trevora' : 'Create an account';
+
   return (
-    <main className="fig-page">
-      <nav className="fig-nav" aria-label="Landing navigation">
-        <Link className="fig-brand" to="/">
-          <span><img src="/logo/tr.png" alt="" /></span>
-          Trevora
-        </Link>
-        <div className="fig-nav-links">
-          <a href="#features">Features</a>
-          <a href="#workflow">How It Works</a>
-          <a href="#faq">FAQ</a>
-        </div>
-        <div className="fig-nav-actions">
-          <Link className="fig-signin" to="/login">Sign in</Link>
-          <Link className="fig-primary" to={signedIn ? '/dashboard' : '/register'}>
-            {signedIn ? 'Open App' : 'Get Started Free'}
+    <main className="tvl">
+      <header className="tvl-nav tvl-wrap">
+        <div className="tvl-nav__bar">
+          <Link className="tvl-nav__brand" to="/">
+            <TrevoraMark />
+            <span className="tvl-nav__word">Trevora</span>
           </Link>
-        </div>
-      </nav>
-
-      <section className="fig-hero">
-        <div className="fig-hero-copy">
-          <span className="fig-pill">
-            <Sparkles size={15} aria-hidden="true" />
-            AI-Powered Vehicle Intelligence
-          </span>
-          <h1>Every service.<br />Every detail.<br /><strong>Never forgotten.</strong></h1>
-          <p>Trevora turns your receipts, voice memos, and manual notes into a complete, owner-verified vehicle maintenance record: searchable, shareable, and built to last.</p>
-          <div className="fig-actions">
-            <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>
-              Get Started Free
-              <ArrowRight size={19} aria-hidden="true" />
+          <nav className="tvl-nav__links" aria-label="Account">
+            {!signedIn && (
+              <Link className="tvl-nav__link" to="/login">
+                Sign in
+              </Link>
+            )}
+            <Link className="tvl-btn tvl-btn--primary" to={primaryHref}>
+              {primaryLabel}
             </Link>
-            <a className="fig-secondary fig-large" href="#workflow">See it in action</a>
+          </nav>
+        </div>
+      </header>
+
+      <section className="tvl-hero tvl-wrap">
+        <div className="tvl-glows" aria-hidden="true">
+          <span className="tvl-glow tvl-glow--a" />
+          <span className="tvl-glow tvl-glow--b" />
+          <span className="tvl-glow tvl-glow--c" />
+        </div>
+        <h1 className="tvl-display tvl-hero__title">Every receipt becomes a record.</h1>
+        <p className="tvl-lede tvl-hero__lede">
+          Photograph it, say it out loud, or type it in. Trevora reads the paper, names every field
+          it found, and saves nothing until you confirm it.
+        </p>
+        <div className="tvl-hero__actions">
+          <Link className="tvl-btn tvl-btn--lg tvl-btn--primary" to={primaryHref}>
+            {primaryLabel}
+          </Link>
+          {!signedIn && (
+            <Link className="tvl-btn tvl-btn--lg tvl-btn--quiet" to="/login">
+              Sign in
+            </Link>
+          )}
+        </div>
+        <p className="tvl-hero__fineprint">Private until you share it</p>
+      </section>
+
+      <section className="tvl-showcase tvl-wrap" aria-label="Trevora in use">
+        <div className="tvl-shot">
+          <ImageSlot {...SHOTS.receipt} />
+          <div className="tvl-scan" aria-hidden="true">
+            <span className="tvl-scan__line" />
+            <span className="tvl-scan__tick tvl-scan__tick--tl" />
+            <span className="tvl-scan__tick tvl-scan__tick--tr" />
+            <span className="tvl-scan__tick tvl-scan__tick--br" />
           </div>
+          <p className="tvl-saved">
+            <span className="tvl-saved__dot" aria-hidden="true" />
+            <span className="tvl-saved__text">Record saved · 7 May 2026 · Toyota Otis, Manila</span>
+          </p>
         </div>
-        <AppMockup />
+        <div className="tvl-shot-card">
+          <div className="tvl-shot-card__frame">
+            <ImageSlot {...SHOTS.vehiclePage} />
+          </div>
+          <p className="tvl-shot-card__title">Your vehicle page</p>
+          <p className="tvl-shot-card__note">Everything you have confirmed, in one place.</p>
+        </div>
       </section>
 
-      <section className="fig-trust" aria-label="Trust details">
-        {trustPoints.map(([Icon, label]) => (
-          <span key={label}>
-            <Icon size={17} aria-hidden="true" />
-            {label}
-          </span>
-        ))}
-      </section>
-
-      <section id="workflow" className="fig-how">
-        <div className="fig-section-heading">
-          <span className="fig-pill">Simple as 1-2-3</span>
-          <h2>From receipt to record in under a minute</h2>
-          <p>Capture right after your service visit. Trevora handles the rest automatically.</p>
+      <section className="tvl-section tvl-wrap" aria-labelledby="tvl-ways-title">
+        <div className="tvl-section__head">
+          <p className="tvl-eyebrow">Getting it in</p>
+          <h2 className="tvl-display tvl-section__title" id="tvl-ways-title">
+            Three ways in. One review screen.
+          </h2>
+          <p className="tvl-lede">
+            However it arrives, you check the same fields and the record comes out the same.
+          </p>
         </div>
-        <div className="fig-how-grid">
-          {howCards.map(({ number, icon: Icon, title, text, tags }) => (
-            <article className="fig-how-card" key={number}>
-              <div className="fig-how-figure">
-                <Icon size={30} strokeWidth={1.6} aria-hidden="true" />
-                <span>{number}</span>
-              </div>
-              <div className="fig-how-body">
-                <h3>{title}</h3>
-                <p>{text}</p>
-                <div>{tags.map((tag) => <small key={tag}>{tag}</small>)}</div>
-              </div>
+        <div className="tvl-ways">
+          {WAYS_IN.map(({ icon: Icon, title, text }) => (
+            <article className="tvl-way" key={title}>
+              <span className="tvl-way__icon">
+                <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <h3 className="tvl-way__title">{title}</h3>
+              <p className="tvl-way__text">{text}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section id="features" className="fig-features">
-        <div className="fig-section-heading fig-dark-heading">
-          <span className="fig-pill dark">Built for car owners</span>
-          <h2>Everything your service history actually deserves</h2>
-        </div>
-        <div className="fig-feature-grid">
-          {featureCards.map(([Icon, title, text]) => (
-            <article className="fig-feature-card" key={title}>
-              <span><Icon size={22} aria-hidden="true" /></span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <section className="tvl-split tvl-wrap" aria-labelledby="tvl-check-title">
+        <div className="tvl-split__copy">
+          <p className="tvl-eyebrow">Checking it</p>
+          <h2 className="tvl-display tvl-section__title" id="tvl-check-title">
+            No scores. No percentages. Words.
+          </h2>
+          <p className="tvl-lede" style={{ maxWidth: '470px' }}>
+            Each field says where its value came from, or what is wrong with it. How loudly it says
+            it depends on one thing: whether it stops you saving.
+          </p>
 
-      <section className="fig-ai-section">
-        <div className="fig-confidence-card">
-          <div className="fig-confidence-head">
-            <span />
-            AI Extraction · receipt_may07.jpg
-            <strong>Complete</strong>
-          </div>
-          <div className="fig-confidence-badges">
-            {confidenceBadges.map(([label, count, tone]) => (
-              <span className={`fig-badge-${tone}`} key={label}>{label}: {count}</span>
-            ))}
-          </div>
-          {confidenceRows.map(([label, status, tone]) => (
-            <div className="fig-confidence-row" key={label}>
-              <div>
-                <span>{label}</span>
-                <strong className={`fig-row-${tone}`}>{status}</strong>
-              </div>
+          <div className="tvl-tiers">
+            <div className="tvl-tier tvl-tier--stop">
+              <p className="tvl-tier__label">Stops the save</p>
+              <ul className="tvl-chips">
+                {STOPPERS.map((chip) => (
+                  <li className="tvl-chip tvl-chip--stop" key={chip}>
+                    {chip}
+                  </li>
+                ))}
+              </ul>
             </div>
+            <div className="tvl-tier tvl-tier--look">
+              <p className="tvl-tier__label">Worth a look</p>
+              <ul className="tvl-chips">
+                {WORTH_A_LOOK.map((chip) => (
+                  <li className="tvl-chip tvl-chip--look" key={chip}>
+                    {chip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="tvl-tier tvl-tier--source">
+              <p className="tvl-tier__label">Just where it came from</p>
+              <ul className="tvl-sources">
+                {SOURCES.map((source) => (
+                  <li key={source}>{source}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* A still of the review screen, not a live one: it shows the two
+            things the copy above claims — a per-field source, and the line
+            total checked against the printed total without either being
+            silently corrected. */}
+        <div className="tvl-review" aria-label="Example of the review screen">
+          <div className="tvl-review__head">
+            <strong>Review · 4 fields read</strong>
+            <span className="tvl-review__page">page 1 / 3</span>
+          </div>
+          <div className="tvl-review__body">
+            <div className="tvl-review__pages">
+              {[SHOTS.page1, SHOTS.page2, SHOTS.page3].map((shot) => (
+                <div className="tvl-review__thumb" key={shot.src}>
+                  <ImageSlot {...shot} />
+                </div>
+              ))}
+            </div>
+
+            <div className="tvl-row">
+              <span className="tvl-row__field">
+                <span className="tvl-row__label">Service date</span>
+                <span className="tvl-row__value">7 May 2026</span>
+              </span>
+              <span className="tvl-row__source">Read from receipt</span>
+            </div>
+            <div className="tvl-row">
+              <span className="tvl-row__field">
+                <span className="tvl-row__label">Shop</span>
+                <span className="tvl-row__value">Toyota Otis, Manila</span>
+              </span>
+              <span className="tvl-row__source">Read from receipt</span>
+            </div>
+            <div className="tvl-row tvl-row--flagged">
+              <span className="tvl-row__field">
+                <span className="tvl-row__label">Odometer</span>
+                <span className="tvl-row__value">42,180 km</span>
+              </span>
+              <span className="tvl-row__flag">Check this one</span>
+            </div>
+
+            <div className="tvl-mismatch">
+              <span className="tvl-mismatch__line">
+                <span>Lines add up to</span>
+                <strong>₱7,650</strong>
+              </span>
+              <span className="tvl-mismatch__line">
+                <span>Printed total</span>
+                <strong>₱7,850</strong>
+              </span>
+              <p className="tvl-mismatch__note">
+                ₱200 apart. Neither figure has been changed — you are holding the paper.
+              </p>
+            </div>
+
+            <div className="tvl-review__confirm">
+              <span className="tvl-review__fake-btn">Confirm and save</span>
+              <span className="tvl-review__hint">Nothing saved until you do</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="tvl-wrap" aria-labelledby="tvl-handoff-title">
+        <div className="tvl-handoff">
+          <div className="tvl-handoff__copy">
+            <p className="tvl-eyebrow">Handing it to a mechanic</p>
+            <h2 className="tvl-display tvl-section__title" id="tvl-handoff-title">
+              They ask. You approve. Then they can read.
+            </h2>
+            <p className="tvl-handoff__lede">
+              Scanning your code does not open anything — it sends you a request. Nothing is visible
+              until you say yes, for one vehicle, and you can turn it off again.
+            </p>
+            <ol className="tvl-steps">
+              {HANDOFF_STEPS.map(({ title, note, highlight }) => (
+                <li className={`tvl-step ${highlight ? 'tvl-step--you' : ''}`.trim()} key={title}>
+                  <p className="tvl-step__title">{title}</p>
+                  <p className="tvl-step__note">{note}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="tvl-handoff__shot">
+            <ImageSlot {...SHOTS.mechanic} />
+          </div>
+        </div>
+      </section>
+
+      <section className="tvl-section tvl-wrap" aria-labelledby="tvl-views-title">
+        <div className="tvl-views-head">
+          <h2 className="tvl-display tvl-views-head__title" id="tvl-views-title">
+            One page per vehicle. Three ways to read it.
+          </h2>
+          <p className="tvl-views-head__note">
+            Confirmed records carry a plain-language note: what was done, why it matters, what to
+            watch for.
+          </p>
+        </div>
+        <div className="tvl-views">
+          {VIEWS.map(({ shot, title, text }) => (
+            <article className="tvl-view" key={title}>
+              <div className="tvl-view__frame">
+                <ImageSlot {...shot} />
+              </div>
+              <h3 className="tvl-view__title">{title}</h3>
+              <p className="tvl-view__text">{text}</p>
+            </article>
           ))}
         </div>
-        <div className="fig-ai-copy">
-          <span className="fig-pill violet">
-            <Sparkles size={15} aria-hidden="true" />
-            AI-powered extraction
-          </span>
-          <h2>You always know where every field came from</h2>
-          <p>Each extracted field says whether it was read straight off the receipt, worked out from it, or never found at all &mdash; in those words, on the screen where you check it.</p>
-          <ul>
-            {aiPoints.map((point) => (
-              <li key={point}>
-                <Check size={19} aria-hidden="true" />
-                {point}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <p className="tvl-nopredict">
+          Trevora does not tell you when something is next due. No intervals, no reminders, no
+          predictions — it keeps the record of what happened and leaves the judgement to you and
+          your mechanic.
+        </p>
       </section>
 
-      <section className="fig-mechanic">
-        <div className="fig-mechanic-copy">
-          <span className="fig-pill amber">
-            <QrCode size={15} aria-hidden="true" />
-            Instant Mechanic Access
-          </span>
-          <h2>Your mechanic sees exactly what they need to</h2>
-          <p>Generate a time-limited QR code that gives your mechanic read-only access to your full service history. No login, no app, no friction.</p>
-          <ul>
-            {mechanicPoints.map((point) => (
-              <li key={point}>
-                <Check size={19} aria-hidden="true" />
-                {point}
-              </li>
-            ))}
-          </ul>
-          <a className="fig-primary fig-large" href="#faq">
-            Try mechanic view
-            <ArrowRight size={19} aria-hidden="true" />
-          </a>
-        </div>
-        <div className="fig-qr-card">
-          <div className="fig-qr-head">
-            <span>
-              Trevora · Mechanic View
-              <small>Toyota Vios 2021 · ABC 1234</small>
-            </span>
-            <em><Eye size={13} aria-hidden="true" /> Read-only</em>
-          </div>
-          <div className="fig-qr-grid" aria-hidden="true">
-            {qrCells.map((on, index) => <i className={on ? 'on' : ''} key={index} />)}
-          </div>
-          <div className="fig-qr-foot">
-            <span>
-              Expires in
-              <strong>1h 47m</strong>
-            </span>
-            <span>Records<strong>5</strong></span>
-            <button type="button">Share QR</button>
+      <section className="tvl-close tvl-wrap" aria-labelledby="tvl-close-title">
+        <div className="tvl-close__copy">
+          <h2 className="tvl-display tvl-close__title" id="tvl-close-title">
+            Start with the last receipt in the glovebox.
+          </h2>
+          <p className="tvl-close__lede">
+            One photo is a record. A year of photos is a history worth showing a buyer.
+          </p>
+          <div className="tvl-close__actions">
+            <Link className="tvl-btn tvl-btn--lg tvl-btn--primary" to={primaryHref}>
+              {primaryLabel}
+            </Link>
+            {!signedIn && (
+              <Link className="tvl-btn tvl-btn--lg tvl-btn--quiet" to="/login">
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
-      </section>
 
-      <section id="faq" className="fig-faq">
-        <h2>Frequently asked</h2>
-        <div className="fig-faq-list">
-          {faqs.map(([question, answer], index) => {
+        <div className="tvl-faq">
+          {FAQS.map(([question, answer], index) => {
             const open = openFaq === index;
-            const panelId = `fig-faq-panel-${index}`;
+            const panelId = `tvl-faq-${index}`;
             return (
-              <div className={`fig-faq-item ${open ? 'open' : ''}`} key={question}>
+              <div className="tvl-faq__item" data-open={open} key={question}>
                 <button
-                  className="fig-faq-question"
+                  className="tvl-faq__q"
                   type="button"
                   aria-expanded={open}
                   aria-controls={panelId}
@@ -365,32 +399,25 @@ export default function LandingPage() {
                   {question}
                   <ChevronDown size={20} aria-hidden="true" />
                 </button>
-                {open && <p id={panelId}>{answer}</p>}
+                {open && (
+                  <p className="tvl-faq__a" id={panelId}>
+                    {answer}
+                  </p>
+                )}
               </div>
             );
           })}
         </div>
       </section>
 
-      <section className="fig-final-cta">
-        <div>
-          <h2>Start building your vehicle's permanent service record today</h2>
-          <p>Free to start. No credit card required.</p>
-          <Link className="fig-primary fig-large" to={signedIn ? '/dashboard' : '/register'}>
-            Get Started Free
-            <ArrowRight size={19} aria-hidden="true" />
-          </Link>
+      <footer className="tvl-footer tvl-wrap">
+        <div className="tvl-footer__inner">
+          <span className="tvl-footer__mark">Trevora</span>
+          <div className="tvl-footer__links">
+            {!signedIn && <Link to="/login">Sign in</Link>}
+            <Link to={primaryHref}>{primaryLabel}</Link>
+          </div>
         </div>
-      </section>
-
-      <footer className="fig-footer">
-        <div>
-          <strong>Trevora</strong>
-          <p>The intelligent vehicle service record companion for car owners who care about their investment.</p>
-        </div>
-        <div><strong>Product</strong><a href="#features">Features</a><a href="#workflow">How It Works</a><a href="#faq">FAQ</a></div>
-        <div><strong>Company</strong><a href="#faq">About</a><a href="#faq">Contact</a></div>
-        <div><strong>Legal</strong><a href="#faq">Privacy Policy</a><a href="#faq">Terms of Service</a><a href="#faq">Security</a></div>
       </footer>
     </main>
   );

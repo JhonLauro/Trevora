@@ -168,7 +168,7 @@ export default function ResetPasswordPage() {
             error={fieldErrors.password}
             help={PASSWORD_HELP}
           />
-          <InkStrengthMeter score={strength} />
+          {form.password && <InkStrengthMeter score={strength} />}
         </div>
 
         <InkPasswordField

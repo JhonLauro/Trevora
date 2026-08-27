@@ -23,21 +23,31 @@ export async function registerUser(payload) {
     throw normalizeSupabaseAuthError(error);
   }
 
+  // Signup used to sign the new account straight back out and post an OTP,
+  // so every owner had to re-key a six-digit code before seeing anything.
+  // That step is gone: when Supabase hands back a session, we use it.
+  //
+  // Whether it does is a project setting, not ours — with "Confirm email" on,
+  // `signUp` returns no session and the address genuinely has to be confirmed
+  // before the account can sign in. That case is reported honestly rather than
+  // worked around, because there is no client-side way around it.
   if (!data.session) {
     return {
       requiresVerification: true,
-      otpType: 'signup',
-      message: 'A verification code has been sent to your email.',
+      message:
+        'Check your email and click the confirmation link to finish setting up your account, then sign in.',
     };
   }
 
-  await client.auth.signOut();
-  await requestRegistrationEmailCode(client, payload.email);
-  return {
-    requiresVerification: true,
-    otpType: 'email',
-    message: 'A verification code has been sent to your email.',
+  const supabaseProfile = profileFromSupabaseUser(data.user);
+  const profile = {
+    firstName: payload.firstName || supabaseProfile.firstName,
+    lastName: payload.lastName || supabaseProfile.lastName,
+    role: payload.role || supabaseProfile.role,
   };
+  const user = await syncSupabaseProfile(profile, data.session.access_token);
+  setLoggedInUser(withAvatar(user, profile), data.session);
+  return { requiresVerification: false, user };
 }
 
 export async function loginUser(payload) {
@@ -90,6 +100,12 @@ export async function completeOAuthSignIn() {
   return user;
 }
 
+/**
+ * Parked, not deleted. Nothing calls this while signup goes straight through
+ * (see `registerUser`), but the OTP step is coming back — keeping the working
+ * verify here is cheaper than rewriting it against `verifyOtp`'s type/session
+ * handling a second time.
+ */
 export async function verifyRegistrationOtp(payload) {
   const client = requireSupabaseClient();
   const { data, error } = await client.auth.verifyOtp({
@@ -115,19 +131,6 @@ export async function verifyRegistrationOtp(payload) {
   const user = await syncSupabaseProfile(profile, data.session.access_token);
   setLoggedInUser(withAvatar(user, profile), data.session);
   return user;
-}
-
-async function requestRegistrationEmailCode(client, email) {
-  const { error } = await client.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: false,
-    },
-  });
-
-  if (error) {
-    throw normalizeSupabaseAuthError(error);
-  }
 }
 
 /**

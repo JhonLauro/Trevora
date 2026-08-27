@@ -1,0 +1,332 @@
+/* ----------------------------------------------------------------------
+   The mechanic's request page — what a stranger sees after scanning.
+
+   Its own sheet under a `.mreq-` prefix, because the page it replaces was the
+   last one still wearing the pre-Ink classes in styles.css (`page-shell`,
+   `mechanic-dashboard-card`, `button-secondary`, `modal-backdrop`). Those
+   classes are shared with nothing else that matters and are left where they
+   are; this file does not touch them.
+
+   Two things shape every decision below, and neither applies anywhere else in
+   the product:
+
+   - **The reader is not signed in and has no account.** There is no shell, no
+     nav, no sidebar. The page has to explain itself in its first screenful.
+   - **They are holding a customer's phone in a workshop.** Mobile is the
+     primary case, not the fallback: full-width controls, 16px inputs so iOS
+     does not zoom on focus, and generous targets.
+   ---------------------------------------------------------------------- */
+
+.mreq {
+  background: var(--brand-wash);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  gap: clamp(18px, 3vw, 26px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: clamp(18px, 3vw, 28px) clamp(18px, 4vw, 32px) clamp(32px, 5vw, 48px);
+}
+
+.mreq *,
+.mreq *::before,
+.mreq *::after {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------- bar */
+
+.mreq__bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 640px;
+  width: 100%;
+}
+
+/* Quiet on purpose. An owner reaching this page has taken a wrong turn, and
+   the mechanic in front of them must not read it as the way in. */
+.mreq__owner-link {
+  color: var(--ink-faint);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.mreq__owner-link:hover {
+  color: var(--brand-hover);
+}
+
+/* ------------------------------------------------------------------ body */
+
+.mreq__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 640px;
+  width: 100%;
+}
+
+.mreq__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mreq__eyebrow {
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.mreq__title {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 6vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.mreq__lead {
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.mreq__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.mreq__alert {
+  background: var(--status-bad-bg);
+  border-radius: 16px;
+  color: var(--status-bad-text);
+  font-size: 15px;
+  margin: 0;
+  padding: 14px 16px;
+}
+
+/* ----------------------------------------------------------------- cards */
+
+.mreq__card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: clamp(20px, 4vw, 26px);
+}
+
+.mreq__card-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.mreq__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.mreq__facts > div {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.mreq__facts dt {
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.mreq__facts dd {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  text-align: right;
+}
+
+/* The one claim on the page the reader is being asked to trust, so it is
+   stated on its own ground rather than as another paragraph. */
+.mreq__scope {
+  background: var(--brand-tint);
+  border-radius: 16px;
+  color: #3b4a43;
+  display: flex;
+  font-size: 15px;
+  gap: 12px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 14px 16px;
+}
+
+.mreq__scope strong {
+  color: var(--ink);
+}
+
+.mreq__scope-icon {
+  color: var(--brand);
+  flex: 0 0 auto;
+  line-height: 0;
+  padding-top: 2px;
+}
+
+/* ---------------------------------------------------------------- status */
+
+.mreq__status {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.mreq__status--ok {
+  color: var(--brand-hover);
+}
+
+/* Waiting is not a warning. Amber here would tell a mechanic something had
+   gone wrong when the owner simply has not looked at their phone yet. */
+.mreq__status--pending {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ form */
+
+.mreq__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mreq__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mreq__label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mreq__optional {
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.mreq input,
+.mreq textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  /* 16px, not 15: anything smaller and iOS Safari zooms the viewport on
+     focus, which on a page held at arm's length is genuinely disorienting. */
+  font-size: 16px;
+  margin: 0;
+  padding: 14px 16px;
+  width: 100%;
+}
+
+.mreq input {
+  height: 52px;
+  padding: 0 16px;
+}
+
+.mreq textarea {
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.mreq input:focus,
+.mreq textarea:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 122, 82, 0.14);
+  outline: none;
+}
+
+.mreq__field[data-invalid='true'] input {
+  border-color: var(--status-bad-text);
+  box-shadow: 0 0 0 3px rgba(168, 52, 42, 0.1);
+}
+
+.mreq__error {
+  color: var(--status-bad-text);
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- action */
+
+/* Full width, because there is exactly one thing to do on this page and the
+   reader is using a thumb. `styles.css` fills the bare `button` element and
+   `ink-app.css` darkens it on hover at (0,2,1), so every state is stated. */
+.mreq .mreq__button {
+  align-items: center;
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  height: 54px;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 26px;
+  text-decoration: none;
+  width: 100%;
+}
+
+.mreq .mreq__button:hover:not(:disabled) {
+  background: var(--brand-hover);
+  color: #ffffff;
+}
+
+.mreq .mreq__button:active:not(:disabled) {
+  background: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+.mreq .mreq__button:disabled {
+  background: var(--border);
+  color: var(--ink);
+  cursor: not-allowed;
+}
+
+.mreq .mreq__button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.mreq__footer {
+  color: var(--ink-faint);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}

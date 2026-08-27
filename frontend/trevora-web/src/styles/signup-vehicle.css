@@ -1,0 +1,112 @@
+/* ----------------------------------------------------------------------
+   Signup, step 2 — the vehicle form, as a full-width page.
+
+   This page used `InkAuthShell`, the two-column split with a panel down the
+   left. That split is right for sign in and for creating an account: both are
+   short forms with room to spare beside them. This one is eight fields plus a
+   photo dropzone, and squeezing it into the shell's other half is what made it
+   a tall thin stack with everything crammed. The panel is gone and the form
+   has the page.
+
+   The page keeps the `ink-auth` root class on purpose — every input, label,
+   help and error rule in ink-auth.css is scoped under it. Dropping the class
+   would mean restyling every control here to gain nothing. What this file does
+   is undo the shell's *layout* (flex row, panel, fixed column) and put a
+   centred page in its place.
+   ---------------------------------------------------------------------- */
+
+.veh-setup {
+  background: var(--brand-wash);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3vw, 28px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: clamp(20px, 3vw, 32px) clamp(20px, 4vw, 40px) clamp(40px, 6vw, 64px);
+}
+
+.veh-setup__bar {
+  margin: 0 auto;
+  max-width: 720px;
+  width: 100%;
+}
+
+.veh-setup__body {
+  margin: 0 auto;
+  max-width: 720px;
+  width: 100%;
+}
+
+/* A white sheet on the wash, so the form reads as one object with an edge
+   rather than as fields floating on a tint. */
+.veh-setup__card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(24px, 4vw, 44px);
+}
+
+/* `.ink-heading--signup` is sized for the shell's 420px column. With the full
+   page behind it the headline can carry its own weight. */
+.veh-setup .ink-heading h1 {
+  font-size: clamp(28px, 4vw, 38px);
+}
+
+.veh-setup .ink-heading p {
+  max-width: 54ch;
+}
+
+/* The form was one column of full-width rows at a uniform rhythm, so nothing
+   grouped and the whole thing read as an undifferentiated list. Identity,
+   paperwork and photo are three groups; the gaps say so. */
+.ink-form--vehicle {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* The photo is the one optional, non-text thing on the form. Set apart above
+   the submit button so it does not read as another field being demanded. */
+.ink-form--vehicle .veh-photo {
+  border-top: 1px solid var(--rule-hairline);
+  padding-top: 20px;
+}
+
+/* Full width is a property of the auth shell's column, not of the button, and
+   this page is no longer in that shell — but the rule is `.ink-auth
+   .ink-button`, and the root class stays. Restated here so the submit button
+   fills the card the way it filled the column. */
+.veh-setup .ink-button {
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  /* The card loses its frame on a phone: an outline inset from both edges of
+     a 390px screen costs horizontal room the fields need more. */
+  .veh-setup {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .veh-setup__bar {
+    padding: 0 20px;
+  }
+
+  .veh-setup__card {
+    border: 0;
+    border-radius: 0;
+    gap: 20px;
+    padding: 4px 20px 24px;
+  }
+
+  .ink-form--vehicle {
+    gap: 18px;
+  }
+
+  .ink-form--vehicle .veh-photo {
+    padding-top: 18px;
+  }
+}

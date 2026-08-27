@@ -98,7 +98,7 @@ export default function RecordsPage() {
   }
 
   return (
-    <main className="ink-page">
+    <main className="ink-page records-page">
       <header className="ink-page__header">
         <div>
           <h1 className="ink-page__title">Records</h1>
