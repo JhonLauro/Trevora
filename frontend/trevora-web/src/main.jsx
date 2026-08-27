@@ -64,6 +64,9 @@ import './styles/mechanic-request.css';
 import './styles/notifications.css';
 // Terms and Privacy. Signed out, long-form prose, own `.legal-` namespace.
 import './styles/legal.css';
+// The walkthrough -> vehicle form hand-off. A fixed overlay above everything,
+// own `.gt-` namespace, overrides nothing.
+import './styles/garage-transition.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

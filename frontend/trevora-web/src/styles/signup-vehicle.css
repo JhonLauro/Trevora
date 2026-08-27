@@ -37,6 +37,38 @@
   width: 100%;
 }
 
+/* Arrival. The walkthrough hands over with a car pulling in
+   (styles/garage-transition.css); without something at this end the overlay
+   lifts on a page that was simply already there, and the second before it
+   reads as a stall rather than a journey. Short and one-directional — this
+   is the top of a form, not a reveal. */
+.veh-setup__bar,
+.veh-setup__card {
+  animation: veh-arrive 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+}
+
+.veh-setup__card {
+  animation-delay: 60ms;
+}
+
+@keyframes veh-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .veh-setup__bar,
+  .veh-setup__card {
+    animation: none;
+  }
+}
+
 /* A white sheet on the wash, so the form reads as one object with an edge
    rather than as fields floating on a tint. */
 .veh-setup__card {

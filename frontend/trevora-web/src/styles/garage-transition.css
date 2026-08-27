@@ -1,0 +1,231 @@
+/* ----------------------------------------------------------------------
+   The walkthrough -> vehicle form hand-off.
+
+   Five seconds, on a path each owner takes once.
+
+   Five is long enough that the car cannot simply arrive and sit there — parked
+   and motionless for four of them, it reads as a hang rather than a
+   transition. So it is a journey with three parts rather than one entrance:
+   the car drives in over the first fifth, cruises while the road streams
+   under it, and leaves to the right in the last fifth, so the overlay is
+   emptying itself at the moment the next page takes over.
+
+   That arc is one keyframe set (`gt-journey`) spanning the whole duration,
+   with the easing carried on the stops. Two separate animations — one in, one
+   out — would fight over `transform` for the middle three seconds.
+
+   Every duration here is set against LEAVE_ANIMATION_MS in WelcomePage.jsx. If
+   that number moves, `--gt-run` moves with it, or the overlay will still be
+   driving when the next page is already underneath it.
+   ---------------------------------------------------------------------- */
+
+.gt {
+  /* The single source of truth for the length of the sequence. Everything
+     below is a percentage of it, so retiming is one number here plus the
+     matching one in WelcomePage.jsx. */
+  --gt-run: 5000ms;
+  align-items: center;
+  animation: gt-ground 260ms ease-out both;
+  background: var(--brand-tint);
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  /* Above the app shell's sticky rail and its mobile topbar, both of which
+     sit at z-index 20. */
+  z-index: 60;
+}
+
+.gt__stage {
+  position: relative;
+  width: min(340px, 72vw);
+}
+
+/* ------------------------------------------------------------------- car */
+
+.gt__car {
+  animation: gt-journey var(--gt-run) linear both;
+  display: block;
+  width: 100%;
+}
+
+.gt__body {
+  fill: var(--brand);
+}
+
+.gt__glass {
+  fill: var(--brand-tint);
+}
+
+.gt__tyre {
+  fill: #16211c;
+}
+
+.gt__hub {
+  fill: var(--brand-tint);
+}
+
+/* One headlight, at the end it is driving towards. Small, but it is what
+   tells you which way the car is pointing before it starts moving. */
+.gt__lamp {
+  fill: #fff7e8;
+}
+
+.gt__spoke {
+  stroke: var(--brand-tint);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The wheel group is positioned by its `transform` attribute; the inner group
+   spins around its own 0,0. Two elements, because animating a rotation on the
+   positioned group would swing the wheel around the car instead. */
+.gt__spin {
+  animation: gt-roll 520ms linear infinite;
+  transform-origin: 0 0;
+}
+
+/* ------------------------------------------------------------------ road */
+
+.gt__road {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  left: 0;
+  overflow: hidden;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 14px);
+}
+
+.gt__road span {
+  background: linear-gradient(90deg, rgba(14, 122, 82, 0) 0%, var(--brand) 30%, var(--brand) 70%, rgba(14, 122, 82, 0) 100%);
+  border-radius: 100px;
+  display: block;
+  height: 3px;
+  opacity: 0.55;
+}
+
+/* Staggered so the three lanes never line up, which is what stops it reading
+   as one bar sliding. */
+.gt__road span:nth-child(1) {
+  animation: gt-stream 460ms linear 380ms infinite both;
+  width: 62%;
+}
+
+.gt__road span:nth-child(2) {
+  animation: gt-stream 620ms linear 300ms infinite both;
+  margin-left: 18%;
+  width: 46%;
+}
+
+.gt__road span:nth-child(3) {
+  animation: gt-stream 540ms linear 440ms infinite both;
+  margin-left: 6%;
+  width: 54%;
+}
+
+/* ----------------------------------------------------------------- label */
+
+.gt__label {
+  animation: gt-label var(--gt-run) linear both;
+  color: var(--brand-hover);
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 3.4vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
+}
+
+/* Quiet, and late: it appears once the car has settled, so it is an offer
+   rather than an apology for the wait. */
+.gt__hint {
+  animation: gt-hint var(--gt-run) linear both;
+  color: var(--brand-hover);
+  font-size: 15px;
+  margin: -14px 0 0;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------- motion */
+
+@keyframes gt-ground {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Arrive, cruise, leave. The percentages are of `--gt-run`: at 5000ms that is
+   a 900ms entrance, a 3.2s cruise, and a 900ms exit. Easing rides the stops —
+   ease-out on the way in, linear through the middle, ease-in on the way out,
+   which is how a car actually pulls up and pulls away. */
+@keyframes gt-journey {
+  0% {
+    opacity: 0;
+    transform: translateX(-38%);
+    animation-timing-function: cubic-bezier(0.16, 0.84, 0.3, 1);
+  }
+  18% {
+    opacity: 1;
+    transform: translateX(0);
+    animation-timing-function: linear;
+  }
+  82% {
+    opacity: 1;
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.84, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(46%);
+  }
+}
+
+@keyframes gt-roll {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gt-stream {
+  from { transform: translateX(30%); opacity: 0; }
+  20% { opacity: 0.55; }
+  to { transform: translateX(-110%); opacity: 0; }
+}
+
+/* The label lands just after the car settles and clears just before it
+   leaves, so the screen is never carrying a sentence about a car that is not
+   there. */
+@keyframes gt-hint {
+  0%, 30% { opacity: 0; }
+  42%, 78% { opacity: 0.7; }
+  88%, 100% { opacity: 0; }
+}
+
+@keyframes gt-label {
+  0% { opacity: 0; transform: translateY(8px); }
+  14% { opacity: 0; transform: translateY(8px); }
+  26% { opacity: 1; transform: none; }
+  78% { opacity: 1; transform: none; }
+  90% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* Nothing here is load-bearing, so under reduced motion the caller does not
+   render this component at all and navigates straight through. These rules
+   are the belt to that braces: if it is ever shown anyway, it is a still
+   picture rather than a car driving across somebody's screen. */
+@media (prefers-reduced-motion: reduce) {
+  .gt,
+  .gt__car,
+  .gt__spin,
+  .gt__road span,
+  .gt__label,
+  .gt__hint {
+    animation: none;
+  }
+
+  .gt__road {
+    display: none;
+  }
+}

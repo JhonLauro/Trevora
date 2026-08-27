@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
+import GarageTransition from '../components/GarageTransition.jsx';
 import InkLockup from '../components/InkLockup.jsx';
 import { isLoggedIn } from '../api/currentUser.js';
 import { hasSeenWalkthrough, markWalkthroughSeen } from '../api/walkthrough.js';
@@ -24,6 +26,11 @@ import { hasSeenWalkthrough, markWalkthroughSeen } from '../api/walkthrough.js';
  * access lasts **four** hours -- 24 hours is the life of the QR link, which is
  * a different clock (`QRAccessService` vs `AccessApprovalService`).
  */
+
+/* Scanning this in the walkthrough decodes to a sentence, not a link. It is a
+   picture of the real thing on a screen that says so. */
+const PREVIEW_QR_TEXT =
+  'Trevora walkthrough preview - this is an example code and grants no access.';
 
 /* --- The four previews ---------------------------------------------------
    Each is drawn from the app's own primitives so the real screen is
@@ -184,10 +191,23 @@ function SharePreview() {
   return (
     <div className="wt-preview wt-preview--share">
       <div className="wt-share-top">
+        {/* A real, scannable QR code that grants nothing. The old one was a
+            6x6 grid of squares switched on by `index % 3`, which reads as a
+            chequerboard rather than as a code — no finder squares, no quiet
+            zone, nothing a phone would even try to decode.
+
+            It encodes a sentence rather than a URL on purpose: a mechanic who
+            points a phone at the walkthrough gets told what they are looking
+            at, instead of being sent to a link that cannot work. */}
         <div className="wt-qr" aria-hidden="true">
-          {Array.from({ length: 36 }, (unused, index) => (
-            <span key={index} className={index % 3 === 0 || index % 7 === 0 ? 'is-on' : undefined} />
-          ))}
+          <QRCodeSVG
+            value={PREVIEW_QR_TEXT}
+            size={132}
+            level="M"
+            marginSize={2}
+            bgColor="#ffffff"
+            fgColor="#16211c"
+          />
         </div>
         <div className="wt-request">
           <p className="wt-request__eyebrow">Access request</p>
@@ -209,6 +229,74 @@ function SharePreview() {
         ))}
       </ol>
     </div>
+  );
+}
+
+/* --- The heading, typed -------------------------------------------------- */
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
+/**
+ * The step heading, revealed a character at a time.
+ *
+ * <p>Two things this deliberately does not do. It does not animate the text a
+ * screen reader sees — the full heading is in the DOM from the first frame and
+ * the typed copy is `aria-hidden`, because a heading announced one character
+ * at a time is not an effect, it is a fault. And it does not run at a fixed
+ * rate: the interval is derived from the length so every heading finishes in
+ * about the same second, rather than the long ones dragging.
+ *
+ * <p>Under `prefers-reduced-motion` the whole thing is skipped and the text is
+ * simply there.
+ *
+ * <p>`onDone` fires when the last character lands — the preview below waits on
+ * it rather than on a guessed delay, so the two stay in step when the copy
+ * changes length.
+ */
+function TypedHeading({ text, onDone }) {
+  const [shown, setShown] = useState(() => (prefersReducedMotion() ? text.length : 0));
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setShown(text.length);
+      return undefined;
+    }
+
+    setShown(0);
+    const step = Math.max(12, Math.min(26, Math.round(1100 / text.length)));
+    const timer = window.setInterval(() => {
+      setShown((current) => {
+        if (current >= text.length) {
+          window.clearInterval(timer);
+          return current;
+        }
+        return current + 1;
+      });
+    }, step);
+
+    return () => window.clearInterval(timer);
+  }, [text]);
+
+  const done = shown >= text.length;
+
+  /* Reported from an effect rather than from inside the state updater:
+     StrictMode calls updaters twice in development to surface impure ones,
+     and a callback fired in there runs twice per character. */
+  useEffect(() => {
+    if (done) onDone?.();
+  }, [done, onDone]);
+
+  return (
+    <h1 className="wt-title">
+      <span className="ink-sr-only">{text}</span>
+      <span aria-hidden="true">
+        {text.slice(0, shown)}
+        <span className="wt-caret" data-done={done ? 'true' : 'false'} />
+      </span>
+    </h1>
   );
 }
 
@@ -272,9 +360,33 @@ const STEPS = [
 
 const LAST = STEPS.length - 1;
 
+/* How long a step holds before advancing itself. Counted from the moment the
+   heading finishes typing, not from arrival — otherwise a second of it is
+   spent watching the sentence appear and the reading time is really six. */
+const AUTO_ADVANCE_MS = 7000;
+
+/* How long the car gets before the route changes underneath it. Keep this in
+   step with `--gt-run` in styles/garage-transition.css — the car leaves the
+   frame in the last fifth of it, so a mismatch either cuts it off mid-road or
+   leaves an empty mint screen sitting there after it has gone. */
+const LEAVE_ANIMATION_MS = 5000;
+
 export default function WelcomePage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  /* Which step's heading has finished typing. The preview and the final CTA
+     wait on this rather than on a fixed delay — a longer headline should push
+     them later, not overlap them. Comparing against `step` means it resets
+     itself on every move without a second piece of state to clear. */
+  const [typedStep, setTypedStep] = useState(-1);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+  const leaveTimerRef = useRef(null);
+  /* Two clicks landing in the same frame both read the pre-click `step`, and
+     with a functional updater that advances twice — one step skipped, and the
+     one skipped is a whole screen of the product. The disabled state below
+     closes most of that window; this closes the rest of it. */
+  const movingRef = useRef(false);
   /* Until the profile answers, the page renders rather than flashing a spinner
      -- a returning owner is redirected a moment later, and a new one sees the
      first step immediately instead of a blank screen. */
@@ -304,20 +416,88 @@ export default function WelcomePage() {
     navigate('/register/vehicle', { replace: true });
   }, [navigate]);
 
+  /* The finishing CTA gets the hand-off animation; Skip does not. Somebody
+     taking Skip has said they want out of this, and a second of car is the
+     opposite of honouring that. */
+  const startLeaving = useCallback(() => {
+    if (prefersReducedMotion()) {
+      leave();
+      return;
+    }
+    setLeaving(true);
+    leaveTimerRef.current = window.setTimeout(leave, LEAVE_ANIMATION_MS);
+  }, [leave]);
+
+  /* Five seconds is a long time to hold somebody who has decided to move on,
+     and this screen is on the path of every new owner — including the one
+     demoing it for the fourth time. Any click or key cuts it short and goes
+     straight to the form. The listeners attach after the click that started
+     it has already been dispatched, so that first click cannot skip its own
+     animation. */
+  useEffect(() => {
+    if (!leaving) return undefined;
+
+    function skip() {
+      window.clearTimeout(leaveTimerRef.current);
+      leave();
+    }
+
+    window.addEventListener('pointerdown', skip);
+    window.addEventListener('keydown', skip);
+    return () => {
+      window.removeEventListener('pointerdown', skip);
+      window.removeEventListener('keydown', skip);
+    };
+  }, [leaving, leave]);
+
+  /* Unmounting mid-animation must not navigate a page that has gone. */
+  useEffect(() => () => window.clearTimeout(leaveTimerRef.current), []);
+
   const go = useCallback((next) => {
-    setStep(Math.max(0, Math.min(LAST, next)));
+    if (movingRef.current) return;
+    const target = Math.max(0, Math.min(LAST, next));
+    setStep((current) => {
+      if (current === target) return current;
+      movingRef.current = true;
+      return target;
+    });
   }, []);
+
+  /* Released once the new step has rendered. Effects run after commit, so by
+     the time this fires the disabled state is on the button too. */
+  useEffect(() => {
+    movingRef.current = false;
+  }, [step]);
+
+  const current = useMemo(() => STEPS[step], [step]);
+  const headingDone = typedStep === step;
+  const markTyped = useCallback(() => setTypedStep(step), [step]);
+  const canAdvance = headingDone && step < LAST;
+  /* Drives the fill on the active stepper segment, so the seven seconds are
+     visible rather than a surprise. */
+  const runningAuto = autoPlay && canAdvance;
+
+  /* Auto-advance. Held until the heading has finished typing, so the seven
+     seconds are seven seconds of reading; cancelled by any move, because the
+     effect re-runs on `step` and the cleanup clears the pending timer.
+     Never runs on the last step — that one ends with a decision, not a
+     deadline. */
+  useEffect(() => {
+    if (!autoPlay || !headingDone || step >= LAST) return undefined;
+    const timer = window.setTimeout(() => go(step + 1), AUTO_ADVANCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [autoPlay, headingDone, go, step]);
 
   useEffect(() => {
     function onKeyDown(event) {
-      if (event.key === 'ArrowRight') go(step + 1);
+      // Forward is gated on the heading the same way the button is; back is
+      // not — leaving a step early is always allowed.
+      if (event.key === 'ArrowRight' && headingDone) go(step + 1);
       if (event.key === 'ArrowLeft') go(step - 1);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [go, step]);
-
-  const current = useMemo(() => STEPS[step], [step]);
+  }, [go, headingDone, step]);
 
   if (!signedIn) {
     return <Navigate to="/login" replace />;
@@ -325,6 +505,7 @@ export default function WelcomePage() {
 
   return (
     <main className="wt-page" data-checked={checked ? 'true' : 'false'}>
+      {leaving && <GarageTransition />}
       <header className="wt-masthead">
         <InkLockup />
         {/* Quiet, and available on every step. Taking it counts as having been
@@ -339,26 +520,31 @@ export default function WelcomePage() {
           sync with the step index. */}
       <section className="wt-stage" key={current.id} data-step={current.id} aria-live="polite">
         <p className="wt-eyebrow">{current.eyebrow}</p>
-        <h1 className="wt-title">{current.title}</h1>
+        <TypedHeading text={current.title} onDone={markTyped} />
         <p className="wt-body">{current.body}</p>
 
         {current.preview && (
-          <figure className="wt-frame">
+          <figure className={`wt-frame${headingDone ? ' is-in' : ''}`}>
             <figcaption className="wt-frame__tag">Mockup — not your records</figcaption>
             {current.preview}
           </figure>
         )}
 
         {step === LAST && (
-          <div className="wt-cta">
-            <button className="ink-button ink-button--primary" type="button" onClick={leave}>
+          <div className={`wt-cta${headingDone ? ' is-in' : ''}`}>
+            <button
+              className="ink-button ink-button--primary"
+              type="button"
+              disabled={leaving}
+              onClick={startLeaving}
+            >
               Add your first vehicle
             </button>
           </div>
         )}
       </section>
 
-      <nav className="wt-foot" aria-label="Walkthrough steps">
+      <nav className="wt-foot" aria-label="Walkthrough steps" data-auto={runningAuto ? 'on' : 'off'}>
         <button
           className="wt-foot__back"
           type="button"
@@ -384,10 +570,36 @@ export default function WelcomePage() {
           ))}
         </ol>
 
+        {/* Auto-advance is content that moves on its own for longer than five
+            seconds, so it has to be stoppable — that is WCAG 2.2.2, not a
+            nicety. Hidden on the last step, where nothing is advancing. */}
+        {step < LAST && (
+          <button
+            className="wt-foot__pause"
+            type="button"
+            aria-pressed={!autoPlay}
+            onClick={() => setAutoPlay((current) => !current)}
+          >
+            {autoPlay ? 'Pause' : 'Play'}
+          </button>
+        )}
+
         {step === LAST ? (
-          <button className="wt-foot__next" type="button" onClick={leave}>Add your first vehicle</button>
+          <button className="wt-foot__next" type="button" disabled={leaving} onClick={startLeaving}>
+            Add your first vehicle
+          </button>
         ) : (
-          <button className="wt-foot__next" type="button" onClick={() => go(step + 1)}>Next</button>
+          <button
+            className="wt-foot__next"
+            type="button"
+            /* Locked until the step has finished arriving. Without it a fast
+               second click lands while the heading is still typing and the
+               reader is two screens on from what they last read. */
+            disabled={!canAdvance}
+            onClick={() => go(step + 1)}
+          >
+            Next
+          </button>
         )}
       </nav>
     </main>

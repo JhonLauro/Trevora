@@ -1660,3 +1660,255 @@ Verified at 1440px and 375px: both documents render signed out, the
 register-page links reach them client-side without losing the form, the 68ch
 measure holds, cross-links between the two work, and there is no horizontal
 scroll at either width.
+
+### The walkthrough: typed headings and a real QR (2026-08-27)
+
+**The QR was not a QR.** It was a 6x6 grid of `<span>`s switched on by
+`index % 3 === 0 || index % 7 === 0` — a chequerboard with no finder squares
+and no quiet zone, which no phone would even attempt to decode. On the step
+whose entire subject is "a mechanic scans your code", the picture of a code
+was the one thing on screen that could not be one.
+
+It is a real `QRCodeSVG` now (`qrcode.react`, already a dependency and already
+used on the owner's share screen). It encodes a **sentence rather than a URL**,
+on purpose: scanning it decodes to "Trevora walkthrough preview - this is an
+example code and grants no access", so a mechanic who points a phone at the
+walkthrough is told what they are looking at instead of being sent to a link
+that cannot work. It sits on white with no tint over it, same rule as the
+share screen — a QR is read by a camera and the contrast it was generated for
+is the point.
+
+**The heading types itself**, and two things about that are deliberate:
+
+- **Screen readers get the whole heading immediately.** The full text is in
+  the DOM from the first frame as `.ink-sr-only`, and the typed copy is
+  `aria-hidden`. A heading announced one character at a time is not an effect,
+  it is a fault.
+- **The rate is derived from the length**, clamped to 12–26ms per character,
+  so every heading finishes in about the same second rather than the long ones
+  dragging. `key={current.id}` on the stage already remounts per step, so the
+  typing restarts on its own with no state to keep in sync.
+
+The stage now builds in parts rather than arriving whole — eyebrow, heading,
+body at 420ms, preview at 560ms. Those delays are tuned against the typing
+speed so the body lands while the heading is still being typed; changing one
+without the other pulls them apart. All of it, and the caret, is off under
+`prefers-reduced-motion`, where the caret is hidden entirely rather than left
+as a green bar stuck to every heading.
+
+Verified: typing completes and the caret flips to done on both the first step
+and the share step, the sr-only heading carries the full text throughout, the
+QR renders at 41x41 modules on white. CSS animations do run in this preview
+pane (checked — the staggered children reach opacity 1), so the build order is
+real and not merely declared. **What I have not done is watch it**, because the
+pane will not produce screenshots; the timings are measured, not judged. If the
+stagger feels slow or the caret feels fussy, that is a taste call somebody has
+to make with their eyes.
+
+One stub-session artefact worth knowing, since it wasted time: with a fake
+`trevora.authUser` the walkthrough sometimes redirects to `/register/vehicle`
+mid-test, because `hasSeenWalkthrough()` reaches a live backend that answers
+unpredictably for a token that is not real. It is not a bug in the page.
+
+#### The preview now waits for the typing, rather than guessing at it
+
+The mockup and the final CTA were on fixed delays (560ms and 680ms) chosen to
+sit after the heading. That was a guess at how long the typing takes, and it
+was wrong the moment a headline changed length — the mockup slid in underneath
+a sentence still being written.
+
+They are not on a timer any more. `TypedHeading` reports through `onDone` when
+the last character lands, `WelcomePage` records which step that was, and the
+preview gets `is-in` only when it matches the current step. Comparing against
+`step` rather than holding a separate boolean means it resets itself on every
+move with nothing to clear. The beat after the heading is a 140ms
+`animation-delay` on the `is-in` state, which is the only number left to tune.
+
+Two details that are easy to undo:
+
+- **`onDone` fires from an effect, not from inside the state updater.**
+  StrictMode calls updaters twice in development, so a callback in there runs
+  twice per character.
+- **Hidden means `visibility: hidden`, not just `opacity: 0`.** A preview that
+  is invisible but still in the accessibility tree and the tab order is a
+  place for focus to disappear into. The `prefers-reduced-motion` block
+  restores both properties, because typing is skipped there and the hidden
+  state must never be what paints while React catches up.
+
+Verified across three steps: mid-typing the frame is `opacity: 0` /
+`visibility: hidden` with no `is-in`; once the caret reports done it is
+visible at full opacity with the 140ms delay applied; the last step's CTA
+behaves identically. Still not watched by a human — the pane produces no
+screenshots, so the sequence is measured rather than judged.
+
+#### Auto-advance, and a lock against skipping a step (2026-08-27)
+
+Each step now holds for **seven seconds and then moves on by itself**, except
+the last, which ends with a decision rather than a deadline.
+
+The seven seconds are counted **from the moment the heading finishes typing**,
+not from arrival. Counted from arrival, a second of it is spent watching the
+sentence appear and the reading time is really six — and it would shorten
+further every time somebody wrote a longer headline. Measured end to end at
+8109ms for the first step: ~1.1s of typing plus the 7000ms hold.
+
+**Next is locked until the step has finished arriving.** Two mechanisms,
+because one is not enough:
+
+- `disabled` until the heading is typed, which also gives the reader a visible
+  reason the button is not ready. It is a filled grey rather than a faded
+  green — a half-opacity brand button reads as a rendering fault, and this one
+  is on screen for about a second every step.
+- A `movingRef` guard inside `go()`. Two clicks landing in the same frame both
+  read the pre-click `step`, and with a functional updater that advances
+  twice — one step skipped, and a skipped step here is a whole screen of the
+  product. The disabled state closes most of that window; the ref closes the
+  rest. Verified: **five clicks fired in a tight loop advance exactly one
+  step.**
+
+The right-arrow key is gated the same way. Left is not — leaving a step early
+is always allowed.
+
+**A Pause control was added, and it is not optional politeness.** Content that
+moves on its own for longer than five seconds needs a mechanism to stop it —
+WCAG 2.2.2. Seven is longer than five. The active stepper segment also fills
+across the seven seconds so the advance is something you can see coming
+rather than something that happens to you; paused, the fill stops where it is
+rather than resetting, and under `prefers-reduced-motion` the fill is removed
+entirely (a bar frozen at zero would read as a step that never loaded) while
+the timer and the Pause button both still work.
+
+**A crash was introduced and fixed during this change, and it is worth
+recording why the build did not catch it.** The keyboard effect names
+`headingDone` in its dependency array, and that array is evaluated during
+render — above the `const headingDone = ...` line it is still in its temporal
+dead zone, so `/welcome` threw `Cannot access 'headingDone' before
+initialization` and rendered the error boundary instead. `npm run build`
+passed the whole time. This is the frontend version of the standing warning in
+CLAUDE.md about `./mvnw test` not proving the app starts: a green build says
+the modules resolve, not that the page renders.
+
+Verified against a stubbed session: no advance in 10s on the last step; no
+advance in 10s while paused, with `aria-pressed` and the label flipping and
+manual Next still working; the measured 8.1s interval above; and the
+five-rapid-clicks case. The `/auth/me` call had to be intercepted in the page
+to hold a session long enough to measure any of it — the fake bearer token is
+correctly rejected by the backend (checked: 400, "Supabase session is invalid
+or expired"), which signs the stub out mid-test.
+
+### The hand-off from the walkthrough to the vehicle form (2026-08-27)
+
+"Add your first vehicle" is the one moment in signup where the product stops
+explaining and starts asking, and it was a cut. It now plays a one-second
+overlay — a car pulling in on the mint ground, wheels turning, three lanes of
+road streaming the other way — and then navigates.
+`components/GarageTransition.jsx` and `styles/garage-transition.css`.
+
+Decisions worth keeping:
+
+- **Skip does not get it.** Somebody taking "Skip walkthrough" has said they
+  want out, and a second of car is the opposite of honouring that. `leave()`
+  is still the direct path; only the finishing CTA calls `startLeaving`.
+- **The car barely moves; the road does.** Translating the car across the
+  screen turns it into a blur at the size it needs to be legible. The ground
+  moving underneath sells the motion and keeps the car centred.
+- **`prefers-reduced-motion` skips the component entirely** rather than
+  showing a still car for a second — the caller checks and navigates straight
+  through. The CSS also stills everything, as a second line of defence if it
+  is ever rendered anyway.
+- **It is a status, not just decoration.** `role="status"` with a polite live
+  region and the line "Opening your garage"; the car and the road are
+  `aria-hidden`. A screen reader gets the sentence, not the scenery.
+- **One second, and the number lives in two places.** `LEAVE_ANIMATION_MS` in
+  WelcomePage.jsx is what the timer waits; the durations in the stylesheet add
+  up to it. Shorten one without the other and the overlay is still driving
+  when the next page has mounted underneath it.
+
+The vehicle form now animates in at the other end (`veh-arrive`, 380ms, card
+60ms behind the bar). Without it the overlay lifts on a page that was simply
+already there, and the second before it reads as a stall rather than a
+journey.
+
+Verified: the overlay mounts on the CTA with `position: fixed`, `z-index: 60`
+above the shell's sticky chrome, the mint ground, `gt-drive-in` on the car,
+`gt-roll` on both wheels, three road lanes, the correct ARIA, and a brand-green
+body with mint glass; it is gone a second later; and `/register/vehicle` runs
+`veh-arrive` and settles at opacity 1 with no transform left over.
+
+**Not verified: the reduced-motion branch**, which the preview cannot emulate.
+It is a plain `if` around one call, but nobody has watched it take the short
+path. And as ever, nobody has clicked any of this with a real account — the
+stub token is rejected by the backend mid-sequence, which is the auth working
+correctly and made this the fiddliest thing in the session to observe.
+
+#### The hand-off is five seconds now, and that changed its shape
+
+Asked for directly. Raising `LEAVE_ANIMATION_MS` alone would have been the
+wrong way to do it: the car arrived in 620ms and then sat parked for the other
+4.4 seconds, which reads as a hang rather than a transition.
+
+So it became a journey with three parts instead of one entrance — the car
+drives in over the first fifth, cruises while the road streams beneath it, and
+**leaves the frame in the last fifth**, so the overlay is emptying itself at
+the moment the next page takes over. That arc is one keyframe set
+(`gt-journey`) spanning the whole duration with the easing carried on the
+stops: ease-out in, linear through the middle, ease-in out. Two separate
+animations, one in and one out, would fight over `transform` for the middle
+three seconds.
+
+The duration now lives in `--gt-run` on `.gt`, and every other timing in the
+sheet is a percentage of it. Retiming is that one value plus
+`LEAVE_ANIMATION_MS` in WelcomePage.jsx — they must move together.
+
+**It is skippable, and at five seconds it has to be.** Any click or key cuts
+it short and goes straight to the form, with "Tap anywhere to skip" appearing
+under the label once the car has settled. The listeners attach after the click
+that started it has already been dispatched, so that first click cannot skip
+its own animation, and a cleanup clears the pending timer if the page unmounts
+mid-run rather than navigating a component that has gone.
+
+Worth saying plainly: five seconds is a long hold on a screen the person
+demoing this will see many more times than any owner will. The skip is what
+makes that acceptable rather than merely tolerable — if the escape is ever
+removed, the duration should come down with it.
+
+Measured in-page rather than by eye: a full run holds the overlay for
+**5021ms** and lands on `/register/vehicle`; a `pointerdown` sent at 908ms
+ends it at **921ms**, thirteen milliseconds later, on the same destination.
+
+One thing that wasted a while and is worth recording: an unstubbed run measured
+801ms, which looked like the timer being ignored. It was not — it was
+`hasSeenWalkthrough()` resolving against the real backend and redirecting the
+page out from under the overlay. Stub `/auth/me` before timing anything on
+this screen.
+
+#### The label was wrong, and the car was drawn badly
+
+**"Opening your garage" described the wrong screen.** That click leads to the
+form that creates a vehicle; the garage is somewhere the owner has not been
+yet and will not reach until they have added one. It reads "Let's add your
+vehicle" now, and `label` is still a prop so the component can be pointed at a
+different destination when it is reused.
+
+**The car was one hand-written bezier path.** It came out misshapen, which was
+predictable: I cannot see the preview pane, and a single clever path is
+exactly the thing that cannot be checked without eyes. It is now four kinds of
+simple shape — a rounded body rect, a trapezoid cabin, two window panes and
+two wheels — chosen because their coordinates can be verified one at a time
+against each other. Which they were: body 8..192 x 40..68, cabin 60..142 x
+17..42 sitting two pixels into the body so there is no seam, windows inside
+the cabin with a six-pixel pillar between them, lamp inside the body at the
+end it drives towards, wheels centred on the body's lower edge and drawn last
+so they sit over it rather than behind it. Whole drawing 8..192 x 17..80
+inside a 200x84 viewBox.
+
+**That is geometry verification, not seeing it.** If it still looks wrong the
+useful report is which part — cabin floating, wheels too big, body too long —
+because that is the thing measurement cannot tell me and a person glancing at
+it knows instantly.
+
+General lesson for this file, since it has now cost time twice: anything
+purely visual on this project is unverifiable from here. The preview pane
+produces no screenshots, so vector artwork should be built from primitives
+whose relationships can be reasoned about, and anyone reviewing it should
+expect to be the first pair of eyes on it.
