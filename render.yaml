@@ -33,6 +33,11 @@ services:
       # (no trailing slash), plus any custom domain.
       - key: TREVORA_CORS_ALLOWED_ORIGINS
         sync: false
+      # The browser app's origin, written into every share QR code. Optional:
+      # left unset, the API uses the first CORS origin above, which is the same
+      # address. Set it only if the two ever differ -- a custom domain, say.
+      - key: TREVORA_FRONTEND_BASE_URL
+        sync: false
       - key: OCR_PROVIDER
         value: google-vision
       - key: GOOGLE_CLOUD_VISION_API_KEY
