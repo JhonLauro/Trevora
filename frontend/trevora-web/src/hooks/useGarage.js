@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getVehicles } from '../api/vehicles';
-import { getVehicleServiceHistory } from '../api/serviceHistory';
+import { getGarageSummary } from '../api/serviceHistory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 import { needsReview } from '../utils/recordStatus';
 
 /**
  * Every vehicle the owner has, each with its own records.
  *
- * The dashboard shows one card per vehicle, each carrying its own numbers, so
- * history is fetched per vehicle and kept per vehicle. A request per vehicle
- * is fine at two or three cars and avoids inventing a cross-vehicle endpoint;
- * if the count ever grows, that endpoint is the fix, not caching here.
+ * <p>One request, not one per vehicle. This used to fetch the vehicle list and
+ * then a history call for each car, which its own comment described as fine at
+ * two or three cars and predicted would need a cross-vehicle endpoint if the
+ * count grew. The count was not the problem in the end -- the round trips
+ * were. Every one of those calls paid a separate authentication against a
+ * different region before it read anything, so even two cars meant three
+ * sequential-ish waits for a screen that should be one.
  *
- * `records[0]` is the last service — the history call already sorts newest.
+ * <p>`records[0]` is the last service — the endpoint sorts newest first within
+ * each vehicle.
  */
 export default function useGarage() {
   const [garages, setGarages] = useState([]);
@@ -23,17 +26,16 @@ export default function useGarage() {
     let active = true;
     setLoading(true);
 
-    getVehicles()
-      .then((vehicles) => Promise.all(
-        vehicles.map((vehicle) => getVehicleServiceHistory(vehicle.vehicleId, { sort: 'newest' })
-          .then((history) => ({ vehicle, records: history.records ?? [] }))
-          // One vehicle failing to load its history should not blank the whole
-          // garage; that card renders as empty instead.
-          .catch(() => ({ vehicle, records: [] }))),
-      ))
-      .then((data) => {
+    getGarageSummary()
+      .then((summary) => {
         if (!active) return;
-        setGarages(data);
+        const recordsByVehicle = new Map(
+          (summary?.records ?? []).map((entry) => [entry.vehicleId, entry.records ?? []]),
+        );
+        setGarages((summary?.vehicles ?? []).map((vehicle) => ({
+          vehicle,
+          records: recordsByVehicle.get(vehicle.vehicleId) ?? [],
+        })));
         setError('');
       })
       .catch((err) => {
