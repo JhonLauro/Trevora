@@ -40,8 +40,22 @@ public class SupabaseAuthService {
        Well above any realistic number of concurrent sessions. */
     private static final int CACHE_MAX_ENTRIES = 2_000;
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(8);
+    /* Sized for the worst case this actually runs in, not for a healthy one.
+       The API sits in one region and the Supabase project in another, on an
+       instance that sleeps and wakes with a cold JVM and throttled CPU: a warm
+       round trip measured about five seconds, so the eight-second ceiling these
+       replaced was turning a slow first call into a failed sign-in. They exist
+       to stop a hung dependency pinning a request thread forever -- that is the
+       only job, and twenty seconds does it. */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
+
+    /* One retry, because the failure this guards against is specifically the
+       first call after a wake-up. The second attempt runs against a warmed
+       connection pool and TLS session and usually costs a fraction of the
+       first. */
+    private static final int ATTEMPTS = 2;
+    private static final Duration RETRY_PAUSE = Duration.ofMillis(300);
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -177,18 +191,48 @@ public class SupabaseAuthService {
                 .GET()
                 .build();
 
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new AuthException("Supabase session is invalid or expired.");
+        IOException lastFailure = null;
+
+        for (int attempt = 1; attempt <= ATTEMPTS; attempt++) {
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    // Supabase answered and said no. Retrying cannot change that.
+                    throw new AuthException("Supabase session is invalid or expired.");
+                }
+                return parseUser(response.body());
+            } catch (IOException exception) {
+                // Timed out, or never connected. Worth one more try; see ATTEMPTS.
+                lastFailure = exception;
+                if (attempt < ATTEMPTS) {
+                    pauseBeforeRetry();
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new AuthException("Supabase Auth verification was interrupted.");
             }
-            return parseUser(response.body());
-        } catch (IOException exception) {
-            throw new AuthException("Unable to contact Supabase Auth.");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AuthException("Supabase Auth verification was interrupted.");
         }
+
+        throw new AuthException("Unable to contact Supabase Auth: " + describe(lastFailure));
+    }
+
+    private void pauseBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_PAUSE.toMillis());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Enough of the cause to tell a timeout from a DNS failure in a log,
+        without putting a stack trace in front of somebody signing in. */
+    private static String describe(IOException failure) {
+        if (failure == null) {
+            return "no response";
+        }
+        String message = failure.getMessage();
+        String type = failure.getClass().getSimpleName();
+        return message == null || message.isBlank() ? type : type + " (" + message + ")";
     }
 
     private SupabaseAuthenticatedUser parseUser(String body) throws IOException {
