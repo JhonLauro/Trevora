@@ -78,7 +78,7 @@ export default function MechanicSharedRecordDetailPage() {
   const source = sourceLabel(record?.sourceInputMethod);
 
   return (
-    <main className="page-shell mechanic-shared-page">
+    <main className="page-shell mechanic-shared-page tv-reveal-group">
       <div className="mechanic-detail-nav">
         <Link className="button-link-secondary mechanic-back-button" to={`/mechanic/access/${sessionId}`}>
           Back to shared records

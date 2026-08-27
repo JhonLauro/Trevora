@@ -168,7 +168,7 @@ export default function QRSharingPage() {
   }
 
   return (
-    <main className="ink-page access-page">
+    <main className="ink-page access-page tv-reveal-group">
       <nav className="vehicle-crumbs" aria-label="Breadcrumb">
         <Link to="/">Garage</Link>
         <span aria-hidden="true">/</span>

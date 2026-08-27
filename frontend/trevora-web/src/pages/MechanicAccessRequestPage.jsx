@@ -182,7 +182,7 @@ export default function MechanicAccessRequestPage() {
   }
 
   return (
-    <div className="mreq">
+    <div className="mreq tv-reveal-group">
       <header className="mreq__bar">
         <InkLockup />
         <Link className="mreq__owner-link" to="/login">
