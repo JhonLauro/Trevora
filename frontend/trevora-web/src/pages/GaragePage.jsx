@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ScanLine, TrendingDown, TrendingUp } from 'lucide-react';
 import MonthBars from '../components/ink/MonthBars.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
 import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
 import { formatAmount, formatMonthYear, pluralize, relativeDays } from '../utils/format';
-import { lastTwelveMonths, peakMonth } from '../utils/monthlySeries';
+import {
+  allTimeSeries, lastTwelveMonths, monthSeries, peakMonth, previousPeriodTotal, seriesTotal,
+} from '../utils/monthlySeries';
 import { needsReview } from '../utils/recordStatus';
 import { spendTotals } from '../utils/spend';
-import { spendByCategory } from '../utils/serviceCategory';
+import { spendByCategory, UNCATEGORISED } from '../utils/serviceCategory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 
 /* Card width belongs to the stylesheet (496px desktop, 318px mobile), not to
@@ -95,72 +97,57 @@ function VehicleCard({ vehicle, records }) {
 }
 
 /**
- * Vehicle carousel.
+ * The vehicle row.
  *
- * The third card is deliberately clipped at the frame edge — that sliver says
- * "there is more" better than the counter does. Arrows are always present
- * because this audience does not reliably discover swipe; swipe, arrow keys
- * and dots are all additions on top of them, never replacements.
+ * Was a paged carousel: the track translated by a measured page width, arrows
+ * stepped whole pages, and "1-2 of 6" told you where you were. Six vehicles
+ * meant three pages of arrow-clicking, and nobody does that twice.
+ *
+ * It scrolls natively now — one scroller, scroll-snap, arrows that nudge it by
+ * a card. That deletes the ResizeObserver, the per-page arithmetic and the
+ * transform offset, and swipe, trackpad, keyboard and scrollbar all come from
+ * the browser instead of from us.
+ *
+ * A list view lived here briefly as an alternative for larger garages. It was
+ * removed: even carrying the activity strip and the status badges it read as
+ * thinner than the cards it replaced, and a second layout that is worse than
+ * the first is not a choice worth offering.
  */
 function VehicleCarousel({ garages }) {
-  const [page, setPage] = useState(0);
-  const [metrics, setMetrics] = useState({ perPage: 1, cardWidth: 0 });
   const trackRef = useRef(null);
-  const touchStart = useRef(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
 
-  const { perPage, cardWidth } = metrics;
-  const pageCount = Math.max(1, Math.ceil(garages.length / perPage));
+  const single = garages.length === 1;
 
-  // Measured rather than assumed, so the page step stays correct at any width
-  // — including the sizes between the two the design specifies.
+  /* Which arrows are usable, from the scroller itself rather than from a page
+     index we would otherwise have to keep in step with it. */
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return undefined;
 
     function measure() {
-      const trackWidth = track.clientWidth;
-      const card = track.querySelector('.garage-card');
-      const width = card?.getBoundingClientRect().width ?? 0;
-      if (!trackWidth || !width) return;
-      setMetrics({
-        perPage: Math.max(1, Math.floor((trackWidth + CARD_GAP) / (width + CARD_GAP))),
-        cardWidth: width,
-      });
+      const { scrollLeft, scrollWidth, clientWidth } = track;
+      setAtStart(scrollLeft <= 1);
+      setAtEnd(scrollLeft + clientWidth >= scrollWidth - 1);
     }
 
     measure();
+    track.addEventListener('scroll', measure, { passive: true });
     const observer = new ResizeObserver(measure);
     observer.observe(track);
-    return () => observer.disconnect();
+    return () => {
+      track.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
   }, [garages.length]);
 
-  useEffect(() => {
-    setPage((current) => Math.min(current, pageCount - 1));
-  }, [pageCount]);
-
-  const single = garages.length === 1;
-  const first = page * perPage + 1;
-  const last = Math.min((page + 1) * perPage, garages.length);
-  const offset = page * perPage * (cardWidth + CARD_GAP);
-
-  function handleKeyDown(event) {
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      setPage((current) => Math.max(0, current - 1));
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      setPage((current) => Math.min(pageCount - 1, current + 1));
-    }
-  }
-
-  function handleTouchEnd(event) {
-    const start = touchStart.current;
-    if (start === null) return;
-    const delta = start - event.changedTouches[0].clientX;
-    if (Math.abs(delta) > 40) {
-      setPage((current) => Math.min(pageCount - 1, Math.max(0, current + Math.sign(delta))));
-    }
-    touchStart.current = null;
+  function nudge(direction) {
+    const track = trackRef.current;
+    if (!track) return;
+    const card = track.querySelector('.garage-card');
+    const step = card ? card.getBoundingClientRect().width + CARD_GAP : track.clientWidth;
+    track.scrollBy({ left: direction * step, behavior: 'smooth' });
   }
 
   return (
@@ -174,29 +161,29 @@ function VehicleCarousel({ garages }) {
           <Link className="ink-button ink-button--outline garage-carousel__add" to="/vehicles/new">
             Add vehicle
           </Link>
-        {!single && (
-          <>
-            <span className="garage-carousel__counter ink-mono">{first}&ndash;{last} of {garages.length}</span>
-            <button
-              className="garage-carousel__arrow"
-              type="button"
-              aria-label="Previous vehicles"
-              disabled={page === 0}
-              onClick={() => setPage((current) => Math.max(0, current - 1))}
-            >
-              <ChevronLeft size={20} aria-hidden="true" />
-            </button>
-            <button
-              className="garage-carousel__arrow"
-              type="button"
-              aria-label="Next vehicles"
-              disabled={page >= pageCount - 1}
-              onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}
-            >
-              <ChevronRight size={20} aria-hidden="true" />
-            </button>
-          </>
-        )}
+
+          {!single && (
+            <>
+              <button
+                className="garage-carousel__arrow"
+                type="button"
+                aria-label="Scroll vehicles left"
+                disabled={atStart}
+                onClick={() => nudge(-1)}
+              >
+                <ChevronLeft size={20} aria-hidden="true" />
+              </button>
+              <button
+                className="garage-carousel__arrow"
+                type="button"
+                aria-label="Scroll vehicles right"
+                disabled={atEnd}
+                onClick={() => nudge(1)}
+              >
+                <ChevronRight size={20} aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -205,63 +192,116 @@ function VehicleCarousel({ garages }) {
         ref={trackRef}
         tabIndex={single ? -1 : 0}
         role={single ? undefined : 'group'}
-        aria-label={single ? undefined : 'Vehicles, use the left and right arrow keys'}
-        onKeyDown={single ? undefined : handleKeyDown}
-        onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }}
-        onTouchEnd={handleTouchEnd}
+        aria-label={single ? undefined : 'Vehicles, scrollable'}
       >
-        <div className="garage-track__row" style={{ transform: `translateX(-${offset}px)` }}>
+        <div className="garage-track__row">
           {garages.map(({ vehicle, records }) => (
             <VehicleCard key={vehicle.vehicleId} vehicle={vehicle} records={records} />
           ))}
         </div>
       </div>
-
-      {!single && (
-        <>
-          <div className="garage-dots">
-            {Array.from({ length: pageCount }, (unused, index) => (
-              <button
-                key={index}
-                type="button"
-                className={index === page ? 'is-active' : undefined}
-                aria-label={`Go to vehicle ${index * perPage + 1}`}
-                aria-current={index === page}
-                onClick={() => setPage(index)}
-              />
-            ))}
-          </div>
-          <p className="ink-sr-only" aria-live="polite">
-            {`Showing vehicle ${first} of ${garages.length}`}
-          </p>
-        </>
-      )}
     </section>
   );
 }
 
+/* Three spans. Twelve stays the default because it matches a year of
+   ownership; three answers "is this month unusual"; all-time is for deciding
+   whether to keep the car. */
+const RANGES = [
+  { id: '3', label: '3 months', months: 3 },
+  { id: '12', label: '12 months', months: 12 },
+  { id: 'all', label: 'All time', months: null },
+];
+
 function SpendingPanel({ records }) {
-  const series = lastTwelveMonths(records);
+  const [rangeId, setRangeId] = useState('12');
+  const range = RANGES.find((option) => option.id === rangeId) ?? RANGES[1];
+
+  const series = useMemo(
+    () => (range.months === null ? allTimeSeries(records) : monthSeries(records, range.months)),
+    [records, range.months],
+  );
   const peak = peakMonth(series);
+  const total = seriesTotal(series);
+
+  /* Against the same span immediately before it. Null when there is nothing
+     behind the window: a first month of use has no previous period, and
+     reporting "down 100%" there would be an invention. All-time has nothing
+     before it by definition. */
+  const previous = useMemo(
+    () => (range.months === null ? null : previousPeriodTotal(records, range.months)),
+    [records, range.months],
+  );
+  const delta = previous !== null && previous > 0
+    ? Math.round(((total - previous) / previous) * 100)
+    : null;
 
   return (
     <section className="garage-panel">
       <div className="garage-panel__head">
-        <h2 className="ink-section-title">Spending, last 12 months</h2>
-        {peak?.total > 0 && <span className="ink-mono">Peak {formatAmount(peak.total)}</span>}
+        <div className="garage-panel__title">
+          <h2 className="ink-section-title">Spending</h2>
+          {/* Which vehicles this counts. Both panels read every vehicle, and
+              with six cards on the page above it that was not obvious. */}
+          <span className="garage-panel__scope">All vehicles</span>
+        </div>
+        <div className="ink-segmented garage-range" role="group" aria-label="Time range">
+          {RANGES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={option.id === rangeId ? 'is-active' : undefined}
+              aria-pressed={option.id === rangeId}
+              onClick={() => setRangeId(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
-      {/* The axis cells share the bar gap, so each month label sits under
-          its own bar rather than drifting across the series. */}
+
+      <div className="garage-figure">
+        <strong className="garage-figure__value">{formatAmount(total)}</strong>
+        {delta !== null && (
+          /* Up is not automatically bad news. The arrow gives direction and
+             the words say what it is measured against; neither claims it is a
+             problem, because only the owner knows that. */
+          <span className={`garage-delta garage-delta--${delta > 0 ? 'up' : 'down'}`}>
+            {delta > 0
+              ? <TrendingUp size={15} aria-hidden="true" />
+              : <TrendingDown size={15} aria-hidden="true" />}
+            {Math.abs(delta)}% vs previous {range.label.toLowerCase()}
+          </span>
+        )}
+        {delta === null && peak?.total > 0 && (
+          <span className="garage-figure__note">Peak month {formatAmount(peak.total)}</span>
+        )}
+      </div>
+
+      {/* The axis cells share the bar gap, so each month label sits under its
+          own bar rather than drifting across the series. Past eighteen months
+          the labels stop fitting, so the range ends replace them. */}
       <div className="garage-spend-chart">
         <MonthBars
           series={series}
           highlightPeak
-          showAxis
-          label="Spending across all vehicles over the last 12 months, in pesos"
+          interactive
+          showAxis={series.length <= 18}
+          showRange={series.length > 18}
+          label={`Spending across all vehicles, ${range.label.toLowerCase()}, in pesos`}
         />
       </div>
     </section>
   );
+}
+
+/* The id has to be stable and unique per category. It was built from the
+   percentage and the name, which collides the moment two categories share a
+   figure — and at 0% several routinely do, leaving two rows pointing
+   `aria-describedby` at the same element. Category names are unique by
+   construction, so the name alone is the key. */
+function categoryTipId(name) {
+  return `cat-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 }
 
 function WhereItWentPanel({ records }) {
@@ -269,10 +309,18 @@ function WhereItWentPanel({ records }) {
 
   return (
     <section className="garage-panel">
-      <h2 className="ink-section-title">Where it went</h2>
+      <div className="garage-panel__title">
+        <h2 className="ink-section-title">Where it went</h2>
+        <span className="garage-panel__scope">All vehicles</span>
+      </div>
       <div className="garage-breakdown">
         {categories.map((category) => (
-          <div className="garage-breakdown__row" key={category.name}>
+          <div
+            className="garage-breakdown__row"
+            key={category.name}
+            tabIndex={0}
+            aria-describedby={categoryTipId(category.name)}
+          >
             <div className="garage-breakdown__line">
               <span>{category.name}</span>
               <span className="garage-breakdown__amount">{formatAmount(category.total)}</span>
@@ -280,9 +328,28 @@ function WhereItWentPanel({ records }) {
             <div className="garage-breakdown__track">
               <div className="garage-breakdown__fill" style={{ width: `${category.percent}%` }} />
             </div>
+            {/* On hover, not in the layout. Inline it cost four lines and
+                stretched the panel; here it costs none. Focusable so it is
+                reachable by keyboard and by tap, since a touch screen has no
+                hover — `aria-describedby` ties it to the row it explains. */}
+            <div className="garage-breakdown__pop" role="tooltip" id={categoryTipId(category.name)}>
+              {category.count > 0
+                ? (
+                  <>
+                    <strong>{pluralize(category.count, 'record')}</strong>
+                    {category.examples.length > 0 && <span>{category.examples.join(', ')}</span>}
+                    {category.percent > 0 && <span>{category.percent}% of all spend</span>}
+                  </>
+                )
+                : <strong>Nothing in this category</strong>}
+            </div>
           </div>
         ))}
       </div>
+      <p className="garage-breakdown__foot">
+        Categories are worked out from the service description, so a record can
+        land in the wrong one.
+      </p>
     </section>
   );
 }
@@ -384,8 +451,11 @@ export default function GaragePage() {
             and you correct anything it got wrong before it is saved.
           </p>
           <div className="ink-empty__actions">
-            <Link className="ink-button" to="/service-input">Upload a receipt</Link>
-            <Link className="ink-button ink-button--outline" to="/service-input">Enter it manually</Link>
+            <Link className="ink-button" to="/service-input">
+              <ScanLine size={17} aria-hidden="true" />
+              Scan a receipt
+            </Link>
+            <Link className="ink-button ink-button--outline" to="/service-input">Type it in</Link>
           </div>
         </section>
       )}

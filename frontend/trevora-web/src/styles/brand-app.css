@@ -374,6 +374,339 @@
   border-bottom: 1px solid var(--rule-faint);
 }
 
+/* ------------------------------------------------------ dashboard panels */
+
+/* Scope label. Both panels read every vehicle, and with a row of six cards
+   directly above them that was ambiguous — the numbers could plausibly have
+   belonged to whichever cards happened to be in view. */
+.garage-page .garage-panel__title {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.garage-page .garage-panel__scope {
+  background: var(--brand-tint);
+  border-radius: 100px;
+  color: var(--brand-hover);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+}
+
+/* The headline figure the chart is about. It was only ever legible by reading
+   the bars, and a total is what someone checks first. */
+.garage-page .garage-figure {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.garage-page .garage-figure__value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.garage-page .garage-figure__note {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+/* Direction, not judgement. Spending more is not automatically bad — a big
+   service year can be exactly what a car needed — so the arrow is coloured to
+   be readable rather than to praise or scold: both directions take the same
+   neutral ink, and only the glyph differs. */
+.garage-page .garage-delta {
+  align-items: center;
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-size: 14px;
+  gap: 6px;
+}
+
+.garage-page .garage-delta--up svg { color: var(--status-warn-text); }
+.garage-page .garage-delta--down svg { color: var(--brand); }
+
+/* The range and layout switches are the vehicle page's segmented control at a
+   smaller size — same object, so it is the same control. */
+.garage-page .garage-range button,
+.garage-page .garage-view button {
+  align-items: center;
+  display: inline-flex;
+  font-size: 14px;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+}
+
+/* Grid children stretch to the tallest row by default, so adding a line to
+   "Where it went" grew the spending panel with it — an empty gap under a
+   chart that had not changed. Each panel is its own height now. */
+.garage-page .garage-panels {
+  align-items: start;
+}
+
+.garage-page .garage-breakdown__foot {
+  border-top: 1px solid var(--rule-hairline);
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+  padding-top: 14px;
+}
+
+/* The category detail, on hover and on focus rather than in the layout. */
+.garage-page .garage-breakdown__row {
+  border-radius: 10px;
+  outline-offset: 2px;
+  position: relative;
+}
+
+.garage-page .garage-breakdown__pop {
+  background: var(--ink);
+  border-radius: 12px;
+  bottom: calc(100% + 8px);
+  color: var(--on-ink);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 2px;
+  left: 0;
+  line-height: 1.45;
+  max-width: 260px;
+  opacity: 0;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  transform: translateY(4px);
+  /* Hidden, not merely transparent: a transparent tooltip is still in the
+     accessibility tree and still a hit target. `visibility` is also the one
+     property here that is not transitioned, which makes the open state
+     testable. */
+  visibility: hidden;
+  width: max-content;
+  z-index: 5;
+}
+
+.garage-page .garage-breakdown__pop strong {
+  font-weight: 600;
+}
+
+.garage-page .garage-breakdown__pop span {
+  color: var(--on-ink-muted);
+}
+
+/* `:focus`, not `:focus-visible`. `:focus-visible` deliberately does not match
+   a tap, so on a phone — where there is no hover at all — the tooltip would
+   have been unreachable by any means. This is the one case where the broader
+   selector is the correct one. */
+.garage-page .garage-breakdown__row:hover .garage-breakdown__pop,
+.garage-page .garage-breakdown__row:focus .garage-breakdown__pop {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .garage-page .garage-breakdown__pop {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------- chart tooltips */
+
+/* The same object as the "Where it went" tooltip, on the spend chart: hover a
+   bar and it says which month, how much, and what it went on. Unscoped
+   because `MonthBars` is shared, but only rendered where the component is
+   asked for it — see the `interactive` prop. */
+.ink-bars__col {
+  position: relative;
+}
+
+.ink-bars__col[tabindex]:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.ink-bars__tip {
+  background: var(--ink);
+  border-radius: 12px;
+  bottom: calc(100% + 8px);
+  color: var(--on-ink);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  gap: 2px;
+  left: 50%;
+  letter-spacing: normal;
+  line-height: 1.45;
+  opacity: 0;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  text-align: left;
+  text-transform: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  /* Hidden rather than transparent, for the same reason as the breakdown
+     tooltip: a transparent one is still a hit target. */
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.ink-bars__tip strong {
+  font-weight: 600;
+}
+
+.ink-bars__tip-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ink-bars__tip span:not(.ink-bars__tip-value) {
+  color: var(--on-ink-muted);
+  /* The service names are the one part that can run long. */
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `:focus`, not `:focus-visible` — a tap has to work, and a chart has no
+   hover on a phone. */
+.ink-bars__col:hover .ink-bars__tip,
+.ink-bars__col:focus .ink-bars__tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+
+/* The first and last columns would push their tooltip off the chart; they
+   anchor to their own edge instead. */
+.ink-bars__col:first-child .ink-bars__tip {
+  left: 0;
+  transform: translate(0, 4px);
+}
+
+.ink-bars__col:first-child:hover .ink-bars__tip,
+.ink-bars__col:first-child:focus .ink-bars__tip {
+  transform: translate(0, 0);
+}
+
+.ink-bars__col:last-child .ink-bars__tip {
+  left: auto;
+  right: 0;
+  transform: translate(0, 4px);
+}
+
+.ink-bars__col:last-child:hover .ink-bars__tip,
+.ink-bars__col:last-child:focus .ink-bars__tip {
+  transform: translate(0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-bars__tip {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------- the vehicle row */
+
+/* Native scrolling, not a translated track. The browser gives swipe,
+   trackpad, keyboard and a scrollbar for free; the arrows nudge this by one
+   card rather than paging.
+
+   `min-width: 0` and `max-width: 100%` are the important pair: a scroller
+   holding 3,000px of cards will widen its own container without them, and the
+   page picks up a horizontal scrollbar of its own — which is not the same
+   thing as the cards scrolling and looks like a bug, because it is one.
+
+   An earlier version used `padding: 2px; margin: -2px` to make room for the
+   focus ring. That is exactly the shape that widens a container past its
+   parent; the ring is drawn inset instead. */
+.garage-page .garage-track {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  /* Default UA scrollbars are a chunky grey slab directly under the cards.
+     Thin, and in the palette. */
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
+
+.garage-page .garage-carousel {
+  min-width: 0;
+  /* The fix for the page-level horizontal scrollbar, and it is not where it
+     looked like it would be.
+
+     The track has `overflow-x: auto` and does clip visually. But the carousel
+     carries `tv-reveal`, which animates a transform — and a transformed
+     ancestor contributes its descendants' *pre-clip* overflow bounds to the
+     scrollable area, so the six cards' full 3,096px reached the document and
+     the whole page grew a scrollbar. Measured: removing `tv-reveal` dropped
+     the carousel's own `scrollWidth` from 2,624 to 1,143.
+
+     `clip`, not `hidden`: `overflow-x: hidden` forces the other axis to
+     become a scroll container, and this element must not start clipping
+     vertically. Nothing in here is meant to paint outside it — the tooltips
+     are in the panels below and the card focus rings are inset.
+
+     Anything else that puts `tv-reveal` on a container holding a horizontal
+     scroller will need the same line. */
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.garage-page .garage-track::-webkit-scrollbar {
+  height: 8px;
+}
+
+.garage-page .garage-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.garage-page .garage-track::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 100px;
+}
+
+.garage-page .garage-track:hover::-webkit-scrollbar-thumb {
+  background: var(--brand-glow-a);
+}
+
+.garage-page .garage-track__row {
+  transform: none;
+}
+
+.garage-page .garage-card {
+  scroll-snap-align: start;
+}
+
+.garage-page .garage-track:focus-visible {
+  border-radius: var(--radius-card);
+  outline: 2px solid var(--brand);
+  /* Inset: an outward ring on a full-width scroller is what pushed the page
+     into horizontal scroll in the first place. */
+  outline-offset: -2px;
+}
+
+/* The page-level empty state keeps its icon; the per-card one was reverted. */
+.garage-page .ink-empty__actions .ink-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
 /* --------------------------------------------------------------- accents */
 
 /* The eyebrow is the landing page's pattern: uppercase, tracked, brand green.

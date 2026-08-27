@@ -2197,3 +2197,334 @@ Verified at 375px: one column of 335, main and side stacked, receipt frame
 297x396 at a true 3:4, top bar one row, no horizontal scroll. And at 1440px
 the desktop layout is unchanged — 590/492 columns, sticky side, breadcrumb
 visible, share label showing.
+
+### Sign in and create-account on a wide screen (2026-08-27)
+
+Same complaint as the app pages, different cause. These were full-bleed: the
+mint panel on the left, the form column centred in whatever was left. Fine at
+1440 and wasteful above it — the panel caps at 820px, so at 2200 a 424px form
+floated in roughly 1380px of white.
+
+**The fix is what the design board actually drew.** "Trevora Auth v2" is a
+1180px card on a ground, not a split filling the viewport; the full-bleed
+version came from the Ink shell it replaced, not from the design. Above 1200px
+`.ink-auth` becomes that card — capped at 1240, centred, 28px corners, a
+hairline, and the wash colour behind it. Below 1200 it stays full-bleed, which
+is right on a laptop and the only sensible thing on a phone.
+
+Three details worth keeping:
+
+- **`min-height`, not `height`.** The card is the viewport height less its
+  margins, capped at 840 — but a taller form still grows past it and the page
+  scrolls, rather than the form scrolling inside a fixed box. Checked at
+  1440x700: create-account grows to 836 and nothing is clipped.
+- **`:not(.veh-setup)`** excludes signup step 2. It borrows the `ink-auth`
+  class for the form control styles and supplies its own page layout, so a
+  card frame there would fight it. Confirmed unaffected: no border, no radius,
+  its own 720px sheet.
+- **The ground uses `:has()`**, scoped so it cannot touch the app or the
+  landing page, both of which paint their own background. Where `:has()` is
+  unsupported the card's border still defines its edge — the degradation is a
+  white ground, not a broken layout.
+
+Measured: 2200 -> 1240 card with 480 either side; 1920 -> 1240; 1280 -> 1178
+(the clamped gutter, not the cap); 1100 -> full-bleed, square corners, white
+body; 375 -> full-bleed column. `/forgot-password` picks it up too, since it
+uses the same shell.
+
+#### Correction: the card had its proportions inverted
+
+The card was right; the split inside it was backwards, and it looked it.
+
+`ink-auth.css` sizes the panel as `flex: 0 0 clamp(540px, 42%, 820px)` and
+lets the form side take whatever is left. That is correct **full-bleed** — the
+panel must not swallow a 2200px screen. Inside a 1240px card it is exactly
+wrong: the panel got 540 and cramped its headline onto three badly-broken
+lines, while the form column floated in 700px with 138px of dead space either
+side. Compounded by forcing the card to the viewport height, which padded the
+whole thing out with vertical air.
+
+The board is `1fr 540px` — panel flexible, form fixed — and it is that now.
+The height is content-sized with a 640 floor instead of stretched to fit.
+
+Measured at 1920: card 1240x697, panel 718, form side 520 holding a 416
+column with 52px either side, headline on two lines, 98px of vertical slack.
+Before: 1240x840, panel 540, form side 700 with 138px either side, headline on
+three. Create-account grows to 836 with nothing clipped; at 1280 the card is
+1178x697 with the same proportions.
+
+The lesson is the same one as the record page a few entries up, in a different
+costume: **a component rule that was right in its original context is not
+automatically right in a new one.** Both times the mistake was carrying a rule
+across a layout change without re-deriving it.
+
+#### The auth card is reverted — full-bleed, with the surplus in the panel
+
+The two entries above are superseded. The card was the wrong answer: the
+request was "too much space on a big screen" and a centred card is a redesign,
+not a fix. Sign in and create-account are full-bleed again, no frame, no
+rounded corners, no ground colour behind them.
+
+**What actually needed changing is where the surplus goes.** `ink-auth.css`
+fixes the panel at `clamp(540px, 42%, 820px)` and gives the form side whatever
+is left, so at 2200px a 424px form sat in 1380px with about 480px of nothing
+either side. Empty *white* space, which is why it read as broken rather than
+as breathing room.
+
+Inverted above 1200px: the form side is fixed and the panel — mint, drifting
+glows, decorative by design — absorbs the rest. A wide panel reads as a
+background; a wide white gutter reads as a mistake.
+
+**One trap on the way, worth recording.** The first attempt centred the panel
+copy with `padding-inline: max(clamp(...), (100% - 760px) / 2)`, the same
+trick the landing page uses. It squeezed the headline to 140px. Percentage
+padding resolves against the **containing block**, not the element — so
+`100%` was `.ink-auth` at 2200, not the 1580px panel, and it computed 720px a
+side. `max-width` with `auto` margins on the panel's children measures the
+thing it is applied to, and is what is there now.
+
+Measured at 2200: full-bleed 2200 from x=0, no radius; panel 1580 with its
+copy in a 760 block centred at 410; headline 524 on two lines; form side 620
+holding a 424 column with **98px of white either side, down from ~480**. At
+1440: panel 920, form side 520, gutter 48. Below 1200 nothing changed —
+1024 gives the original 540 panel — and 375 is still a single column with no
+horizontal scroll.
+
+#### Reverted: the auth screens are back to how they were
+
+Both attempts are out. The card is gone and so is the full-bleed rebalance
+that replaced it — `trevora-brand.css` has no `min-width: 1200px` block for
+the auth screens at all any more, so `ink-auth.css` governs the layout exactly
+as it did before this round: panel at `clamp(540px, 42%, 820px)`, form side
+taking the remainder, no frame, no ground colour.
+
+Confirmed back to the original numbers — at 2200: root 2200 full-bleed, no
+radius, no border, white body, panel 820 with its 68px padding, form side
+1380 holding the 424 column. At 1440: panel 605, form side 835.
+
+Everything else from this session's auth work is untouched and stays: the mint
+panel, the drifting discs, the pill buttons, the white Google button, the
+clickable lockup, the 14px fields.
+
+Worth writing down rather than quietly dropping: **the whitespace the request
+started from is still there** — roughly 480px either side of the form at
+2200px. Two fixes were tried and neither was wanted, so the honest state is
+that this is a known, accepted characteristic of the screen rather than
+something that has been solved. If it comes up again, the useful next step is
+a picture of what "right" looks like, because two reasonable readings of the
+problem both turned out to be the wrong one.
+
+### Dashboard: six changes (2026-08-27)
+
+All six asked for. Taken together they move the Garage from reporting numbers
+to explaining them.
+
+**1. "Other" is gone.** It was a fourth bucket labelled as though it were a
+kind of spend, when it is the absence of one — an owner could see money in it
+and had no way to find out what, except by hovering, and there is nothing to
+hover on a phone. It is **"Not categorised"** now, and `spendByCategory`
+returns a `count` and up to three `examples` per bucket, so the row says
+"2 records · Body & paint, Aircon cleaning" on the page. Every row carries its
+count; a footnote says categories are derived from the description and can be
+wrong, which they can.
+
+**2. Time range.** 3 months / 12 months / All time on the spending panel, 12
+by default. `monthSeries(records, months)` generalises the old
+`lastTwelveMonths`, which stays as a named wrapper because most call sites
+want exactly twelve. All-time runs from the first record to now, **capped at
+five years and floored at twelve months** — past sixty bars the bars are too
+narrow to read and the records table is the better tool. Past eighteen the
+month axis is dropped for range ends, because the labels stop fitting.
+
+**3. Trend.** The panel leads with the period total, and beneath it the change
+against the same span immediately before. `previousPeriodTotal` returns
+**null** when there is no complete previous period rather than zero — a first
+month of use has nothing behind it, and a zero would report "down 100%" at
+every new owner. The arrow gives direction and the words say what it is
+measured against; neither claims it is good or bad, because a big service year
+can be exactly what a car needed.
+
+**4. Scope.** Both panels carry an "All vehicles" chip. They always did read
+every vehicle; with six cards directly above them, nothing said so.
+
+**5. Vehicle browsing.** The paged carousel is gone. It translated a track by
+a measured page width, and six vehicles meant three pages of arrow-clicking.
+It is a **native scroller** now with scroll-snap, arrows that nudge by one
+card, and disabled states read from `scrollLeft` rather than from a page index
+we would have to keep in step. That deletes the per-page arithmetic and the
+transform offset, and swipe, trackpad, keyboard and scrollbar all come from
+the browser instead of from us.
+
+At four vehicles or more a **Cards / List** switch appears, and List is a
+compact table — vehicle, records, spend, last service, open. Cards are right
+for two; a table is right for eight, and the fleet case had no answer at all.
+The choice is remembered per browser (`trevora.garageView`).
+
+**6. Empty states act.** An empty vehicle card showed three zeroes and a flat
+chart: an accurate report of nothing, and three pieces of furniture in front
+of the only thing there is to do. It now says what to do and offers **Scan a
+receipt** and **Type it in** against that vehicle. The page-level empty state
+leads with Scan rather than "Upload a receipt". Reading a receipt is the point
+of this product and the dashboard should push toward it.
+
+**Verified by running the new functions against fixtures**, not by eye: a
+three-month window spans Jun–Aug and totals 3,500; twelve months totals 8,200;
+all-time across a 2023 record gives 43 buckets and 17,200; the previous
+three-month period picks up the 4,000 in March; a window with records before
+it but none inside returns 0 while a brand-new owner returns null; an empty
+garage falls back to twelve months. `spendByCategory` files an oil change
+under Maintenance, brakes under Tires & brakes, and puts body work and aircon
+in Not categorised with both named. Styles resolve and the track scrolls.
+
+**Not verified: any of it with real data.** Every number above came from
+fixtures. The list view in particular has never rendered a real vehicle.
+
+#### Dashboard, second pass — five corrections and a reverted idea
+
+**Reverted: the empty vehicle card.** It went back to stats, chart and the two
+original actions. The reasoning for changing it still holds on paper — three
+zeroes and a flat chart are furniture — but it was not wanted, and a card that
+looks unlike every other card in the row costs more than it gained.
+
+**The list was broken, and it was a one-line cause.** `.ink-table tr` is
+`display: grid` with `grid-template-columns: var(--table-columns)`, which
+`RecordsTable` sets and `VehicleList` did not, so every row collapsed into one
+implicit column. It sets its own columns now; the row measures
+`495 120 225 140 64` at 1500px.
+
+**"Where it went" was stretching the spending panel.** `.garage-panels` is a
+grid, and grid children stretch to the tallest row by default — so adding a
+line under one category grew the chart panel beside it and left a gap under a
+chart that had not changed. `align-items: start`.
+
+**The category detail moved onto hover.** Inline it cost four lines and was
+the thing doing the stretching; as a tooltip it costs none, and it says more —
+count, what is in it, and the share of total spend.
+
+Two details there that are not incidental. It uses **`:focus`, not
+`:focus-visible`**: `:focus-visible` deliberately does not match a tap, so on
+a phone — which has no hover at all — the tooltip would have been unreachable
+by any means. And it toggles **`visibility`** as well as opacity, so a
+transparent tooltip is not left sitting in the accessibility tree as a hit
+target.
+
+**The scrollbar.** The default UA bar is a chunky grey slab directly under the
+cards. It is `scrollbar-width: thin` with a `--border` thumb that picks up the
+brand tint on hover.
+
+**The page-level horizontal scroll.** Caused by the scroller itself: an
+element with 3,000px of content will widen its own container unless it is told
+not to, and `padding: 2px; margin: -2px` — which I had added to make room for
+a focus ring — is precisely the shape that pushes a full-width child past its
+parent. The ring is drawn inset now, and the track carries `min-width: 0` and
+`max-width: 100%`. Verified with six cards injected at 1500px:
+`documentElement.scrollWidth` equals `clientWidth`, so the page does not
+scroll while the track still holds 3,096px of cards.
+
+Worth separating, because it confused the diagnosis: elements *inside* a
+horizontal scroller legitimately report `getBoundingClientRect().right` beyond
+the viewport. That is not page overflow. The only reliable test is
+`scrollWidth > clientWidth` on the document.
+
+#### The page-scroll bug was `tv-reveal`, not the scroller
+
+Worth recording in full, because the obvious suspect was wrong twice and the
+real cause will catch the next person.
+
+The vehicle track has `overflow-x: auto` and clips correctly. It was still
+giving the whole page a horizontal scrollbar. Two earlier guesses — a negative
+margin, then a missing `min-width: 0` — were both plausible, both applied, and
+neither fixed it, because neither was the cause.
+
+**The cause is `tv-reveal` on the carousel.** It animates a transform, and a
+transformed ancestor contributes its descendants' *pre-clip* overflow bounds
+to the scrollable area — so all 3,096px of cards reached the document even
+though the track was clipping them visually. Measured directly: removing the
+`tv-reveal` class dropped the carousel's own `scrollWidth` from 2,624 to
+1,143.
+
+Fixed with `overflow-x: clip` on the carousel. **`clip`, not `hidden`** —
+`overflow-x: hidden` forces the other axis to become a scroll container, and
+this element must not start clipping vertically.
+
+**Anything else that puts `tv-reveal` on a container holding a horizontal
+scroller will need the same line.** That is a real trap: the reveal is meant
+to be sprinkled freely on data containers, and this interaction is invisible
+until someone notices a scrollbar at the bottom of the window.
+
+Two diagnostic notes that cost time here. `getBoundingClientRect()` reports
+*pre-clip* geometry, so cards scrolled out of a horizontal scroller
+legitimately report positions beyond the viewport — that is not evidence of
+page overflow. The only reliable test is `documentElement.scrollWidth >
+clientWidth`. And it cannot be reproduced against an empty garage: this needed
+six stubbed vehicles before it appeared at all.
+
+#### The vehicle list, rebuilt
+
+It was five columns of thin text in a wide card, which read as empty — a worse
+first section than the cards it offered to replace. It now carries what a card
+carries: an initial badge, the name and plate, the **twelve-month activity
+strip**, a status badge, spend and last service. Denser than a card, not
+emptier.
+
+The strip is the important part: it is the one thing in a row that is a shape
+rather than a number, and it is what stops six rows reading as a spreadsheet.
+Vehicles with no records say "No activity" rather than drawing an empty chart.
+
+Not a photo in the badge, deliberately: vehicle photos are optional, most rows
+would be a placeholder, and a placeholder is worse than a letter.
+
+Verified with six stubbed vehicles at 1500px: six rows at ~105px, grid columns
+`402 132 90 201 124 64`, twelve bars per strip at 34px, the sr-only chart
+table correctly `position: absolute`, badges reading None / 2 to review / etc,
+and no page overflow in either view.
+
+Also fixed while in there: the category tooltip's id was built from the
+percentage *and* the name, so two categories sharing a figure — which several
+do at 0% — produced duplicate ids and two rows pointing `aria-describedby` at
+the same element. It is keyed on the name alone now, which `CATEGORY_ORDER`
+guarantees is unique. That one is correct by construction rather than
+measured; the page had reset before I could re-read the ids.
+
+#### The list is removed, and the spend chart gained tooltips
+
+**The list view is gone** — component, toggle, stored preference and styles.
+It was rebuilt once to carry the activity strip and status badges, and it
+still read as thinner than the cards it offered to replace. A second layout
+that is worse than the first is not a choice worth offering, and the code for
+it was a real amount of surface to keep working.
+
+`readStoredView`, `LIST_VIEW_FROM`, `VIEW_STORAGE_KEY` and the `.garage-list`
+rules are all deleted rather than left dormant. `trevora.garageView` may still
+exist in a browser or two; nothing reads it.
+
+**The spend chart's bars answer the same question the category rows do.**
+Hovering a bar gives the month, the amount and what it was spent on:
+"OCT 2025 · 16,610 · 2 records · SRA / FIX, Body & Paint". `monthSeries`
+buckets now carry the records that landed in them — references, not copies —
+so the chart can say what a bar is made of rather than only how tall it is.
+
+Three decisions there:
+
+- **`interactive` is opt-in.** The dashboard renders one large chart and up to
+  six card-sized strips; making every column of every strip focusable would
+  put seventy-odd tab stops between the top of the page and the table below
+  it. Only the large chart takes it. Verified: the card strips render twelve
+  columns and zero tooltips.
+- **Empty months are not focusable and have no tooltip.** A month with no
+  service has nothing to say, and would be a tab stop that answers nothing.
+- **`:focus`, not `:focus-visible`**, and `visibility` alongside opacity —
+  same two reasons as the category tooltip: a chart has no hover on a phone,
+  and a transparent tooltip is still a hit target.
+
+**On the verification, precisely.** The tooltip content above is from real
+data, not fixtures — the stub did not take and the page was showing the actual
+garage. Measured: base state hidden, correct content and position, tooltip
+above the bar and inside the viewport, `pointer-events: none`, only the two
+months with spend focusable, card strips with none. What could **not** be
+demonstrated here is `:hover`/`:focus` actually firing — this preview pane
+does not own window focus, so `element.matches(':focus')` returns false even
+when `document.activeElement` is that element. A probe rule of the same shape
+was applied by hand and did reveal the tooltip, and the identical pattern on
+the "Where it went" row was demonstrated opening in an earlier run. So the
+declaration is proven and the trigger is inferred.
