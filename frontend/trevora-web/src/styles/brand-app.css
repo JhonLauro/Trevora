@@ -231,9 +231,16 @@
 }
 
 /* The wordmark goes, the mark stays. Both are inside one inline-flex lockup,
-   so hiding the word leaves the mark centred without touching the markup. */
+   so hiding the word leaves the mark centred without touching the markup.
+
+   Collapsed by width rather than `display: none`: display cannot be
+   transitioned, and a word that vanishes in one frame while the rail beside it
+   slides reads as two separate events. See the transition block at the foot of
+   this file. */
 .ink-app[data-rail='collapsed'] .ink-lockup__wordmark {
-  display: none;
+  margin: 0;
+  max-width: 0;
+  opacity: 0;
 }
 
 .ink-app[data-rail='collapsed'] .ink-sidebar__brand {
@@ -242,16 +249,20 @@
   padding: 0 0 8px;
 }
 
-/* Clipped, not removed: it is the row's accessible name. `display:none` here
-   would leave five links a screen reader announces as nothing at all. */
+/* Narrowed and faded, not removed: it is the row's accessible name, and
+   `display: none` would leave five links a screen reader announces as nothing
+   at all. Opacity keeps it in the accessibility tree -- unlike `visibility`
+   or `display`, a transparent element is still read out.
+
+   This was the sr-only clip until the rail learned to move. Clipping cannot be
+   transitioned, so five labels blinked out in one frame while the rail beside
+   them slid for a quarter of a second. The stagger that follows is at the foot
+   of this file. */
 .ink-app[data-rail='collapsed'] .ink-nav__label {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
+  max-width: 0;
+  opacity: 0;
   overflow: hidden;
-  position: absolute;
   white-space: nowrap;
-  width: 1px;
 }
 
 .ink-app[data-rail='collapsed'] .ink-nav__item {
@@ -1035,3 +1046,266 @@
 /* `--status-warn-text` and `--status-bad-text` keep the warn and bad notes.
    A mechanic reading "this record was never reviewed" needs that to be the
    loudest thing on the line, not a brand colour. */
+
+/* =====================================================================
+   Movement: the rail, and the mobile sheet.
+
+   Both were instant. The rail jumped between 240px and 68px in a single
+   frame, which reads as the layout breaking rather than a panel narrowing,
+   and the sheet appeared and vanished with no sense of where it came from.
+
+   Timing matches the rest of the product -- the same easing as the arrival
+   animation in reveal.css, a little slower because this moves further.
+   ===================================================================== */
+
+.ink-sidebar {
+  transition:
+    flex-basis 260ms cubic-bezier(0.22, 0.68, 0.32, 1),
+    width 260ms cubic-bezier(0.22, 0.68, 0.32, 1),
+    padding 260ms cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+
+/* The word travels with the rail rather than blinking out ahead of it. The
+   max-width is generous: it only has to exceed the rendered word, and any
+   excess simply means the transition finishes early. */
+.ink-app .ink-lockup__wordmark {
+  max-width: 12ch;
+  opacity: 1;
+  overflow: hidden;
+  transition:
+    max-width 260ms cubic-bezier(0.22, 0.68, 0.32, 1),
+    opacity 180ms ease;
+  white-space: nowrap;
+}
+
+/* Icons re-centre as the rail narrows rather than snapping once it has. */
+.ink-nav__item,
+.ink-account-row {
+  transition: padding 260ms cubic-bezier(0.22, 0.68, 0.32, 1);
+}
+
+/* --------------------------------------------------------- mobile sheet */
+
+/* The sheet comes from the right edge because that is the side it is anchored
+   to; the scrim fades rather than cutting, so the page behind it dims into
+   place. `is-closing` is set by AppShell for the length of the exit -- the
+   sheet stays mounted while it plays, which is the only way an exit animation
+   can exist at all. */
+.ink-sheet__backdrop {
+  animation: tv-scrim-in 200ms ease both;
+}
+
+.ink-sheet {
+  animation: tv-sheet-in 260ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+}
+
+.ink-sheet__backdrop.is-closing {
+  animation: tv-scrim-out 200ms ease both;
+}
+
+.ink-sheet__backdrop.is-closing .ink-sheet {
+  animation: tv-sheet-out 220ms cubic-bezier(0.4, 0, 0.7, 0.4) both;
+}
+
+@keyframes tv-sheet-in {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+
+@keyframes tv-sheet-out {
+  from { transform: none; }
+  to { transform: translateX(100%); }
+}
+
+@keyframes tv-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tv-scrim-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-sidebar,
+  .ink-app .ink-lockup__wordmark,
+  .ink-nav__item,
+  .ink-account-row {
+    transition: none;
+  }
+
+  /* The animations stay, reduced to a single frame. Removing them outright
+     would be wrong here: AppShell waits out the exit before unmounting the
+     sheet, so a sheet with no exit still has to arrive at its end state. */
+  .ink-sheet__backdrop,
+  .ink-sheet,
+  .ink-sheet__backdrop.is-closing,
+  .ink-sheet__backdrop.is-closing .ink-sheet {
+    animation-duration: 1ms;
+  }
+}
+
+/* --------------------------------------------------- the labels, in order */
+
+/* The five nav labels arrive one after another as the rail widens, and leave
+   the same way when it narrows.
+
+   Direction is handled by which rule owns the delay. A transition reads its
+   timing from the state it is moving *to*, so the delays below govern opening
+   and the collapsed block after them governs closing -- which is why the two
+   sets of numbers differ rather than being one shared value.
+
+   Opening waits for the rail to be visibly under way before the first word
+   appears: text sliding out of a 68px column that has not widened yet reads as
+   overflow, not as reveal. Closing does the reverse and goes first, quickly,
+   so the words are gone before the rail is narrow enough to clip them -- and
+   in reverse order, so the column empties from the bottom up rather than
+   unzipping from the top. */
+
+.ink-nav__label {
+  /* A ceiling, not a width: the label renders at its natural size and this
+     only has to clear the longest one. "Shared access" is 98px, so 12ch was
+     five pixels of headroom -- one longer label or one bigger base font from
+     silently truncating a nav item in the *expanded* rail, which is the kind
+     of bug nobody looks for because nothing about it says "animation". 16ch
+     leaves room. The cost is that the width reaches the longest label before
+     the transition ends; opacity is what the eye is following anyway. */
+  max-width: 16ch;
+  opacity: 1;
+  overflow: hidden;
+  transform: none;
+  transition:
+    max-width 200ms cubic-bezier(0.22, 0.68, 0.32, 1),
+    opacity 180ms ease,
+    transform 200ms cubic-bezier(0.22, 0.68, 0.32, 1);
+  white-space: nowrap;
+}
+
+.ink-nav__item:nth-child(1) .ink-nav__label { transition-delay: 110ms; }
+.ink-nav__item:nth-child(2) .ink-nav__label { transition-delay: 150ms; }
+.ink-nav__item:nth-child(3) .ink-nav__label { transition-delay: 190ms; }
+.ink-nav__item:nth-child(4) .ink-nav__label { transition-delay: 230ms; }
+.ink-nav__item:nth-child(5) .ink-nav__label { transition-delay: 270ms; }
+
+/* Closing is not opening in reverse, and treating it as though it were is what
+   made it feel broken: the labels faded on the same clock as the rail, so a
+   column narrowing to 68px was squeezing words that were still visible, and
+   the top one was still going as the rail arrived.
+
+   So the order flips. On the way out the text leaves first and quickly -- the
+   whole cascade is done in 180ms -- and the rail does not start until it is
+   effectively gone. Bottom row first, so the column empties upward toward the
+   toggle you just pressed. */
+/* Closing is one movement, not two.
+
+   Two earlier attempts got this wrong in opposite directions. The first ran
+   the labels on the rail's own clock, so the top one was still fading as the
+   rail arrived and the column squeezed words you could still read. The second
+   pushed the text out first and made the rail wait 110ms for it -- which
+   removed the squeeze and replaced it with a worse problem: the words simply
+   vanished, and then, separately, a panel slid. Two events where the eye
+   expects one.
+
+   So they move together and the text finishes first. Everything starts on the
+   same frame as the rail; the labels are done by 190ms, with the rail about
+   three-quarters closed, and they drift left as they go so their direction
+   matches the edge coming toward them. The last one clears while the column is
+   still wide enough to hold it, which is the whole trick. */
+/* The squeeze, and why the box outlives the text.
+
+   Animating `max-width` to zero shrinks the label's box while the word inside
+   it is still visible, so the longer labels -- "Shared access" needs 152px of
+   row -- were being crushed by a column that had already narrowed past them.
+   That is the scuff: not a timing problem, a geometry one.
+
+   So the two are separated. Opacity and the leftward drift run immediately,
+   over 130ms, in step with the rail. `max-width` does not move until 140ms in,
+   by which point the word is invisible and collapsing its box is free. The row
+   clips its own overflow, so anything still wider than the column disappears
+   under the edge coming toward it rather than being compressed.
+
+   `--row-out` carries each row's place in the queue, because a bare
+   `transition-delay` would flatten all three properties onto one clock and
+   undo exactly the separation this depends on. */
+.ink-app[data-rail='collapsed'] .ink-nav__label {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  /* Same duration and the same easing curve as the rail itself, so the words
+     dim at the rate the column narrows rather than on a clock of their own.
+     The previous 130ms fade was the last thing making this feel unsynced: the
+     text was gone by the halfway point and the rail carried on alone, which
+     reads as two movements no matter how the delays are arranged.
+
+     The row clips its overflow, so what actually removes each word is the edge
+     travelling toward it -- the fade only keeps that from looking like a
+     guillotine. The last one lands at 250ms against the rail's 260ms. */
+  transition:
+    opacity 210ms cubic-bezier(0.5, 0, 0.5, 1) var(--row-out, 0ms),
+    transform 210ms cubic-bezier(0.5, 0, 0.5, 1) var(--row-out, 0ms),
+    max-width 1ms linear 280ms;
+}
+
+/* 10ms apart. Enough to read as a sequence from the bottom up, small enough
+   that all five still belong to one gesture. */
+.ink-app[data-rail='collapsed'] .ink-nav__item:nth-child(5) .ink-nav__label { --row-out: 0ms; }
+.ink-app[data-rail='collapsed'] .ink-nav__item:nth-child(4) .ink-nav__label { --row-out: 10ms; }
+.ink-app[data-rail='collapsed'] .ink-nav__item:nth-child(3) .ink-nav__label { --row-out: 20ms; }
+.ink-app[data-rail='collapsed'] .ink-nav__item:nth-child(2) .ink-nav__label { --row-out: 30ms; }
+.ink-app[data-rail='collapsed'] .ink-nav__item:nth-child(1) .ink-nav__label { --row-out: 40ms; }
+
+/* Nothing paints outside the row it belongs to. Without this, a label that
+   still has its full width while the column narrows would spill across the
+   page content beside it. */
+.ink-nav__item {
+  overflow: hidden;
+}
+
+/* No waiting on either side now: the rail and the text leave on the same
+   frame, and arrive on the same frame. */
+.ink-sidebar,
+.ink-nav__item,
+.ink-account-row,
+.ink-app[data-rail='collapsed'] .ink-sidebar,
+.ink-app[data-rail='collapsed'] .ink-nav__item,
+.ink-app[data-rail='collapsed'] .ink-account-row {
+  transition-delay: 0ms;
+}
+
+/* Closing takes an even curve rather than the snap the opening uses.
+
+   Sampled, the opening curve is 64% closed a quarter of the way through and
+   90% at halfway -- the column is effectively shut while the words are still
+   leaving, and no fade timing can be made to match that. Opening can be
+   front-loaded because a panel springing open reads as responsive; closing
+   cannot, because there is text inside it that has to leave with it.
+
+   Now both move together: at halfway the rail is half closed and the labels
+   are half faded. */
+.ink-app[data-rail='collapsed'] .ink-sidebar {
+  transition-timing-function: cubic-bezier(0.5, 0, 0.5, 1);
+}
+
+/* The wordmark leads the sequence on the way out and follows it back in, so
+   the rail reads as one movement with a beginning and an end. */
+.ink-app .ink-lockup__wordmark {
+  transition-delay: 90ms;
+}
+
+.ink-app[data-rail='collapsed'] .ink-lockup__wordmark {
+  transition:
+    opacity 210ms cubic-bezier(0.5, 0, 0.5, 1),
+    max-width 1ms linear 280ms;
+  transition-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-nav__label,
+  .ink-app[data-rail='collapsed'] .ink-nav__label,
+  .ink-app .ink-lockup__wordmark,
+  .ink-app[data-rail='collapsed'] .ink-lockup__wordmark {
+    transition: none;
+    transition-delay: 0ms;
+  }
+}
