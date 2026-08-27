@@ -717,6 +717,51 @@
   gap: 8px;
 }
 
+/* A breadcrumb whose items shrink instead of wrapping. `.vehicle-crumbs` is a
+   flex row with no `flex-wrap`, so at 375px "Garage / 2019 Mitsubishi Mirage
+   G4 GLS / 24 August 2026" does not overflow — each item is squeezed and its
+   text wraps inside it, turning the trail into three ragged columns of broken
+   words. Measured: the row reported no overflow at all, which is exactly why
+   this is easy to miss.
+
+   Unscoped because the class behaves this way everywhere it is used — the
+   vehicle page and the mechanic's view have the same row. */
+.vehicle-crumbs {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.vehicle-crumbs > * {
+  /* Stops an individual crumb being compressed below its own text. Wrapping
+     is what should happen when the row runs out of room. */
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  /* Gone on a phone. It is a wayfinding device that costs two lines there,
+     and everything it says is said again immediately below: the back button
+     is the "up" link, and the header's summary names the vehicle and date. */
+  .record-page .vehicle-crumbs {
+    display: none;
+  }
+
+  /* One row, not two stacked full-width buttons. Back keeps its words
+     because it is the one people reach for; share becomes its icon. */
+  .record-page .record-topbar {
+    flex-wrap: nowrap;
+  }
+
+  .record-page .record-topbar__share .record-topbar__label {
+    display: none;
+  }
+
+  .record-page .record-topbar__share {
+    padding-left: 0;
+    padding-right: 0;
+    width: 48px;
+  }
+}
+
 /* The details grid was two rigid columns, which put a shop address and a
    four-digit odometer in halves of the same width. `auto-fit` lets a short
    field sit beside a long one and collapses to one column when the card is
@@ -727,10 +772,28 @@
 
 /* 1.55/1 gave the explanation a third of the page while the fields beside it
    had room to spare. It is the only prose here and prose is what suffers from
-   a narrow column, so the split is closer to even now. */
+   a narrow column, so the split is closer to even now.
+
+   Written as `.record-page .record-layout` — (0,2,0) — which quietly beat
+   ink-record.css's single-column rule inside its own `max-width: 900px` block,
+   because that one is `.record-layout` at (0,1,0) and a media query adds no
+   specificity. The result was two columns at 375px: a 171px main and a 143px
+   side, with the receipt frame down to 134px wide. It measured as no overflow
+   and looked like a wreck.
+
+   The single-column rule below is restated at the same weight rather than
+   this one being weakened. A media query is not a stronger selector, and
+   anything that overrides a component at page level has to re-answer every
+   breakpoint that component already had. */
 .record-page .record-layout {
   gap: 20px;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .record-page .record-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Sticky on a tall screen: the explanation is what you read while looking at

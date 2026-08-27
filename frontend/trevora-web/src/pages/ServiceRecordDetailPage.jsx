@@ -159,9 +159,16 @@ export default function ServiceRecordDetailPage() {
             <ArrowLeft size={16} aria-hidden="true" />
             Back to the vehicle
           </Link>
-          <Link className="ink-button ink-button--outline ink-button--sm" to={`/vehicles/${vehicleId}/share`}>
+          {/* The label is a span so a phone can drop it and leave the icon.
+              `aria-label` on the link carries the name either way, so the
+              control is never unnamed. */}
+          <Link
+            className="ink-button ink-button--outline ink-button--sm record-topbar__share"
+            to={`/vehicles/${vehicleId}/share`}
+            aria-label="Share history"
+          >
             <Share2 size={16} aria-hidden="true" />
-            Share history
+            <span className="record-topbar__label">Share history</span>
           </Link>
         </div>
       </div>

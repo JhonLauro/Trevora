@@ -2156,3 +2156,44 @@ Also worth knowing: `MechanicSharedRecordDetailPage` uses this component too,
 so the mechanic's read-only view gets the same frame and full-size view. That
 is intended — it is the same document doing the same job — but it is a second
 screen changed by this edit and nobody has looked at it either.
+
+### The record page on a phone — and the bug I put there (2026-08-27)
+
+**The main cause was mine, from two changes ago.** Widening the explanation
+column, I wrote `.record-page .record-layout` — specificity (0,2,0). The
+single-column rule it needed to yield to lives inside ink-record.css's
+`@media (max-width: 900px)` block and is `.record-layout` at (0,1,0). **A
+media query adds no specificity**, so my page-level rule won at every width
+and the record page stayed two columns on a 375px screen: a 171px main beside
+a 143px side, with the receipt frame squeezed to 134px wide.
+
+It also reported *no overflow*, which is why it survived a check that was
+looking for things sticking out of the viewport. Nothing stuck out. It was
+just wrong.
+
+Fixed by restating the single-column rule at matching weight rather than
+weakening the desktop one. The general lesson, and the reason this is written
+down: **anything that overrides a component at page level has to re-answer
+every breakpoint that component already had.** There are several such rules in
+`brand-app.css` now, and each one is a chance to make this exact mistake.
+
+**Two real mobile problems besides that.**
+
+The breadcrumb has no `flex-wrap`, so on a narrow screen its items do not wrap
+— they *shrink*, and the text wraps inside them, turning "Garage / 2019
+Mitsubishi Mirage G4 GLS / 24 August 2026" into three ragged columns of broken
+words. `flex-wrap: wrap` plus `flex: 0 0 auto` on the items fixes it
+everywhere the class is used, which includes the vehicle page and the
+mechanic's view. Below 700px on the record page it is hidden outright: it is
+wayfinding that costs two lines, and the back button is the same "up" link
+while the header summary already names the vehicle and the date.
+
+The two outline buttons stacked into about 110px of chrome above the title.
+They are one row now — Back keeps its words because it is the one people reach
+for, and Share becomes a 48px icon button with its label in `aria-label`, so
+it is still named. Top bar height at 375px: 48px, down from ~110.
+
+Verified at 375px: one column of 335, main and side stacked, receipt frame
+297x396 at a true 3:4, top bar one row, no horizontal scroll. And at 1440px
+the desktop layout is unchanged — 590/492 columns, sticky side, breadcrumb
+visible, share label showing.
