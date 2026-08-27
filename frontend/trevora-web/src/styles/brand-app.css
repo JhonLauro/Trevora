@@ -1723,3 +1723,175 @@
     transition-delay: 0ms;
   }
 }
+
+/* The scope control.
+
+   Two earlier attempts kept the chip's pill and only shrank it, which was
+   the wrong end of the problem: a filled pill is a button, and this is a
+   label that happens to be changeable. It reads as text now -- muted, the
+   panel heading's own size class, a caret to say it opens -- and takes the
+   room a label takes.
+
+   `!important` is not here for a specificity fight; the rules above it are
+   the static chip's, and a select that has inherited a fill and a native
+   control width needs those actively undone rather than layered over.
+   Anything less has already been tried twice. */
+.garage-page select.garage-panel__scope--picker {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
+  background-position: right 4px center, right 0.5px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 3.5px 3.5px, 3.5px 3.5px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink-muted) !important;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  font-family: inherit;
+  font-size: 12px !important;
+  font-weight: 600;
+  height: auto !important;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  /* Sized to the text, capped so a long nickname truncates instead of
+     pushing the heading around. */
+  max-width: 128px;
+  min-width: 0 !important;
+  overflow: hidden;
+  padding: 0 12px 0 0 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: auto !important;
+}
+
+.garage-page select.garage-panel__scope--picker:hover {
+  color: var(--ink) !important;
+}
+
+.garage-page select.garage-panel__scope--picker:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* Drawn by the OS, inherits none of the above. Stated so the open list is
+   not white-on-white under a dark system theme. */
+.garage-page select.garage-panel__scope--picker option {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* The heading keeps its scope control on the same line; the range control
+   wraps below instead when the panel cannot hold all three.
+
+   Both were free to wrap, and Spending is the panel that also carries a
+   range control — so the picker was what broke away, leaving the heading
+   stranded above it. The heading and the scope it applies to are one
+   statement; "3 months / 12 months / All time" is a separate control and is
+   the one that should move.
+
+   (Restored: an earlier edit truncated this file from a marker above these
+   rules and took them with it, which is why the picker was back on its own
+   line after being resized.) */
+.garage-page .garage-panel__head {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+
+.garage-page .garage-panel__title {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+/* Keeps the range control right-aligned whether or not it wrapped: with
+   `space-between`, a lone item on a second row falls to the left, moving a
+   control that has sat on the right since the panel was built. */
+.garage-page .garage-range {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------- switching vehicles
+
+   Two techniques, because the two panels change in two different ways.
+
+   The spend chart's twelve columns are keyed by month -- 2026-08 and so on --
+   so they are the same twelve nodes whichever vehicle is selected. Only the
+   inline height changes, and a transition on that one property is the whole
+   animation: the bars grow and shrink from where they were. That is the
+   honest reading, because what changed is the amount, not the months.
+
+   The breakdown rows cannot do that. Different vehicles have different
+   categories in a different order, so those really are new rows, and sliding
+   a bar from a value that belonged to some other category would animate a
+   comparison that does not exist. They fade in instead, keyed on the scope in
+   the JSX so React replaces them and the animation runs again rather than
+   only on first mount. The total does the same -- 10,000 to 1,000 is a swap,
+   not a journey. */
+
+.garage-page .ink-bars__bar,
+.garage-page .ink-bars__tick {
+  transition: height 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* The end state is `transform: none`, not `translateY(0)`. They look the same
+   and interpolate the same -- `none` is the identity matrix -- but they are
+   not the same afterwards. `animation-fill-mode: both` keeps whatever the
+   last frame declared, and a row left holding any transform value stays a
+   stacking context and keeps contributing its descendants' pre-clip overflow
+   bounds to the nearest scroller. That is the mechanism behind the tv-reveal
+   scrollbar bug documented further up this file, and these rows carry an
+   absolutely-positioned tooltip that deliberately overflows past their box. */
+@keyframes garage-scope-swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Opacity only. Used under prefers-reduced-motion, where the fade should
+   survive but the movement should not -- see the note on that block. */
+@keyframes garage-scope-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.garage-page .garage-figure__value {
+  animation: garage-scope-swap 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* Staggered so the eye follows the list down instead of watching four things
+   blink at once. The n+4 rule is a stop, not a step: past the fourth row the
+   delay holds rather than growing, so a long breakdown does not end with a
+   row arriving half a second late. */
+.garage-page .garage-breakdown__row {
+  animation: garage-scope-swap 340ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.garage-page .garage-breakdown__row:nth-child(2) { animation-delay: 50ms; }
+.garage-page .garage-breakdown__row:nth-child(3) { animation-delay: 100ms; }
+.garage-page .garage-breakdown__row:nth-child(n+4) { animation-delay: 150ms; }
+
+/* Reduce, not remove.
+
+   The setting is a request to cut *motion* -- the travel and scaling that
+   provoke vestibular symptoms -- and a cross-fade has none of it. Killing the
+   fades too was over-reading it, and on a machine with the OS setting on it
+   left the panel changing with no transition at all, which is what a
+   reduced-motion user gets by accident rather than by choice.
+
+   So: the bars stop travelling and the rows stop rising, but both panels
+   still cross-fade. Only the keyframe name is swapped, so the durations and
+   the stagger above stay in force. */
+@media (prefers-reduced-motion: reduce) {
+  .garage-page .ink-bars__bar,
+  .garage-page .ink-bars__tick {
+    transition: none;
+  }
+
+  .garage-page .garage-figure__value,
+  .garage-page .garage-breakdown__row {
+    animation-name: garage-scope-fade;
+  }
+}

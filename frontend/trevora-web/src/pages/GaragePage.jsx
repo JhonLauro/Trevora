@@ -213,13 +213,73 @@ const RANGES = [
   { id: 'all', label: 'All time', months: null },
 ];
 
-function SpendingPanel({ records }) {
+/** Every vehicle, plus the "all of them" option that stays the default. */
+const ALL_VEHICLES = 'all';
+
+/**
+ * Which vehicles a panel is counting.
+ *
+ * Was a static chip reading "All vehicles" on both panels — it answered the
+ * question but did not let you ask a different one. Both panels now share a
+ * single selection, because two pickers side by side that can disagree is a
+ * worse answer than one that cannot: a reader comparing "Spending" against
+ * "Where it went" is entitled to assume they are about the same vehicle.
+ *
+ * With one vehicle it stays a chip. A dropdown whose only option is the
+ * current one is something to read and dismiss on every visit.
+ */
+function ScopePicker({ vehicles, value, onChange, id, label }) {
+  if (vehicles.length < 2) {
+    return <span className="garage-panel__scope">All vehicles</span>;
+  }
+
+  return (
+    <>
+      <label className="ink-sr-only" htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        className="garage-panel__scope garage-panel__scope--picker"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value={ALL_VEHICLES}>All vehicles</option>
+        {vehicles.map((vehicle) => (
+          <option key={vehicle.vehicleId} value={vehicle.vehicleId}>
+            {displayVehicleName(vehicle)}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+}
+
+/** The records one scope selection covers, and what to call it. */
+function useScopedRecords(records, vehicles, scopeId) {
+  /* A vehicle deleted while selected would otherwise leave a panel filtering
+     on an id that no longer exists, reporting zero as though it were a fact
+     about the garage. */
+  const vehicle = vehicles.find((entry) => entry.vehicleId === scopeId) ?? null;
+  const activeId = vehicle ? scopeId : ALL_VEHICLES;
+
+  const scoped = useMemo(
+    () => (activeId === ALL_VEHICLES
+      ? records
+      : records.filter((record) => record.vehicleId === activeId)),
+    [records, activeId],
+  );
+
+  return { scoped, activeId, scopeLabel: vehicle ? displayVehicleName(vehicle) : 'All vehicles' };
+}
+
+function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
   const [rangeId, setRangeId] = useState('12');
   const range = RANGES.find((option) => option.id === rangeId) ?? RANGES[1];
+  const { scoped, activeId, scopeLabel } = useScopedRecords(records, vehicles, scopeId);
+
 
   const series = useMemo(
-    () => (range.months === null ? allTimeSeries(records) : monthSeries(records, range.months)),
-    [records, range.months],
+    () => (range.months === null ? allTimeSeries(scoped) : monthSeries(scoped, range.months)),
+    [scoped, range.months],
   );
   const peak = peakMonth(series);
   const total = seriesTotal(series);
@@ -229,8 +289,8 @@ function SpendingPanel({ records }) {
      reporting "down 100%" there would be an invention. All-time has nothing
      before it by definition. */
   const previous = useMemo(
-    () => (range.months === null ? null : previousPeriodTotal(records, range.months)),
-    [records, range.months],
+    () => (range.months === null ? null : previousPeriodTotal(scoped, range.months)),
+    [scoped, range.months],
   );
   const delta = previous !== null && previous > 0
     ? Math.round(((total - previous) / previous) * 100)
@@ -241,9 +301,17 @@ function SpendingPanel({ records }) {
       <div className="garage-panel__head">
         <div className="garage-panel__title">
           <h2 className="ink-section-title">Spending</h2>
-          {/* Which vehicles this counts. Both panels read every vehicle, and
-              with six cards on the page above it that was not obvious. */}
-          <span className="garage-panel__scope">All vehicles</span>
+          {/* Which vehicles this counts. It was a static chip reading "All
+              vehicles", which answered the question but did not let you ask a
+              different one. Still a chip when there is only one vehicle,
+              because then there is nothing to pick. */}
+          <ScopePicker
+            vehicles={vehicles}
+            value={scopeId}
+            onChange={onScopeChange}
+            id="spend-vehicle"
+            label="Vehicles counted in spending"
+          />
         </div>
         <div className="ink-segmented garage-range" role="group" aria-label="Time range">
           {RANGES.map((option) => (
@@ -261,7 +329,7 @@ function SpendingPanel({ records }) {
       </div>
 
       <div className="garage-figure">
-        <strong className="garage-figure__value">{formatAmount(total)}</strong>
+        <strong className="garage-figure__value" key={activeId}>{formatAmount(total)}</strong>
         {delta !== null && (
           /* Up is not automatically bad news. The arrow gives direction and
              the words say what it is measured against; neither claims it is a
@@ -288,7 +356,7 @@ function SpendingPanel({ records }) {
           interactive
           showAxis={series.length <= 18}
           showRange={series.length > 18}
-          label={`Spending across all vehicles, ${range.label.toLowerCase()}, in pesos`}
+          label={`Spending, ${scopeLabel.toLowerCase()}, ${range.label.toLowerCase()}, in pesos`}
         />
       </div>
     </section>
@@ -304,16 +372,23 @@ function categoryTipId(name) {
   return `cat-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 }
 
-function WhereItWentPanel({ records }) {
-  const categories = spendByCategory(records);
+function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
+  const { scoped, activeId } = useScopedRecords(records, vehicles, scopeId);
+  const categories = spendByCategory(scoped);
 
   return (
     <section className="garage-panel">
       <div className="garage-panel__title">
         <h2 className="ink-section-title">Where it went</h2>
-        <span className="garage-panel__scope">All vehicles</span>
+        <ScopePicker
+          vehicles={vehicles}
+          value={scopeId}
+          onChange={onScopeChange}
+          id="breakdown-vehicle"
+          label="Vehicles counted in the breakdown"
+        />
       </div>
-      <div className="garage-breakdown">
+      <div className="garage-breakdown" key={activeId}>
         {categories.map((category) => (
           <div
             className="garage-breakdown__row"
@@ -386,6 +461,10 @@ function AttentionStrip({ reviewCount, requestCount }) {
 export default function GaragePage() {
   const { garages, allRecords, reviewCount, loading, error } = useGarage();
   const [requestCount, setRequestCount] = useState(0);
+  /* One selection for both panels. Held here rather than in either of
+     them so they cannot drift apart. */
+  const [scopeId, setScopeId] = useState(ALL_VEHICLES);
+  const vehicles = useMemo(() => garages.map((entry) => entry.vehicle), [garages]);
   const currentUser = getActiveCurrentUser();
   const firstName = getUserDisplayName(currentUser).split(' ')[0] || 'there';
 
@@ -463,8 +542,18 @@ export default function GaragePage() {
       {hasRecords && (
         <>
           <div className="garage-panels tv-reveal" style={{ '--reveal-index': 2 }}>
-            <SpendingPanel records={allRecords} />
-            <WhereItWentPanel records={allRecords} />
+            <SpendingPanel
+              records={allRecords}
+              vehicles={vehicles}
+              scopeId={scopeId}
+              onScopeChange={setScopeId}
+            />
+            <WhereItWentPanel
+              records={allRecords}
+              vehicles={vehicles}
+              scopeId={scopeId}
+              onScopeChange={setScopeId}
+            />
           </div>
 
           {/* The table holds the reveal, not its rows: the rows re-render
