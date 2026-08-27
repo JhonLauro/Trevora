@@ -10,8 +10,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.math.BigInteger;
 import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.time.Duration;
+import java.util.Arrays;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
@@ -20,11 +24,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SupabaseAuthService {
+    private static final Logger log = LoggerFactory.getLogger(SupabaseAuthService.class);
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String REQUEST_ATTRIBUTE = SupabaseAuthService.class.getName() + ".user";
 
@@ -72,12 +79,16 @@ public class SupabaseAuthService {
     private static final String HS256 = "HS256";
     private static final long CLOCK_SKEW_MS = 30_000L;
 
+    private final SupabaseJwkProvider jwkProvider;
+
     public SupabaseAuthService(
             ObjectMapper objectMapper,
+            SupabaseJwkProvider jwkProvider,
             @Value("${supabase.url:}") String supabaseUrl,
             @Value("${supabase.anon-key:}") String supabaseAnonKey,
             @Value("${supabase.jwt-secret:}") String jwtSecret
     ) {
+        this.jwkProvider = jwkProvider;
         this.objectMapper = objectMapper;
         /* Without a connect timeout a slow Supabase holds a request thread for
            as long as the OS default allows, which on a small instance is how a
@@ -88,6 +99,15 @@ public class SupabaseAuthService {
         this.supabaseUrl = trimTrailingSlash(supabaseUrl);
         this.supabaseAnonKey = supabaseAnonKey == null ? "" : supabaseAnonKey.trim();
         this.jwtSecret = jwtSecret == null ? "" : jwtSecret.trim();
+
+        /* Said once, at startup, because the difference is invisible from
+           outside and decides whether this API can serve a request while
+           Supabase Auth is unwell. No secret is logged -- only whether one
+           arrived. */
+        log.info("Supabase token verification: asymmetric keys are read from the project's JWKS "
+                + "endpoint automatically{}. Supabase Auth is contacted only for tokens this cannot "
+                + "settle locally.",
+                this.jwtSecret.isEmpty() ? "; no legacy HS256 secret configured" : ", plus the legacy HS256 secret");
     }
 
     public Optional<SupabaseAuthenticatedUser> getCurrentUser(HttpServletRequest request) {
@@ -213,10 +233,11 @@ public class SupabaseAuthService {
      * @return the verified user, or null when this cannot be decided locally
      */
     SupabaseAuthenticatedUser verifyLocally(String token) {
-        if (jwtSecret.isEmpty()) {
-            return null;
-        }
-
+        /* No early exit on a missing HS256 secret. This project signs with an
+           asymmetric key, where there is nothing to configure and the public
+           half comes from the JWKS endpoint; each algorithm states its own
+           requirement in signatureIsValid instead. Leaving that check here is
+           what made every live token fall through to Supabase. */
         try {
             String[] parts = token.split("\\.");
             if (parts.length != 3) {
@@ -224,14 +245,10 @@ public class SupabaseAuthService {
             }
 
             JsonNode header = objectMapper.readTree(decode(parts[0]));
-            if (!HS256.equalsIgnoreCase(text(header, "alg"))) {
-                // A project using asymmetric signing keys. Not implemented
-                // here; the HTTP path handles it.
-                return null;
-            }
+            String signingInput = parts[0] + "." + parts[1];
+            byte[] signature = Base64.getUrlDecoder().decode(parts[2]);
 
-            byte[] expected = hmacSha256(parts[0] + "." + parts[1]);
-            if (!MessageDigest.isEqual(expected, Base64.getUrlDecoder().decode(parts[2]))) {
+            if (!signatureIsValid(text(header, "alg"), text(header, "kid"), signingInput, signature)) {
                 return null;
             }
 
@@ -253,6 +270,71 @@ public class SupabaseAuthService {
             // Malformed in some way this does not model. Let Supabase decide.
             return null;
         }
+    }
+
+    /**
+     * Whether this signature belongs to this token.
+     *
+     * <p>Two families, because the project has one of each: the legacy shared
+     * secret (HS256), and the asymmetric key it signs with now (ES256 on
+     * P-256, or RS256). Anything else -- an algorithm not listed, a key id
+     * nobody publishes, "none" -- is false, which sends the caller to the HTTP
+     * path rather than admitting the token.
+     */
+    private boolean signatureIsValid(String algorithm, String keyId, String signingInput, byte[] signature)
+            throws IOException {
+        if (HS256.equalsIgnoreCase(algorithm)) {
+            return !jwtSecret.isEmpty()
+                    && MessageDigest.isEqual(hmacSha256(signingInput), signature);
+        }
+
+        String javaAlgorithm = switch (algorithm == null ? "" : algorithm.toUpperCase(Locale.ROOT)) {
+            case "ES256" -> "SHA256withECDSA";
+            case "ES384" -> "SHA384withECDSA";
+            case "RS256" -> "SHA256withRSA";
+            case "RS512" -> "SHA512withRSA";
+            default -> null;
+        };
+        if (javaAlgorithm == null) {
+            return false;
+        }
+
+        PublicKey key = jwkProvider.keyFor(keyId);
+        if (key == null) {
+            return false;
+        }
+
+        try {
+            Signature verifier = Signature.getInstance(javaAlgorithm);
+            verifier.initVerify(key);
+            verifier.update(signingInput.getBytes(StandardCharsets.US_ASCII));
+            byte[] encoded = javaAlgorithm.endsWith("ECDSA") ? derFromJose(signature) : signature;
+            return verifier.verify(encoded);
+        } catch (java.security.GeneralSecurityException | IllegalArgumentException unusable) {
+            return false;
+        }
+    }
+
+    /**
+     * A JWS ECDSA signature is r and s concatenated, fixed width. Java expects
+     * them DER-encoded, so they are re-wrapped here. For P-256 the result is
+     * always under 128 bytes, which is why the length byte needs no long form.
+     */
+    static byte[] derFromJose(byte[] jose) {
+        int half = jose.length / 2;
+        byte[] r = new BigInteger(1, Arrays.copyOfRange(jose, 0, half)).toByteArray();
+        byte[] s = new BigInteger(1, Arrays.copyOfRange(jose, half, jose.length)).toByteArray();
+
+        byte[] der = new byte[6 + r.length + s.length];
+        der[0] = 0x30;
+        der[1] = (byte) (4 + r.length + s.length);
+        der[2] = 0x02;
+        der[3] = (byte) r.length;
+        System.arraycopy(r, 0, der, 4, r.length);
+        der[4 + r.length] = 0x02;
+        der[5 + r.length] = (byte) s.length;
+        System.arraycopy(s, 0, der, 6 + r.length, s.length);
+        return der;
     }
 
     private byte[] hmacSha256(String signingInput) throws IOException {
