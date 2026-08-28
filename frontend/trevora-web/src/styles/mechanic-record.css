@@ -1,0 +1,133 @@
+/* Mechanic's shared record detail — the screen a mechanic lands on from
+   "Open record" inside a QR session.
+
+   WHY THIS FILE EXISTS
+
+   The mechanic session list was migrated to Ink (`ink-page mechanic-page`).
+   This screen was not: it is still on the legacy `page-shell` with the class
+   `mechanic-shared-page`. Everything below follows from that one fact, because
+   the polished record styling in ink-record.css is scoped to `.record-page`
+   and `.mechanic-page`, and this page matches neither. It silently fell back
+   to the older rules in styles.css and has looked unfinished ever since.
+
+   The tempting fix is to add `mechanic-page` to the page's class list. That
+   would opt it into every rule here for free -- and also into
+   `max-width: 900px` and the rest of the Ink shell, on a page whose two-column
+   layout with the receipt sidebar is wider than that. Mixing two shells to
+   inherit a hairline is not worth the blast radius, so the treatment is
+   reapplied here instead, matched to ink-record.css's values.
+
+   Loaded last in main.jsx: ink-mechanic.css is imported near the top with a
+   dozen sheets after it, so an override placed there loses on source order to
+   sheets that have nothing to do with this screen. */
+
+/* ------------------------------------------------------ the services block
+
+   The actual cause of the crookedness.
+
+   `.mechanic-detail-focus-grid` is a two-column grid, and
+   `.mechanic-detail-services` re-declares `display: grid` and `gap` without
+   resetting `grid-template-columns`. So the word "Services" was holding a
+   full 50% column and the entire parts list was crushed into the other half.
+   Every part name wrapping onto two lines was a symptom of that, not of the
+   list itself.
+
+   One column: the label sits above its list, and the list gets the width. */
+.mechanic-detail-services {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Matches the section labels on the cards below it (`.mechanic-work-card
+   span`), which this one was not written to resemble. */
+.mechanic-detail-services > span {
+  color: var(--ink-muted, #57534c);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------- the line items
+
+   On the Ink pages each row is a three-column grid, so the tag column has a
+   fixed width and every description starts at the same x. Here the rows were
+   flex with an auto-width tag, which means a PART row and a LABOUR row
+   indented their descriptions differently -- the misalignment reads as the
+   whole list being slightly askew.
+
+   Same 74px column as ink-record.css. Kept identical on purpose: if that file
+   ever changes these numbers, this should follow. */
+.mechanic-shared-page .line-entry-readout li {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule-hairline, #efebe3);
+  display: grid;
+  font-size: 15px;
+  gap: 16px;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  padding: 11px 0;
+}
+
+.mechanic-shared-page .line-entry-readout li:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+/* Outlined and achromatic. `width: 100%` is what makes the tag fill its
+   column rather than shrink to its text -- the difference between the
+   descriptions lining up and not. */
+.mechanic-shared-page .line-entry-tag,
+.mechanic-shared-page .line-entry-tag-operation,
+.mechanic-shared-page .line-entry-tag-part,
+.mechanic-shared-page .line-entry-tag-material,
+.mechanic-shared-page .line-entry-tag-fee {
+  background: transparent;
+  border: 1px solid var(--rule, #d8d1c5);
+  border-radius: 4px;
+  color: var(--ink-faint, #8a8377);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 3px 0;
+  text-align: center;
+  width: 100%;
+}
+
+/* Labour is the only kind that records which part of the vehicle was worked
+   on, so it carries slightly more weight -- by ink, not by hue. */
+.mechanic-shared-page .line-entry-tag-operation {
+  border-color: var(--border, #d8d1c5);
+  color: var(--ink-muted, #57534c);
+}
+
+/* Receipt descriptions arrive from OCR as unbroken runs like
+   "CHAIN SUB - ASSY , NO.1", which have no ordinary break opportunity and
+   would otherwise push the amount column out of alignment. */
+.mechanic-shared-page .line-entry-readout-description {
+  color: var(--ink, #1c1b19);
+  overflow-wrap: anywhere;
+}
+
+/* Right-aligned and tabular, so the pesos form a column the eye can add up. */
+.mechanic-shared-page .line-entry-readout-amount {
+  color: var(--ink, #1c1b19);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  /* The amount drops under the description rather than squeezing it. */
+  .mechanic-shared-page .line-entry-readout li {
+    gap: 4px 12px;
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+
+  .mechanic-shared-page .line-entry-readout-amount {
+    grid-column: 2;
+    text-align: left;
+  }
+}

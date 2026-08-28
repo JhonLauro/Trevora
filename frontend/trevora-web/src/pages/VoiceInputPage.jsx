@@ -44,6 +44,59 @@ function clock(seconds) {
 /** Fifteen bars, lit up to however far the recording has run. */
 const WAVE = Array.from({ length: 15 }, (_, i) => 9 + ((i * 7) % 26));
 
+/* What to say, before they say it.
+
+   The six items are not general advice -- they are exactly the fields
+   VoiceProcessingService pulls out of a transcript (serviceDate, shopName,
+   odometer, totalCost, partsReplaced, laborPerformed). Anything not spoken is
+   left blank on purpose: the extractor is told never to infer a value the
+   transcript does not support, so a date that goes unsaid becomes a date the
+   owner types in by hand on the next screen.
+
+   Placed above the recorder because it is only useful before you talk. */
+const SPOKEN_FIELDS = [
+  { label: 'When', hint: 'the date of the service' },
+  { label: 'Where', hint: 'the shop or mechanic' },
+  { label: 'Odometer', hint: 'the reading that day' },
+  { label: 'Cost', hint: 'the total you paid' },
+  { label: 'Parts', hint: 'what was replaced' },
+  { label: 'Work', hint: 'what was actually done' },
+];
+
+function SpeakingGuide() {
+  return (
+    <section className="flow-card voice-guide">
+      <span className="flow-eyebrow">Saying it well</span>
+      <p className="voice-guide__lead">
+        Mention these six and the next screen arrives mostly filled in. Say them in any
+        order, in any language, in whatever way is natural.
+      </p>
+
+      <ul className="voice-guide__fields">
+        {SPOKEN_FIELDS.map((field) => (
+          <li key={field.label}>
+            <strong>{field.label}</strong>
+            <span>{field.hint}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="voice-guide__example">
+        <span className="voice-guide__example-tag">Like this</span>
+        “On August 11 I had the head gasket leak repaired at Canyon Creek Toyota.
+        The odometer read 45,000 kilometres. They replaced the water outlet gasket
+        and the timing chain. It came to 3,981 pesos.”
+      </p>
+
+      <p className="flow-source__foot">
+        Anything you leave unsaid is left blank rather than guessed at, so you can
+        type it on the next screen. A spoken note records the summary — for an
+        itemised parts-and-labour breakdown, photograph the receipt instead.
+      </p>
+    </section>
+  );
+}
+
 export default function VoiceInputPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
@@ -252,6 +305,8 @@ export default function VoiceInputPage() {
       {error && <div className="flow-alert">{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <SpeakingGuide />
+
         <section className="flow-card flow-recorder">
           <button
             className={`flow-recorder__btn${recording ? '' : ' is-idle'}`}

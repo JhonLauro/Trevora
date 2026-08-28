@@ -78,6 +78,15 @@ import './styles/stored-receipt.css';
 // one utility class, no selector it shares with anything else.
 import './styles/reveal.css';
 
+// Mechanic's shared record detail. That screen is still on the legacy
+// `page-shell`, so the record styling in ink-record.css — scoped to
+// `.record-page`/`.mechanic-page` — never reached it. Last, because a dozen
+// unrelated sheets are imported after ink-mechanic.css.
+import './styles/mechanic-record.css';
+// Voice input's "Saying it well" guide. Builds on the flow-* classes in
+// service-flow.css, so it must come after it.
+import './styles/voice-guide.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
