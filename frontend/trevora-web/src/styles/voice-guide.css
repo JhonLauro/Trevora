@@ -1,0 +1,94 @@
+/* "Saying it well" — the guide above the recorder on the voice input screen.
+
+   Sits before the record button because it is only useful before you talk, and
+   it has to earn that position: the recorder is the reason anyone opened this
+   screen. So it stays compact, reads in one pass, and never scrolls the record
+   button off a laptop screen.
+
+   Built on the page's existing `flow-card` / `flow-eyebrow` so it belongs to
+   the same screen rather than announcing itself as a new component. */
+
+.voice-guide__lead {
+  color: var(--ink-muted, #57534c);
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 62ch;
+}
+
+/* Six cells that reflow rather than a fixed grid: at 1200px they sit three
+   across, on a phone they stack into one column, and nothing is ever orphaned
+   as a lone item on its own row. */
+.voice-guide__fields {
+  display: grid;
+  gap: 10px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.voice-guide__fields li {
+  border-left: 2px solid var(--rule, #d8d1c5);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+}
+
+.voice-guide__fields strong {
+  color: var(--ink, #1c1b19);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.voice-guide__fields span {
+  color: var(--ink-muted, #57534c);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* The worked example is the part people actually copy, so it is set apart —
+   sunken rather than outlined, because another bordered box inside a bordered
+   card starts to look like a form. */
+.voice-guide__example {
+  background: var(--surface-sunken, #f3f0ea);
+  border-radius: 10px;
+  color: var(--ink, #1c1b19);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+}
+
+.voice-guide__example-tag {
+  color: var(--ink-faint, #8a8377);
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.voice-guide .flow-source__foot {
+  margin-top: 12px;
+}
+
+@media (max-width: 560px) {
+  /* Two columns, not one.
+
+     Forcing a single column here was measured at 746px of guide on a 340px
+     screen -- six full-width rows -- which put the record button below the
+     fold on a phone, on the one screen where the button is the entire point.
+     A lower floor lets auto-fit keep two columns down to about 320px, which
+     halves the height and loses no words. */
+  .voice-guide__fields {
+    gap: 10px 14px;
+    grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  }
+
+  .voice-guide__example {
+    padding: 10px 12px;
+  }
+}
