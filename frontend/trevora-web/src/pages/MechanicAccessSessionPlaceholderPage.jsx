@@ -120,16 +120,32 @@ function Summary({ records, trust, odometer }) {
   // optional and the last visit may not have recorded it.
   const latest = records.find((record) => record.odometer != null);
 
+  /* Each cell is dropped rather than shown empty: an odometer nobody wrote
+     down is not "0 km", and a single-year history has no span to state. */
+  const cells = [
+    ['Records', pluralize(records.length, 'record'), null],
+    span ? ['Covering', span, null] : null,
+    latest ? ['Odometer', formatOdometer(latest.odometer), null] : null,
+    odometer.kmPerYear ? ['Yearly use', `about ${formatAmount(odometer.kmPerYear)} km`, null] : null,
+    /* The one cell that can carry a warning. It says what is unverified rather
+       than asserting the rest is sound -- the same restraint the record badges
+       keep. */
+    trust.unverified > 0
+      ? ['Not yet reviewed', pluralize(trust.unverified, 'record'), 'warn']
+      : null,
+  ].filter(Boolean);
+
   return (
-    <p className="mechanic-summary">
-      <strong>{pluralize(records.length, 'record')}</strong>
-      {span && <> · {span}</>}
-      {latest && <> · {formatOdometer(latest.odometer)}</>}
-      {odometer.kmPerYear && <> · about {formatAmount(odometer.kmPerYear)} km/year</>}
-      {trust.unverified > 0 && (
-        <> · <span className="mechanic-summary__warn">{trust.unverified} unverified</span></>
-      )}
-    </p>
+    <section className="ink-card mechanic-facts">
+      {cells.map(([label, value, tone]) => (
+        <div className="mechanic-fact" key={label}>
+          <span className="ink-eyebrow">{label}</span>
+          <span className={`mechanic-fact__value${tone ? ` mechanic-fact__value--${tone}` : ''}`}>
+            {value}
+          </span>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -317,12 +333,13 @@ export default function MechanicAccessSessionPlaceholderPage() {
           {history.plateNumber && (
             <p className="mechanic-header__plate ink-mono">{history.plateNumber}</p>
           )}
-          <Summary records={records} trust={trust} odometer={odometer} />
         </div>
         <span className="ink-badge ink-badge--none mechanic-header__expiry">
           {expiryLabel(history.expiresAt)}
         </span>
       </header>
+
+      <Summary records={records} trust={trust} odometer={odometer} />
 
       {records.length === 0 ? (
         <section className="ink-empty">

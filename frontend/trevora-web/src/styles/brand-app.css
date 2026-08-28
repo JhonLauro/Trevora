@@ -1457,6 +1457,246 @@
   color: var(--brand-hover);
 }
 
+/* ------------------------------------------------- the mechanic's figures */
+
+/* The same shape the vehicle page gives an owner: labelled cells in one card,
+   divided by hairlines. It replaces a run-on line of facts separated by
+   middots, which asked a mechanic holding a torch to parse a sentence for the
+   one number they came for. */
+.mechanic-page .mechanic-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  overflow: hidden;
+  padding: 0;
+}
+
+.mechanic-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+}
+
+.mechanic-fact + .mechanic-fact {
+  border-left: 1px solid var(--rule-faint, var(--rule));
+}
+
+.mechanic-fact__value {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+/* Chroma still means state and nothing else: this is the only coloured figure
+   on the page, and it marks the records the owner has not confirmed. */
+.mechanic-fact__value--warn {
+  color: var(--status-warn-text);
+}
+
+/* Cells wrap on a phone, so the left rule would land mid-row. Rows get a top
+   rule instead and the first cell of each keeps none. */
+@media (max-width: 640px) {
+  .mechanic-page .mechanic-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mechanic-fact + .mechanic-fact {
+    border-left: 0;
+    border-top: 1px solid var(--rule-faint, var(--rule));
+  }
+
+  .mechanic-fact:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .mechanic-fact:nth-child(even) {
+    border-left: 1px solid var(--rule-faint, var(--rule));
+  }
+}
+
+/* --------------------------------------------- the mechanic's ask panel */
+
+/* The one block on this screen the brand pass never reached, because it is the
+   only one still styled from `styles.css` in hard-coded Ink hexes -- cream
+   heading, sand borders -- rather than from tokens. Every card around it moved
+   to the green palette and it did not, so the first thing a mechanic reads
+   looked like a different product.
+   
+   Converted here rather than in `styles.css`: that file is eleven thousand
+   lines four people have open, and this layer exists to re-point exactly this
+   kind of surface. The rules below match the originals' specificity, so they
+   win on order alone -- no `!important`, nothing reordered underneath. */
+
+.mechanic-page .mechanic-ask-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+}
+
+/* The mint band the dashboard uses to mark a panel that explains itself --
+   the same treatment as the sharing screen's notice. */
+.mechanic-page .mechanic-ask-heading {
+  background: var(--brand-tint);
+  border-bottom: 1px solid var(--rule);
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.mechanic-page .mechanic-ask-heading > span {
+  align-items: center;
+  background: var(--surface);
+  border-radius: 10px;
+  color: var(--brand);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.mechanic-page .mechanic-ask-heading strong {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mechanic-page .mechanic-ask-heading p {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+/* The input is its own band rather than floating above the chips. It was one
+   undivided block -- heading, field, suggestions -- so the field read as part
+   of the explanation above it rather than as the thing to type in. */
+.mechanic-page .mechanic-ask-input {
+  border-bottom: 1px solid var(--rule-faint, var(--rule));
+  gap: 10px;
+  padding: 18px;
+}
+
+.mechanic-page .mechanic-ask-input input {
+  border-radius: var(--radius);
+  height: 48px;
+}
+
+/* Brand green, like every other primary action in the product. It is a bare
+   `button` rather than an `.ink-button`, so it was falling through to the
+   global ink rule and reading as a different product's control sitting in a
+   green panel. Disabled is left alone: an empty question should not look
+   ready to send. */
+.mechanic-page .mechanic-ask-input button {
+  border-radius: var(--radius);
+  min-width: 96px;
+  padding: 0 22px;
+}
+
+.mechanic-page .mechanic-ask-input button:not(:disabled) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.mechanic-page .mechanic-ask-input button:not(:disabled):hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+/* Suggestions are pills, like every other quiet control in the product. */
+.mechanic-page .mechanic-suggestion-row {
+  padding: 14px 18px;
+}
+
+.mechanic-page .mechanic-suggestion-row span {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.mechanic-page .mechanic-suggestion-row button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.mechanic-page .mechanic-suggestion-row button:hover {
+  background: var(--brand-tint);
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+/* The answer sits on the palest brand ground so it reads as the product
+   speaking, distinct from the records themselves. */
+.mechanic-page .mechanic-ai-answer {
+  background: var(--brand-wash);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  margin: 0 18px 18px;
+  padding: 16px;
+}
+
+.mechanic-page .mechanic-ai-answer-heading {
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Was `#c4bdb0` at weight 800: a sand-coloured shout for a line that only
+   says how many records matched. */
+.mechanic-page .mechanic-ai-answer-heading small {
+  color: var(--ink-faint);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.mechanic-page .mechanic-ai-answer p {
+  color: var(--ink-muted);
+}
+
+.mechanic-page .mechanic-related-results span {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.mechanic-page .mechanic-related-results a {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  color: var(--ink);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+/* The hover shadow was `rgba(124, 58, 237, …)` -- violet, left over from a
+   palette this product has not used in a long time, and the only purple
+   anywhere near a mechanic. */
+.mechanic-page .mechanic-related-results a:hover {
+  border-color: var(--brand);
+  box-shadow: 0 8px 18px rgba(14, 122, 82, 0.10);
+}
+
+.mechanic-page .mechanic-related-results strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mechanic-page .mechanic-related-results small {
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+}
+
 /* `--status-warn-text` and `--status-bad-text` keep the warn and bad notes.
    A mechanic reading "this record was never reviewed" needs that to be the
    loudest thing on the line, not a brand colour. */
