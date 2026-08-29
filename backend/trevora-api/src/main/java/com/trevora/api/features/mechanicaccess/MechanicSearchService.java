@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.exception.AccessRequestException;
+import com.trevora.api.shared.http.OutboundHttp;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
@@ -31,6 +32,26 @@ import org.springframework.web.client.RestClientException;
 public class MechanicSearchService {
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
     private static final Set<String> ALLOWED_VIEWS = Set.of("parts-map", "timeline", "table");
+
+    /**
+     * Longest question accepted. A mechanic asks "was the clutch ever
+     * replaced?", not an essay -- anything past this is someone pushing text
+     * into a prompt we pay for by the token. The controller rejects it too;
+     * this is the check that holds no matter who calls the service.
+     */
+    static final int MAX_QUERY_CHARS = 300;
+    /**
+     * Ceiling on the generated answer.
+     *
+     * <p>Sized against the worst realistic case rather than the typical one:
+     * the model returns a sentence plus one uuid per matching record, and a
+     * uuid is around eighteen tokens, so a vehicle whose whole history matches
+     * a broad question can want well over a thousand. Too low is not a cheaper
+     * answer, it is a truncated one -- the json fails to parse and the search
+     * silently drops to keyword matching, which looks like the AI simply got
+     * worse. This is a bound against a runaway, not a budget.
+     */
+    private static final int MAX_COMPLETION_TOKENS = 2000;
 
     /*
      * Words a mechanic types to form a question rather than to name a part.
@@ -81,19 +102,28 @@ public class MechanicSearchService {
     private RestClient restClient;
     private final String apiKey;
     private final String model;
+    /**
+     * AI searches one approved session may spend over its whole life. The
+     * endpoint needs no bearer token -- a session UUID is the entire
+     * credential -- so without a ceiling a leaked link is an open tab on our
+     * OpenAI account until the session expires.
+     */
+    private final int aiBudgetPerSession;
 
     public MechanicSearchService(
             MechanicAccessService mechanicAccessService,
             ServiceRecordItemReader serviceRecordItemReader,
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.mechanic-search.openai.model:gpt-4o}") String model
+            @Value("${trevora.mechanic-search.openai.model:gpt-4o}") String model,
+            @Value("${trevora.mechanic-search.ai-budget-per-session:30}") int aiBudgetPerSession
     ) {
         this.mechanicAccessService = mechanicAccessService;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.objectMapper = objectMapper;
         this.apiKey = blankToNull(apiKey);
         this.model = blankToDefault(model, "gpt-4o");
+        this.aiBudgetPerSession = aiBudgetPerSession;
     }
 
     @Transactional
@@ -118,8 +148,15 @@ public class MechanicSearchService {
                 records.stream().map(ServiceRecord::getRecordId).toList()
         );
 
-        MechanicSearchDecision decision = aiDecision(normalizedQuery, records, itemsByRecord)
-                .orElseGet(() -> fallbackDecision(normalizedQuery, records, itemsByRecord));
+        /*
+         * The budget is spent before the call, not after it. A call that times
+         * out or errors still cost us the request upstream, and counting only
+         * successes would let a caller loop on failures for free.
+         */
+        MechanicSearchDecision decision = canCallAi(records) && mechanicAccessService.tryConsumeAiSearchBudget(session, aiBudgetPerSession)
+                ? aiDecision(normalizedQuery, records, itemsByRecord)
+                        .orElseGet(() -> fallbackDecision(normalizedQuery, records, itemsByRecord))
+                : fallbackDecision(normalizedQuery, records, itemsByRecord);
         Map<UUID, ServiceRecord> recordsById = records.stream()
                 .collect(Collectors.toMap(ServiceRecord::getRecordId, record -> record, (first, ignored) -> first, LinkedHashMap::new));
         List<ServiceRecord> matches = decision.matchingRecordIds().stream()
@@ -152,22 +189,29 @@ public class MechanicSearchService {
     private RestClient restClient() {
         RestClient existing = this.restClient;
         if (existing == null) {
-            existing = RestClient.create();
+            existing = OutboundHttp.restClient(OutboundHttp.OPENAI_READ_TIMEOUT);
             this.restClient = existing;
         }
         return existing;
     }
 
+    /*
+     * Checked before the budget is touched: a deployment with no key, or a
+     * vehicle with no history, never reaches OpenAI, and charging it a search
+     * out of the session's allowance would be spending a budget on nothing.
+     */
+    private boolean canCallAi(List<ServiceRecord> records) {
+        return apiKey != null && !records.isEmpty();
+    }
+
     private java.util.Optional<MechanicSearchDecision> aiDecision(
             String query, List<ServiceRecord> records, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
-        if (apiKey == null || records.isEmpty()) {
-            return java.util.Optional.empty();
-        }
         try {
             Map<String, Object> request = new LinkedHashMap<>();
             request.put("model", model);
             request.put("temperature", 0);
             request.put("response_format", Map.of("type", "json_object"));
+            request.put("max_tokens", MAX_COMPLETION_TOKENS);
             request.put("messages", List.of(
                     Map.of("role", "system", "content", mechanicSearchSystemPrompt()),
                     Map.of("role", "user", "content", mechanicSearchUserPrompt(query, records, itemsByRecord))
@@ -527,7 +571,13 @@ public class MechanicSearchService {
         if (query == null || query.isBlank()) {
             return null;
         }
-        return query.trim();
+        String trimmed = query.trim();
+        if (trimmed.length() > MAX_QUERY_CHARS) {
+            throw new AccessRequestException(
+                    "Search question is too long. Keep it under " + MAX_QUERY_CHARS + " characters."
+            );
+        }
+        return trimmed;
     }
 
     private String valueOrEmpty(String value) {

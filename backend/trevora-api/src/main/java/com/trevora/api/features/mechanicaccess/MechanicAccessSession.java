@@ -55,6 +55,15 @@ public class MechanicAccessSession {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * AI-backed searches this session has spent. The endpoint that increments
+     * it is reachable with a session UUID alone, so the ceiling is kept on the
+     * row rather than in memory: it has to survive a restart and hold across
+     * instances to be worth anything.
+     */
+    @Column(name = "ai_search_count", nullable = false)
+    private int aiSearchCount;
+
     public UUID getMechanicAccessSessionId() {
         return mechanicAccessSessionId;
     }
@@ -137,5 +146,13 @@ public class MechanicAccessSession {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public int getAiSearchCount() {
+        return aiSearchCount;
+    }
+
+    public void setAiSearchCount(int aiSearchCount) {
+        this.aiSearchCount = aiSearchCount;
     }
 }
