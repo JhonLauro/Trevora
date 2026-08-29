@@ -30,14 +30,33 @@ export default function ConfirmDialog({
   // stops meaning anything.
   busyLabel = 'Deleting…',
   tone = 'danger',
+  // Lets a caller hold the confirm button shut until some extra condition is
+  // met — account deletion makes you type the word first. Defaults to false,
+  // so every existing call site behaves exactly as before.
+  confirmDisabled = false,
 }) {
   const dialogRef = useRef(null);
   const cancelRef = useRef(null);
 
+  /* Focus belongs to *opening*, so it depends on `open` alone.
+
+     It used to live in the effect below, next to the key handler, which also
+     depends on `busy` and `onCancel`. Callers pass `onCancel` as an inline
+     arrow, so its identity changes on every render — and a dialog containing
+     a text field re-renders on every keystroke. The effect re-ran and pulled
+     focus back to Cancel after each letter, which made the account-deletion
+     field impossible to type into.
+
+     Splitting them is the fix: the listener can be torn down and rebuilt as
+     often as its dependencies change, while focus is set once, when the
+     dialog appears. */
+  useEffect(() => {
+    if (!open) return;
+    cancelRef.current?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
-
-    cancelRef.current?.focus();
 
     function handleKeyDown(event) {
       if (event.key === 'Escape' && !busy) {
@@ -96,7 +115,7 @@ export default function ConfirmDialog({
           <button
             className={`ink-button ink-button--${tone}`}
             type="button"
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             onClick={onConfirm}
           >
             {busy ? busyLabel : confirmLabel}

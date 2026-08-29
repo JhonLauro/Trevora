@@ -62,6 +62,23 @@ public class AuthService {
         User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
                 .orElseThrow(() -> new AuthException("Email or password is incorrect."));
 
+        /*
+         * An account created through Google has no password at all, so the
+         * check below would reject it as though the password were wrong. That
+         * sends the owner to the register screen, which refuses them because
+         * the email exists, which sends them back here -- a loop with no exit
+         * and no message that explains it.
+         *
+         * This does confirm the address is registered, which "Email or password
+         * is incorrect" deliberately avoids. That ship has sailed: the register
+         * screen already answers the same question, and the alternative is
+         * leaving people locked out of their own account by a hint we withheld.
+         */
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new AuthException(
+                    "This account signs in with Google. Use \"Continue with Google\" instead of a password.");
+        }
+
         if (!passwordHashingService.matches(request.password(), user.getPasswordHash())) {
             throw new AuthException("Email or password is incorrect.");
         }
