@@ -9,6 +9,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.ExpectedCount;
@@ -45,6 +46,46 @@ class OpenAIExtractionRetryTest {
         ReceiptDraftFields fields = provider.extractFields("SHOP RECEIPT\nCHANGE OIL 1200.00\n");
 
         assertThat(fields.shopName()).isEqualTo("Retry Motors");
+        server.verify();
+    }
+
+    @Test
+    void waitsTheProvidersOwnRetryAfterAndThenSucceeds() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, "1"));
+        server.expect(requestTo(URL)).andRespond(withSuccess(VALID_RESPONSE, MediaType.APPLICATION_JSON));
+
+        long startedAt = System.nanoTime();
+        ReceiptDraftFields fields = provider.extractFields("SHOP RECEIPT");
+        long waitedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
+
+        assertThat(fields.shopName()).isEqualTo("Retry Motors");
+        assertThat(waitedMillis)
+                .describedAs("should have honoured the provider's one second, not its own 500ms backoff")
+                .isGreaterThanOrEqualTo(1000L);
+        server.verify();
+    }
+
+    @Test
+    void givesUpWhenTheProviderAsksForLongerThanAnyoneCanWait() {
+        server.expect(ExpectedCount.once(), requestTo(URL))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header(HttpHeaders.RETRY_AFTER, "120"));
+
+        assertThatThrownBy(() -> provider.extractFields("SHOP RECEIPT"))
+                .isInstanceOf(ReceiptProcessingException.class)
+                .hasMessageContaining("429");
+
+        // The point: one attempt, no two-minute sleep on a request thread.
+        server.verify();
+    }
+
+    @Test
+    void ignoresARetryAfterItCannotRead() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, "Wed, 21 Oct 2026 07:28:00 GMT"));
+        server.expect(requestTo(URL)).andRespond(withSuccess(VALID_RESPONSE, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.extractFields("SHOP RECEIPT").shopName()).isEqualTo("Retry Motors");
         server.verify();
     }
 

@@ -110,7 +110,7 @@ class MechanicSearchRankingTest {
 
         // Empty api key -> aiDecision() returns empty without a network call.
         MechanicSearchService service =
-                new MechanicSearchService(access, reader, new ObjectMapper(), "", "gpt-4o");
+                new MechanicSearchService(access, reader, new ObjectMapper(), "", "gpt-4o", 30);
         return new Fixture(service, reader);
     }
 

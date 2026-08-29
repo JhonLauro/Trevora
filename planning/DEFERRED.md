@@ -2528,3 +2528,239 @@ when `document.activeElement` is that element. A probe rule of the same shape
 was applied by hand and did reveal the tooltip, and the identical pattern on
 the "Where it went" row was demonstrated opening in an earlier run. So the
 declaration is proven and the trigger is inferred.
+
+---
+
+## Rate limiting on the paid-API endpoints (2026-08-29)
+
+Audited every call that spends money on a third-party key — Google Vision,
+OpenAI extraction, OpenAI transcription/translation, gpt-4o mechanic search.
+There was no rate limiting of any kind: no bucket4j, no filter, no per-user
+quota, and no Spring Security. Two of the seven findings are now fixed.
+
+**Fixed — the mechanic search endpoint was the worst of it.**
+`GET /api/mechanic-access/sessions/{id}/history/search` reaches gpt-4o, our
+most expensive model, with a session UUID as its entire credential — no bearer
+token. It also sent an uncapped query string into the prompt and set no
+`max_tokens`. It now has a `MAX_QUERY_CHARS` cap of 300 (enforced in the
+service, not only at the controller, so it holds whoever calls it),
+`max_tokens` of 700, and a per-session ceiling of 30 AI searches counted in
+`mechanic_access_sessions.ai_search_count` (**migration 017**).
+
+**The budget degrades rather than fails.** Past 30, search falls through to the
+keyword path that already runs when OpenAI is unreachable. The mechanic still
+gets an answer; we just stop paying for it. `answerSource` already
+distinguishes the two and the frontend already renders both, so no UI change
+was needed. If someone later decides an exhausted budget should be visible to
+the mechanic, that is a deliberate product call, not an oversight here.
+
+**Fixed — a bucket4j filter on the five money endpoints.**
+`shared/ratelimit/AiRateLimitFilter` keys mechanic search by session id (it has
+no user) and the four `/api/service-drafts` AI routes by owner. Two bandwidths
+per bucket: 10/minute against a burst, 100/day against a slow drip. All four
+numbers are properties; `TREVORA_AI_RATE_LIMIT_ENABLED=false` turns it off for
+a load test.
+
+Two limits of that filter, stated rather than buried:
+
+- **It is in-process.** Two instances means two copies and an effective
+  ceiling of twice the configured number. That is acceptable for a cost brake;
+  it is why the ceiling that has to hold exactly — the per-session budget — is
+  in the database instead. Redis is the change to make when we run more than
+  one instance.
+- **It verifies the caller's token a second time.** With `SUPABASE_JWT_SECRET`
+  set that is an in-process signature check and costs nothing next to the
+  multi-second OpenAI call it guards. Without the secret it is a second network
+  call to Supabase Auth on those routes — one more reason to set it.
+
+### Still open, from the same audit
+
+- **No HTTP timeouts on any outbound call.** `RestClient.create()` in
+  `GoogleVisionOCRProvider`, `MechanicSearchService`,
+  `OpenAIServiceDraftExtractionProvider`, and `HttpClient.newHttpClient()` in
+  `VoiceTranscriptionService` all default to no read timeout. A slow OpenAI
+  pins a Tomcat worker indefinitely; at the 200-thread default that is a DoS on
+  the whole API, not just the AI routes. The rate limiter narrows how fast you
+  can get there but does not fix it. **This is the next one to do.**
+- **Receipt upload loops Vision calls over an uncapped file list.**
+  `ServiceRecordController.createReceiptDraft` takes `List<MultipartFile>` and
+  `OCRProcessingService` iterates it. One request, arbitrarily many billed
+  calls. Cap it around 10.
+- **`VoiceTranscriptionService.MAX_AUDIO_BYTES` (25 MB) is dead code.** No
+  `spring.servlet.multipart.*` is configured, so Boot's defaults (1 MB per
+  file, 10 MB per request) reject first. Worth checking against real phone
+  photos on the receipt path too — a 12MP JPEG is routinely 3–5 MB, so the
+  1 MB default may be rejecting legitimate uploads today. Set both properties
+  deliberately.
+- **`VoiceTranslationRequest.transcript` is `@NotBlank` with no `@Size`.** JSON
+  body, so the multipart cap does not apply, and unlike the extraction path
+  there is no truncation before the text goes to gpt-4o.
+- **Retry amplification.** `OpenAIServiceDraftExtractionProvider` retries three
+  times with 500 ms backoff, no jitter, and ignores `Retry-After` — so it
+  retries into a 429 exactly when the provider is asking us to back off.
+
+CORS is not a control here and was never one: an attacker uses curl, not a
+browser.
+
+**Migration 017 is applied to Supabase** (project `bqardmkvbrfpbfmvmbgf`), all
+fifteen existing sessions backfilled to `ai_search_count = 0`.
+
+One thing worth knowing while you are in there: Supabase's *tracked* migration
+history jumps from `012_motorcycle_sub_types` straight to this one. The schema
+is fine — 013 through 016 are all really applied, columns, storage bucket and
+all — they were just run by hand rather than through the migration tool, so
+the tracker never recorded them. Anyone reading `list_migrations` to work out
+what state the database is in will read it wrong. Not urgent; worth a
+backfill of the history table when someone has a quiet moment.
+
+### Timeouts and the receipt page cap (2026-08-29, same pass)
+
+Findings 3 and 4 from the audit above are now done.
+
+**Every outbound call has a timeout.** `shared/http/OutboundHttp` builds the
+clients; `GoogleVisionOCRProvider`, `MechanicSearchService`,
+`OpenAIServiceDraftExtractionProvider` and `VoiceTranscriptionService` all go
+through it. Connect is 5s everywhere. Read differs by what is on the other end:
+30s for Vision, 60s for a chat completion, 120s for audio transcription, which
+uploads the recording before any work starts. They are deliberately generous —
+this is a backstop against a hung socket, not a latency target, and cutting off
+a call that was about to succeed costs the owner their extraction.
+
+`OutboundHttpTimeoutTest` reproduces the actual failure: a server that accepts
+the connection and then says nothing. That is the case that used to hold a
+Tomcat worker forever, so it seemed worth reproducing rather than asserting a
+setter had been called.
+
+**One number to keep in mind:** the extraction provider retries three times, so
+its worst case is now roughly three 60s reads plus backoff — about three
+minutes on one thread before it gives up. Bounded, which it was not before, but
+not short. If receipt uploads ever feel like they hang, that is the arithmetic
+to revisit, either by lowering the read timeout on that path or by dropping to
+two attempts.
+
+**Receipts are capped at 10 pages** (`trevora.receipt.max-pages`), enforced in
+`OCRProcessingService` before the provider is consulted, so the limit holds
+whoever calls it and applies whether or not OCR is configured. Over the cap is
+a 400 via the new `ReceiptUploadException` — deliberately not a silent truncation
+to the first ten, because a draft that looks complete while missing whatever
+was on page eleven is worse than a refusal.
+
+**The frontend does not know about this cap.** `ReceiptUploadPage` lets you add
+pages without limit and would now take an upload all the way through Supabase
+storage before the API rejects it. Whoever owns that page should stop it at ten
+in the picker; it is a worse experience than it needs to be until they do.
+
+Still open from the audit: the unset `spring.servlet.multipart.*` defaults (1 MB
+per file may be rejecting legitimate phone photos today — worth checking before
+anyone widens the page cap), the missing `@Size` on
+`VoiceTranslationRequest.transcript`, and the retry loop ignoring `Retry-After`.
+
+**Multipart limits are now set rather than inherited.** 25 MB per file, 60 MB
+per request, spilled to disk rather than buffered in heap.
+
+The per-file number comes from the largest legitimate single file, which is a
+voice recording — it matches the 25 MB check `VoiceTranscriptionService`
+already makes, and that check was dead code until now because Boot's 1 MB
+default rejected long before it ran. The 1 MB default was also almost certainly
+rejecting real receipts: `receiptImage.js` downscales photos to roughly a
+megabyte, but its `catch` sends the original untouched when the browser cannot
+decode the format, which is what happens to HEIC on some browsers. Worth asking
+whether anyone hit an unexplained receipt upload failure on an iPhone.
+
+Because that per-file ceiling has to clear audio, it is no limit at all for a
+photo, so receipts carry their own: 10 MB per page
+(`trevora.receipt.max-page-bytes`). `GoogleVisionOCRProvider` reads a page into
+memory and base64-encodes it, so a page costs about 2.3× its own size in heap —
+a 25 MB page would be roughly 58 MB, which is not a limit anyone chose either.
+
+`MaxUploadSizeExceededException` now answers 413. The container raises it before
+any controller runs, so the feature's own message never gets a chance; without
+the handler an upload that is merely too big looked like a server crash.
+
+### The last two audit items (2026-08-29, same pass)
+
+**The extraction retry loop honours `Retry-After`.** A 429 carries the
+provider's own answer to "how long?", and retrying on our own 500ms schedule
+regardless is how one rate limit becomes three. When the header asks for longer
+than ten seconds we give up instead of sleeping: someone is waiting on that
+request, and falling back to the raw OCR text now beats holding a thread for two
+minutes and very possibly failing anyway. Only the numeric-seconds form is read
+— `Retry-After` also permits an HTTP date, which OpenAI does not send, and
+guessing at a malformed value is worse than our own backoff.
+
+**Both voice transcripts are bounded, but not the same way, and the difference
+is deliberate.** `VoiceTranslationRequest` caps at 8000, matching the ceiling
+the extraction path already applies, because nothing truncates it — it goes into
+a gpt-4o prompt exactly as it arrives and we pay by the token.
+`VoiceServiceDraftRequest` caps at 50000, far above the 8000 it will actually
+read, because going over that is *not* an error there: the transcript is
+truncated and the draft carries a warning naming what was not read. That is
+better than refusing a long recording, so the cap only stops a payload that was
+never a transcript. Do not "fix" the inconsistency by lowering the second one.
+
+Nothing from the original audit is now outstanding. What remains is verification
+a human has to do: the receipt, voice and mechanic-search paths behind the login.
+
+### Regression pass over the rate-limiting work (2026-08-29)
+
+Checked the whole change against normal flows rather than the error paths it
+was written for. Three things were wrong; all three are fixed.
+
+**A CORS preflight was being charged a token.** This is the one that mattered.
+Browsers send an OPTIONS before every multipart POST and before any request
+carrying an Authorization header, so each upload cost two tokens rather than
+one — and a preflight answered with 429 never reaches the page as a rate limit,
+it surfaces as a CORS error with nothing explaining it. Reproduced against a
+running instance (fourteen preflights, eleventh returned 429), fixed by
+skipping OPTIONS, re-verified, and pinned by `AiRateLimitFilterTest` so it
+cannot come back quietly.
+
+**`max_tokens` on mechanic search was 700, which is too low.** The model returns
+a sentence plus one uuid per matching record and a uuid is around eighteen
+tokens, so a vehicle whose whole history matches a broad question can want well
+over a thousand. Too low is not a cheaper answer, it is a truncated one: the
+json fails to parse and the search drops to keyword matching, which looks like
+the AI quietly getting worse rather than a bug. Now 2000.
+
+**The timeout work had swapped the HTTP implementation as a side effect.**
+Naming `SimpleClientHttpRequestFactory` to reach its timeout setters replaced
+the client `RestClient.create()` would have selected from the classpath — JDK
+HttpClient here — with `HttpURLConnection`. Now built through Boot's
+`ClientHttpRequestFactories`, which applies the timeouts and leaves the
+selection alone.
+
+**Verified unaffected:** every endpoint still routes and still answers 403
+rather than 500 without a token; `@Validated` on `MechanicAccessController` did
+not break its other endpoints; a normal-length transcript passes validation and
+only an over-cap one is rejected. The multipart and per-page limits are both
+strictly more permissive than the 1 MB default they replace, so nothing that
+uploaded successfully before can fail now.
+
+**Not verified, and this is the residual risk:** no real TLS call to OpenAI or
+Google Vision has been made since the request factory changed.
+`OutboundHttpTimeoutTest` exercises the new factory over plain HTTP, so it does
+execute requests, but TLS to a real provider is unproven. If anything from this
+pass is going to break a feature, that is where it will show — so the first
+thing to try behind the login is a receipt upload, and the failure to watch for
+is every extraction falling back to raw OCR text.
+
+**Two pre-existing warts found while sweeping, neither caused by this work.**
+The catch-all `@ExceptionHandler(Exception.class)` swallows Spring MVC's own
+status codes: a wrong `Content-Type` answers 500 instead of 415, and a missing
+required parameter answers 500 instead of 400. Both reproduced on a running
+instance. The new 413 handler fixes one instance of that pattern; the general
+case is still there and makes ordinary client mistakes look like server
+crashes, which is worth an hour sometime. Separately, body-validation messages
+come out prefixed with the field name ("transcript That transcript is too
+long..."), which reads oddly in a toast.
+
+**The catch-all now keeps Spring's own status codes.** A wrong `Content-Type`
+answers 415, a missing required parameter 400, a wrong method 405 — all three
+were 500 before, which told a caller their own mistake was our crash and sent
+anyone reading the logs hunting for a fault that was never there. Anything that
+does not describe its own status is still a 500, which is what that handler is
+actually for. Verified against a running instance, not only in tests.
+
+Worth knowing if you handle errors by status on the frontend: requests that
+used to come back 500 for these three reasons now come back 4xx. Nothing that
+was already a 4xx or a 2xx changed.

@@ -138,6 +138,28 @@ public class MechanicAccessService {
         return session;
     }
 
+    /**
+     * Spends one AI search from the session's allowance, returning false once
+     * it is exhausted. Callers fall back to the free keyword path rather than
+     * failing: the mechanic still gets an answer, we just stop paying for the
+     * model. Kept here because this class owns the session row.
+     */
+    @Transactional
+    boolean tryConsumeAiSearchBudget(MechanicAccessSession session, int budget) {
+        if (budget <= 0) {
+            return false;
+        }
+        MechanicAccessSession current = mechanicAccessSessionRepository
+                .findById(session.getMechanicAccessSessionId())
+                .orElse(session);
+        if (current.getAiSearchCount() >= budget) {
+            return false;
+        }
+        current.setAiSearchCount(current.getAiSearchCount() + 1);
+        mechanicAccessSessionRepository.save(current);
+        return true;
+    }
+
     List<ServiceRecord> getSessionRecords(MechanicAccessSession session) {
         return serviceRecordRepository
                 .findByVehicleIdAndOwnerId(

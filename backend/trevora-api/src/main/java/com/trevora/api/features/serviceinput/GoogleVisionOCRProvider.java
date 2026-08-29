@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import com.trevora.api.shared.http.OutboundHttp;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -35,7 +36,7 @@ public class GoogleVisionOCRProvider {
             @Value("${trevora.ocr.google-vision.api-key:}") String apiKey
     ) {
         this.objectMapper = objectMapper;
-        this.restClient = RestClient.create();
+        this.restClient = OutboundHttp.restClient(OutboundHttp.VISION_READ_TIMEOUT);
         this.apiKey = blankToNull(apiKey);
     }
 

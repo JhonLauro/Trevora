@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.trevora.api.shared.http.OutboundHttp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -33,6 +34,13 @@ public class OpenAIServiceDraftExtractionProvider {
      */
     private static final int MAX_ATTEMPTS = 3;
     private static final long RETRY_BASE_BACKOFF_MILLIS = 500L;
+    /**
+     * Longest {@code Retry-After} we will sit through. When the provider asks
+     * for longer than this it is not describing a blip, and someone is waiting
+     * on this request: falling back to the raw OCR text now beats holding the
+     * thread for a minute and very possibly failing anyway.
+     */
+    private static final long MAX_HONORED_RETRY_AFTER_MILLIS = 10_000L;
     /**
      * Ceiling on the generated answer. A long dealership invoice extracts to a
      * few thousand tokens; left unset the model may spend its whole 16k output
@@ -66,7 +74,7 @@ public class OpenAIServiceDraftExtractionProvider {
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.ai.openai.model:gpt-4o-mini}") String model
     ) {
-        this(objectMapper, RestClient.create(), apiKey, model);
+        this(objectMapper, OutboundHttp.restClient(OutboundHttp.OPENAI_READ_TIMEOUT), apiKey, model);
     }
 
     /** Lets a test stand a server in front of the retry loop. */
@@ -150,6 +158,7 @@ public class OpenAIServiceDraftExtractionProvider {
 
         ReceiptProcessingException lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            Long retryAfterMillis = null;
             try {
                 String responseBody = restClient.post()
                         .uri(OPENAI_CHAT_COMPLETIONS_URL)
@@ -176,6 +185,15 @@ public class OpenAIServiceDraftExtractionProvider {
                 if (!isWorthRetrying(status)) {
                     throw lastFailure;
                 }
+                /*
+                 * A 429 comes with the provider's own answer to "how long?".
+                 * Ignoring it and retrying on our own schedule is how a rate
+                 * limit turns into three rate limits.
+                 */
+                retryAfterMillis = retryAfterMillis(exception);
+                if (retryAfterMillis != null && retryAfterMillis > MAX_HONORED_RETRY_AFTER_MILLIS) {
+                    throw lastFailure;
+                }
             } catch (RestClientException exception) {
                 // No response at all: a timeout or a dropped connection. The
                 // request was never known to have been applied, and extraction
@@ -184,7 +202,10 @@ public class OpenAIServiceDraftExtractionProvider {
             }
 
             if (attempt < MAX_ATTEMPTS) {
-                backOff(RETRY_BASE_BACKOFF_MILLIS * (1L << (attempt - 1)), lastFailure);
+                long wait = retryAfterMillis != null
+                        ? retryAfterMillis
+                        : RETRY_BASE_BACKOFF_MILLIS * (1L << (attempt - 1));
+                backOff(wait, lastFailure);
             }
         }
         throw lastFailure;
@@ -201,6 +222,26 @@ public class OpenAIServiceDraftExtractionProvider {
      */
     private boolean isWorthRetrying(int status) {
         return status == 429 || status >= 500;
+    }
+
+    /**
+     * The provider's requested wait in milliseconds, or null when it did not
+     * ask for one. Only the numeric-seconds form is read; {@code Retry-After}
+     * also permits an HTTP date, which OpenAI does not send, and guessing at a
+     * malformed value is worse than falling back to our own backoff.
+     */
+    private Long retryAfterMillis(RestClientResponseException exception) {
+        HttpHeaders headers = exception.getResponseHeaders();
+        String value = headers == null ? null : headers.getFirst(HttpHeaders.RETRY_AFTER);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            long seconds = Long.parseLong(value.trim());
+            return seconds < 0 ? null : seconds * 1000L;
+        } catch (NumberFormatException notSeconds) {
+            return null;
+        }
     }
 
     private void backOff(long millis, ReceiptProcessingException failure) {

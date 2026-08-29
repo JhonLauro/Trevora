@@ -11,6 +11,25 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class OCRProcessingService {
+    /**
+     * Pages one upload may carry. Each one is a separate billed Google Vision
+     * call made in a loop while the caller waits, so without a ceiling a single
+     * request could spend an unbounded amount of money and hold a request
+     * thread for as long as it took. Ten covers the longest real invoice we
+     * have seen with room to spare.
+     */
+    private final int maxReceiptPages;
+
+    /**
+     * Bytes one receipt page may weigh. The multipart ceiling has to clear a
+     * voice recording, which is far larger than any photo, so it is no limit
+     * at all here -- and the Vision provider reads a page into memory and then
+     * base64-encodes it, so an oversized page costs roughly two and a third
+     * times its own size in heap. Ten megabytes is well above an uncompressed
+     * phone photo and nowhere near what would hurt.
+     */
+    private final long maxReceiptPageBytes;
+
     private final GoogleVisionOCRProvider googleVisionOCRProvider;
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
     private final ServiceClassificationService classificationService;
@@ -22,13 +41,17 @@ public class OCRProcessingService {
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
             ServiceClassificationService classificationService,
             @Value("${trevora.ocr.provider:mock}") String ocrProvider,
-            @Value("${trevora.ai.extraction.provider:mock}") String aiProvider
+            @Value("${trevora.ai.extraction.provider:mock}") String aiProvider,
+            @Value("${trevora.receipt.max-pages:10}") int maxReceiptPages,
+            @Value("${trevora.receipt.max-page-bytes:10485760}") long maxReceiptPageBytes
     ) {
         this.googleVisionOCRProvider = googleVisionOCRProvider;
         this.openAIExtractionProvider = openAIExtractionProvider;
         this.classificationService = classificationService;
         this.ocrProvider = normalizeProvider(ocrProvider, "mock");
         this.aiProvider = normalizeProvider(aiProvider, "mock");
+        this.maxReceiptPages = Math.max(1, maxReceiptPages);
+        this.maxReceiptPageBytes = Math.max(1L, maxReceiptPageBytes);
     }
 
     public ReceiptExtractionResult extractReceiptFields(MultipartFile receiptImage) {
@@ -47,6 +70,26 @@ public class OCRProcessingService {
         List<MultipartFile> files = receiptImages == null
                 ? List.of()
                 : receiptImages.stream().filter(file -> file != null && !file.isEmpty()).toList();
+        /*
+         * Checked before the provider is, so an over-long upload is rejected
+         * the same way whether or not OCR is configured. Silently reading the
+         * first ten would be worse than refusing: the draft would look complete
+         * while missing whatever was on the pages we dropped.
+         */
+        if (files.size() > maxReceiptPages) {
+            throw new ReceiptUploadException(
+                    "A receipt can have at most " + maxReceiptPages + " pages. This upload has " + files.size() + "."
+            );
+        }
+        files.stream()
+                .filter(file -> file.getSize() > maxReceiptPageBytes)
+                .findFirst()
+                .ifPresent(file -> {
+                    throw new ReceiptUploadException(
+                            "Receipt page \"" + fileNameFor(file) + "\" is too large. Pages must be "
+                                    + (maxReceiptPageBytes / (1024 * 1024)) + " MB or smaller."
+                    );
+                });
         String inputMode = normalizeInputMode(receiptInputMode);
         String firstFileName = files.isEmpty() ? "uploaded receipt" : fileNameFor(files.get(0));
 

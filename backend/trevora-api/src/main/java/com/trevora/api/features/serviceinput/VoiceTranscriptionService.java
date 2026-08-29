@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import com.trevora.api.shared.http.OutboundHttp;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -40,7 +41,7 @@ public class VoiceTranscriptionService {
     ) {
         this.objectMapper = objectMapper;
         this.vehicleService = vehicleService;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = OutboundHttp.httpClient();
         this.openAiApiKey = openAiApiKey == null ? "" : openAiApiKey.trim();
         this.rawTranscriptionModel = rawTranscriptionModel == null || rawTranscriptionModel.isBlank()
                 ? "gpt-4o-mini-transcribe"
@@ -108,6 +109,7 @@ public class VoiceTranscriptionService {
                     .uri(URI.create(OPENAI_TRANSCRIPTIONS_URL))
                     .header("Authorization", "Bearer " + openAiApiKey)
                     .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .timeout(OutboundHttp.TRANSCRIPTION_READ_TIMEOUT)
                     .POST(HttpRequest.BodyPublishers.ofByteArrays(multipartBody(boundary, audioFile)))
                     .build();
 
@@ -147,6 +149,7 @@ public class VoiceTranscriptionService {
                     .uri(URI.create(OPENAI_CHAT_COMPLETIONS_URL))
                     .header("Authorization", "Bearer " + openAiApiKey)
                     .header("Content-Type", "application/json")
+                    .timeout(OutboundHttp.OPENAI_READ_TIMEOUT)
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
                     .build();
 
