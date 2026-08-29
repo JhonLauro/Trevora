@@ -248,28 +248,28 @@ export default function EditVehicleDetailsDialog({ open, vehicle, photoUrl = nul
               </div>
             );
           })}
-        </div>
 
-        {/* The current photo, and the three things that can happen to it:
-            leave it, replace it, remove it. Without this the dialog would be
-            the one place a photo could be lost without anybody choosing to
-            lose it. */}
-        <div className="ink-modal__photo">
-          <VehiclePhotoField
-            file={photoFile}
-            existingUrl={photoCleared ? null : photoUrl}
-            disabled={saving}
-            onChange={(file) => {
-              setPhotoFile(file);
-              // Choosing a file is not a removal; clearing the chooser when a
-              // stored photo exists is.
-              if (file) setPhotoCleared(false);
-            }}
-            onRemoveExisting={() => {
-              setPhotoFile(null);
-              setPhotoCleared(true);
-            }}
-          />
+          {/* The current photo, and the three things that can happen to it:
+              leave it, replace it, remove it. Without this the dialog would be
+              the one place a photo could be lost without anybody choosing to
+              lose it. */}
+          <div className="ink-modal__photo">
+            <VehiclePhotoField
+              file={photoFile}
+              existingUrl={photoCleared ? null : photoUrl}
+              disabled={saving}
+              onChange={(file) => {
+                setPhotoFile(file);
+                // Choosing a file is not a removal; clearing the chooser when a
+                // stored photo exists is.
+                if (file) setPhotoCleared(false);
+              }}
+              onRemoveExisting={() => {
+                setPhotoFile(null);
+                setPhotoCleared(true);
+              }}
+            />
+          </div>
         </div>
 
         {saveError && <p className="ink-modal__error" role="alert">{saveError}</p>}

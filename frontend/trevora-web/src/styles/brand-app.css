@@ -655,6 +655,30 @@
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  /* And this is the line that actually stops the page-level scrollbar.
+
+     `overflow-x: auto` above already makes this a scroll container, so its
+     children should never reach the document's scroll area — and for the
+     first half-second they don't. Measured on a six-vehicle garage: the
+     document is 1,485px wide for about thirty frames after the cards mount,
+     then grows to 2,915px on its own with no geometry changing anywhere on
+     the page. The track is still 1,143px wide with a 3,096px scrollWidth
+     throughout; only the document changes. Forcing any reflow afterwards
+     (toggling `display` on the page) drops it straight back to 1,485 and it
+     stays there — so the wide value is the browser failing to re-derive the
+     scroll area, not a box that is genuinely too wide.
+
+     `contain: paint` states the guarantee explicitly rather than leaving it
+     to be inferred, and the document stays at 1,485px. Tried and rejected:
+     `overflow-x: clip` on the carousel (no effect — an earlier comment here
+     blamed `tv-reveal`'s transform, which was wrong; removing the class
+     changes nothing), `isolation: isolate`, and `overflow: clip` on the track
+     itself.
+
+     Paint containment is safe here precisely because this is already a scroll
+     container: nothing inside it was ever allowed to paint outside it. Do not
+     copy this onto a container that has a tooltip or a menu that escapes. */
+  contain: paint;
   scroll-snap-type: x proximity;
   /* Default UA scrollbars are a chunky grey slab directly under the cards.
      Thin, and in the palette. */
@@ -664,25 +688,6 @@
 
 .garage-page .garage-carousel {
   min-width: 0;
-  /* The fix for the page-level horizontal scrollbar, and it is not where it
-     looked like it would be.
-
-     The track has `overflow-x: auto` and does clip visually. But the carousel
-     carries `tv-reveal`, which animates a transform — and a transformed
-     ancestor contributes its descendants' *pre-clip* overflow bounds to the
-     scrollable area, so the six cards' full 3,096px reached the document and
-     the whole page grew a scrollbar. Measured: removing `tv-reveal` dropped
-     the carousel's own `scrollWidth` from 2,624 to 1,143.
-
-     `clip`, not `hidden`: `overflow-x: hidden` forces the other axis to
-     become a scroll container, and this element must not start clipping
-     vertically. Nothing in here is meant to paint outside it — the tooltips
-     are in the panels below and the card focus rings are inset.
-
-     Anything else that puts `tv-reveal` on a container holding a horizontal
-     scroller will need the same line. */
-  overflow-x: clip;
-  overflow-y: visible;
 }
 
 .garage-page .garage-track::-webkit-scrollbar {
@@ -2081,10 +2086,10 @@
    and interpolate the same -- `none` is the identity matrix -- but they are
    not the same afterwards. `animation-fill-mode: both` keeps whatever the
    last frame declared, and a row left holding any transform value stays a
-   stacking context and keeps contributing its descendants' pre-clip overflow
-   bounds to the nearest scroller. That is the mechanism behind the tv-reveal
-   scrollbar bug documented further up this file, and these rows carry an
-   absolutely-positioned tooltip that deliberately overflows past their box. */
+   stacking context, and these rows carry an absolutely-positioned tooltip
+   that deliberately overflows past their box. (An earlier note here credited
+   this mechanism with the garage's page-level scrollbar. It was not that —
+   see `contain: paint` on `.garage-track` above for what it actually was.) */
 @keyframes garage-scope-swap {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
@@ -2133,5 +2138,165 @@
   .garage-page .garage-figure__value,
   .garage-page .garage-breakdown__row {
     animation-name: garage-scope-fade;
+  }
+}
+
+/* ------------------------------------------- the spending panel, narrow
+
+   Two things break on a phone, and neither is the layout: the panel is
+   already one column there. It is the two controls inside it.
+
+   The twelve axis labels are `flex: 1` with `min-width: auto`, so they refuse
+   to shrink below "SEP" and the strip runs 63px past the panel — the last
+   month reads "JL". They get a real `min-width: 0` and a smaller step, and
+   below 460px only every other month is named. `visibility`, not `display`,
+   so the hidden ones keep their slot and the visible ones stay over the bars
+   they belong to.
+
+   The range chips wrap "3 months" onto a second line inside a 34px pill,
+   which clips it. They are nowrap and slightly tighter instead; three of them
+   come to 229px, which fits.
+
+   Both are `max-width`, so they sit after every rule they override — media
+   queries add no specificity. */
+@media (max-width: 560px) {
+  .garage-page .ink-axis {
+    font-size: 10px;
+    gap: 2px;
+  }
+
+  .garage-page .ink-axis span {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .garage-page .garage-range button {
+    font-size: 13px;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 460px) {
+  .garage-page .ink-axis {
+    font-size: 11px;
+    gap: 3px;
+  }
+
+  .garage-page .ink-axis span:nth-child(even) {
+    visibility: hidden;
+  }
+}
+
+/* ---------------------------------------------- the vehicle hero, narrow
+
+   `ink-vehicle.css` already gives the actions `width: 100%` and `flex: 1`
+   below 900px, which is right in principle and does nothing in practice: a
+   flex item's `min-width` is `auto`, so three buttons floor at their own text
+   and the row runs 112px past the screen. "Add record" was cut in half by the
+   right edge.
+
+   So: the row wraps, the primary action takes its own full-width line and
+   goes first — on a phone that is the thing you came to do, and "Delete
+   vehicle" should not be the button under your thumb — and the two outline
+   buttons share the line below. Their padding comes down to 14px because at
+   22px the pair is 300px against 299px of room, and wraps for one pixel.
+
+   The photo placeholder loses 28px of height at the same time. It is holding
+   space for a photo that may never arrive, and at 160px it was pushing the
+   vehicle's own name below the fold. */
+@media (max-width: 560px) {
+  .vehicle-page .vehicle-identity {
+    padding: 18px;
+  }
+
+  .vehicle-page .vehicle-identity__photo {
+    height: 132px;
+  }
+
+  .vehicle-page .vehicle-identity__actions {
+    flex-wrap: wrap;
+  }
+
+  .vehicle-page .vehicle-identity__actions .ink-button {
+    flex: 1 1 130px;
+    padding: 0 14px;
+  }
+
+  .vehicle-page .vehicle-identity__actions .ink-button:not(.ink-button--outline) {
+    flex-basis: 100%;
+    order: -1;
+    padding: 0 22px;
+  }
+}
+
+/* ------------------------------------------ the edit-details dialog
+
+   Three problems, one on each screen size.
+
+   1. `.ink-modal--form` asks for 520px and never got it: `.ink-modal` sets
+      468px at the same specificity and sits 1,300 lines further down the
+      file, so it won. The chained selector settles it rather than moving
+      either rule, which would change the shell dialog too.
+
+   2. On a wide screen the four fields ran as one 412px column inside a
+      396px scroll box — half the form hidden behind a scrollbar that is
+      deliberately invisible, on a 1,440px display with room for all of it.
+      Two columns above 760px, and the dialog stops scrolling entirely.
+
+   3. On a phone the photo block sat *outside* the scrolling region, so it
+      and the actions row claimed their full height first and left the four
+      fields about 90px between them: one label, one hint, and an input cut
+      in half by an edge with nothing to say it was an edge. The photo block
+      is inside `.ink-modal__fields` now (a JSX change, in the dialog) so it
+      scrolls with the fields it belongs to; `grid-column: 1 / -1` keeps it
+      full width in both the one- and two-column layouts.
+
+   The title and lead also come down a step below 560px. They are four lines
+   of preamble above a form, and on a 812px phone they were taking a third of
+   the dialog before the first field. */
+.ink-modal--form .ink-modal__photo {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 760px) {
+  .ink-modal.ink-modal--form {
+    max-width: 720px;
+  }
+
+  .ink-modal--form .ink-modal__fields {
+    column-gap: 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .ink-modal--form h2 {
+    font-size: 21px;
+  }
+
+  .ink-modal--form .ink-modal__lead {
+    font-size: 14px;
+  }
+}
+
+/* And the scrollbar comes back on a phone. `ink-vehicle.css` hides it on the
+   grounds that the region "only ever" scrolls on short windows, where the
+   cut-off content is signal enough. On a phone it always scrolls, and with
+   five blocks in it the cut lands mid-sentence with nothing to say why. A
+   thin bar is the smaller intrusion. */
+@media (max-width: 560px) {
+  .ink-modal--form .ink-modal__fields {
+    scrollbar-width: thin;
+  }
+
+  .ink-modal--form .ink-modal__fields::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+
+  .ink-modal--form .ink-modal__fields::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 100px;
   }
 }

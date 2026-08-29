@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" width="400" height="250" role="img" aria-label="Table view: dates, shops and figures in columns">
+  <defs>
+    <style>
+      .s { font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .t { font-weight: 600; fill: #16211c; }
+      .m { fill: #4c5a54; }
+      .f { fill: #7a867f; }
+      .n { font-family: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace; fill: #16211c; font-weight: 500; }
+    </style>
+  </defs>
+
+  <rect width="400" height="250" rx="20" fill="#ffffff"/>
+  <rect x="0.75" y="0.75" width="398.5" height="248.5" rx="19.25" fill="none" stroke="#e5eae7" stroke-width="1.5"/>
+
+  <!-- header -->
+  <path d="M0 20 A20 20 0 0 1 20 0 L380 0 A20 20 0 0 1 400 20 L400 44 L0 44 Z" fill="#f7faf8"/>
+  <line x1="0" y1="44" x2="400" y2="44" stroke="#e5eae7" stroke-width="1.5"/>
+  <text class="s f" x="24" y="28" font-size="9" letter-spacing="1">DATE</text>
+  <text class="s f" x="104" y="28" font-size="9" letter-spacing="1">SERVICE</text>
+  <text class="s f" x="240" y="28" font-size="9" letter-spacing="1">SHOP</text>
+  <text class="s f" x="376" y="28" font-size="9" letter-spacing="1" text-anchor="end">COST</text>
+
+  <!-- rows -->
+  <text class="n" x="24" y="70" font-size="11">7 May 26</text>
+  <text class="s t" x="104" y="70" font-size="12">Preventive maint.</text>
+  <text class="s m" x="240" y="70" font-size="11">Toyota Otis</text>
+  <text class="n" x="376" y="70" font-size="12" text-anchor="end">4,850</text>
+  <line x1="20" y1="82" x2="380" y2="82" stroke="#eff3f1" stroke-width="1.5"/>
+
+  <text class="n" x="24" y="108" font-size="11">2 Feb 26</text>
+  <text class="s t" x="104" y="108" font-size="12">Brake pads, front</text>
+  <text class="s m" x="240" y="108" font-size="11">RSC Autoworks</text>
+  <text class="n" x="376" y="108" font-size="12" text-anchor="end">2,400</text>
+  <line x1="20" y1="120" x2="380" y2="120" stroke="#eff3f1" stroke-width="1.5"/>
+
+  <text class="n" x="24" y="146" font-size="11">18 Nov 25</text>
+  <text class="s t" x="104" y="146" font-size="12">Tyres, all four</text>
+  <text class="s f" x="240" y="146" font-size="11">Not provided</text>
+  <text class="n" x="376" y="146" font-size="12" text-anchor="end">16,000</text>
+  <line x1="20" y1="158" x2="380" y2="158" stroke="#eff3f1" stroke-width="1.5"/>
+
+  <text class="n" x="24" y="184" font-size="11">4 Aug 24</text>
+  <text class="s t" x="104" y="184" font-size="12">Body &amp; paint</text>
+  <text class="s m" x="240" y="184" font-size="11">Kalayaan Auto</text>
+  <text class="n" x="376" y="184" font-size="12" text-anchor="end">10,500</text>
+  <line x1="20" y1="196" x2="380" y2="196" stroke="#e5eae7" stroke-width="1.5"/>
+
+  <!-- total -->
+  <text class="s f" x="24" y="222" font-size="11">4 records</text>
+  <text class="s m" x="278" y="222" font-size="11" text-anchor="end">Total</text>
+  <text class="n" x="376" y="223" font-size="14" text-anchor="end" font-weight="600">33,750</text>
+</svg>

@@ -1128,3 +1128,32 @@
     animation: none;
   }
 }
+
+/* ------------------------------------------------- the drawn view slots
+
+   `object-fit: cover` is right for a photograph — it fills the frame and the
+   crop costs nothing. It is wrong for a drawing of an interface: these frames
+   are 200px tall and anywhere from 260 to 400 wide, so cover scales to the
+   width and takes the crop out of the top and bottom, which is where the
+   figures are.
+
+   The three view slots hold SVGs that already carry their own card and their
+   own white ground, so they are contained instead, and the slot's padding and
+   gradient come off — the drawing is the card. Scoped to `.tvl-view__frame`
+   alone: the showcase slots above are still waiting on photographs, and a
+   photograph wants cover. */
+.tvl-view__frame .tvl-slot {
+  background: transparent;
+  padding: 0;
+}
+
+.tvl-view__frame .tvl-slot__img {
+  object-fit: contain;
+}
+
+/* The empty-slot frame still wants its ground back — without this the
+   labelled placeholder would sit on nothing if a view SVG ever 404s. */
+.tvl-view__frame .tvl-slot:has(.tvl-slot__label) {
+  background: linear-gradient(140deg, #eef6f1, #f7faf8);
+  padding: 20px;
+}

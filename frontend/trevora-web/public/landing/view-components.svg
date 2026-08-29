@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250" width="400" height="250" role="img" aria-label="Component map: a side-on drawing of the vehicle with markers on the parts that have records">
+  <defs>
+    <style>
+      .s { font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .t { font-weight: 600; fill: #16211c; }
+      .m { fill: #4c5a54; }
+      .f { fill: #7a867f; }
+      .w { fill: #ffffff; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect width="400" height="250" rx="20" fill="#ffffff"/>
+  <rect x="0.75" y="0.75" width="398.5" height="248.5" rx="19.25" fill="none" stroke="#e5eae7" stroke-width="1.5"/>
+
+  <text class="s t" x="24" y="34" font-size="14">Where work has been done</text>
+
+  <!-- the drawing -->
+  <rect x="20" y="48" width="252" height="140" rx="16" fill="#f7faf8"/>
+
+  <!-- car, side on -->
+  <g stroke="#16211c" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M46 146 L46 128 Q46 122 53 121 L88 116 Q104 92 126 90 L176 90 Q198 92 214 116 L242 122 Q248 124 248 131 L248 146"/>
+    <path d="M88 116 L214 116"/>
+    <path d="M148 90 L148 116"/>
+    <path d="M46 146 L246 146"/>
+  </g>
+  <circle cx="92" cy="146" r="15" fill="#ffffff" stroke="#16211c" stroke-width="2.2"/>
+  <circle cx="92" cy="146" r="6" fill="#e5eae7"/>
+  <circle cx="204" cy="146" r="15" fill="#ffffff" stroke="#16211c" stroke-width="2.2"/>
+  <circle cx="204" cy="146" r="6" fill="#e5eae7"/>
+
+  <!-- markers: filled = has records, hollow = no record found -->
+  <circle cx="234" cy="124" r="11" fill="#0e7a52"/>
+  <text class="s w" x="234" y="128" font-size="11" text-anchor="middle">3</text>
+
+  <circle cx="92" cy="146" r="11" fill="#0e7a52"/>
+  <text class="s w" x="92" y="150" font-size="11" text-anchor="middle">1</text>
+
+  <circle cx="148" cy="103" r="11" fill="#ffffff" stroke="#d8e1dc" stroke-width="2"/>
+  <text class="s f" x="148" y="107" font-size="11" text-anchor="middle">0</text>
+
+  <text class="s f" x="146" y="176" font-size="11" text-anchor="middle">Tap a part to see its history</text>
+
+  <!-- selected component panel -->
+  <rect x="284" y="48" width="92" height="140" rx="14" fill="#ffffff" stroke="#e5eae7" stroke-width="1.5"/>
+  <text class="s f" x="298" y="70" font-size="8.5" letter-spacing="1">SELECTED</text>
+  <text class="s t" x="298" y="90" font-size="13">Brakes</text>
+
+  <rect x="298" y="102" width="64" height="20" rx="10" fill="#eef6f1"/>
+  <text class="s" x="330" y="116" font-size="10.5" fill="#0a5a3c" font-weight="600" text-anchor="middle">3 records</text>
+
+  <line x1="298" y1="134" x2="362" y2="134" stroke="#eff3f1" stroke-width="1.5"/>
+  <text class="s m" x="298" y="150" font-size="10.5">Pads, front</text>
+  <text class="s f" x="298" y="164" font-size="10">2 Feb 2026</text>
+  <line x1="298" y1="172" x2="362" y2="172" stroke="#eff3f1" stroke-width="1.5"/>
+
+  <text class="s f" x="24" y="212" font-size="11">Two states only: has records, or no record found.</text>
+  <rect x="20" y="222" width="356" height="1.5" fill="#eff3f1"/>
+</svg>

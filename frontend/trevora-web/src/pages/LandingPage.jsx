@@ -22,14 +22,26 @@ import TrevoraMark from '../components/TrevoraMark.jsx';
  */
 
 /* Photographs and screenshots are slots, not fixed assets — see ImageSlot
-   below. Paths are relative to /public; drop a file in and it appears. */
+   below. Paths are relative to /public; drop a file in and it appears.
+
+   The three view slots are drawn, not photographed: `.svg` files in
+   /public/landing, built from the real components and the real tokens. A
+   screenshot of a running app goes stale the week someone moves a button, and
+   at 200px tall a screenshot of a full page is unreadable anyway — these say
+   what each view is *for* at the size the page actually shows them.
+
+   The showcase slots at the top are deliberately not drawn. A traced phone
+   next to a real photograph of a receipt reads as a placeholder standing in
+   for the thing the section is promising; the empty frame is the more honest
+   of the two, and it says plainly that art is still to come. Those four want
+   a camera, and stock would read as stock. */
 const SHOTS = {
   receipt: { src: '/landing/receipt.jpg', label: 'Hand holding a shop receipt' },
   vehiclePage: { src: '/landing/vehicle-page.png', label: 'The vehicle page on a phone' },
   mechanic: { src: '/landing/mechanic.jpg', label: 'A mechanic scanning a phone' },
-  timeline: { src: '/landing/view-timeline.png', label: 'Timeline view' },
-  components: { src: '/landing/view-components.png', label: 'Component map' },
-  table: { src: '/landing/view-table.png', label: 'Table view' },
+  timeline: { src: '/landing/view-timeline.svg', label: 'Timeline view' },
+  components: { src: '/landing/view-components.svg', label: 'Component map' },
+  table: { src: '/landing/view-table.svg', label: 'Table view' },
   page1: { src: '/landing/receipt-p1.jpg', label: 'Page 1' },
   page2: { src: '/landing/receipt-p2.jpg', label: 'Page 2' },
   page3: { src: '/landing/receipt-p3.jpg', label: 'Page 3' },

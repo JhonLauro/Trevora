@@ -281,11 +281,36 @@ button {
   padding: 0 20px;
 }
 
-button:hover:not(:disabled) {
+/* `:not([class])`, and it matters more than it looks.
+
+   Without it these are `button:hover:not(:disabled)` — a bare element hover
+   at specificity (0,2,1), which outranks any plain `.some-thing:hover`
+   (0,2,0). Every classed button with a light background and dark text
+   therefore filled near-black on hover while its own `color` stayed ink:
+   dark on dark, the label gone. It hit the records vehicle filter, the
+   selected row in the parts list, and every button-shaped card in the add
+   flow — service-flow.css carries a local workaround for that last one, and
+   `.parts-list__row:hover:not(.is-selected)` was padded to (0,3,0) for the
+   same reason.
+
+   The rule was only ever meant for the unstyled buttons in the pre-Ink
+   screens, so it now says so. A classed button states its own hover, and the
+   ones that want this exact fill already have `.ink-button:hover`.
+
+   `:where(:not([class]))` rather than `:not([class])`, and that is the whole
+   point of the wrapper: `[class]` counts as a class, so the bare `:not` form
+   *raises* this to (0,3,1) and starts beating `.ink-segmented button:hover`
+   — trading one contrast bug for another. `:where()` contributes nothing, so
+   the rule matches less while ranking exactly where it always did.
+
+   The base `button` rule above stays as it is: at (0,0,1) any class overrides
+   it cleanly, which is why the dark fill was never a problem until a hover
+   was involved. */
+button:where(:not([class])):hover:not(:disabled) {
   background: var(--ink-hover);
 }
 
-button:active:not(:disabled) {
+button:where(:not([class])):active:not(:disabled) {
   background: var(--ink-active);
 }
 
