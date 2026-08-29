@@ -5,6 +5,28 @@ import GarageTransition from '../components/GarageTransition.jsx';
 import InkLockup from '../components/InkLockup.jsx';
 import { isLoggedIn } from '../api/currentUser.js';
 import { hasSeenWalkthrough, markWalkthroughSeen } from '../api/walkthrough.js';
+import { getVehicles } from '../api/vehicles.js';
+
+/**
+ * Where this page hands off to.
+ *
+ * <p>It always sent everyone to the vehicle form, which was right while only
+ * brand-new accounts could reach it. An owner who has never been shown the
+ * walkthrough but already has cars — a profile reused by email, say — would
+ * otherwise finish the tour and land on "add your first vehicle".
+ *
+ * <p>Failures answer with the vehicle form: that is the safe direction, since
+ * an owner sent there who already has cars can still navigate away, while one
+ * sent to an empty garage has no obvious next move.
+ */
+async function onwardRoute() {
+  try {
+    const vehicles = await getVehicles();
+    return Array.isArray(vehicles) && vehicles.length > 0 ? '/vehicles' : '/register/vehicle';
+  } catch {
+    return '/register/vehicle';
+  }
+}
 
 /**
  * The onboarding walkthrough, shown once between creating an account and
@@ -391,18 +413,24 @@ export default function WelcomePage() {
      -- a returning owner is redirected a moment later, and a new one sees the
      first step immediately instead of a blank screen. */
   const [checked, setChecked] = useState(false);
+  /* Resolved before either exit needs it, so neither has to guess. */
+  const [onward, setOnward] = useState('/register/vehicle');
   const signedIn = isLoggedIn();
 
   useEffect(() => {
     if (!signedIn) return undefined;
     let active = true;
 
-    hasSeenWalkthrough().then((seen) => {
+    /* Both answers together, not one then the other: the redirect below fires
+       the moment `seen` resolves, and if the destination were still loading it
+       would send a returning owner to the wrong one. */
+    Promise.all([hasSeenWalkthrough(), onwardRoute()]).then(([seen, route]) => {
       if (!active) return;
+      setOnward(route);
       setChecked(true);
       /* Shown once. A refresh, a back button or a second signup tab all land
          here, and none of them should replay it. */
-      if (seen) navigate('/register/vehicle', { replace: true });
+      if (seen) navigate(route, { replace: true });
     });
 
     return () => { active = false; };
@@ -413,8 +441,8 @@ export default function WelcomePage() {
      mid-signup, and the worst case is seeing this once more. */
   const leave = useCallback(() => {
     markWalkthroughSeen();
-    navigate('/register/vehicle', { replace: true });
-  }, [navigate]);
+    navigate(onward, { replace: true });
+  }, [navigate, onward]);
 
   /* The finishing CTA gets the hand-off animation; Skip does not. Somebody
      taking Skip has said they want out of this, and a second of car is the
