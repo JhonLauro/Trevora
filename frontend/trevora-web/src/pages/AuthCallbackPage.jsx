@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { completeOAuthSignIn } from '../api/auth.js';
 import { getVehicles } from '../api/vehicles.js';
+import { hasSeenWalkthrough } from '../api/walkthrough.js';
 import InkAuthShell from '../components/InkAuthShell.jsx';
 
 /**
@@ -38,6 +39,24 @@ export default function AuthCallbackPage() {
         // Google user would otherwise skip the vehicle step entirely. Send
         // anyone without a vehicle into step 2 — this also picks up owners
         // who abandoned it earlier.
+        /*
+         * The walkthrough decides first, before anything about vehicles.
+         *
+         * Asking "no vehicle?" first looked equivalent and was not: a profile
+         * is matched by email as well as by id, so signing up with Google on
+         * an address that already has a row inherits that row's cars while its
+         * walkthrough flag is still null. Vehicles-first sent that owner
+         * straight to the garage, and they never saw a tour they had genuinely
+         * never been shown.
+         *
+         * /welcome now works out its own way onward, so it is safe to send
+         * anyone here who has not seen it, with or without a car.
+         */
+        if (!(await hasSeenWalkthrough())) {
+          navigate('/welcome', { replace: true });
+          return;
+        }
+
         navigate(await hasNoVehicle() ? '/register/vehicle' : '/vehicles', { replace: true });
       } catch (err) {
         if (!cancelled) {
