@@ -205,7 +205,13 @@ function normalizeSupabaseAuthError(error) {
   }
 
   if (normalizedMessage.includes('already registered') || normalizedMessage.includes('already exists')) {
-    return new Error('An account with this email already exists. Please sign in instead.');
+    // "Sign in instead" is only half the instruction when the existing account
+    // came from Google: that owner has no password, so following the advice
+    // literally lands them back here. Name both routes.
+    return new Error(
+      'An account with this email already exists. Sign in instead — and if you '
+      + 'signed up with Google, use "Continue with Google" rather than a password.',
+    );
   }
 
   if (normalizedMessage.includes('otp') && normalizedMessage.includes('expired')) {
@@ -324,4 +330,30 @@ export function syncCurrentUserProfile(payload) {
       role: payload.role ?? 'VEHICLE_OWNER',
     }),
   });
+}
+
+/**
+ * Permanently deletes the signed-in owner's account.
+ *
+ * The server removes the Supabase auth user, which cascades to the profile,
+ * vehicles, drafts, confirmed records, share links and mechanic sessions, and
+ * then clears the receipt images from storage. There is no undo.
+ *
+ * The local session is cleared here rather than left to expire: the access
+ * token still looks valid to the browser for a few more minutes even though
+ * the account behind it no longer exists, and a signed-in-looking app whose
+ * every request 401s is a worse experience than being signed out.
+ */
+export async function deleteAccount() {
+  const result = await apiRequest('/auth/account', { method: 'DELETE' });
+
+  try {
+    await requireSupabaseClient().auth.signOut();
+  } catch {
+    // The account is already gone; a failed sign-out must not look like a
+    // failed deletion.
+  }
+  clearLoggedInUser();
+
+  return result;
 }

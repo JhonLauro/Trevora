@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { syncCurrentUserProfile } from '../api/auth.js';
+import { deleteAccount, syncCurrentUserProfile } from '../api/auth.js';
+import ConfirmDialog from '../components/ink/ConfirmDialog';
+import { getGarageSummary } from '../api/serviceHistory.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
 import {
   getNotificationPreferences,
@@ -102,6 +104,58 @@ export default function AccountSettingsPage() {
   const [savingSection, setSavingSection] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signOutConfirming, setSignOutConfirming] = useState(false);
+
+  /* The house dialog rather than an inline panel: this is the most
+     destructive action in the app, and it should interrupt rather than expand
+     quietly under a button you already clicked.
+
+     Typing the word is the one thing added on top. ConfirmDialog already
+     defaults focus to Cancel, which is right for deleting one vehicle; for an
+     action that ends the whole account, a single travelled click is still too
+     cheap. */
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTyped, setDeleteTyped] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteCounts, setDeleteCounts] = useState(null);
+  const deleteArmed = deleteTyped.trim().toUpperCase() === 'DELETE';
+
+  /* "This also removes 6 service records" is the sentence that changes minds;
+     "this cannot be undone" is wallpaper. The numbers are fetched when the
+     dialog opens rather than on page load, so a settings visit does not pay
+     for a request most visits never need. */
+  function openDeleteDialog() {
+    setDeleteOpen(true);
+    setDeleteTyped('');
+    setDeleteError('');
+    setDeleteCounts(null);
+    getGarageSummary()
+      .then((summary) => {
+        const vehicles = summary?.vehicles?.length ?? 0;
+        const records = (summary?.records ?? [])
+          .reduce((total, entry) => total + (entry.records?.length ?? 0), 0);
+        setDeleteCounts({ vehicles, records });
+      })
+      // A failed count must not block the deletion; the dialog falls back to
+      // naming what goes without counting it.
+      .catch(() => setDeleteCounts(null));
+  }
+
+  async function handleDeleteAccount() {
+    if (!deleteArmed || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount();
+      // Full reload, not a route change: every cached list and context in
+      // memory refers to an account that no longer exists.
+      window.location.assign('/login');
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleting(false);
+    }
+  }
+
   // Kept from the other branch: handleSignOut sets this, and it is what
   // stops a second click while the sign-out request is in flight.
   const [signingOut, setSigningOut] = useState(false);
@@ -564,6 +618,61 @@ export default function AccountSettingsPage() {
           </button>
         )}
       </section>
+
+      <div className="set-rule" />
+
+      <section className="set-danger">
+        <div className="set-signout-text">
+          <span className="set-signout-title">Delete this account</span>
+          <span className="set-signout-sub">
+            Permanently removes your vehicles, service records, receipt images, share
+            links and any mechanic access you have granted. This cannot be undone.
+          </span>
+        </div>
+        <button className="set-button danger" type="button" onClick={openDeleteDialog}>
+          Delete account
+        </button>
+      </section>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        busy={deleting}
+        error={deleteError}
+        title="Delete this account?"
+        confirmLabel="Delete permanently"
+        busyLabel="Deleting…"
+        confirmDisabled={!deleteArmed}
+        onCancel={() => { if (!deleting) { setDeleteOpen(false); setDeleteTyped(''); setDeleteError(''); } }}
+        onConfirm={handleDeleteAccount}
+        body={(
+          <>
+            <p>
+              {deleteCounts
+                ? `This removes ${deleteCounts.vehicles} vehicle${deleteCounts.vehicles === 1 ? '' : 's'} and ${deleteCounts.records} service record${deleteCounts.records === 1 ? '' : 's'}, along with their receipt images.`
+                : 'This removes every vehicle and service record on this account, along with their receipt images.'}
+            </p>
+            <p>
+              Any share link or mechanic access you have granted stops working immediately.
+              A mechanic reading this history right now will lose it.
+            </p>
+            <p>
+              Your sign-in is deleted too, so signing in again creates a new, empty
+              account rather than restoring this one. Nothing here can be recovered.
+            </p>
+            <label className="set-danger-field">
+              <span>Type DELETE to confirm</span>
+              <input
+                className="set-danger-input"
+                value={deleteTyped}
+                onChange={(event) => setDeleteTyped(event.target.value)}
+                placeholder="DELETE"
+                autoComplete="off"
+                disabled={deleting}
+              />
+            </label>
+          </>
+        )}
+      />
 
     </main>
   );

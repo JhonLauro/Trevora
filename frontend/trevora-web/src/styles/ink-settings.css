@@ -669,3 +669,43 @@
     flex-direction: column;
   }
 }
+
+
+/* ------------------------------------------------------- delete account
+
+   The row on the settings page. The confirmation itself is ConfirmDialog, so
+   there is nothing to style for it here beyond the typed-word field inside
+   the dialog body.
+
+   No red panel. The Ink palette reserves chroma for record status, and a red
+   block here would out-shout the "Unverified" badges that carry real meaning
+   elsewhere. The weight comes from the wording, from the dialog interrupting,
+   and from having to type the word. */
+.set-danger {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.set-danger-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.set-danger-field span {
+  color: var(--ink-muted, #57534c);
+  font-size: 14px;
+}
+
+.set-danger-input {
+  border: 1px solid var(--border, #d8d1c5);
+  border-radius: 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  padding: 9px 12px;
+  width: 160px;
+}
