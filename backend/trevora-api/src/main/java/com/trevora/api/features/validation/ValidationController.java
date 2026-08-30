@@ -26,6 +26,6 @@ public class ValidationController {
 
     @PostMapping("/validate")
     public ValidationResult validateDraft(@PathVariable UUID draftId) {
-        return serviceDraftValidationService.validateDraftForMockOwner(draftId);
+        return serviceDraftValidationService.validateDraftForCurrentUser(draftId);
     }
 }

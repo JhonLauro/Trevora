@@ -7,6 +7,7 @@ import {
   submitMechanicAccessRequest,
 } from '../api/qrAccess';
 import InkLockup from '../components/InkLockup.jsx';
+import { rememberMechanicSessionToken } from '../api/mechanicSessionToken.js';
 
 /**
  * What a mechanic sees after scanning an owner's code, before anything has
@@ -103,6 +104,10 @@ export default function MechanicAccessRequestPage() {
         if (status.mechanicRequest) setSubmittedRequest(status.mechanicRequest);
         if (status.session) {
           setApprovedSession(status.session);
+          /* The token comes with the approval and is only offered once. Keep
+             it before anything navigates away -- it is the half of the
+             credential that does not travel in the URL. */
+          rememberMechanicSessionToken(status.session);
           window.localStorage.setItem(APPROVED_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
         }
       })
@@ -127,6 +132,7 @@ export default function MechanicAccessRequestPage() {
           if (status.mechanicRequest) setSubmittedRequest(status.mechanicRequest);
           if (status.session) {
             setApprovedSession(status.session);
+            rememberMechanicSessionToken(status.session);
             window.localStorage.setItem(APPROVED_SESSION_ID_KEY, status.session.mechanicAccessSessionId);
           }
         })

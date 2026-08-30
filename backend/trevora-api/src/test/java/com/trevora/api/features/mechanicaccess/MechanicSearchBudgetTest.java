@@ -65,7 +65,10 @@ class MechanicSearchBudgetTest {
         record.setShopName("Cebu Auto");
         record.setServiceDate(LocalDate.of(2026, 5, 10));
 
-        when(access.requireActiveReadOnlySession(sessionId)).thenReturn(session);
+        // Search now presents the session token alongside the id; these tests
+        // pass null and stub accordingly, since what they exercise is the
+        // ranking, not the guard (see MechanicSessionTokenTest for that).
+        when(access.requireActiveReadOnlySession(sessionId, null)).thenReturn(session);
         when(access.getSessionRecords(session)).thenReturn(List.of(record));
         when(access.vehicleLabel(vehicleId)).thenReturn("Toyota Vios");
         when(reader.forRecords(any())).thenReturn(Map.<UUID, List<ServiceRecordItem>>of(recordId, List.of()));
@@ -82,7 +85,7 @@ class MechanicSearchBudgetTest {
         String tooLong = "brake".repeat(MechanicSearchService.MAX_QUERY_CHARS);
 
         AccessRequestException thrown =
-                assertThrows(AccessRequestException.class, () -> search.searchSharedRecords(sessionId, tooLong));
+                assertThrows(AccessRequestException.class, () -> search.searchSharedRecords(sessionId, tooLong, null));
 
         assertTrue(thrown.getMessage().contains("too long"));
         verify(access, never()).tryConsumeAiSearchBudget(any(), anyInt());
@@ -94,7 +97,7 @@ class MechanicSearchBudgetTest {
         MechanicSearchService search = service("", 30);
         String atCap = "b".repeat(MechanicSearchService.MAX_QUERY_CHARS);
 
-        assertEquals(atCap, search.searchSharedRecords(sessionId, atCap).query());
+        assertEquals(atCap, search.searchSharedRecords(sessionId, atCap, null).query());
     }
 
     @Test
@@ -103,7 +106,7 @@ class MechanicSearchBudgetTest {
         MechanicSearchService search = service("sk-test", 30);
         when(access.tryConsumeAiSearchBudget(any(), anyInt())).thenReturn(false);
 
-        MechanicSearchResponse response = search.searchSharedRecords(sessionId, "were the brakes done?");
+        MechanicSearchResponse response = search.searchSharedRecords(sessionId, "were the brakes done?", null);
 
         assertEquals("KEYWORD_FALLBACK", response.answerSource());
     }
@@ -113,7 +116,7 @@ class MechanicSearchBudgetTest {
     void missingApiKeySpendsNoBudget() {
         MechanicSearchService search = service("", 30);
 
-        search.searchSharedRecords(sessionId, "were the brakes done?");
+        search.searchSharedRecords(sessionId, "were the brakes done?", null);
 
         verify(access, never()).tryConsumeAiSearchBudget(any(), anyInt());
     }

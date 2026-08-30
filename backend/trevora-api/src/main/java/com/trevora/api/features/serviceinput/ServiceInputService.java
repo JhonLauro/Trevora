@@ -62,7 +62,7 @@ public class ServiceInputService {
     @Transactional
     public ServiceDraft createManualDraft(ManualServiceDraftRequest request) {
         requireVehicleOwner();
-        vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
+        vehicleService.verifyVehicleBelongsToCurrentUser(request.vehicleId());
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(request.vehicleId());
@@ -119,7 +119,7 @@ public class ServiceInputService {
         requireVehicleOwner();
         // The ownership check already loads the vehicle, and the extractor needs
         // it: a receipt only means something against the vehicle it belongs to.
-        VehicleProfile vehicle = vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
+        VehicleProfile vehicle = vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
         ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(
                 receiptImages, receiptInputMode, VehicleContext.from(vehicle));
 
@@ -168,7 +168,7 @@ public class ServiceInputService {
     @Transactional
     public ServiceDraft createVoiceDraft(VoiceServiceDraftRequest request) {
         requireVehicleOwner();
-        vehicleService.verifyVehicleBelongsToMockOwner(request.vehicleId());
+        vehicleService.verifyVehicleBelongsToCurrentUser(request.vehicleId());
         VoiceDraftExtractionResult extraction = voiceProcessingService.extractServiceFields(request.transcript());
 
         ServiceDraft draft = new ServiceDraft();
@@ -189,9 +189,6 @@ public class ServiceInputService {
         return savedDraft;
     }
 
-    public ServiceDraft getDraftForMockOwner(UUID draftId) {
-        return getDraftForCurrentUser(draftId);
-    }
 
     public ServiceDraft getDraftForCurrentUser(UUID draftId) {
         return serviceDraftRepository.findByDraftIdAndOwnerId(draftId, currentUserService.getCurrentUserId())

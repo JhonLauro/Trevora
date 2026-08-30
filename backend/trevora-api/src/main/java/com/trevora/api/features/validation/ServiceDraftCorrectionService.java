@@ -40,7 +40,7 @@ public class ServiceDraftCorrectionService {
     @Transactional
     public ServiceDraftReviewResponse correctDraft(UUID draftId, ServiceDraftCorrectionRequest request) {
         currentUserService.requireVehicleOwner();
-        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);
 
         draft.setServiceDate(request.serviceDate());
         draft.setOdometer(request.odometer());

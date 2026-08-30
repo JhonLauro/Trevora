@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.validation.annotation.Validated;
@@ -69,9 +70,21 @@ public class MechanicAccessController {
         return mechanicAccessService.revokeOwnerSession(sessionId);
     }
 
+    /*
+     * The session token travels in a header, not the path. The id is in the
+     * URL and leaks the way URLs do -- history, Referer, screenshots -- so the
+     * second half deliberately goes by a route that does not.
+     *
+     * `required = false` so a request without it reaches the service and gets
+     * the same "not found" a wrong token gets, rather than a 400 that
+     * distinguishes "no token" from "bad token".
+     */
     @GetMapping("/sessions/{sessionId}/history")
-    public MechanicSharedHistoryResponse getSessionHistory(@PathVariable UUID sessionId) {
-        return mechanicAccessService.getSharedHistory(sessionId);
+    public MechanicSharedHistoryResponse getSessionHistory(
+            @PathVariable UUID sessionId,
+            @RequestHeader(value = "X-Mechanic-Session-Token", required = false) String sessionToken
+    ) {
+        return mechanicAccessService.getSharedHistory(sessionId, sessionToken);
     }
 
     @GetMapping("/sessions/{sessionId}/history/search")
@@ -80,16 +93,18 @@ public class MechanicAccessController {
             @RequestParam
             @NotBlank(message = "Search query is required.")
             @Size(max = 300, message = "Search question is too long. Keep it under 300 characters.")
-            String query
+            String query,
+            @RequestHeader(value = "X-Mechanic-Session-Token", required = false) String sessionToken
     ) {
-        return mechanicSearchService.searchSharedRecords(sessionId, query);
+        return mechanicSearchService.searchSharedRecords(sessionId, query, sessionToken);
     }
 
     @GetMapping("/sessions/{sessionId}/history/{recordId}")
     public MechanicSharedRecordDetailResponse getSessionRecord(
             @PathVariable UUID sessionId,
-            @PathVariable UUID recordId
+            @PathVariable UUID recordId,
+            @RequestHeader(value = "X-Mechanic-Session-Token", required = false) String sessionToken
     ) {
-        return mechanicAccessService.getSharedRecord(sessionId, recordId);
+        return mechanicAccessService.getSharedRecord(sessionId, recordId, sessionToken);
     }
 }

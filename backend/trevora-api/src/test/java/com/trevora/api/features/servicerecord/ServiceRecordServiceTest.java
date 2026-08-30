@@ -82,7 +82,7 @@ class ServiceRecordServiceTest {
         List<ServiceDraftItem> draftItems = List.of(oilChange, tireRotation);
 
         when(currentUserService.getCurrentUserId()).thenReturn(OWNER_ID);
-        when(serviceInputService.getDraftForMockOwner(draftId)).thenReturn(draft);
+        when(serviceInputService.getDraftForCurrentUser(draftId)).thenReturn(draft);
         when(serviceInputService.getItemsForDraft(any())).thenReturn(draftItems);
         when(serviceDraftValidationService.validateDraft(draft, draftItems))
                 .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of(), List.of("All required fields are present.")));
@@ -134,7 +134,7 @@ class ServiceRecordServiceTest {
         List<ServiceDraftItem> draftItems = List.of(bodyWork);
 
         when(currentUserService.getCurrentUserId()).thenReturn(OWNER_ID);
-        when(serviceInputService.getDraftForMockOwner(draftId)).thenReturn(draft);
+        when(serviceInputService.getDraftForCurrentUser(draftId)).thenReturn(draft);
         when(serviceInputService.getItemsForDraft(any())).thenReturn(draftItems);
         when(serviceDraftValidationService.validateDraft(draft, draftItems))
                 .thenReturn(new ValidationResult(draftId, true, List.of(), List.of(), List.of(), List.of("All required fields are present.")));

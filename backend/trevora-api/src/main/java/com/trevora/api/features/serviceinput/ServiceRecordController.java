@@ -107,7 +107,7 @@ public class ServiceRecordController {
 
     @GetMapping("/{draftId}")
     public ServiceDraftResponse getDraft(@PathVariable UUID draftId) {
-        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);
         return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
     }
 

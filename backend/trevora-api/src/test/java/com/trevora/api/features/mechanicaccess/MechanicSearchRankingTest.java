@@ -99,7 +99,10 @@ class MechanicSearchRankingTest {
         items.put(oilRecord, List.of(item(oilRecord, "Oil change", "oil filter", "drain and refill")));
         items.put(clutchRecord, List.of(item(clutchRecord, "Clutch replacement", "clutch kit", "gearbox removal")));
 
-        when(access.requireActiveReadOnlySession(sessionId)).thenReturn(session);
+        // Search now presents the session token alongside the id; these tests
+        // pass null and stub accordingly, since what they exercise is the
+        // ranking, not the guard (see MechanicSessionTokenTest for that).
+        when(access.requireActiveReadOnlySession(sessionId, null)).thenReturn(session);
         when(access.getSessionRecords(session)).thenReturn(records);
         when(access.vehicleLabel(vehicleId)).thenReturn("Toyota Vios");
         when(reader.forRecords(any())).thenReturn(items);
@@ -115,7 +118,7 @@ class MechanicSearchRankingTest {
     }
 
     private List<UUID> idsFor(String query) {
-        return fixture().service().searchSharedRecords(sessionId, query).records().stream()
+        return fixture().service().searchSharedRecords(sessionId, query, null).records().stream()
                 .map(MechanicSharedServiceRecordResponse::recordId)
                 .toList();
     }
@@ -162,7 +165,7 @@ class MechanicSearchRankingTest {
     @DisplayName("line items are fetched once per search, not once per record")
     void itemsAreBatchLoaded() {
         Fixture fixture = fixture();
-        fixture.service().searchSharedRecords(sessionId, "brake pads and oil filter");
+        fixture.service().searchSharedRecords(sessionId, "brake pads and oil filter", null);
         verify(fixture.reader(), times(1)).forRecords(any());
         verify(fixture.reader(), never()).forRecord(any());
     }

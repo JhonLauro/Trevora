@@ -52,14 +52,14 @@ public class ServiceDraftValidationService {
 
     public ServiceDraftReviewResponse getDraftReview(UUID draftId) {
         currentUserService.requireVehicleOwner();
-        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);
         List<ServiceDraftItem> items = serviceInputService.getItemsForDraft(draftId);
         return new ServiceDraftReviewResponse(ServiceDraftResponse.from(draft, items), validateDraft(draft, items));
     }
 
-    public ValidationResult validateDraftForMockOwner(UUID draftId) {
+    public ValidationResult validateDraftForCurrentUser(UUID draftId) {
         currentUserService.requireVehicleOwner();
-        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);
         return validateDraft(draft, serviceInputService.getItemsForDraft(draftId));
     }
 
@@ -160,7 +160,7 @@ public class ServiceDraftValidationService {
 
         if (draft.getVehicleId() != null) {
             try {
-                vehicleService.verifyVehicleBelongsToMockOwner(draft.getVehicleId());
+                vehicleService.verifyVehicleBelongsToCurrentUser(draft.getVehicleId());
             } catch (ResourceNotFoundException | UnauthorizedVehicleAccessException exception) {
                 issues.add(new FieldValidationIssue(
                         "vehicleId",
