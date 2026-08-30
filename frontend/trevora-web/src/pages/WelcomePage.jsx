@@ -162,7 +162,7 @@ function HistoryPreview() {
   const records = [
     ['24 Aug 2026', 'Preventive maintenance', 'Toyota Talisay', '42,190 km', '10,586'],
     ['7 May 2026', 'Oil change + brake service', 'Toyota Talisay', '38,400 km', '7,850'],
-    ['24 Oct 2025', 'Tyres, front pair', 'Rimtek, Mandaue · Voice note', '31,020 km', '4,564'],
+    ['24 Oct 2025', 'Tires, front pair', 'Rimtek, Mandaue · Voice note', '31,020 km', '4,564'],
   ];
 
   return (
