@@ -36,7 +36,13 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
             "/api/service-drafts/receipt",
             "/api/service-drafts/voice",
             "/api/service-drafts/voice/transcribe",
-            "/api/service-drafts/voice/translate"
+            "/api/service-drafts/voice/translate",
+            /* Added when the record explanation stopped being a keyword
+               template and started calling a model. It is a GET the record page
+               makes on open and again on every Regenerate, so it is the easiest
+               endpoint in the product to run up a bill on by holding down a
+               refresh key. */
+            "/api/service-records/*/ai-explanation"
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
