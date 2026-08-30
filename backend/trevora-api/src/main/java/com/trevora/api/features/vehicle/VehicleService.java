@@ -45,25 +45,10 @@ public class VehicleService {
         this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
     }
 
-    public List<VehicleProfile> getVehiclesForMockOwner() {
-        return getVehiclesForCurrentUser();
-    }
 
-    public VehicleProfile createVehicleForMockOwner(CreateVehicleRequest request) {
-        return createVehicleForCurrentUser(request);
-    }
 
-    public VehicleProfile getVehicleForMockOwner(UUID vehicleId) {
-        return getVehicleForCurrentUser(vehicleId);
-    }
 
-    public VehicleProfile updateVehicleForMockOwner(UUID vehicleId, UpdateVehicleRequest request) {
-        return updateVehicleForCurrentUser(vehicleId, request);
-    }
 
-    public VehicleProfile verifyVehicleBelongsToMockOwner(UUID vehicleId) {
-        return verifyVehicleBelongsToCurrentUser(vehicleId);
-    }
 
     public List<VehicleProfile> getVehiclesForCurrentUser() {
         requireVehicleOwner();

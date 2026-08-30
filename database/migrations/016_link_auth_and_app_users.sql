@@ -187,9 +187,13 @@ commit;
 
 -- ----------------------------------------------------------------- verify
 --
--- Run this after. Sixteen rows: fourteen CASCADE, two SET NULL (the
--- mechanic_id pair). Fewer means a constraint was dropped and not re-added,
--- which is worse than the problem this migration set out to fix.
+-- Run this after. Twenty-one rows: nineteen CASCADE, two SET NULL (the
+-- mechanic_id pair). Twenty-one rather than the sixteen this migration
+-- rewrites, because the query below also returns the five keys that were
+-- already CASCADE and are not touched here -- the four item/line-entry
+-- constraints from 007 and 011, plus users -> auth.users added above.
+-- Fewer means a constraint was dropped and not re-added, which is worse than
+-- the problem this migration set out to fix.
 --
 --   select conrelid::regclass as child, a.attname as column_name,
 --          confrelid::regclass as parent,

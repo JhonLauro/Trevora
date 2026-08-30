@@ -98,7 +98,7 @@ public class ServiceHistoryService {
             String keyword
     ) {
         currentUserService.requireVehicleOwner();
-        vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
+        vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
 
         String normalizedSort = normalizeSort(sort);
         List<ServiceRecord> allRecords = serviceRecordRepository
@@ -144,7 +144,7 @@ public class ServiceHistoryService {
 
     public ServiceRecordDetailResponse getVehicleHistoryRecord(UUID vehicleId, UUID recordId) {
         currentUserService.requireVehicleOwner();
-        vehicleService.verifyVehicleBelongsToMockOwner(vehicleId);
+        vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
         ServiceRecord record = serviceRecordRepository
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));

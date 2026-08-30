@@ -19,6 +19,10 @@ import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import com.trevora.api.features.vehicle.VehicleRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -30,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MechanicAccessService {
+    private static final Logger log = LoggerFactory.getLogger(MechanicAccessService.class);
+
     static final String SESSION_APPROVED = "APPROVED";
     static final String SESSION_EXPIRED = "EXPIRED";
     static final String SESSION_REVOKED = "REVOKED";
@@ -85,8 +91,8 @@ public class MechanicAccessService {
     }
 
     @Transactional
-    public MechanicSharedHistoryResponse getSharedHistory(UUID sessionId) {
-        MechanicAccessSession session = requireActiveReadOnlySession(sessionId);
+    public MechanicSharedHistoryResponse getSharedHistory(UUID sessionId, String sessionToken) {
+        MechanicAccessSession session = requireActiveReadOnlySession(sessionId, sessionToken);
         List<ServiceRecord> records = getSessionRecords(session);
         return new MechanicSharedHistoryResponse(
                 session.getMechanicAccessSessionId(),
@@ -104,8 +110,8 @@ public class MechanicAccessService {
     }
 
     @Transactional
-    public MechanicSharedRecordDetailResponse getSharedRecord(UUID sessionId, UUID recordId) {
-        MechanicAccessSession session = requireActiveReadOnlySession(sessionId);
+    public MechanicSharedRecordDetailResponse getSharedRecord(UUID sessionId, UUID recordId, String sessionToken) {
+        MechanicAccessSession session = requireActiveReadOnlySession(sessionId, sessionToken);
         ServiceRecord record = serviceRecordRepository
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, session.getVehicleId(), session.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shared service record was not found."));
@@ -120,10 +126,62 @@ public class MechanicAccessService {
         );
     }
 
+    /**
+     * Kept for the owner-side paths, which are already authenticated as the
+     * owner and never see a mechanic's token.
+     */
     @Transactional
     MechanicAccessSession requireActiveReadOnlySession(UUID sessionId) {
+        return requireActiveReadOnlySession(sessionId, null, false);
+    }
+
+    /**
+     * The mechanic-facing guard: the session id <em>and</em> the token issued
+     * with it.
+     *
+     * <p>Until now the id alone was the whole credential, and it travels in the
+     * URL -- so it survives in browser history, in {@code Referer} headers, in
+     * logs, and in any screenshot of the page. The token was already being
+     * generated, stored, and handed to the mechanic's browser when the owner
+     * approved; nothing ever checked it.
+     *
+     * <p>Now the browser keeps it and sends it as a header, which means a
+     * leaked URL on its own opens nothing. That is the entire point: the two
+     * halves travel by different routes, and only one of them is in the
+     * address bar.
+     */
+    @Transactional
+    MechanicAccessSession requireActiveReadOnlySession(UUID sessionId, String presentedToken) {
+        return requireActiveReadOnlySession(sessionId, presentedToken, true);
+    }
+
+    private MechanicAccessSession requireActiveReadOnlySession(
+            UUID sessionId, String presentedToken, boolean verifyToken) {
         MechanicAccessSession session = mechanicAccessSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mechanic access session was not found."));
+
+        if (verifyToken) {
+            String expected = session.getSessionToken();
+            /*
+             * A session row with no token predates this check. Refusing it
+             * would strip access from a link an owner has already approved, to
+             * enforce a secret that was never issued, so those fall back to the
+             * id alone and say so in the log. An attacker cannot reach this
+             * branch: the value is server-side, not anything they send.
+             */
+            if (expected == null || expected.isBlank()) {
+                log.warn("Session {} has no token stored; falling back to id-only access.", sessionId);
+            } else if (!MessageDigest.isEqual(
+                    expected.getBytes(StandardCharsets.UTF_8),
+                    (presentedToken == null ? "" : presentedToken).getBytes(StandardCharsets.UTF_8))) {
+                /*
+                 * Constant-time, and the message is the same one a missing
+                 * session gets -- a different wording here would confirm which
+                 * ids exist to anyone guessing.
+                 */
+                throw new ResourceNotFoundException("Mechanic access session was not found.");
+            }
+        }
         if (!SESSION_APPROVED.equals(session.getStatus())) {
             throw new AccessRequestException("This mechanic access session is not approved.");
         }

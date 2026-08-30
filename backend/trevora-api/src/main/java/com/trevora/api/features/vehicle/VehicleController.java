@@ -29,7 +29,7 @@ public class VehicleController {
 
     @GetMapping
     public List<VehicleResponse> listVehicles() {
-        return vehicleService.getVehiclesForMockOwner().stream()
+        return vehicleService.getVehiclesForCurrentUser().stream()
                 .map(VehicleResponse::from)
                 .toList();
     }
@@ -37,17 +37,17 @@ public class VehicleController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public VehicleResponse createVehicle(@Valid @RequestBody CreateVehicleRequest request) {
-        return VehicleResponse.from(vehicleService.createVehicleForMockOwner(request));
+        return VehicleResponse.from(vehicleService.createVehicleForCurrentUser(request));
     }
 
     @GetMapping("/{vehicleId}")
     public VehicleResponse getVehicle(@PathVariable UUID vehicleId) {
-        return VehicleResponse.from(vehicleService.getVehicleForMockOwner(vehicleId));
+        return VehicleResponse.from(vehicleService.getVehicleForCurrentUser(vehicleId));
     }
 
     @PutMapping("/{vehicleId}")
     public VehicleResponse updateVehicle(@PathVariable UUID vehicleId, @Valid @RequestBody UpdateVehicleRequest request) {
-        return VehicleResponse.from(vehicleService.updateVehicleForMockOwner(vehicleId, request));
+        return VehicleResponse.from(vehicleService.updateVehicleForCurrentUser(vehicleId, request));
     }
 
     @DeleteMapping("/{vehicleId}")

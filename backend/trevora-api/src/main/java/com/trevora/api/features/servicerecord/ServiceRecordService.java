@@ -56,7 +56,7 @@ public class ServiceRecordService {
     @Transactional
     public ServiceRecordConfirmationResponse confirmDraft(UUID draftId) {
         currentUserService.requireVehicleOwner();
-        ServiceDraft draft = serviceInputService.getDraftForMockOwner(draftId);
+        ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);
         List<ServiceDraftItem> draftItems = serviceInputService.getItemsForDraft(draft.getDraftId());
         ValidationResult validation = serviceDraftValidationService.validateDraft(draft, draftItems);
         if (!validation.valid()) {
