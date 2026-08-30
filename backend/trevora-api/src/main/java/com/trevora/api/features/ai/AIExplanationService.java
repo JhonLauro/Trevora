@@ -17,8 +17,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
@@ -27,23 +30,30 @@ import org.springframework.stereotype.Service;
 public class AIExplanationService {
     private static final String SOURCE = "template";
     private static final String FALLBACK_SOURCE = "template_fallback";
+    /* Named after what produced it, not "ai": when somebody asks why an
+       explanation reads oddly, the first useful question is which model wrote
+       it, and the answer should be in the response rather than in a log. */
+    private static final String MODEL_SOURCE_PREFIX = "openai:";
     private static final String DISCLAIMER = "This explanation is for understanding only and does not replace professional mechanic judgment.";
 
     private final ServiceRecordRepository serviceRecordRepository;
     private final ServiceRecordItemReader serviceRecordItemReader;
     private final CurrentUserService currentUserService;
     private final VehicleService vehicleService;
+    private final OpenAIExplanationProvider explanationProvider;
 
     public AIExplanationService(
             ServiceRecordRepository serviceRecordRepository,
             ServiceRecordItemReader serviceRecordItemReader,
             CurrentUserService currentUserService,
-            VehicleService vehicleService
+            VehicleService vehicleService,
+            OpenAIExplanationProvider explanationProvider
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.currentUserService = currentUserService;
         this.vehicleService = vehicleService;
+        this.explanationProvider = explanationProvider;
     }
 
     public AIExplanationResponse getExplanationForRecord(UUID recordId) {
@@ -55,9 +65,95 @@ public class AIExplanationService {
         List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
 
         try {
+            /* The model first, the template when it cannot answer. The template
+               is not a lesser copy kept for tidiness -- it is what an owner
+               reads when the key is unset, the provider is down or the response
+               comes back unusable, and it has to stand on its own. */
+            AIExplanationResponse generated = generateModelExplanation(record, items);
+            if (generated != null) {
+                return generated;
+            }
             return generateTemplateExplanation(record, items);
         } catch (RuntimeException exception) {
             return fallbackExplanation(record);
+        }
+    }
+
+    /**
+     * @return the model's explanation, or null to fall through to the template.
+     */
+    private AIExplanationResponse generateModelExplanation(ServiceRecord record, List<ServiceRecordItem> items) {
+        if (!explanationProvider.available()) {
+            return null;
+        }
+
+        boolean tagged = hasLineEntries(items);
+        List<String> parts = tagged
+                ? lineEntriesOfKind(items, ServiceLineKind.PART)
+                : itemFieldValues(items, ServiceRecordItem::getPartsReplaced);
+        List<String> materials = tagged ? lineEntriesOfKind(items, ServiceLineKind.MATERIAL) : List.of();
+        List<String> labor = tagged
+                ? lineEntriesOfKind(items, ServiceLineKind.OPERATION)
+                : itemFieldValues(items, ServiceRecordItem::getLaborPerformed);
+
+        OpenAIExplanationProvider.Explanation explanation = explanationProvider.explain(
+                new OpenAIExplanationProvider.Facts(
+                        vehicleLabelFor(record),
+                        serviceSummaryFor(items),
+                        parts,
+                        materials,
+                        labor,
+                        blankToNull(record.getShopName()),
+                        formatDate(record.getServiceDate()),
+                        record.getOdometer() == null ? null : record.getOdometer() + " km",
+                        record.getTotalCost() == null ? null : formatMoney(record.getTotalCost()),
+                        blankToNull(record.getRemarks())
+                ));
+
+        if (explanation == null) {
+            return null;
+        }
+
+        /* The facts stay structured and stay ours. The model writes the prose;
+           it does not restate the parts list or the total, because those are
+           the owner's own figures and a model that retypes them can mistype
+           them. */
+        List<AIExplanationDetail> details = new ArrayList<>();
+        addDetail(details, "Parts noted", parts);
+        addDetail(details, "Materials used", materials);
+        addDetail(details, "Work performed", labor);
+        if (record.getTotalCost() != null) {
+            addDetail(details, "Total recorded cost", List.of(formatMoney(record.getTotalCost())));
+        }
+
+        return new AIExplanationResponse(
+                record.getRecordId(),
+                record.getVehicleId(),
+                MODEL_SOURCE_PREFIX + explanationProvider.model(),
+                false,
+                explanation.whatWasDone(),
+                List.copyOf(details),
+                explanation.whyItMatters(),
+                List.copyOf(explanation.watchFor()),
+                DISCLAIMER,
+                Instant.now()
+        );
+    }
+
+    private String vehicleLabelFor(ServiceRecord record) {
+        try {
+            var vehicle = vehicleService.getVehicleForCurrentUser(record.getVehicleId());
+            return Stream.of(
+                            vehicle.getYear() == null ? null : String.valueOf(vehicle.getYear()),
+                            vehicle.getMake(),
+                            vehicle.getModel())
+                    .filter(value -> value != null && !String.valueOf(value).isBlank())
+                    .map(String::valueOf)
+                    .reduce((first, second) -> first + " " + second)
+                    .orElse(null);
+        } catch (RuntimeException unavailable) {
+            // The explanation does not need it; ownership was already checked.
+            return null;
         }
     }
 
@@ -85,9 +181,9 @@ public class AIExplanationService {
         // materials, labour, cost — is structured now and travels in
         // `details`, because gluing lists into prose only forced the client to
         // pull them apart again.
-        StringBuilder whatWasDone = new StringBuilder("This confirmed record shows ")
+        StringBuilder whatWasDone = new StringBuilder("Your car had ")
                 .append(serviceSummary)
-                .append(" completed on ")
+                .append(" done on ")
                 .append(date);
         if (shop != null) {
             whatWasDone.append(" at ").append(shop);
@@ -105,7 +201,7 @@ public class AIExplanationService {
         String whyItMatters = buildWhyItMatters(serviceSummary, joinForMatching(parts), joinForMatching(labor));
         List<String> watchFor = buildWatchFor(items, record.getOdometer());
         if (remarks != null) {
-            watchFor.add("Keep the saved remarks in mind: " + remarks);
+            watchFor.add("Worth remembering from your own notes: " + remarks);
         }
 
         return new AIExplanationResponse(
@@ -128,34 +224,43 @@ public class AIExplanationService {
                 record.getVehicleId(),
                 FALLBACK_SOURCE,
                 true,
-                "This confirmed service record was saved, but the detailed explanation could not be generated right now.",
+                "This service is saved to your car, but we could not put together the plain-language explanation just now.",
                 List.of(),
-                "The saved service type, cost, odometer, parts, labor, and remarks remain available in the original record details.",
-                List.of("Review the original record details before making maintenance decisions.", "Ask a qualified mechanic if symptoms continue or the issue returns."),
+                "Everything you entered is still here — the service, the cost, the odometer, the parts and your remarks — on the record itself.",
+                List.of("Have a look at the record itself before making any decisions about your car.", "Ask a mechanic you trust if the problem comes back."),
                 DISCLAIMER,
                 Instant.now()
         );
     }
 
+    /**
+     * The template's paragraph for a kind of work.
+     *
+     * <p>Matched on the service type alone, and on whole words. It used to
+     * search the parts and labour text too, with bare substring matching, which
+     * is how a body and paint job containing "WASTE PAD-BP" was explained to
+     * its owner as brake service: "pad" appears inside "PAD-BP". A wrong
+     * explanation delivered confidently is worse than the generic one at the
+     * foot of this method, so the net is now deliberately narrow.
+     */
     private String buildWhyItMatters(String serviceType, String parts, String labor) {
-        String text = String.join(" ", valueOrDefault(serviceType, ""), valueOrDefault(parts, ""), valueOrDefault(labor, ""))
-                .toLowerCase(Locale.ROOT);
+        String text = valueOrDefault(serviceType, "").toLowerCase(Locale.ROOT);
         if (containsAny(text, "oil", "filter")) {
-            return "Oil and filter service helps keep the engine lubricated, reduces heat and friction, and can prevent sludge buildup that shortens engine life.";
+            return "Fresh oil and a new filter keep your engine lubricated and running cooler, which is what stops sludge building up and wearing it out early.";
         }
         if (containsAny(text, "brake", "pad", "rotor")) {
-            return "Brake service matters because worn pads, rotors, or brake hardware can reduce stopping power and make the vehicle less predictable in traffic.";
+            return "Your brakes are what you rely on in traffic. Worn pads, discs or hardware mean your car takes longer to stop and behaves less predictably when you need it most.";
         }
         if (containsAny(text, "tire", "tyre", "wheel", "alignment")) {
-            return "Tire and wheel service helps maintain grip, ride comfort, fuel efficiency, and even tire wear over time.";
+            return "Your tires are the only part of your car touching the road. Looking after them keeps your grip, your ride comfort and your fuel use where they should be, and helps the tires wear evenly.";
         }
         if (containsAny(text, "battery", "alternator", "electrical")) {
-            return "Electrical and battery service helps prevent starting issues and reduces the chance of unexpected power loss while using the vehicle.";
+            return "This is the work that decides whether your car starts when you turn the key. Keeping it in good order lowers the chance of being left somewhere with no power.";
         }
         if (containsAny(text, "inspect", "diagnostic", "check")) {
-            return "Inspection and diagnostic work helps catch problems early, before they become more expensive or affect safety.";
+            return "Having your car looked over catches small problems while they are still small, before they cost more or start affecting how safely it drives.";
         }
-        return "Keeping this service documented helps the owner understand what was done, track recurring issues, and plan future maintenance with better context.";
+        return "Having this written down means you can see what was already done to your car, spot anything that keeps coming back, and plan the next visit knowing its history.";
     }
 
     private String serviceSummaryFor(List<ServiceRecordItem> items) {
@@ -256,20 +361,20 @@ public class AIExplanationService {
 
         if (containsAny(text, "oil", "filter")) {
             watchFor.add(nextOilInterval(odometer));
-            watchFor.add("Watch for oil leaks, burning smells, warning lights, or faster-than-usual oil loss.");
+            watchFor.add("Keep an eye out for oil spots where you park, a burning smell, warning lights, or the oil dropping faster than usual.");
         }
         if (containsAny(text, "brake", "pad", "rotor")) {
-            watchFor.add("Listen for squealing or grinding, and watch for vibration, pulling, or a soft brake pedal.");
+            watchFor.add("Listen for squealing or grinding when you brake, and notice any vibration, pulling to one side, or a pedal that feels soft.");
         }
         if (containsAny(text, "tire", "tyre", "wheel", "alignment")) {
-            watchFor.add("Check tire pressure and look for uneven tread wear after the service.");
+            watchFor.add("Check your tire pressures soon, and look across the tread for wear that is heavier on one edge than the other.");
         }
         if (containsAny(text, "battery", "alternator", "electrical")) {
-            watchFor.add("Watch for slow starts, dim lights, or repeated battery warnings.");
+            watchFor.add("Notice if your car turns over slowly, the lights look dim, or a battery warning keeps coming back.");
         }
         if (watchFor.isEmpty()) {
-            watchFor.add("Watch whether the original symptom returns after normal driving.");
-            watchFor.add("Keep the receipt and record details available for the next service visit.");
+            watchFor.add("Notice whether whatever took your car in comes back once you have driven it normally for a while.");
+            watchFor.add("Keep the receipt with this record, so you have it to hand at the next visit.");
         }
         return watchFor;
     }
@@ -283,24 +388,49 @@ public class AIExplanationService {
                 + " km, or sooner if the vehicle manual recommends it.";
     }
 
+    /**
+     * Whole words only.
+     *
+     * <p>It was a bare {@code contains}, so "pad" matched inside "PAD-BP" and
+     * "tire" would match inside "entire". On a keyword chain that picks what
+     * the owner is told their service was, a substring hit is not a near miss
+     * -- it is a confident sentence about the wrong system.
+     */
     private boolean containsAny(String value, String... needles) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        // Split on anything that is not a letter or digit and compare whole
+        // tokens. Clearer than an escaped pattern, and it cannot be broken by a
+        // needle that happens to contain regex syntax.
+        Set<String> words = new HashSet<>(
+                Arrays.asList(value.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")));
         for (String needle : needles) {
-            if (value.contains(needle)) {
+            if (words.contains(needle)) {
                 return true;
             }
         }
         return false;
     }
 
+    /* "24 October 2025", not "2025-10-24". The explanation is the one place
+       in the product written as sentences rather than as a record, and a date
+       in digits inside a sentence reads as a database field. */
+    private static final DateTimeFormatter SPOKEN_DATE =
+            DateTimeFormatter.ofPattern("d MMMM uuuu", Locale.UK);
+
     private String formatDate(LocalDate date) {
         if (date == null) {
-            return "the saved service date";
+            return "the date saved on the record";
         }
-        return date.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        return date.format(SPOKEN_DATE);
     }
 
     private String formatMoney(BigDecimal value) {
-        return "PHP " + NumberFormat.getNumberInstance(Locale.US).format(value);
+        NumberFormat format = NumberFormat.getNumberInstance(Locale.US);
+        format.setMinimumFractionDigits(2);
+        format.setMaximumFractionDigits(2);
+        return "PHP " + format.format(value);
     }
 
     private String valueOrDefault(String value, String fallback) {
