@@ -1,0 +1,44 @@
+{
+  "id": "jftruck-toledo-sales-order",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "jftruck-toledo-sales-order.jpg",
+  "format": "Independent truck and auto shop, 16 itemised lines, printed from a small accounting system",
+  "why": [
+    "The local-shop counterweight to the Talisay dealership stack. The document-type work was designed around a dealership that issues an estimate, an invoice and a receipt as three separate sheets. Almost no Philippine shop does that. This one hands over a single sheet that is the itemised bill, and it has to keep its cost and its lines untouched.",
+    "It tests the estimate rule from the dangerous side. The title reads SALES ORDER. REPAIR ORDER and JOB ORDER are evidence of an estimate; SALES ORDER is not, and a classifier that generalises the word ORDER would strip 15,000.00 of completed work out of a vehicle history. Nothing in the Talisay set could have caught that, because every document there is titled unambiguously.",
+    "Sixteen lines summing to exactly 15,000.00. Only the second case in the set that reconciles perfectly, and the first that does so with this many lines.",
+    "All four line kinds on one page, which no other case has. Parts (brake and parts cleaner, gasket, fuel hose, penetrating oil), materials (Valvoline ATF 6 LTR, gasoline for cleaning), operations (transmission cleaning, EGR and intake manifold cleaning, diagnostic scanning, reface brake drum) and genuine fees (storage, rescue, service fee). FEE has never appeared in a real case before this one.",
+    "Line 10 does not multiply. STORAGE FEE is quantity 10.00 at unit price 100.00 and an amount of 810.00. An extractor that computes lineTotal from quantity times unit price returns 1,000.00, overstates the bill by 190.00 and breaks a reconciliation that should have been exact. The amount column is the answer; arithmetic is not."
+  ],
+  "vehicle": {
+    "make": "Mitsubishi",
+    "model": "Montero Sport",
+    "modelYear": null,
+    "bodyType": "suv",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "preparer and approver names",
+    "signatures"
+  ],
+  "kept": [
+    "shop name and address, which are public business details",
+    "the sales order number AUTO-TOL03317",
+    "every line description, quantity, unit price and amount",
+    "the REMARKS line, because MONTEROSPORT (PIT 77) is the only place the vehicle is identified"
+  ],
+  "pendingGroundTruth": [
+    "odometer"
+  ],
+  "notes": [
+    "ASSUMPTION, NOT VERIFIED: this sheet is treated as the shop's final bill, so documentType is SERVICE_INVOICE. It carries prepared-by and approved-by signatures, an applied discount and a printed TOTAL, which reads final. Nobody has confirmed whether this shop issues a separate invoice or receipt afterwards. If it does, this case is an ESTIMATE and SALES ORDER has to be added to the estimate evidence list in the prompt - so check before trusting the score.",
+    "The DISCOUNT line contradicts the total. It reads 190.00, with the 19 handwritten over a printed 0.00, but the printed TOTAL of 15,000.00 equals the undiscounted sum of the lines. Ground truth follows the printed total. The handwriting is a later annotation and 14,810.00 is not the answer.",
+    "Line 8 has SERVICE FEE printed and - HOLD DOWN KIT written on top of it in marker. The printed description is the ground truth; an extractor that captures the annotation as well has not done anything harmful.",
+    "odometer is pending rather than null. The sheet prints no reading anywhere, but the vehicle came in for brake and transmission work and a reading may exist elsewhere on a page not photographed. Left unscored rather than asserted."
+  ]
+}

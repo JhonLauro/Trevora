@@ -1,0 +1,43 @@
+{
+  "id": "talisay-repair-order",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-repair-order.jpg",
+  "format": "Dealership repair order - an ESTIMATE, priced, later superseded by a service invoice",
+  "why": [
+    "The case the document-type split exists for. This sheet prints GRAND TOTAL 5,534.01 in the same font, the same box and the same peso sign as a real bill. The service invoice for the identical work billed 3,106.49. Before classification, photographing this sheet added 2,427.52 of work that never happened to the vehicle history, and nothing downstream could have noticed.",
+    "It carries its own printed disclaimer - NOTE: THIS IS ONLY AN ESTIMATE. PARTS FOUND DEFECTIVE DURING THE ACTUAL REPAIR ARE NOT INCLUDED IN THIS SERVICE ESTIMATE - so the evidence the prompt is told to require is genuinely on the page.",
+    "Every line moved between estimate and invoice, not just the total: labour 700.00 became 0.00 under a maintenance promo, parts 440.63 became 248.36. So a merge that trusted estimate line prices would be wrong line by line, not merely in aggregate.",
+    "It prints two odometer-shaped numbers - MILEAGE 3 KM near the header and Kilometers KM 242 in the vehicle block. 242 is the real reading; the picking slip and service invoice both agree. An extractor that returns 3 has been misled by the nearer label."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "customer address",
+    "mobile number",
+    "customer number",
+    "plate number",
+    "chassis and engine numbers",
+    "service advisor and job controller names",
+    "signatures"
+  ],
+  "kept": [
+    "shop name, branch, address, phone and VAT TIN",
+    "document numbers G7IA123581 and G7NA058266",
+    "all part numbers, quantities and amounts"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Handwritten on the page is 3,106.44 - the customer or advisor noting the amount actually payable, which is the invoice total with the last digit unclear. It is not the document own printed total and must not be extracted as one.",
+    "The printed line amounts sum to the printed Sub Total exactly: 700.00 + 372.77 + 67.86 + 2,922.32 + 878.13 = 4,941.08, and 4,941.08 + 592.93 VAT = 5,534.01. So this case reconciles against its own total even though that total is not what was paid."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "id": "talisay-work-performed",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-work-performed.jpg",
+  "format": "Handwritten WORK PERFORMED block on the reverse of the repair order",
+  "why": [
+    "The only handwritten case in the set, and the only document type with no printed fallback. Google Vision on cursive is close to a coin flip, so this case exists as much to measure how badly it fails as to be passed.",
+    "The correct answers are known independently - everything written here also appears in print in the service invoice JOB DONE block - so this case can be scored honestly even when the OCR is unusable. That is unusual and worth the case on its own.",
+    "It is a work record with no prices at all, which is the WORK_PERFORMED type. If it is misclassified as an estimate or an invoice, the pipeline will start looking for money that is not there.",
+    "The rest of the page is a dense empty form - CHANGE IN PROMISE TIME, QUALITY GATE RESULTS, dozens of unticked checkboxes and OFF/ON pairs down the right margin. Almost all the printed text on this page is boilerplate that must not reach any field, which makes it the strongest noise-rejection test in the set after the body-composition screenshot in gta-toledo-cooling."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "technician and foreman names",
+    "signatures",
+    "customer contact fields"
+  ],
+  "kept": [
+    "the handwritten work description",
+    "the APR 30 2025 date stamp"
+  ],
+  "pendingGroundTruth": [
+    "shopName",
+    "location"
+  ],
+  "notes": [
+    "shopName and location are pending rather than guessed: this is the reverse of the form and the letterhead is on the other side. Whether the shop is identifiable from this page at all has not been checked against the original.",
+    "The handwriting reads Perform 1,000 km check-up / Change oil and oil filter / check all lights, belt, tire pressure and fluids. The service invoice prints the same work, so the transcription is corroborated rather than a lone reading of someone cursive.",
+    "Expect this case to score badly. That is information, not a defect in the case - it is the only measurement anyone has of what handwriting costs, and the deferral of handwriting support should be argued from this number rather than from an impression."
+  ]
+}

@@ -28,8 +28,22 @@ public final class OutboundHttp {
     public static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     /** Google Vision OCR on a single receipt page. */
     public static final Duration VISION_READ_TIMEOUT = Duration.ofSeconds(30);
-    /** An OpenAI chat completion: extraction, mechanic search, transcript translation. */
+    /** An OpenAI chat completion: mechanic search, explanation, transcript translation. */
     public static final Duration OPENAI_READ_TIMEOUT = Duration.ofSeconds(60);
+    /**
+     * Receipt extraction, which is the slowest completion this application asks
+     * for and gets slower the more the receipt has on it.
+     *
+     * <p>Separate from {@link #OPENAI_READ_TIMEOUT} on purpose. A long dealership
+     * invoice sends several thousand characters of OCR text through a long
+     * instruction set and asks for a line entry per printed row back; the Toyota
+     * service invoice began timing out at 60 seconds on every attempt once the
+     * prompt grew, losing the whole extraction three times over. Mechanic search
+     * and the explanation feature answer in a fraction of that and must not be
+     * made to wait behind this: a search that hangs for two minutes is a broken
+     * search, while an upload that takes ninety seconds is an upload.
+     */
+    public static final Duration EXTRACTION_READ_TIMEOUT = Duration.ofSeconds(120);
     /** Audio transcription, which uploads the recording before any work starts. */
     public static final Duration TRANSCRIPTION_READ_TIMEOUT = Duration.ofSeconds(120);
 

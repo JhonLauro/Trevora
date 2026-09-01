@@ -26,6 +26,16 @@ public class GoogleVisionOCRProvider {
     // Blocks Vision itself is unsure about are usually visual noise (stray marks, logos) rather than real text.
     private static final double MIN_BLOCK_CONFIDENCE = 0.35;
     private static final List<String> LANGUAGE_HINTS = List.of("en", "fil");
+    /**
+     * Beyond this the skew estimate is likelier to be wrong than the page is to
+     * be that crooked, and rotating by a bad angle is far worse than not
+     * rotating at all. About 25 degrees.
+     */
+    private static final double MAX_SKEW_RADIANS = 0.44;
+    /** Too few words and the median angle is one word's noise, not the page. */
+    private static final int MIN_WORDS_FOR_SKEW = 8;
+    /** Below this, the wider-words preference is starving the estimate rather than sharpening it. */
+    private static final int MIN_ANGLE_SAMPLES = 8;
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -161,17 +171,23 @@ public class GoogleVisionOCRProvider {
             return "";
         }
 
-        double medianHeight = median(words.stream().map(PositionedWord::height).sorted().toList());
+        // Straighten the page before deciding what a row is. See estimateSkew.
+        double skew = estimateSkew(words);
+        List<PositionedWord> straightened = words.stream().map(word -> word.deskewed(skew)).toList();
+
+        double medianHeight = median(straightened.stream().map(PositionedWord::height).sorted().toList());
         if (medianHeight <= 0) {
             return "";
         }
-        // Half a line height: enough to hold a row together when the paper is
-        // slightly skewed, tight enough not to merge two adjacent rows.
+        // Half a line height: enough to hold a row together, tight enough not
+        // to merge two adjacent rows. Meaningful only once the page is straight
+        // — on a tilted one, half a line is the drift across a few centimetres
+        // of paper and the tolerance is spent before it reaches the far column.
         double rowTolerance = medianHeight * 0.5;
         double columnGap = medianHeight * 1.5;
 
         StringBuilder text = new StringBuilder();
-        for (List<PositionedWord> row : groupIntoRows(words, rowTolerance)) {
+        for (List<PositionedWord> row : groupIntoRows(straightened, rowTolerance)) {
             row.sort(Comparator.comparingDouble(PositionedWord::left));
             StringBuilder line = new StringBuilder();
             PositionedWord previous = null;
@@ -191,13 +207,83 @@ public class GoogleVisionOCRProvider {
     }
 
     /**
+     * The angle the printed lines actually run at, in radians.
+     *
+     * <p><b>Why.</b> Rows were grouped by raw vertical position, which assumes
+     * the paper was square to the camera. Photographs of receipts never are. On
+     * a page tilted even slightly, a row spanning the sheet drifts vertically
+     * from one edge to the other by more than the row tolerance, and the row
+     * breaks apart — or worse, a label pairs with the value from the row above.
+     * A real Toyota repair order came out with {@code GRAND TOTAL | 592.93}
+     * against a printed grand total of 5,534.01: every label had collected the
+     * amount belonging to the line above it, and 592.93 is the VAT. Nothing
+     * downstream can detect that, because a wrong total looks exactly like a
+     * right one.
+     *
+     * <p><b>How.</b> Every word's bounding box is a quadrilateral, not a
+     * rectangle: Vision returns its four corners in the order the word was
+     * printed, so the top edge of each word points along the text direction.
+     * The median of those angles is the page's skew — median rather than mean
+     * because a handful of words will always be misboxed, and one wild angle
+     * must not tilt the whole page.
+     *
+     * <p>Only words wide enough to have a reliable direction are counted. The
+     * angle of a two-character word is mostly noise, and a receipt is full of
+     * them.
+     *
+     * <p>Returns 0 when there is too little evidence, or when the estimate comes
+     * out beyond {@link #MAX_SKEW_RADIANS}. A page genuinely rotated that far is
+     * rarer than an estimate that has gone wrong, and rotating by a bad angle is
+     * far more destructive than not rotating at all.
+     */
+    double estimateSkew(List<PositionedWord> words) {
+        List<PositionedWord> measurable = words.stream()
+                .filter(word -> word.width() > 0)
+                .toList();
+        if (measurable.size() < MIN_WORDS_FOR_SKEW) {
+            return 0;
+        }
+
+        double medianWidth = median(measurable.stream().map(PositionedWord::width).sorted().toList());
+        List<Double> angles = measurable.stream()
+                .filter(word -> word.width() >= medianWidth)
+                .map(PositionedWord::angle)
+                .sorted()
+                .toList();
+        // Preferring the wider half sharpens the estimate on a dense page and
+        // starves it on a sparse one - a thermal slip may only have a dozen
+        // words in total. The minimum above already guarantees enough evidence,
+        // so when the preference leaves too little, take every word instead of
+        // giving up: a slightly noisier angle beats no correction at all.
+        if (angles.size() < MIN_ANGLE_SAMPLES) {
+            angles = measurable.stream().map(PositionedWord::angle).sorted().toList();
+        }
+
+        double skew = median(angles);
+        return Math.abs(skew) > MAX_SKEW_RADIANS ? 0 : skew;
+    }
+
+    /**
      * Rows, top to bottom.
      *
      * <p>Words are swept in vertical order and appended to the open row while
-     * their centre stays within tolerance of it. Comparing against the row's
-     * running centre rather than its first word is what lets a gently skewed
-     * photograph still resolve into rows: the reference drifts with the text
-     * instead of staying pinned to wherever the row happened to start.
+     * their centre stays within tolerance of the row's <b>median</b> centre.
+     *
+     * <p>It used to compare against the running <i>mean</i>, deliberately, so
+     * that the reference would drift with the text and hold a skewed row
+     * together. That worked and also caused the failure it was meant to prevent.
+     * A mean moves towards every word added, so each borderline word pulls the
+     * reference a little further down the page and makes the next borderline
+     * word easier to absorb. Once a row has swallowed one word from the row
+     * below, it has moved closer to that row and tends to take more. The
+     * Toyota repair order's totals block came out with every amount attached to
+     * the label beneath its own — a ratchet, not a wobble.
+     *
+     * <p>Two changes stop it. Skew is now corrected before this runs, so rows
+     * really are horizontal and a drifting reference is no longer needed for
+     * anything. And the median ignores outliers instead of being moved by them:
+     * a single wrongly-admitted word cannot shift the row it landed in, so one
+     * mistake stays one mistake.
      */
     private List<List<PositionedWord>> groupIntoRows(List<PositionedWord> words, double tolerance) {
         List<PositionedWord> sorted = new ArrayList<>(words);
@@ -205,25 +291,31 @@ public class GoogleVisionOCRProvider {
 
         List<List<PositionedWord>> rows = new ArrayList<>();
         List<PositionedWord> current = new ArrayList<>();
-        double runningCentre = 0;
+        List<Double> centres = new ArrayList<>();
+        double reference = 0;
 
         for (PositionedWord word : sorted) {
             if (current.isEmpty()) {
                 current.add(word);
-                runningCentre = word.centreY();
+                centres.add(word.centreY());
+                reference = word.centreY();
                 continue;
             }
-            if (Math.abs(word.centreY() - runningCentre) <= tolerance) {
+            if (Math.abs(word.centreY() - reference) <= tolerance) {
                 current.add(word);
-                runningCentre = current.stream()
-                        .mapToDouble(PositionedWord::centreY)
-                        .average()
-                        .orElse(runningCentre);
+                // Sorted insert keeps the median cheap: the sweep is already in
+                // ascending centre order, so this appends in all but pathological
+                // cases.
+                int at = java.util.Collections.binarySearch(centres, word.centreY());
+                centres.add(at < 0 ? -at - 1 : at, word.centreY());
+                reference = median(centres);
             } else {
                 rows.add(current);
                 current = new ArrayList<>();
+                centres = new ArrayList<>();
                 current.add(word);
-                runningCentre = word.centreY();
+                centres.add(word.centreY());
+                reference = word.centreY();
             }
         }
         if (!current.isEmpty()) {
@@ -263,27 +355,38 @@ public class GoogleVisionOCRProvider {
         }
 
         JsonNode vertices = word.path("boundingBox").path("vertices");
-        if (!vertices.isArray() || vertices.isEmpty()) {
+        if (!vertices.isArray() || vertices.size() < 4) {
             return null;
         }
-        double left = Double.MAX_VALUE;
-        double right = -Double.MAX_VALUE;
-        double top = Double.MAX_VALUE;
-        double bottom = -Double.MAX_VALUE;
-        for (JsonNode vertex : vertices) {
+        // Vision returns the four corners in printed order — top-left,
+        // top-right, bottom-right, bottom-left — so this is a quadrilateral
+        // carrying the word's orientation, not an upright rectangle. Collapsing
+        // it to its min/max box, as this used to, threw the orientation away and
+        // inflated the height of every slanted word, which then inflated the
+        // median height that sets the row tolerance. A tilted page ended up with
+        // a looser tolerance precisely where it needed a tighter one.
+        double[] xs = new double[4];
+        double[] ys = new double[4];
+        for (int i = 0; i < 4; i++) {
+            JsonNode vertex = vertices.get(i);
             // Vision omits x or y when the value is zero, which is a real
             // coordinate at the page edge rather than missing data.
-            double x = vertex.path("x").asDouble(0);
-            double y = vertex.path("y").asDouble(0);
-            left = Math.min(left, x);
-            right = Math.max(right, x);
-            top = Math.min(top, y);
-            bottom = Math.max(bottom, y);
+            xs[i] = vertex.path("x").asDouble(0);
+            ys[i] = vertex.path("y").asDouble(0);
         }
-        if (right <= left && bottom <= top) {
+
+        double topEdgeX = xs[1] - xs[0];
+        double topEdgeY = ys[1] - ys[0];
+        double width = Math.hypot(topEdgeX, topEdgeY);
+        double height = Math.hypot(xs[3] - xs[0], ys[3] - ys[0]);
+        if (width <= 0 && height <= 0) {
             return null;
         }
-        return new PositionedWord(rendered, left, right, top, bottom);
+        double angle = width > 0 ? Math.atan2(topEdgeY, topEdgeX) : 0;
+
+        double centreX = (xs[0] + xs[1] + xs[2] + xs[3]) / 4.0;
+        double centreY = (ys[0] + ys[1] + ys[2] + ys[3]) / 4.0;
+        return new PositionedWord(rendered, centreX, centreY, width, height, angle);
     }
 
     private boolean isNoise(JsonNode block) {
@@ -304,14 +407,55 @@ public class GoogleVisionOCRProvider {
                 : (sorted.get(size / 2 - 1) + sorted.get(size / 2)) / 2.0;
     }
 
-    /** One OCR word and where it sat on the page. */
-    private record PositionedWord(String text, double left, double right, double top, double bottom) {
-        double centreY() {
-            return (top + bottom) / 2.0;
+    /**
+     * One OCR word, where it sat on the page, and which way it was printed.
+     *
+     * <p>Held as a centre plus a size and an angle rather than as edges,
+     * because the word is a rotated quadrilateral and edges only describe an
+     * upright one. {@link #left()} and {@link #right()} are derived, and are
+     * meaningful only after {@link #deskewed(double)} has straightened the page
+     * — which is exactly when the column logic uses them.
+     */
+    record PositionedWord(
+            String text,
+            double centreX,
+            double centreY,
+            double width,
+            double height,
+            double angle
+    ) {
+        /**
+         * The same word with the page's skew rotated out of it.
+         *
+         * <p>Rotating the coordinates by {@code -skew} about the origin puts
+         * the printed lines back on the horizontal, so that vertical position
+         * means "which row" again rather than "which row, plus however far
+         * across the page this happens to be". The word keeps its size; only
+         * where it sits changes, and its angle becomes its angle relative to the
+         * now-straight page.
+         */
+        PositionedWord deskewed(double skew) {
+            if (skew == 0) {
+                return this;
+            }
+            double cos = Math.cos(skew);
+            double sin = Math.sin(skew);
+            return new PositionedWord(
+                    text,
+                    centreX * cos + centreY * sin,
+                    -centreX * sin + centreY * cos,
+                    width,
+                    height,
+                    angle - skew
+            );
         }
 
-        double height() {
-            return bottom - top;
+        double left() {
+            return centreX - width / 2.0;
+        }
+
+        double right() {
+            return centreX + width / 2.0;
         }
     }
 

@@ -2764,3 +2764,513 @@ actually for. Verified against a running instance, not only in tests.
 Worth knowing if you handle errors by status on the frontend: requests that
 used to come back 500 for these three reasons now come back 4xx. Nothing that
 was already a 4xx or a 2xx changed.
+
+
+**The golden set can now start from the photograph, not just the OCR text.**
+`-Pgolden-image` runs a case end to end — photo, Google Vision, the layout
+reconstruction, the extraction prompt — and scores it with the same scorer the
+text layer uses, so the two are directly comparable. That comparison is the
+point: a case that scores well from `ocr.txt` and badly from its own photo has
+an OCR problem, and every prompt change aimed at it is wasted work. Until now
+nothing in this project could tell those two apart, which is why "receipts come
+out wrong when they are slanted" had never been narrowed past a complaint.
+
+Above the scorecard it prints what Vision returned before any model saw it:
+character and line counts across repeat runs of the same image, the number of
+column breaks the layout reconstruction found, and the number of **orphan
+amounts** — lines holding a price and nothing else. That last one is the skew
+metric. A row spanning the page drifts vertically further than the row
+tolerance in `GoogleVisionOCRProvider.layoutTextFromPages` allows, the row
+splits, and the money column lands on lines of its own; that is what produced
+the seventeen unattached amounts on the Toyota invoice. It is a number that
+moves when a fix works, rather than a judgement about how a receipt should look.
+
+**No floors are asserted on this layer, deliberately.** The text layer's floors
+came from a baseline that held across four separate code states. This layer has
+no baseline at all yet — there are no photographs in the set. A floor invented
+before the first run is a number someone made up, and it would fire on noise
+and get ignored, which is worse than no floor. Whoever runs the first clean set
+should record the numbers and add floors in the same commit that says what they
+were measured from.
+
+**The photographs are not in the repository and should not be put there.** They
+are photographs of real customers' receipts and this repository is going to be
+submitted and archived; OCR text can be redacted, a photograph cannot. Cases
+name a bare file name in `case.json` and the runner resolves it against
+`GOLDEN_IMAGE_DIR`. A case whose file is missing is skipped *and listed*, so a
+run that measured nothing says so rather than going quietly green.
+
+**Nothing about the pipeline changed.** This is measurement only — no deskew,
+no preprocessing, no prompt edit. `GoogleVisionOCRProvider` still sends the raw
+upload to Vision untouched. The next step is the fix, and it now has something
+to be judged by; the honest order is to record a baseline from the tilted set
+first, because a deskew that helps one photo and hurts three is the same shape
+of change as the two prompt "improvements" that went 100% to 36%.
+
+
+**Documents are no longer all the same thing.** Extraction now classifies what
+kind of paper it is reading before it reads any number off it, because they were
+being treated as interchangeable and are not. One Toyota Talisay visit produces
+a Repair Order totalling ₱5,534.01 and a Service Invoice totalling ₱3,106.49 for
+the same work, and the Repair Order says in its own print that it is only an
+estimate. Photograph the wrong sheet of that stack and the vehicle's history
+gained ₱2,427.52 of work that never happened — stored as fact, shown to a
+mechanic, and explained by Module 4 in confident prose. The old prompt opened by
+naming "receipts, invoices, job orders, and official receipts" in one breath and
+then read all four identically, so nothing anywhere could tell them apart.
+
+`DocumentType` is on the draft, on the record, and in migration `018`.
+
+**The default is load-bearing and points the way it does on purpose.**
+`SERVICE_INVOICE` is what you get unless another type is *earned* by evidence
+printed on the page, and every other type needs positive proof. This is what
+keeps the small shops working: a talyer hands over one untitled sheet that is
+the invoice and the receipt at once, with no boilerplate and often no heading,
+and it must keep its cost. Defaulting to `ESTIMATE` — or treating a missing
+heading as suspicious — would have silently demoted every existing draft, every
+voice draft, and every handwritten receipt in the country to "quoted, not paid".
+Do not flip this to be safe. It is already the safe direction.
+
+Classify by what a document CONTAINS, not what it is TITLED. A sheet headed
+"RECEIPT" that itemises three parts is a final bill; a sheet headed "OFFICIAL
+RECEIPT" carrying nothing but amounts is not.
+
+**Two things the classification changes downstream, and one it does not.** An
+estimate's total still extracts exactly as printed — blanking it would lose the
+only record of what was quoted — but now carries a warning saying it is quoted
+rather than paid. An official receipt with no work lines warns that the cost is
+reliable and the service details are missing and must not be guessed. What it
+does *not* yet do is stop such a draft being confirmed into history as though it
+were complete. That is the next decision, and it belongs to Module 2.
+
+**No floor on `documentType` yet, deliberately.** It is scored and printed, but
+all three golden cases are `SERVICE_INVOICE`, so the number currently measures
+only that the classifier does not over-fire. A floor set from that would be a
+floor on half the behaviour. The set needs a case that *should* come back
+`ESTIMATE` — the Talisay repair order photos exist and are the obvious source.
+
+**Migration numbering: `CLAUDE.md` is wrong about this.** It says `012` is the
+highest. The directory actually runs to `017`, and there are already two
+different `017_` files — the exact collision that warning exists to prevent,
+already happened. This work claims `018`. Whoever reads that line in `CLAUDE.md`
+next should check the directory rather than trusting it, and someone should fix
+the duplicate `017`.
+
+**Not verified:** the app has not been started against a database with `018`
+applied. The entities now map a `document_type` column that does not exist until
+someone runs that migration, so the first thing to try is a boot, not a receipt
+upload — and a boot failure here would be bean-level, not subtle.
+
+
+**Migration `018` is APPLIED to the shared Supabase database (2026-09-01).** Not
+just written - applied, and recorded in Supabase's own migration tracking as
+`018_service_document_type`. Anyone pulling this branch does not need to run it,
+and anyone who does run it again gets a no-op: every statement is
+`if not exists` or `drop constraint if exists` first.
+
+State after applying: `document_type text not null default 'SERVICE_INVOICE'` on
+both `service_drafts` and `service_records`, with a check constraint carrying all
+seven types. All 39 existing drafts and 16 existing records took the default,
+which is the intended outcome - nothing distinguished those documents when they
+were stored, so calling them final bills preserves exactly the behaviour they
+already had rather than inventing a distinction after the fact.
+
+**The app boots against it.** Verified by actually starting it, not by inferring
+from a green test run: `Started TrevoraApiApplication in 6.568 seconds`, Tomcat
+on 8080. That matters more than usual here because `ddl-auto=validate` means
+Hibernate checks every entity mapping against the live schema at startup, so a
+successful boot is direct proof that the new columns exist and match the
+`ServiceDraft` and `ServiceRecord` mappings. A missing column would have failed
+the context, and the whole test suite would still have passed.
+
+**A caution worth carrying, learned the hard way in this pass.** `./mvnw test`
+reported 203 passing against a file that did not compile: the compiler plugin
+said "Nothing to compile - all classes are up to date" and surefire ran the
+previous build's classes. The broken code only surfaced when the golden profile
+forced a real compile. If a green run immediately follows an edit, run
+`./mvnw clean test` before believing it.
+
+
+**A cost-only record can now be confirmed, and Module 4 refuses to explain it.**
+
+Confirmation used to require at least one service, always. That was right for
+every document the pipeline had seen and wrong for the one owners are most
+likely to keep. An official receipt carries a total, a date and a PAID stamp and
+not one word about what was done to the car, so blocking on it asked the owner
+to supply something the paper never had - on what will probably be the single
+most common upload, because people keep the receipt and throw the invoice away.
+
+Now an empty services list on a cost-only document is a WARNING rather than a
+blocking error, category `COST_ONLY_DOCUMENT`, still flagged for review. The
+message asks the owner to add the services if they know them and says outright
+that they must not be guessed. Nothing else loosened: an empty SERVICE_INVOICE
+or ESTIMATE still blocks, because those describe work by definition and an empty
+one is a failed extraction rather than a document with nothing to say.
+
+**Module 4 returns a `cost_only` explanation instead of generating one.** This
+matters more than it looks. Both explanation paths would otherwise have answered
+happily - the model, handed a Toyota letterhead and 3,106.49, writes a confident
+paragraph about routine maintenance, and the template needs no model at all
+because it defaults its service summary to the words "service work" and produces
+the same shape of sentence. Neither was told anything about the work, because
+nothing on the paper said anything about the work. An owner reading a fluent
+paragraph cannot tell that apart from a real explanation, which is what makes
+this the dangerous failure rather than merely an unhelpful one.
+
+The `cost_only` response says the document shows the payment but not the work,
+offers no watch-for advice and no details - both would have to be invented from
+the same nothing - and suggests adding the invoice. It is deliberately NOT
+marked `fallback`, because nothing failed: it is the correct and complete answer,
+and flagging it as degraded would invite someone to "fix" it by generating text.
+
+The guard keys on the items being empty AND the document type not carrying work,
+not on the document type alone. The honest condition is "no work recorded",
+whatever the paper was: an owner who typed the services in by hand after
+uploading a receipt gets a normal explanation.
+
+**This touches two other people's areas** - `features.validation` (Module 2) and
+`features.ai` (Module 4). The validation change adds a category the review screen
+has not seen (`COST_ONLY_DOCUMENT`, severity WARNING); check it renders as a
+warning rather than falling through to an error style. The AI change adds a
+response `source` value of `cost_only` alongside `template`, `template_fallback`
+and `openai:*`; any frontend switching on source needs a branch for it.
+
+Verified by booting the app, not only by the suite: 214 tests pass from a clean
+build, and `Started TrevoraApiApplication in 5.793 seconds` against the database
+with `018` applied.
+
+
+**Two attempts at the empty picking slip, both reverted. Do not retry either.**
+
+`talisay-picking-slip` classifies correctly as `PARTS_SLIP` and then returns no
+line entries at all, on every run, with zero spread. The document is not the
+problem: the OCR text holds all five parts cleanly in rows, part numbers,
+descriptions and quantities included, and the model reads them well enough to
+classify `relatedComponents` from them. It then returns nothing.
+
+Attempt one, a prompt rule saying never return an empty `services` array when
+the document itemises anything. It did not move the picking slip and it took
+`talisay-repair-order` line kinds from 67% to 31% and `talisay-work-performed`
+from 80% to 40%, both with large spreads. Reverted; the repair order returned
+to exactly 67% with no spread, which is what confirmed the change was the cause
+rather than run-to-run noise.
+
+Attempt two, a top-level `unassignedLineEntries` array in the response schema
+plus a parser that wrapped those lines in a carrier service. The reasoning was
+that line entries live inside a service, so a document with no service has
+nowhere to put its lines - and a picking slip genuinely has no service on it, so
+arguing with the model in the prompt was the wrong move. It cost
+`talisay-work-performed` everything it had gained, 67% to 0%, and took the
+service invoice from 67% to 33% by making it return the JOB DONE prose
+operations and the priced parts as separate lines, double-describing one visit.
+Reverted, tests included.
+
+**The reason attempt two failed is the finding worth keeping.**
+`unassignedLineEntries` came back EMPTY. The model was not failing to find a
+home for the parts - it was declining to extract them at all. So the nesting was
+never the constraint, and no amount of schema work addresses it. That was only
+visible because `-Dgolden.dump=true` was added to the image runner after attempt
+one; two prompt changes had been made before that reasoning from scores alone,
+and the scores could not distinguish "no home for the lines" from "no lines".
+Dump the model output before forming a hypothesis about it.
+
+**A pattern across three attempts, offered as a hypothesis rather than a fact.**
+Every addition to the extraction prompt in this area destabilised cases it did
+not mention. The prompt is long, and the two changes that worked were a deletion
+(removing "priced" from the completeness rule) and a timeout. The two that
+failed were additions. If the picking slip is worth fixing, a separate short
+prompt for non-bill documents is likelier to work than a fourth paragraph in
+this one, and it would not put the priced-receipt path at risk every time
+someone touches it.
+
+Weigh that against the payoff before anyone spends more on it: it is one
+document type out of seven, and each attempt cost a working case.
+
+**What was kept, and the evidence for each.** Row pairing in
+`GoogleVisionOCRProvider` - the Toyota repair order read 592.93 as its grand
+total and now reads 5,534.01, verified by reading the OCR text rather than by
+trusting the score. The completeness rule no longer requiring a price - job
+cards went from 0% to 80% line kinds. `EXTRACTION_READ_TIMEOUT` at 120s, split
+from the shared `OPENAI_READ_TIMEOUT` so mechanic search and the explanation
+feature keep their 60s - the service invoice failed 3 of 3 extractions at 60s
+once the prompt grew, and 0 of 3 after.
+
+**Line extraction is now the weakest part of the pipeline** and the honest place
+to look next. Visit-level fields are solid: `documentType` 100%, `totalCost`
+100%, `serviceDate` 100%. Line kinds sit at 60-67% on the documents that work
+and `reconciles` is 0% almost everywhere. One concrete lead: the flat repair
+order reads `TGFS SN/CF 5W-30 1L` with a total of 878.13 when the printed amount
+is 2,922.32, and drops the BACTAKLENZ line entirely, while the same document
+photographed at an angle gets both right. That is geometry, not prompt.
+
+**Nothing here is gated yet.** All six Talisay cases are advisory and the
+numbers still move: `talisay-work-performed` has scored 0%, 40%, 67% and 80% on
+line kinds across four runs of three. Do a five-run pass before setting any
+floor from these.
+
+
+**A multi-image upload is now read as several documents, not one long receipt.**
+
+Every image in an upload used to be concatenated into a single block of OCR text
+and extracted once. That is correct for pages of one receipt and wrong the moment
+the images are different documents, which is what a dealership hands over. The
+Talisay visit produces five sheets; photographing them put the repair order's
+`GRAND TOTAL 5,534.01` and the service invoice's `TOTAL PRICE 3,106.49` into the
+same text with nothing to say which belonged to which, and the model picked one.
+It is the same bug the document-type work fixed for a single sheet, one level up.
+
+Uploads of a single image - almost everything a small shop hands over - are
+untouched, take the same single extraction call, and carry no new risk. Only
+uploads of several images take the new path.
+
+**Precedence is per field and lives in `ReceiptDocumentMerger`.** Cost comes from
+the invoice, or the receipt when no invoice was photographed, and never from an
+estimate while either exists. Work comes from the invoice, then a job card, then
+the estimate, then a parts slip - an official receipt is fully authoritative
+about money and describes no work at all, which is precisely why no document may
+win outright. The odometer is taken from the value the documents agree on: a
+repair order prints the mileage, the warranty expiry kilometres and the next
+service interval, all odometer-shaped, and agreement across sheets is the
+cheapest evidence available that the right one was read.
+
+**Two rules stop the merge doing damage.** Pages sharing a printed document
+number are one document and their lines are joined, so a three-page invoice keeps
+all of them. Different documents never have their lines concatenated - the
+estimate and the invoice list the same oil change, and adding both would bill it
+twice and make reconciliation impossible for good. Documents with no printed
+number are never assumed to be the same document, because two untitled sheets
+from a talyer might be one receipt or two unrelated ones and joining them on a
+guess is the failure this exists to prevent.
+
+**Nothing is dropped silently.** The merged draft carries warnings naming how
+many documents were found, which one the cost came from, which one the work came
+from, and - when an estimate was set aside - what it had quoted and why that
+figure was not used.
+
+**A test caught a real bug in the first version.** The cost ranking held only
+invoice and receipt, so an estimate-only upload lost its total entirely: one
+photograph of a repair order kept its quote and two photographs lost it, with the
+number of images silently deciding whether a cost survived. There is now a
+fallback to any document that printed a total, and a test named for it.
+
+**Cost and latency, stated plainly.** A five-image upload now costs five
+extractions instead of one, run sequentially, each with up to 120 seconds and
+three attempts. There is no way to tell which sheet a number came off without
+asking about each sheet separately, so the extra calls are the price of the
+correctness rather than an implementation detail worth optimising away. If the
+wait becomes a problem the obvious move is to run the per-document extractions in
+parallel; nothing about the merge depends on their order.
+
+**The golden set can now hold a case made of several photographs.** `case.json`
+takes `imageFiles` as an array, the singular `imageFile` still works, and a case
+is skipped unless every one of its images is present - a five-document case
+scored from three sheets is a different case, not a weaker one, and it would
+report a merge that never had the documents it was meant to choose between.
+
+`talisay-visit` is that case: the whole visit as one upload, two totals in the
+same set of images and only one right answer. It is the only case in the set that
+measures merging at all; every other case is one document and says nothing about
+which sheet wins.
+
+**The image runner now drives the real `OCRProcessingService`** rather than
+calling the OCR provider and the extraction provider itself. Per-document
+extraction and merging happen inside that class, so a runner that reimplemented
+the loop would have measured the copy. The scored answer is now what production
+would actually store, related components included - those are read back out of
+the result metadata instead of being recomputed a second, differently-derived
+way.
+
+**Still unmeasured at the time of writing.** `talisay-visit` was created in the
+same session as the merge and has not yet been through a three-run pass, so no
+claim should be made about how well merging works on real photographs until it
+has. The merger's own unit tests use constructed inputs and prove the rules, not
+the pipeline.
+
+**Deduplication is not tested and probably not finished.** A real owner
+photographs the same official receipt three times, which is what the source
+images for this set actually contain. Documents sharing a type and number are
+joined, so duplicates should collapse - but no case exercises it, and the
+concatenation in `joinPages` would duplicate line entries if two photographs of
+the same sheet both extracted them. Worth a case before anyone relies on it.
+
+
+**The odometer is now picked in code, and the prompt was the wrong place for it.**
+
+A service document prints several numbers shaped like an odometer. A Toyota
+repair order prints three: `Kilometers KM 242` in the vehicle block, which is
+the reading; `Warr Exp KM 100,000`, which is when the warranty ends; and
+`MILEAGE 3 KM` in the history block, which is what the odometer said at a
+*previous* visit. Extraction had been returning 3.
+
+`OdometerResolver` takes the reading in two steps. Limit labels - warranty,
+next service, expiry, interval - are struck out of the line, and then what
+remains is searched for a genuine reading label. Striking out rather than
+vetoing matters: `Warr Exp KM` and `Next Svc Km` both end in a distance word, so
+a plain veto threw away the correct reading whenever a form printed both labels
+side by side, which is exactly what a Mercedes repair order does with
+`Km Reading 21,055` and `Next Svc Km 31,055`.
+
+Then, among the survivors, the largest wins. That is what separates
+`MILEAGE 3 KM` from `Kilometers KM 242`: both are honestly labelled mileage and
+no vocabulary can tell them apart, but odometers only increase, so the current
+reading is the largest of the genuine ones and a history entry is necessarily
+smaller. It follows from what an odometer is rather than from what one receipt
+happens to look like.
+
+Result: odometer went from 43% to 100% across all seven image cases, including
+the five-document merged case. It never invents a reading - with no labelled
+candidate it returns whatever the model extracted - and it says so in a warning
+when it overrides.
+
+**The reason this is code is worth recording, because three attempts say the
+same thing.** The identical rules were tried first as a prompt instruction. They
+moved the odometer score by nothing and collapsed extraction on the longest
+document in the set. Counting the earlier attempts at the empty picking slip,
+every addition to the extraction prompt in this area has regressed cases it did
+not mention, while the changes that worked were a deletion, a timeout, and code.
+Mechanical rules do not need a language model, and in code they can be tested
+against committed OCR text with no API calls and no run-to-run noise. Ten such
+tests exist and they caught four defects before anything shipped: document
+numbers offering digits (`G7NA058266` yields 058266), dates offering digits
+(`03/31/2025` yields 2025), the veto bug above, and the fact that the committed
+`ocr.txt` files were stale.
+
+**The committed OCR text was refreshed and had been misleading.** Every
+`ocr.txt` in the Talisay cases was captured before the row-pairing fix, when 242
+was still mispaired onto the `Warr Exp KM` line. Anything reasoned from those
+files between the geometry fix and this refresh was reasoning about a bug that
+no longer existed. They now match what the pipeline actually produces, and the
+redaction sweep was re-run over them.
+
+**A blind spot in the image runner, now closed.** When extraction fails,
+`OCRProcessingService` catches it, falls back to the raw OCR text and returns a
+well-formed draft full of nulls. The golden report scored that as ordinary
+zeros, so a total collapse on the longest case was indistinguishable from a
+document nothing could be read off - and those want completely different fixes.
+Both signals were already in the metadata, `fallbackUsed` and
+`extractionErrors`; the report simply never read them. It does now, and a
+fallback is recorded as a failure with its reason attached. Several runs were
+misread as clean before this.
+
+**`talisay-service-invoice` fails intermittently and is NOT diagnosed.** It
+returned nothing on two separate runs and then succeeded three times in a row
+under the new visibility, so there was nothing to read. The earlier claim in
+these notes that raising the extraction timeout to 120s fixed it is too strong:
+it plainly reduced the rate - the case had been failing 3 of 3 - but it did not
+eliminate it. The next occurrence will name its own reason rather than looking
+like zeros, which is the only reason to stop chasing it now.
+
+**Where the pipeline stands.** Visit-level fields are solved: `documentType`,
+`odometer` and `totalCost` are all at 100% across seven image cases, three runs,
+with `serviceDate` at 86%. Line-level extraction is the entire remaining
+problem: `lineKinds` 45%, `linePrices` 42% with spreads up to 21%, and
+`reconciles` at 0% on every case. Reconciliation matters most of the three,
+because it is the only check that can catch a wrong number without a human
+looking, and while it is always red it carries no information at all.
+
+**`relatedComponents` at 13% may be a measurement error rather than a defect.**
+The model returns things like `Engine Oil` and `Oil Filter` against an expected
+`Engine`. Nobody has checked those expected values against the vocabulary in
+`ServiceClassificationService`, so the ground truth may simply be wrong. Check
+that before treating the number as a problem to solve; it may delete itself.
+
+
+**`PARTS_PURCHASE` added, and migration `019` is APPLIED to the shared database.**
+
+A parts shop hands over a cash sales invoice for one battery: an article, a
+price, a total, and no labour anywhere on the page. Before this type existed the
+classifier called it `OFFICIAL_RECEIPT` - which followed the rules exactly, since
+money with no work is precisely that - and discarded the battery line with it.
+`SERVICE_INVOICE` would have been worse in the other direction: it tells the next
+mechanic a shop fitted the battery, which nobody knows.
+
+The discriminator is on the page rather than in the title: every line is a part
+or a material and there is no operation. A small shop's sales order billing parts
+AND labour together is an ordinary final bill despite the similar heading - the
+JFTRUCK case proves that distinction holds, classifying as `SERVICE_INVOICE` on
+the first run.
+
+Both flags are true. Cost-authoritative because real money changed hands, and
+carries-work because the goods are content worth recording - which means an empty
+parts purchase blocks confirmation as a failed read rather than being waved
+through the way a cost-only receipt is. The claim it must never make, that the
+part was installed, lives in the wording shown to the owner rather than in a
+flag.
+
+`019` is separate from `018` because `018` was already applied. Editing an
+applied migration leaves every environment disagreeing about what it contained.
+Verified after applying: both tables carry eight values, and the app boots.
+
+**Classification worked; the line still vanished, and the cause is now known.**
+The battery receipt classifies as `PARTS_PURCHASE` at 100% and returns no line
+entries at all, so `MOTOLITE NF4L-B 750.00` is still lost. Three documents now
+show the pattern and the third one explains it:
+
+| document | contents | services returned |
+|---|---|---|
+| job card | operations, no prices | yes |
+| picking slip | parts only, no prices | none |
+| battery receipt | one part, priced | none |
+| invoices, talyer receipts | parts and operations | yes |
+
+It is not about prices - the job card has none and works. It is about
+**operations**. The model treats "services" as requiring a service performed,
+which is linguistically correct, and a document listing only goods has none.
+Since `lineEntries` are nested inside `services`, goods-only documents lose
+everything.
+
+That also explains why the earlier `unassignedLineEntries` attempt failed. It
+offered the lines a new home while still asking the model to recognise them as
+belonging somewhere; the model's actual position is that a parts document
+contains no service, and it was right both times.
+
+**The fix is the schema shape, not the prompt.** Either stop nesting line entries
+inside services, or give goods-only documents a first-class place to put them.
+That is a larger change than anything attempted here, it touches the response
+contract, and three prompt attempts in this area have already been reverted. It
+was left characterised rather than half-fixed.
+
+**A reproducible date error worth fixing in code.** The battery receipt is dated
+`10.01.25` by hand and extraction reads it as 10 January 2025. The owner has
+confirmed it is 1 October 2025 - Philippine month-day-year. This is now a known
+wrong answer rather than an open question, and it is the same shape of problem as
+the odometer: mechanical, decidable from the document, and a candidate for the
+`OdometerResolver` treatment rather than another prompt paragraph.
+
+
+**The intermittent extraction failure is a generation spiral, not a timeout and
+not a cap that was too small.**
+
+`talisay-service-invoice` fell back to raw OCR on run after run, reported only as
+"a response that could not be read". Two visibility fixes turned that into an
+answer. The golden image runner now reads `fallbackUsed` and `extractionErrors`
+out of the result metadata, because a failed extraction returns a well-formed
+draft full of nulls and had been scoring as ordinary zeros. And the retry loop
+now carries its cause into the message instead of dropping it - the specific
+explanation had been sitting one exception down all along, printed by nothing.
+
+The first real run said `completion 8000, cap 8000`: the model spent its entire
+output budget and stopped mid-JSON, so the body was valid JSON's opening half.
+
+`MAX_COMPLETION_TOKENS` was raised 8000 to 12000. That took the case from three
+runs in three failing to two in three - better, and not a fix. The raised cap
+fills too: `completion 12000, cap 12000`.
+
+**The successful run is what identifies the cause.** It answered with six line
+entries and every visit-level field correct. An invoice of that size expresses
+in one or two thousand tokens, so filling twelve thousand means thousands of
+duplicated array entries. The cap was never the problem; the model spirals on
+this particular document. Raising the ceiling again buys more expensive failures
+and no understanding, so it was left at 12000 rather than tuned further.
+
+Worth knowing for anyone editing the extraction prompt: input is now around
+6,500 tokens on a long receipt. Every addition to that prompt makes this spiral
+likelier, which is plausibly part of why three separate prompt additions during
+this work each broke the longest case in the set.
+
+**Next step, if someone picks this up:** log a bounded, redacted snippet of the
+spiralling completion and look at what it repeats. That was deliberately not
+added - response bodies carry customer names, addresses and plate numbers, and
+application logs are not a place to put those - but there is now a concrete
+question that only the body can answer, which is a better reason than "so we can
+see it".

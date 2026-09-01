@@ -68,6 +68,16 @@ public final class GoldenScorer {
         List<String> pending = goldenCase.pendingGroundTruth();
         List<FieldScore> scores = new ArrayList<>();
 
+        // First, because it is the field that decides whether the rest should be
+        // believed. An estimate's total is printed exactly like a real one, so
+        // a run that reads the money perfectly off the wrong sheet is not a
+        // good run - and without this score it would look like one.
+        scores.add(scoreOrPending(pending, "documentType", () -> exact(
+                "documentType",
+                text(expected.get("documentType")),
+                actual.documentType() == null ? null : actual.documentType().name()
+        )));
+
         scores.add(scoreOrPending(pending, "serviceDate", () -> exact(
                 "serviceDate",
                 text(expected.get("serviceDate")),

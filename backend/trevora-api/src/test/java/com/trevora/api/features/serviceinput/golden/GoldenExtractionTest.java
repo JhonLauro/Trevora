@@ -66,7 +66,17 @@ class GoldenExtractionTest {
         ServiceClassificationService classificationService = new ServiceClassificationService();
         GoldenReport report = new GoldenReport();
 
+        List<String> awaitingCapture = new java.util.ArrayList<>();
         for (GoldenCase goldenCase : cases) {
+            if (!goldenCase.hasOcrText()) {
+                // Written from the paper, still waiting on its photograph. Not
+                // a failure and not worth an API call.
+                awaitingCapture.add(goldenCase.id());
+                continue;
+            }
+            if (!goldenCase.gatesFloors()) {
+                report.markAdvisory(goldenCase.id());
+            }
             for (int run = 0; run < runs; run++) {
                 ReceiptDraftFields extracted;
                 try {
@@ -98,6 +108,15 @@ class GoldenExtractionTest {
         }
 
         System.out.println(report.render(runs));
+        if (!awaitingCapture.isEmpty()) {
+            System.out.println("AWAITING CAPTURE - ground truth written, no OCR text yet");
+            System.out.println("-".repeat(78));
+            awaitingCapture.forEach(id -> System.out.println("  " + id));
+            System.out.println();
+            System.out.println("  Run -Pgolden-image with the photograph, then redact the dump"
+                    + " into that case's ocr.txt.");
+            System.out.println();
+        }
 
         // A quarter of extractions failing is not the model having a bad day,
         // it is something broken — a bad key, a changed API, a prompt the model

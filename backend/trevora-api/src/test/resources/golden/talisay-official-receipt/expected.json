@@ -1,0 +1,14 @@
+{
+  "documentType": "OFFICIAL_RECEIPT",
+  "serviceDate": "2025-04-30",
+  "odometer": null,
+  "totalCost": 3106.49,
+  "shopName": "Toyota Talisay, Cebu",
+  "location": "SRP Road, Lawan I, City of Talisay, Cebu",
+  "relatedComponents": [],
+  "lineEntries": [],
+  "_comment": [
+    "Empty lineEntries and empty relatedComponents are the correct answers, not missing ones. This document describes no work, so there is no work to classify.",
+    "totalCost 3,106.49 is real money that really changed hands - the one figure on this page worth keeping."
+  ]
+}

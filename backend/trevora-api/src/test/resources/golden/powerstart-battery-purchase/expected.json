@@ -1,0 +1,26 @@
+{
+  "documentType": "PARTS_PURCHASE",
+  "serviceDate": "2025-10-01",
+  "odometer": null,
+  "totalCost": 750.0,
+  "shopName": "Powerstart Auto Care Inc.",
+  "location": "1181 National Highway, Pakigne, Minglanilla, Cebu",
+  "relatedComponents": [
+    "Battery"
+  ],
+  "lineEntries": [
+    {
+      "kind": "PART",
+      "description": "MOTOLITE NF4L-B",
+      "lineTotal": 750.0
+    }
+  ],
+  "_comment": [
+    "One line, and it reconciles: 750.00 against a printed total of 750.00.",
+    "The handwritten '1 week warranty' is a note about the part, not a line. An extractor that emits it as a line entry has invented a chargeable item out of a guarantee.",
+    "relatedComponents is Battery and nothing else. There is no evidence on this page of anything being inspected, fitted or serviced.",
+    "odometer is pending rather than null: the receipt certainly prints none, but a battery purchase is the kind of thing an owner may know the mileage for, and null versus unknown is a distinction worth keeping honest.",
+    "Every VAT box on this form is blank. totalCost is 750.00 from the handwritten figure, not from any of the printed tax lines, and an extractor that returns 0.00 has read an empty box as an answer.",
+    "documentType is PARTS_PURCHASE: every line is a part and there is no labour anywhere on the page. Before that type existed the classifier called this an OFFICIAL_RECEIPT - money and no work - and discarded the battery line entirely, which is the failure the type was added to fix."
+  ]
+}

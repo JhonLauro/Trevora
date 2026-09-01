@@ -1,0 +1,45 @@
+{
+  "documentType": "ESTIMATE",
+  "serviceDate": "2025-04-30",
+  "odometer": 242,
+  "totalCost": 5534.01,
+  "shopName": "Toyota Talisay, Cebu",
+  "location": "SRP Road, Lawan I, City of Talisay, Cebu",
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter",
+    "Brakes"
+  ],
+  "lineEntries": [
+    {
+      "kind": "OPERATION",
+      "description": "1,000 KM CHECK-UP",
+      "lineTotal": 700.0
+    },
+    {
+      "kind": "PART",
+      "description": "OIL FILTER",
+      "lineTotal": 372.77
+    },
+    {
+      "kind": "PART",
+      "description": "GASKET",
+      "lineTotal": 67.86
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TGFS SN/CF 5W-30 1L",
+      "lineTotal": 2922.32
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TOYOTA GENUINE BACTAKLENZ (7ML)",
+      "lineTotal": 878.13
+    }
+  ],
+  "_comment": [
+    "totalCost is the printed GRAND TOTAL of 5,534.01. That is the correct answer for THIS DOCUMENT even though it is not what the visit cost. The document type is what says the figure is a quote; blanking it here would lose the only record of what was quoted and would also make the case unable to detect an extractor that reads the total off the wrong box.",
+    "The REMARKS--TOYOTA MAITENANCE PROMO row prints 0.000 / 0.00 / 0.00 and is a note, not a priced line. An extractor that emits it as a FEE of 0.00 has not made a serious error; an extractor that gives it a price has.",
+    "relatedComponents was corrected from [\"Engine\"] after checking the vocabulary in ServiceClassificationService: \"Engine Oil\" and \"Oil Filter\" are first-class components there, and scooter-cvt-service already uses them for this kind of service. The original expectation was wrong by the set's own convention and was scoring the ground truth rather than the pipeline. Steering wheel, linkage and gear box are deliberately left out: the invoice records them as inspected, and whether that belongs under Suspension or Transmission is a judgement nobody has settled."
+  ]
+}

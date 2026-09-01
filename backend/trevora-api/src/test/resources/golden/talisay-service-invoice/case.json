@@ -1,0 +1,44 @@
+{
+  "id": "talisay-service-invoice",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-service-invoice.jpg",
+  "format": "Dealership service invoice - the final bill, with work and money on the same page",
+  "why": [
+    "The document that should win every field when a visit produces a whole stack. It is the only sheet of the five carrying both what was done and what was actually owed.",
+    "The correct total, 3,106.49, is independently confirmed by the official receipt for the same visit. That makes this the one case in the set whose totalCost is cross-checked against a second physical document rather than read once.",
+    "It prints a JOB DONE block in prose - REPLACED ENGINE OIL, REPLACED ENGINE OIL FILTER, INSPECTED BRAKE PADS AND DISCS, INSPECTED STEERING WHEEL, LINKAGE AND GEAR BOX - separately from the priced line table. Two descriptions of the same visit at different granularity, which is a real chance to double-count operations.",
+    "The line table carries << Total for Job 000001 >> and << Total for Job 000002 >> subtotal rows in the middle of the lines. These are sums of the lines above them, and an extractor that treats them as lines will double the money.",
+    "Labour bills at 0.00 here against 700.00 on the estimate, because the 1,000 km check-up was free under a maintenance promo. A zero-priced operation is a real line and must not be dropped for having no cost."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "customer address",
+    "mobile number",
+    "customer number",
+    "plate number",
+    "chassis and engine numbers",
+    "service advisor name",
+    "signatures"
+  ],
+  "kept": [
+    "shop name, branch, address, phone and VAT TIN",
+    "invoice number G7YA009184 and referenced repair order G7IA123581",
+    "all part numbers, quantities and amounts"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "The line amounts reconcile exactly: 0.00 + 210.11 + 38.25 + 1,647.16 = 1,895.52 for job 1, plus 878.13 for job 2 = 2,773.65 Sub Total, plus 332.84 VAT = 3,106.49 TOTAL PRICE.",
+    "Reference Repair Order No. G7IA123581 is printed in the header. That is the link that will let a later change group the sheets of one visit together, and it is why referenceNumbers is extracted now rather than after the grouping work."
+  ]
+}

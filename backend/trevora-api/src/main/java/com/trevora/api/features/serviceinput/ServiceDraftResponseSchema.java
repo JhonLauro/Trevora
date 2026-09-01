@@ -45,12 +45,18 @@ final class ServiceDraftResponseSchema {
 
     /** The {@code response_format} value for receipt extraction. */
     static Map<String, Object> forReceipt() {
-        return responseFormat("receipt_service_draft", evidenceObject());
+        return responseFormat("receipt_service_draft", evidenceObject(), true);
     }
 
-    /** The {@code response_format} value for voice extraction. */
+    /**
+     * The {@code response_format} value for voice extraction.
+     *
+     * <p>No document fields: a spoken account of a visit is not a document, and
+     * asking for its type would only invite an invented answer. The parser
+     * defaults the type when the key is absent.
+     */
     static Map<String, Object> forVoice() {
-        return responseFormat("voice_service_draft", nullable("string"));
+        return responseFormat("voice_service_draft", nullable("string"), false);
     }
 
     /** The evidence field names, so the prompt and the schema cannot drift apart. */
@@ -58,19 +64,29 @@ final class ServiceDraftResponseSchema {
         return String.join(", ", EVIDENCE_FIELDS);
     }
 
-    private static Map<String, Object> responseFormat(String name, Map<String, Object> evidenceValue) {
+    private static Map<String, Object> responseFormat(
+            String name, Map<String, Object> evidenceValue, boolean includeDocument) {
         return Map.of(
                 "type", "json_schema",
                 "json_schema", Map.of(
                         "name", name,
                         "strict", true,
-                        "schema", draftSchema(evidenceValue)
+                        "schema", draftSchema(evidenceValue, includeDocument)
                 )
         );
     }
 
-    private static Map<String, Object> draftSchema(Map<String, Object> evidenceValue) {
+    private static Map<String, Object> draftSchema(Map<String, Object> evidenceValue, boolean includeDocument) {
         Map<String, Object> properties = new LinkedHashMap<>();
+        if (includeDocument) {
+            // First, and not nullable. What kind of paper this is decides how
+            // every number below should be read - an estimate's total is a
+            // forecast formatted exactly like a real one - so it is not a
+            // detail to be filled in after the fact.
+            properties.put("documentType", documentTypeSchema());
+            properties.put("documentNumber", nullable("string"));
+            properties.put("referenceNumbers", array(Map.of("type", "string")));
+        }
         properties.put("serviceDate", nullable("string"));
         properties.put("services", array(serviceSchema()));
         properties.put("odometer", nullable("integer"));
@@ -85,6 +101,23 @@ final class ServiceDraftResponseSchema {
         properties.put("aiSuggestedFields", array(Map.of("type", "string")));
         properties.put("warnings", array(Map.of("type", "string")));
         return object(properties);
+    }
+
+    /**
+     * The document type, as a closed enum with no null option.
+     *
+     * <p>Deliberately not nullable. Every document is one of these, and
+     * {@link DocumentType#SERVICE_INVOICE} is the answer when nothing else is
+     * proven — so there is no case where "I do not know" is more honest than
+     * the default, and offering null would only produce drafts with the
+     * question left open.
+     */
+    private static Map<String, Object> documentTypeSchema() {
+        List<String> values = new ArrayList<>();
+        for (DocumentType type : DocumentType.values()) {
+            values.add(type.name());
+        }
+        return Map.of("type", "string", "enum", values);
     }
 
     private static Map<String, Object> serviceSchema() {

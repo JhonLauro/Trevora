@@ -1,0 +1,47 @@
+{
+  "documentType": "SERVICE_INVOICE",
+  "serviceDate": "2025-04-30",
+  "odometer": 242,
+  "totalCost": 3106.49,
+  "shopName": "Toyota Talisay, Cebu",
+  "location": "SRP Road, Lawan I, City of Talisay, Cebu",
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter",
+    "Brakes"
+  ],
+  "lineEntries": [
+    {
+      "kind": "OPERATION",
+      "description": "1,000 KM CHECK-UP",
+      "lineTotal": 0.0
+    },
+    {
+      "kind": "PART",
+      "description": "OIL FILTER",
+      "lineTotal": 210.11
+    },
+    {
+      "kind": "PART",
+      "description": "GASKET",
+      "lineTotal": 38.25
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TGFS SN/CF 5W-30 1L",
+      "lineTotal": 1647.16
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TOYOTA GENUINE BACTAKLENZ (7ML)",
+      "lineTotal": 878.13
+    }
+  ],
+  "_comment": [
+    "totalCost is 3,106.49, the invoice figure, NOT the repair order's 5,534.01. This single value is the reason the case exists: it is the difference between what was quoted and what was paid, and both numbers are in the upload.",
+    "The lines are the invoice's lines. The repair order lists the same work at its own quoted prices and the picking slip lists the same parts unpriced; neither may contribute a line, because the same oil change appearing twice is worse than it appearing once at the wrong price.",
+    "odometer is 242, printed on the invoice, the picking slip and the repair order's vehicle block. The repair order's MILEAGE 3 KM is the trap and 3 is the wrong answer.",
+    "documentType is the winning document's type, SERVICE_INVOICE, not a summary of the upload. A record has to say what it was read off, and it was read off the invoice.",
+    "relatedComponents was corrected from [\"Engine\"] after checking the vocabulary in ServiceClassificationService: \"Engine Oil\" and \"Oil Filter\" are first-class components there, and scooter-cvt-service already uses them for this kind of service. The original expectation was wrong by the set's own convention and was scoring the ground truth rather than the pipeline. Steering wheel, linkage and gear box are deliberately left out: the invoice records them as inspected, and whether that belongs under Suspension or Transmission is a judgement nobody has settled."
+  ]
+}

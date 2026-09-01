@@ -1,0 +1,44 @@
+{
+  "documentType": "ESTIMATE",
+  "serviceDate": "2025-04-30",
+  "odometer": 242,
+  "totalCost": 5534.01,
+  "shopName": "Toyota Talisay, Cebu",
+  "location": "SRP Road, Lawan I, City of Talisay, Cebu",
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter",
+    "Brakes"
+  ],
+  "lineEntries": [
+    {
+      "kind": "OPERATION",
+      "description": "1,000 KM CHECK-UP",
+      "lineTotal": 700.0
+    },
+    {
+      "kind": "PART",
+      "description": "OIL FILTER",
+      "lineTotal": 372.77
+    },
+    {
+      "kind": "PART",
+      "description": "GASKET",
+      "lineTotal": 67.86
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TGFS SN/CF 5W-30 1L",
+      "lineTotal": 2922.32
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TOYOTA GENUINE BACTAKLENZ (7ML)",
+      "lineTotal": 878.13
+    }
+  ],
+  "_comment": [
+    "Identical to talisay-repair-order. Ground truth is a property of the receipt, not of the photograph, so a value unreachable from this image is still the correct answer and this case should score zero on it rather than have it lowered to what is achievable.",
+    "relatedComponents was corrected from [\"Engine\"] after checking the vocabulary in ServiceClassificationService: \"Engine Oil\" and \"Oil Filter\" are first-class components there, and scooter-cvt-service already uses them for this kind of service. The original expectation was wrong by the set's own convention and was scoring the ground truth rather than the pipeline. Steering wheel, linkage and gear box are deliberately left out: the invoice records them as inspected, and whether that belongs under Suspension or Transmission is a judgement nobody has settled."
+  ]
+}

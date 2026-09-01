@@ -1,0 +1,3 @@
+(awaiting capture - this case is image-layer only. Its OCR text is the five
+documents concatenated, which the text layer cannot meaningfully score: the
+whole point is that they are extracted separately.)

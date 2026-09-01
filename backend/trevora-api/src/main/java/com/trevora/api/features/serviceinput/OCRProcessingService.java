@@ -100,6 +100,10 @@ public class OCRProcessingService {
         List<String> extractionErrors = new ArrayList<>();
         List<Map<String, Object>> pages = new ArrayList<>();
         List<String> combinedSections = new ArrayList<>();
+        // Kept separately from combinedSections because a multi-image upload is
+        // extracted one page at a time. The combined text is still stored as
+        // rawOcrText, so the draft carries everything that was read.
+        List<String> pageTexts = new ArrayList<>();
 
         for (int index = 0; index < files.size(); index++) {
             MultipartFile file = files.get(index);
@@ -121,7 +125,9 @@ public class OCRProcessingService {
                     extractionErrors.add("Page " + pageNumber + " (" + fileName + "): Google Cloud Vision OCR returned empty text.");
                 } else {
                     page.put("ocrStatus", "SUCCESS");
-                    combinedSections.add(pageHeader(pageNumber, inputMode, fileName) + "\n" + rawText);
+                    String section = pageHeader(pageNumber, inputMode, fileName) + "\n" + rawText;
+                    combinedSections.add(section);
+                    pageTexts.add(section);
                 }
             } catch (ReceiptProcessingException exception) {
                 page.put("rawText", "");
@@ -146,12 +152,60 @@ public class OCRProcessingService {
         }
 
         try {
-            ReceiptDraftFields fields = openAIExtractionProvider.extractFields(combinedOcrText, vehicle);
+            // One extraction per document when the upload holds several, so a
+            // repair order's quote and an invoice's real total are never two
+            // numbers in the same block of text with nothing to separate them.
+            ReceiptDraftFields fields = pageTexts.size() > 1
+                    ? extractPerDocument(pageTexts, vehicle, extractionErrors)
+                    : openAIExtractionProvider.extractFields(combinedOcrText, vehicle);
+            if (fields == null) {
+                extractionErrors.add("No page of this upload could be extracted.");
+                return rawOcrDraft(combinedOcrText, inputMode, pages, extractionErrors);
+            }
             return extractedDraft(fields, combinedOcrText, inputMode, pages, extractionErrors, vehicle);
         } catch (ReceiptProcessingException exception) {
             extractionErrors.add(exception.getMessage());
             return rawOcrDraft(combinedOcrText, inputMode, pages, extractionErrors);
         }
+    }
+
+    /**
+     * Reads each image as its own document, then merges them.
+     *
+     * <p>Several images used to be concatenated and extracted once, which is
+     * right for pages of one receipt and wrong for a stack of different
+     * documents. A Toyota Talisay visit hands over five, and putting the repair
+     * order's 5,534.01 and the invoice's 3,106.49 into one block of text left
+     * the model choosing between two numbers that both look like the answer,
+     * with nothing on the page to say which visit each belonged to.
+     *
+     * <p>Costs one extraction per image rather than one per upload. That is the
+     * price of the correctness: there is no way to tell which sheet a number
+     * came off without asking about each sheet separately. Single-image uploads
+     * - almost everything a small shop hands over - are untouched and still cost
+     * one call.
+     *
+     * <p>A page that fails to extract is recorded and skipped rather than
+     * failing the upload. One unreadable photograph in a stack of five should
+     * cost that page, not the visit.
+     */
+    private ReceiptDraftFields extractPerDocument(
+            List<String> pageTexts,
+            VehicleContext vehicle,
+            List<String> extractionErrors
+    ) {
+        List<ReceiptDraftFields> perPage = new ArrayList<>();
+        for (int index = 0; index < pageTexts.size(); index++) {
+            try {
+                ReceiptDraftFields extracted = openAIExtractionProvider.extractFields(pageTexts.get(index), vehicle);
+                if (extracted != null) {
+                    perPage.add(extracted);
+                }
+            } catch (ReceiptProcessingException exception) {
+                extractionErrors.add("Page " + (index + 1) + ": " + exception.getMessage());
+            }
+        }
+        return ReceiptDocumentMerger.merge(perPage);
     }
 
     private ReceiptExtractionResult extractedDraft(
@@ -174,7 +228,31 @@ public class OCRProcessingService {
                 pageCount,
                 vehicle
         );
+        Map<String, Object> metadata = metadata(
+                "google_vision_openai",
+                rawOcrText,
+                receiptInputMode,
+                pages,
+                false,
+                fields.confidenceNotes(),
+                fields.fieldSources(),
+                fields.fieldConfidence(),
+                fields.aiSuggestedFields(),
+                overallClassification,
+                fields.warnings(),
+                extractionErrors
+        );
+        // The document's own number and the numbers it points at. Kept in
+        // metadata rather than columns because nothing queries them yet: they
+        // exist so the documents of one visit can be grouped later without
+        // paying for another extraction pass over receipts already uploaded.
+        metadata.put("documentType", fields.documentType().name());
+        metadata.put("documentNumber", fields.documentNumber());
+        metadata.put("referenceNumbers",
+                fields.referenceNumbers() == null ? List.of() : fields.referenceNumbers());
+
         return new ReceiptExtractionResult(
+                fields.documentType(),
                 fields.serviceDate(),
                 classifiedServices,
                 fields.odometer(),
@@ -182,20 +260,7 @@ public class OCRProcessingService {
                 fields.shopName(),
                 fields.location(),
                 fields.remarks(),
-                metadata(
-                        "google_vision_openai",
-                        rawOcrText,
-                        receiptInputMode,
-                        pages,
-                        false,
-                        fields.confidenceNotes(),
-                        fields.fieldSources(),
-                        fields.fieldConfidence(),
-                        fields.aiSuggestedFields(),
-                        overallClassification,
-                        fields.warnings(),
-                        extractionErrors
-                )
+                metadata
         );
     }
 
@@ -253,6 +318,9 @@ public class OCRProcessingService {
                 pages == null ? 0 : pages.size()
         );
         return new ReceiptExtractionResult(
+                // Nothing classified this: the model never ran. The default is
+                // the one that does not silently strip the cost.
+                DocumentType.defaultType(),
                 null,
                 List.of(),
                 null,
@@ -299,6 +367,7 @@ public class OCRProcessingService {
             List<String> extractionErrors
     ) {
         return new ReceiptExtractionResult(
+                DocumentType.defaultType(),
                 null,
                 List.of(),
                 null,

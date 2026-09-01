@@ -1,4 +1,5 @@
 {
+  "documentType": "SERVICE_INVOICE",
   "serviceDate": "2026-03-14",
   "odometer": 18452,
   "totalCost": 2450.00,

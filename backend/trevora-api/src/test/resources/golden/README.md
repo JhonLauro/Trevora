@@ -26,6 +26,11 @@ Most findings live in the text layer, so most cases need no image at all — a
 `.txt` file and the correct answer beside it. Only layout and capture quality
 need the image layer.
 
+Both layers score the same fields with the same scorer, so they are directly
+comparable, and the comparison is the point: a case that scores well from
+`ocr.txt` and badly from its photograph has an OCR problem, not a prompt
+problem, and no prompt change will fix it.
+
 ## A case
 
 One directory per receipt under `golden/`:
@@ -36,6 +41,18 @@ golden/<case-id>/
   case.json      what this case is, what vehicle it belongs to, what it tests
   expected.json  the correct answer, read off the original receipt
 ```
+
+An image-layer case adds two fields to `case.json` and no extra files:
+
+```json
+{
+  "layer": "image",
+  "imageFile": "tilted-20deg.jpg"
+}
+```
+
+`imageFile` is a bare file name, not a path. The folder moves between machines;
+the file name does not.
 
 `expected.json` is **ground truth, not what is currently achievable.** If the
 OCR text is too mangled for anyone to recover a value, the correct answer is
@@ -81,6 +98,54 @@ tagged `golden` and excluded from the normal run.
 ```
 
 Without `OPENAI_API_KEY` the golden tests skip rather than fail.
+
+## Running the image layer
+
+The image layer starts at the photograph and runs the real pipeline: Google
+Vision, the layout reconstruction, the extraction prompt, the keyword fallback.
+
+```
+GOLDEN_IMAGE_DIR=/path/to/receipt-photos ./mvnw test -Pgolden-image
+./mvnw test -Pgolden-image -Dgolden.imageDir=C:/receipts -Dgolden.runs=5
+```
+
+It needs `GOOGLE_CLOUD_VISION_API_KEY` as well as `OPENAI_API_KEY`, and skips
+without either. Each repeat costs a Vision call on top of the OpenAI one, which
+is why it is a separate profile rather than part of `-Pgolden`.
+
+**The photographs are not in this repository and never will be.** They are
+photographs of real customers' receipts, and this repository is going to be
+submitted and archived. OCR text can be redacted; a photograph cannot. So they
+live in a folder outside the checkout, named by `GOLDEN_IMAGE_DIR`. A case whose
+file is not there is skipped and listed by name, so a run that measured nothing
+says so instead of going quietly green.
+
+Every run's OCR text is written to `target/golden-ocr/<case>-run<N>.txt`. Read
+it. The score says a field is wrong; only the text says whether the value was
+ever there to read.
+
+### What the OCR table means
+
+Above the usual scorecard, the image layer prints what Vision returned before
+any model saw it:
+
+| Row | Reads as |
+|---|---|
+| `chars`, `lines` | a range means two runs of the same image disagreed |
+| `column breaks` | pipes the layout reconstruction emitted; **zero on a tabular receipt means it found no table** |
+| `orphan amounts` | lines holding a price and nothing else — prices that came unstuck from their descriptions |
+| `across runs` | identical text every run, or how many different texts came back |
+
+`orphan amounts` is the skew number. A row spanning the page drifts vertically
+further than the row tolerance allows, the row splits, and the far column — the
+money — lands on a line of its own. That is what produced seventeen unattached
+amounts on the Toyota invoice. It should fall as skew handling improves, and it
+falls without anyone having to agree on what a receipt "should" look like.
+
+**No floors are asserted on this layer.** The text layer's floors came from a
+baseline that held across four code states; this one has no baseline yet, and a
+floor invented before the first run is a number someone made up. Take one from
+the first clean run and add it in the same commit that says what it came from.
 
 ## Repeat runs
 
@@ -154,8 +219,26 @@ finds easy.
 What the set needs, and what it has. The gaps are where extraction is
 currently wrong and untested.
 
+Since the document-type split, a case also has to say **which kind of document**
+it is. `expected.json` carries `documentType`, and it is scored first, because a
+run that reads the money perfectly off a repair order is not a good run — the
+Talisay repair order prints ₱5,534.01 for work the invoice billed at ₱3,106.49.
+
+All three current cases are `SERVICE_INVOICE`, which makes them a guard against
+over-classification but proves nothing about detection: there is no case in the
+set that *should* come back `ESTIMATE`. Until one exists, the classifier is
+half-measured.
+
 | Format | Case | Status |
 |---|---|---|
+| Dealership repair order (ESTIMATE, priced, superseded) | — | **missing** |
+| Dealership official receipt (money, zero work) | — | **missing** |
+| Picking slip (parts, no prices) | — | missing |
+| Handwritten job card (work, no prices) | — | missing |
+| Same receipt, flat, square on | — | **missing** (skew baseline) |
+| Same receipt, tilted ~5-10 degrees | — | **missing** |
+| Same receipt, tilted ~20 degrees or more | — | **missing** |
+| Same receipt, perspective skew | — | **missing** |
 | Dealership invoice, body & paint, long materials list | `toyota-talisay-body-paint` | present, lines pending |
 | Independent shop, parts + labour, reconciles exactly | `gta-toledo-cooling` | present |
 | Scooter CVT / drive service | `scooter-cvt-service` | present, **synthetic** |
@@ -166,3 +249,8 @@ currently wrong and untested.
 | Parts-only, no labour | — | missing |
 | Part-Tagalog | — | missing |
 | Unreadable photo, correct answer is all-null | — | missing |
+
+The first four are one receipt from one shop photographed four ways, and they
+are deliberately the same receipt: they isolate the angle from everything else.
+Four different receipts at four different angles cannot tell you whether the
+angle or the shop was the problem.

@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 public record ReceiptDraftFields(
+        DocumentType documentType,
+        String documentNumber,
+        List<String> referenceNumbers,
         LocalDate serviceDate,
         List<ServiceItemFields> services,
         Integer odometer,

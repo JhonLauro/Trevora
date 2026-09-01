@@ -1,0 +1,39 @@
+{
+  "id": "talisay-official-receipt",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-official-receipt.jpg",
+  "format": "BIR official receipt - money only, no description of work anywhere on the page",
+  "why": [
+    "The cost-only case. This page proves a payment of 3,106.49 and says nothing whatsoever about what was done to the car. It is the document owners are most likely to keep, because it is the one that looks like a receipt, and the one that is most dangerous to store as a complete service record.",
+    "The correct answer for services and lineEntries is EMPTY, and that is the whole test. An extractor that invents work here - from the vehicle block, from the shop being a Toyota dealer, from anything - has done the single worst thing this pipeline can do, because the invented work would be indistinguishable from real history downstream.",
+    "It is dense with numbers that are not the total: VATable Sales 2,773.65, VAT Amount 332.84, Less Deposit 0.00, Less Withholding Tax 0.00, an OR number of 1000000000124652, and a BIR series range running to 4999999999999999. Picking 3,106.49 out of that is a real discrimination task.",
+    "Payment detail is deliberately out of scope. The PAID stamp, Form of Payment: Cash, and FULL PAYMENT must not become remarks or line entries: this product records service history, not accounting."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "customer address",
+    "customer number",
+    "authorised signature"
+  ],
+  "kept": [
+    "shop name and address",
+    "OR number and reference numbers",
+    "all amounts including the tax breakdown"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Reference No G7YA009184 is the service invoice this receipt paid, and Deposit Ref G7IA123581 is the repair order behind it. Both belong in referenceNumbers; neither is this document own number, which is the OR number.",
+    "odometer is genuinely absent. An official receipt never prints one. null is correct and inventing 242 from the other documents of the visit would be wrong here, however true it happens to be."
+  ]
+}

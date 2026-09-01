@@ -1,0 +1,37 @@
+{
+  "documentType": "WORK_PERFORMED",
+  "serviceDate": "2025-04-30",
+  "odometer": null,
+  "totalCost": null,
+  "shopName": null,
+  "location": null,
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter",
+    "Lights",
+    "Tires",
+    "Fluids"
+  ],
+  "lineEntries": [
+    {
+      "kind": "OPERATION",
+      "description": "Perform 1,000 km check-up",
+      "lineTotal": null
+    },
+    {
+      "kind": "OPERATION",
+      "description": "Change oil and oil filter",
+      "lineTotal": null
+    },
+    {
+      "kind": "OPERATION",
+      "description": "Check all lights, belt, tire pressure and fluids",
+      "lineTotal": null
+    }
+  ],
+  "_comment": [
+    "totalCost is null because the page prints no money anywhere. This is the field most at risk of being filled from the form printed boilerplate.",
+    "The three operations are ground truth read from the handwriting and corroborated by the service invoice. They are almost certainly not reachable from the OCR, and the case should score zero on them rather than have them removed - a set that only records reachable answers cannot tell you what you are losing.",
+    "relatedComponents was corrected from [\"Engine\"] after checking the vocabulary in ServiceClassificationService: \"Engine Oil\" and \"Oil Filter\" are first-class components there, and scooter-cvt-service already uses them for this kind of service. The original expectation was wrong by the set's own convention and was scoring the ground truth rather than the pipeline. Steering wheel, linkage and gear box are deliberately left out: the invoice records them as inspected, and whether that belongs under Suspension or Transmission is a judgement nobody has settled."
+  ]
+}

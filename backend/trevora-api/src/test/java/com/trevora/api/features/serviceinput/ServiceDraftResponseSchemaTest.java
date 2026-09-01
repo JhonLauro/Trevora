@@ -35,9 +35,21 @@ class ServiceDraftResponseSchemaTest {
         JsonNode root = schemaRoot(ServiceDraftResponseSchema.forReceipt());
 
         assertThat(fieldNames(root.path("properties"))).containsExactlyInAnyOrder(
+                "documentType", "documentNumber", "referenceNumbers",
                 "serviceDate", "services", "odometer", "totalCost", "shopName", "location",
                 "remarks", "classification", "confidenceNotes", "fieldSources",
                 "fieldConfidence", "aiSuggestedFields", "warnings");
+
+        // Not nullable, and closed. Every document is one of these and
+        // SERVICE_INVOICE is the answer when nothing else is proven, so there
+        // is no case where a null would be more honest than the default.
+        JsonNode documentType = root.path("properties").path("documentType");
+        assertThat(documentType.path("type").asText()).isEqualTo("string");
+        assertThat(documentType.path("enum"))
+                .extracting(JsonNode::asText)
+                .containsExactly("SERVICE_INVOICE", "OFFICIAL_RECEIPT", "ESTIMATE",
+                        "WORK_PERFORMED", "PARTS_SLIP", "PARTS_PURCHASE", "INSPECTION_REPORT",
+                        "NOT_A_RECEIPT");
 
         JsonNode lineEntry = root.path("properties").path("services").path("items")
                 .path("properties").path("lineEntries").path("items");
@@ -123,5 +135,19 @@ class ServiceDraftResponseSchemaTest {
             node.fieldNames().forEachRemaining(names::add);
         }
         return names;
+    }
+
+    /**
+     * A spoken account of a visit is not a document.
+     *
+     * <p>Asking for its type would only invite an invented answer, and the
+     * parser already defaults the field when the key is absent.
+     */
+    @Test
+    void voiceSchemaAsksForNoDocumentFields() {
+        JsonNode root = schemaRoot(ServiceDraftResponseSchema.forVoice());
+
+        assertThat(fieldNames(root.path("properties")))
+                .doesNotContain("documentType", "documentNumber", "referenceNumbers");
     }
 }

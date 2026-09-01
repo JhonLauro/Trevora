@@ -167,6 +167,10 @@ public class ServiceRecordService {
         record.setOwnerId(draft.getOwnerId());
         record.setSourceInputMethod(draft.getInputMethod());
         record.setValidationStatus(validationStatusFor(draft));
+        // Travels with the record. A confirmed record whose cost came off an
+        // estimate is still an estimate's cost, and history has no other way to
+        // know that once the draft is gone.
+        record.setDocumentType(draft.getDocumentType());
         record.setServiceDate(draft.getServiceDate());
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());

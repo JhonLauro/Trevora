@@ -1,0 +1,96 @@
+[PAGE 1 - UPLOAD - talisay-service-invoice.jpg]
+A
+AB000C
+TOYOTA TALISAY , CEBU
+Owned and operated by Toyota Cebu City , Inc.
+SRP . Road , Lawan I , City of Talisay
+Cebu , 6045
+Tel : ( 032 ) 260-9201 / 505-8249 / 505-8253
+Fax : (032)384-0010
+VAT Reg . TIN : 000-313-856-00005
+Business Style : Toyota Talisay , Cebu
+SERVICE INVOICE
+G7YA00918
+Customer Name & Address | Home | Reference Repair Order N
+42242 | Ms. AAAAAA D. | Phone No. | Bill To
+oced | 00A AA AAAAA AAAA . AAAAAA AAAAA AAA . | Name & Address | G71A123581
+4/30/2025 | A.A. AAAA AAAAA ST . , AAAAAAA CORNER | Business Phone No. | Ms. AAAAAA A. AAAAAA | Year / Make / Model
+Invoiced | AAAAAA AAAA , AAAAA AAAAAA | VILLAGE | 00A AA AAAAA AAAA . AAAAA AAA . | 2025 / Vios 1.3 XLE CVT - E
+05:09:05 PM | Aaaa Aa Aaaaaa 0000 Aaaaa Aaaaaa | Mobile No. | CORNER | Chassis No./VIN/Serial No.
+No. | +639000000000 | A.A. AAAA AAAAA ST . , AAAAAAA | AA0A00A00A0000000
+Purchase Order | VILLAGE
+Email Address | Business Style | AAAAAA AAAA , AAAAA AAAAAA | Reg . No. | Stock No.
+Payment Method | Aaaa Aa Aaaaaa 0000 Aaaaa Aaaaaa | AB000C | CJ245
+Cash | TIN No. | Color | Selling Deat
+Credit Card | TIN : | BLACKISH RED
+Cheque | Assignee's Name | Assignee's Contact No. | Kilometers KM | Delivery Date
+Charge Account | 242 | 03/31/2025
+Z200 Service Repair | Driver's Name | Driver's Contact No. | Home Phone No. | Warr Exp KM | Warr Exp Date
+Order | 0 | 03/31/2028
+Promise Date & Time | Business Phone No. | Engine No.
+Service Advisor Name | 0AAA000000
+Aaaaaaa Aaaaaaa | 04/30/2025 17:00:00 Mobile No.
++639000000000
+RECOMMENDED SERVICE :
+JOB DONE : TECHNICIAN INSTRUCTION
+REPLACED ENGINE OIL
+REPLACED ENGINE OIL FILTER
+INSPECTED BRAKE PADS & DISCS
+INSPECTED STEERING WHEEL , LINKAGE & GEAR BOX
+JOB NO JOB TYPE | OPERATION CODE / PART NO . | DESCRIPTION | TOTAL
+PM | X00001 | 1,000 KM CHECK - UP | 0.00
+PM | 90915 - YZZN2 | OIL FILTER | 210.11
+38.25
+PM | 90430 - T0024 | GASKET
+1,647,16
+1 | PM | 08880-85126 | TGFS SN / CF 5W - 30 1L
+1,895,52
+<< Total for Job 000001 >>
+1.000 | 878.13 | 878.13
+2 | 08877-80041
+878.13
+<< Total for Job 000002 >>
+Total Labor | 0.00
+Total Part | 248.36
+Total Sublet | 0.00
+Total Oil / Lubricant | 2,525.29
+Total Misc / Material | 0.00
+ston | Sub Total | 2,773.65
+LESS DISCOUNT | 0.00
+0.00
+Less Voucher
+332,841
+VAT
+TOTAL PRICE | 3,106.49
+2,773.65
+VATable Sales
+0.00
+VAT - Exempt Sales | 0.00
+Zero - Rated Sales | 2,773.65
+TOTAL SALES | 332.84
+VAT Amount | 3,106.49
+TOTAL
+replacement of spare parts .
+Note : | guarantee period for workmanship Parts and .
+> 3 - month or 90 days | for Customer Paid Service
+> 1 year or 20K km warranty
+myvehicle , including all parts and materials necessary hereof to .
+to pay for the above repair work done on sixty ( 60 ) days from the date of notice of the completion proceeds or part
+I hereby authorize and agree | cost of the repair are not paid within sell my vehicle at public auction andapply
+perform same . Inthe event empower that the the TOYOTA TALISAY , CEBU turned to | over to me .
+Thereby , authorizedand | and the excess , if any , shall be | THE REPAIRS HAVE BEEN
+to the cost of the repairs | CONDITION AND THAT
+thereof | IN GOOD ORDER AND
+Customer Copy | THE ABOVE ARTICLES / VEHICLES
+RECEIVED | SATISFACTION
+MADE TO MY ENTIRE
+Uniter .
+C. | RELEASED BY / DATE / TIME
+SIGNATURE / DATE / TIME
+CUSTOMER'S | AC 124 122024 000239
+Ack . Cert . Ctrl . No. | 01/01/2025
+Date Issued
+- G7YZ999999 | Version 6 / EHP 7.0 / SP09
+G7YA000001 | Business Management
+Approved Series Range SAP ECC - Dealer
+ware Name / Version

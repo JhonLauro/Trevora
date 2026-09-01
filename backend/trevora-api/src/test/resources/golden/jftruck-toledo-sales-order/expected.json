@@ -1,0 +1,102 @@
+{
+  "documentType": "SERVICE_INVOICE",
+  "serviceDate": "2026-08-11",
+  "odometer": null,
+  "totalCost": 15000.0,
+  "shopName": "JFTruck & Autocare Center-Toledo",
+  "location": "Lebumfacil St., Sangi Toledo City",
+  "relatedComponents": [
+    "Brakes",
+    "Transmission",
+    "Engine"
+  ],
+  "lineEntries": [
+    {
+      "kind": "PART",
+      "description": "AUTOPRO BRAKE AND PARTS CLEANER",
+      "lineTotal": 370.0
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "VALVOLINE ATF DEXTRON III (LTR)",
+      "lineTotal": 2820.0
+    },
+    {
+      "kind": "PART",
+      "description": "MIGHTY GASKET",
+      "lineTotal": 200.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "TRANSMISSION CLEANING",
+      "lineTotal": 1500.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "EGR AND INTAKE MANIFOLD CLEANING",
+      "lineTotal": 2500.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "DIAGNOSTIC SCANNING",
+      "lineTotal": 1500.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "PULLOUT/INSTALL BRAKE DRUM",
+      "lineTotal": 1100.0
+    },
+    {
+      "kind": "FEE",
+      "description": "SERVICE FEE",
+      "lineTotal": 550.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "CHECK UP BRAKES",
+      "lineTotal": 300.0
+    },
+    {
+      "kind": "FEE",
+      "description": "STORAGE FEE",
+      "lineTotal": 810.0
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "LIHA",
+      "lineTotal": 30.0
+    },
+    {
+      "kind": "PART",
+      "description": "FUEL HOSE",
+      "lineTotal": 150.0
+    },
+    {
+      "kind": "PART",
+      "description": "AUTOPRO PENETRATING OIL",
+      "lineTotal": 270.0
+    },
+    {
+      "kind": "OPERATION",
+      "description": "REFACE BRAKE DRUM",
+      "lineTotal": 1700.0
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "GASOLINE FOR CLEANING",
+      "lineTotal": 300.0
+    },
+    {
+      "kind": "FEE",
+      "description": "RESCUE FEE",
+      "lineTotal": 900.0
+    }
+  ],
+  "_comment": [
+    "The sixteen lineTotals sum to exactly 15,000.00, matching the printed TOTAL. This case should always reconcile, and any gap points at a specific misread line rather than a rounding difference.",
+    "STORAGE FEE is 810.00 as printed, not the 1,000.00 that 10.00 x 100.00 would give. This is the trap the case exists for: read the amount column, never recompute it.",
+    "LIHA is Cebuano for sandpaper, and is a consumable rather than a service despite the SERVICE unit printed against it. MATERIAL is the right kind. An extractor that follows the printed unit column and returns OPERATION has been misled by the shop's own data entry, which is a real and forgivable failure - but MATERIAL is correct.",
+    "SERVICE FEE, STORAGE FEE and RESCUE FEE are FEE rather than OPERATION. None is work done to the vehicle: they are charges for holding it, recovering it, and an administrative fee.",
+    "relatedComponents is a judgement call. Brakes and Transmission are unarguable. Engine is included for the EGR and intake manifold cleaning, which a reviewer might reasonably file elsewhere."
+  ]
+}

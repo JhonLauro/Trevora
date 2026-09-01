@@ -11,6 +11,7 @@ import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import com.trevora.api.features.serviceinput.DocumentType;
 import com.trevora.api.features.serviceinput.ServiceLineKind;
 import com.trevora.api.features.servicerecord.ServiceRecordLineEntry;
 import java.time.Instant;
@@ -30,6 +31,8 @@ import org.springframework.stereotype.Service;
 public class AIExplanationService {
     private static final String SOURCE = "template";
     private static final String FALLBACK_SOURCE = "template_fallback";
+    /** Not a fallback: the correct and complete answer for a record with no work. */
+    private static final String COST_ONLY_SOURCE = "cost_only";
     /* Named after what produced it, not "ai": when somebody asks why an
        explanation reads oddly, the first useful question is which model wrote
        it, and the answer should be in the response rather than in a log. */
@@ -64,6 +67,10 @@ public class AIExplanationService {
         vehicleService.verifyVehicleBelongsToCurrentUser(record.getVehicleId());
         List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
 
+        if (nothingToExplain(record, items)) {
+            return costOnlyExplanation(record);
+        }
+
         try {
             /* The model first, the template when it cannot answer. The template
                is not a lesser copy kept for tidiness -- it is what an owner
@@ -77,6 +84,66 @@ public class AIExplanationService {
         } catch (RuntimeException exception) {
             return fallbackExplanation(record);
         }
+    }
+
+    /**
+     * Whether this record describes no work at all.
+     *
+     * <p>An owner can now confirm a record from an official receipt: a real
+     * payment, a real date, and no statement anywhere of what was done to the
+     * car. That is a legitimate history entry and it is also nothing to
+     * explain.
+     *
+     * <p>Both paths below would answer anyway, and both answers would be wrong
+     * in the way that is hardest to catch. The model, handed a Toyota
+     * letterhead and 3,106.49, will write a confident paragraph about routine
+     * maintenance. The template defaults its service summary to "service work"
+     * and produces the same shape of sentence with no model involved. Neither
+     * has been told anything about the work, because nothing on the paper said
+     * anything about the work - so both would be inventing it, and an owner
+     * reading a fluent paragraph has no way to tell that apart from a real
+     * explanation.
+     *
+     * <p>Checked on the items rather than only on the document type, because
+     * the honest condition is "no work recorded", whatever kind of paper it
+     * came off. A record with items explains itself normally even if it came
+     * from a receipt; one without has nothing to say however it arrived.
+     */
+    private boolean nothingToExplain(ServiceRecord record, List<ServiceRecordItem> items) {
+        if (items != null && !items.isEmpty()) {
+            return false;
+        }
+        DocumentType documentType = record.getDocumentType();
+        return documentType == null || !documentType.carriesWork();
+    }
+
+    /**
+     * What an owner reads when the record priced the visit and described none
+     * of it.
+     *
+     * <p>It says plainly that the work is unknown and why, and stops. No
+     * guesses about what a service at this shop for this amount probably was,
+     * and no watch-for advice, which would have to be invented from the same
+     * nothing. Telling someone their receipt does not say what was done is a
+     * useful answer; the alternative on offer is a fluent fabrication.
+     */
+    private AIExplanationResponse costOnlyExplanation(ServiceRecord record) {
+        return new AIExplanationResponse(
+                record.getRecordId(),
+                record.getVehicleId(),
+                COST_ONLY_SOURCE,
+                false,
+                "This record came from a document that shows the payment but not the work."
+                        + " The amount and the date are yours to rely on; what was actually done"
+                        + " to your car is not written on it.",
+                List.of(),
+                "There is nothing here for us to explain without guessing, and a guess about your"
+                        + " car is worth less than nothing. If you have the service invoice or job"
+                        + " order for this visit, adding it will fill in the work.",
+                List.of(),
+                DISCLAIMER,
+                Instant.now()
+        );
     }
 
     /**

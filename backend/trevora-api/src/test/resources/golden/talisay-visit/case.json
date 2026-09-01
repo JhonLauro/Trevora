@@ -1,0 +1,51 @@
+{
+  "id": "talisay-visit",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFiles": [
+    "talisay-service-invoice.jpg",
+    "talisay-official-receipt.jpg",
+    "talisay-repair-order.jpg",
+    "talisay-picking-slip.jpg",
+    "talisay-work-performed.jpg"
+  ],
+  "format": "One dealership visit photographed as five separate documents, uploaded together",
+  "why": [
+    "The only case that measures the merge. Every other case is one document, so they score classification and extraction and say nothing about what happens when an owner photographs the whole stack - which is exactly what a dealership hands over and exactly what the old pipeline got wrong.",
+    "Two totals are in this upload and only one of them is the answer. The repair order prints GRAND TOTAL 5,534.01 and the service invoice prints TOTAL PRICE 3,106.49 for the identical work. Before per-document extraction both numbers arrived in the same block of OCR text with nothing to say which visit each belonged to, and the model picked one. A wrong pick here adds 2,427.52 of work that never happened.",
+    "The work and the money must come from different reasoning about the same sheet. The invoice wins the cost because it is the final bill, and it wins the work because it describes it; but the official receipt in this upload is equally authoritative about the money and describes no work at all. A merge that treated one document as winning outright would be wrong on one field or the other.",
+    "Three documents print the odometer and they agree on 242. The repair order also prints MILEAGE 3 KM and Warr Exp KM 100,000, both odometer-shaped and both wrong. Agreement across sheets is the only cheap evidence available that the right number was read, and this case is where that is exercised.",
+    "Line entries must come from one document, not from all of them. The repair order and the invoice list the same oil change; concatenating would bill the owner twice for one job and make reconciliation permanently impossible."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "customer address",
+    "mobile number",
+    "customer number",
+    "plate number",
+    "chassis and engine numbers",
+    "staff names",
+    "signatures"
+  ],
+  "kept": [
+    "shop name, branch, address, phone and VAT TIN",
+    "every document number",
+    "all part numbers, quantities and amounts"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Costs five Vision calls and five extractions per run, the most expensive case in the set by a wide margin. That is inherent: there is no way to tell which sheet a number came off without asking about each sheet separately. Consider -Dgolden.runs=1 when iterating and the full three only when it matters.",
+    "The five images are the same files the single-document cases use, which is deliberate. Each document's own case says whether it was read correctly; this case says whether the right one won. When a field is wrong here, check the single-document case first - a merge cannot recover a value that was never extracted.",
+    "The skewed repair order is left out on purpose. It is a second photograph of a document already in this upload, and including it would test deduplication rather than precedence. Worth its own case later: three photographs of one official receipt is what a real owner actually uploads."
+  ]
+}

@@ -39,6 +39,16 @@ public class ServiceDraft {
     @Column(name = "input_method", nullable = false)
     private InputMethod inputMethod;
 
+    /**
+     * What kind of paper this draft was read off.
+     *
+     * <p>Not null and defaulted, so drafts created before this column existed
+     * keep their cost rather than being reinterpreted as estimates.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false)
+    private DocumentType documentType = DocumentType.defaultType();
+
     @Column(name = "service_date")
     private LocalDate serviceDate;
 
@@ -119,6 +129,14 @@ public class ServiceDraft {
 
     public void setInputMethod(InputMethod inputMethod) {
         this.inputMethod = inputMethod;
+    }
+
+    public DocumentType getDocumentType() {
+        return documentType;
+    }
+
+    public void setDocumentType(DocumentType documentType) {
+        this.documentType = documentType == null ? DocumentType.defaultType() : documentType;
     }
 
     public LocalDate getServiceDate() {

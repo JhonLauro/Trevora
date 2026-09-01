@@ -42,12 +42,25 @@ public class OpenAIServiceDraftExtractionProvider {
      */
     private static final long MAX_HONORED_RETRY_AFTER_MILLIS = 10_000L;
     /**
-     * Ceiling on the generated answer. A long dealership invoice extracts to a
-     * few thousand tokens; left unset the model may spend its whole 16k output
-     * window repeating array entries before anyone finds out, and the bill and
-     * the wait are the owner's either way.
+     * Ceiling on the generated answer. Left unset the model may spend its whole
+     * output window repeating array entries before anyone finds out, and the
+     * bill and the wait are the owner's either way.
+     *
+     * <p>Raised from 8000 on evidence. A Toyota service invoice failed every
+     * attempt on three separate golden runs with {@code completion 8000, cap
+     * 8000} - the answer stopped exactly at the ceiling, mid-JSON, so the body
+     * was valid JSON's opening half and the whole extraction fell back to raw
+     * OCR text. It read as an unexplained intermittent failure for most of a
+     * day because the retry loop reported "a response that could not be read"
+     * and dropped the explanation that named the cap.
+     *
+     * <p>The prompt is now around 6,500 tokens of input on a long receipt, and
+     * a densely itemised invoice answers with a line entry per printed row.
+     * 12000 leaves real headroom for both without abandoning the ceiling: a
+     * model that spirals on a repeated entry still stops, it just stops after
+     * the honest answers have had room to finish.
      */
-    private static final int MAX_COMPLETION_TOKENS = 8000;
+    private static final int MAX_COMPLETION_TOKENS = 12000;
     /**
      * Kilometres past which a reading is a misread rather than a high mileage.
      * Deliberately generous - a well-used jeepney can pass a million km, and the
@@ -74,7 +87,7 @@ public class OpenAIServiceDraftExtractionProvider {
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.ai.openai.model:gpt-4o-mini}") String model
     ) {
-        this(objectMapper, OutboundHttp.restClient(OutboundHttp.OPENAI_READ_TIMEOUT), apiKey, model);
+        this(objectMapper, OutboundHttp.restClient(OutboundHttp.EXTRACTION_READ_TIMEOUT), apiKey, model);
     }
 
     /** Lets a test stand a server in front of the retry loop. */
@@ -106,12 +119,63 @@ public class OpenAIServiceDraftExtractionProvider {
 
         VehicleContext context = vehicle == null ? VehicleContext.UNKNOWN : vehicle;
         Truncation ocr = Truncation.of(rawOcrText, MAX_OCR_CHARS, "Receipt OCR text");
-        return requestExtraction(
+        ReceiptDraftFields fields = requestExtraction(
                 systemPrompt(context),
                 context.toPromptBlock() + "\nOCR text:\n" + ocr.text(),
                 "OpenAI extraction",
                 ocr.warnings(),
                 ServiceDraftResponseSchema.forReceipt()
+        );
+        return withResolvedOdometer(fields, ocr.text());
+    }
+
+    /**
+     * Replaces the extracted odometer when the document's own labels name a
+     * different reading.
+     *
+     * <p>Applied after extraction rather than asked for in the prompt. A service
+     * document prints several numbers shaped like an odometer - the reading, a
+     * warranty limit, a next-service target, and a previous visit's mileage in
+     * the history block - and the rules for telling them apart are mechanical.
+     * Written as a prompt instruction the same rules moved the odometer score by
+     * nothing across three measured runs and broke extraction on the longest
+     * document in the set. See {@link OdometerResolver}.
+     *
+     * <p>The owner is told when this fires. A value quietly swapped for a
+     * different one is worse than either value, because nobody can tell it
+     * happened.
+     */
+    private ReceiptDraftFields withResolvedOdometer(ReceiptDraftFields fields, String ocrText) {
+        if (fields == null) {
+            return null;
+        }
+        Integer resolved = OdometerResolver.resolve(ocrText, fields.odometer());
+        if (java.util.Objects.equals(resolved, fields.odometer())) {
+            return fields;
+        }
+
+        List<String> warnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
+        warnings.add("Odometer read as " + resolved + " km from the reading printed on the document"
+                + (fields.odometer() == null ? "." : ", not the " + fields.odometer()
+                        + " first extracted - that figure sits under a different label."));
+
+        return new ReceiptDraftFields(
+                fields.documentType(),
+                fields.documentNumber(),
+                fields.referenceNumbers(),
+                fields.serviceDate(),
+                fields.services(),
+                resolved,
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.remarks(),
+                fields.confidenceNotes(),
+                fields.fieldSources(),
+                fields.fieldConfidence(),
+                fields.aiSuggestedFields(),
+                fields.classification(),
+                warnings
         );
     }
 
@@ -176,8 +240,24 @@ public class OpenAIServiceDraftExtractionProvider {
                 // request is as safe here as after a timeout - nothing was
                 // stored either way - and it is the difference between a draft
                 // with every field and a draft with none.
+                // The reason travels with the message rather than only as a
+                // cause. There are two ways to land here and they want opposite
+                // fixes: the model stopping at the token limit mid-JSON, which
+                // is a budget problem, and a body that genuinely will not parse,
+                // which is not. Both used to surface as the same sentence, and
+                // the golden set spent three runs reporting "could not be read"
+                // while the specific explanation sat one exception down where
+                // nothing printed it.
+                //
+                // Deliberately the message and not the response body: bodies
+                // carry the receipt's contents - customer names, addresses,
+                // plate numbers - and application logs are not a place to put
+                // those. If the wording below ever proves too thin, add a
+                // bounded redacted snippet, not the whole body.
                 lastFailure = new ReceiptProcessingException(
-                        operationLabel + " returned a response that could not be read.", exception);
+                        operationLabel + " returned a response that could not be read: "
+                                + describeCause(exception),
+                        exception);
             } catch (RestClientResponseException exception) {
                 int status = exception.getStatusCode().value();
                 lastFailure = new ReceiptProcessingException(
@@ -242,6 +322,31 @@ public class OpenAIServiceDraftExtractionProvider {
         } catch (NumberFormatException notSeconds) {
             return null;
         }
+    }
+
+    /**
+     * The most specific thing known about why a response would not parse.
+     *
+     * <p>{@link MalformedResponseException} is raised either with an
+     * explanation of its own - the token limit, which names the usage figures -
+     * or by Jackson refusing the body, in which case Jackson's own message says
+     * which character it choked on and where. Either is worth reporting; the
+     * generic sentence alone is not.
+     *
+     * <p>Truncated because a Jackson parse error quotes the source around the
+     * failure, and that quotation is receipt content.
+     */
+    private String describeCause(MalformedResponseException exception) {
+        String own = exception.getMessage();
+        if (own != null && !own.isBlank()) {
+            return own;
+        }
+        Throwable cause = exception.getCause();
+        if (cause == null || cause.getMessage() == null || cause.getMessage().isBlank()) {
+            return "no reason reported";
+        }
+        String reported = cause.getMessage().replaceAll("\s+", " ").trim();
+        return reported.length() <= 200 ? reported : reported.substring(0, 200) + "...";
     }
 
     private void backOff(long millis, ReceiptProcessingException failure) {
@@ -323,8 +428,13 @@ public class OpenAIServiceDraftExtractionProvider {
                 location = null;
                 warnings.add("Location was not directly supported by receipt text and was left blank.");
             }
+            DocumentType documentType = DocumentType.fromNullable(asText(fieldsNode.get("documentType")));
+            noteDocumentType(documentType, services, totalCost, warnings);
             reconcile(services, totalCost, warnings);
             return new ReceiptDraftFields(
+                    documentType,
+                    asText(fieldsNode.get("documentNumber")),
+                    asStringList(fieldsNode.get("referenceNumbers")),
                     serviceDate,
                     services,
                     odometer,
@@ -369,10 +479,121 @@ public class OpenAIServiceDraftExtractionProvider {
         }
     }
 
+    /**
+     * Says out loud what kind of document this was, when that changes how the
+     * numbers should be trusted.
+     *
+     * <p>The warnings are the whole point of classifying. An estimate's total
+     * is printed in the same font, in the same box, with the same peso sign as
+     * a real one - on the Toyota Talisay visit the repair order read ₱5,534.01
+     * and the invoice for the same work read ₱3,106.49 - so nothing about the
+     * value itself will ever look wrong downstream. The only thing that can
+     * flag it is knowing which sheet it came off, and that has to travel with
+     * the draft rather than being worked out again later.
+     */
+    private void noteDocumentType(
+            DocumentType documentType,
+            List<ServiceItemFields> services,
+            BigDecimal totalCost,
+            List<String> warnings
+    ) {
+        if (!documentType.isCostAuthoritative() && totalCost != null) {
+            warnings.add("This looks like " + article(documentType) + " rather than a final bill, so "
+                    + totalCost.toPlainString() + " is what was quoted, not necessarily what was paid.");
+        }
+        if (documentType.isCostOnly() && (services == null || services.isEmpty())) {
+            warnings.add("This document records payment but does not say what work was done."
+                    + " The cost is reliable; the service details are missing and must not be guessed.");
+        }
+        if (documentType == DocumentType.NOT_A_RECEIPT) {
+            warnings.add("This page does not appear to be a service document at all.");
+        }
+    }
+
+    private String article(DocumentType documentType) {
+        return switch (documentType) {
+            case ESTIMATE -> "an estimate or repair order";
+            case WORK_PERFORMED -> "a job card";
+            case PARTS_SLIP -> "an internal parts slip";
+            case NOT_A_RECEIPT -> "something other than a service document";
+            default -> "a non-final document";
+        };
+    }
+
     private String systemPrompt(VehicleContext vehicle) {
         return """
                 You are a vehicle service record extraction specialist for service center receipts, invoices, job orders, and official receipts.
                 Use only the OCR text and page/source metadata. Do not use outside knowledge.
+
+                DOCUMENT TYPE - decide this first, because it changes how every number below is read.
+
+                Set "documentType" to exactly one of:
+
+                SERVICE_INVOICE - the final bill: what was actually done and what was actually owed.
+                  This is the DEFAULT. A small independent shop hands over one piece of paper that is
+                  the invoice and the receipt at the same time, often with no title, no letterhead and
+                  no tax boilerplate. That paper is SERVICE_INVOICE. So is a dealership SERVICE INVOICE
+                  and a handwritten BILLING STATEMENT.
+
+                OFFICIAL_RECEIPT - money only, with NO description of work anywhere on the page.
+                  Choose this only when the document prints amounts, totals or tax lines and does not
+                  list a single service, part or operation. A page naming even one article that was
+                  bought is not this - it is PARTS_PURCHASE or SERVICE_INVOICE. A page headed "OFFICIAL RECEIPT" that DOES
+                  itemise work is SERVICE_INVOICE, not this.
+
+                ESTIMATE - proposed work at proposed prices, produced before the job was done.
+                  Repair orders, job orders, quotations, estimates, "for approval" sheets.
+
+                WORK_PERFORMED - a description of work with no prices at all: a job card, or the
+                  technician's list of what was done.
+
+                PARTS_SLIP - an internal parts list with no prices: picking slip, delivery slip,
+                  parts issue slip. Usually names locations, part numbers and quantities only.
+
+                PARTS_PURCHASE - goods bought over the counter, priced, with NO labour on the page.
+                  Every line is a part or a material and there is no operation anywhere: a battery, a
+                  bulb, a litre of oil, sold and paid for. Nobody worked on the vehicle. Choose this
+                  over SERVICE_INVOICE only when the document itemises goods and no work at all - a
+                  sheet billing parts AND labour together is a SERVICE_INVOICE however it is titled.
+
+                INSPECTION_REPORT - a finding about the vehicle condition, with no work done and no
+                  prices. Battery test slips, emission test results, diagnostic scan reports, PMS
+                  inspection checklists. It reports measurements and a verdict - readings, percentages,
+                  pass/fail, replace/keep - rather than anything performed on the car. Choose this over
+                  WORK_PERFORMED when nothing was actually done, only measured.
+
+                NOT_A_RECEIPT - not a service document at all. A photo of something else entirely.
+
+                THE RULE THAT MATTERS: SERVICE_INVOICE is what you return unless another type is
+                EARNED by evidence printed on the page. Absence of evidence is not evidence. Do not
+                reason "this has no invoice number, so it might be an estimate" - a shop that writes
+                on a notepad prints no numbers at all and is still handing over a final bill.
+
+                Evidence that earns ESTIMATE, and nothing weaker:
+                  - The words ESTIMATE, QUOTATION, QUOTE, REPAIR ORDER, JOB ORDER, PROFORMA appear as
+                    a heading or document title.
+                  - The page states its figures are not final - for example "THIS IS ONLY AN ESTIMATE",
+                    "parts found defective during the actual repair are not included", "subject to
+                    change", "for approval".
+                A promised delivery date, an appointment time, or a customer signature block does NOT
+                make a document an estimate. Final bills carry those too. Neither does the word ORDER on
+                its own: a SALES ORDER or DELIVERY ORDER itemising completed work with a total is a final
+                bill, and only REPAIR ORDER, JOB ORDER and the estimate words above count as evidence.
+
+                Classify by what the document CONTAINS, never by what it is TITLED. The title is
+                evidence, not the decision.
+
+                Also extract, from the document's own print and never invented:
+                  - "documentNumber": this document's own reference - invoice number, OR number,
+                    repair order number. Null if it prints none. Never a TIN, permit or barcode.
+                  - "referenceNumbers": other document numbers this page points AT - for example an
+                    official receipt naming the invoice it paid, or an invoice naming its repair
+                    order. Empty array if there are none. These link the documents of one visit
+                    together; do not put this document's own number here.
+
+                When documentType is ESTIMATE, still extract the printed totals and line amounts
+                exactly as printed. Do not blank them and do not adjust them. They are recorded as
+                what was quoted, and the caller decides what to do with them.
 
                 A vehicle description is given above the OCR text. It is context for interpretation
                 only and is NEVER a source of extracted values. Do not copy the make, model, year,
@@ -461,11 +682,29 @@ public class OpenAIServiceDraftExtractionProvider {
                 least: guessing PART adds a component the vehicle may not have, and guessing OPERATION
                 lets the line be attributed to a part of the vehicle on no evidence.
 
-                COMPLETENESS. Every itemised, priced line printed on the receipt must appear in
-                exactly one service's lineEntries. Before returning, count the lineEntries across all
-                services and compare that count against the number of priced lines on the receipt.
-                They must be equal. A dropped line is money the owner paid that the record will not
-                show, and it makes the totals impossible to reconcile.
+                COMPLETENESS. Every itemised line printed on the document must appear in exactly one
+                service's lineEntries, WHETHER OR NOT IT CARRIES A PRICE. Before returning, count the
+                lineEntries across all services and compare that count against the number of itemised
+                lines on the document. They must be equal. A dropped line is work or a part the record
+                will not show, and where the line was priced it is also money the owner paid, which
+                makes the totals impossible to reconcile.
+
+                A PRICE IS NOT WHAT MAKES SOMETHING A LINE. Whole classes of real document itemise
+                work and parts and print no amounts anywhere: a parts picking slip lists part numbers,
+                descriptions and quantities; a job card lists what the technician did; a battery or
+                emission test slip reports what was checked and what was found. These documents are
+                the entire record of what happened to the car, and returning an empty lineEntries
+                array for them discards all of it.
+
+                For such a line, return it with lineTotal, unitPrice and quantity null unless the
+                document actually prints them, and choose the kind from what the line describes
+                exactly as you would on a priced receipt. "OIL FILTER | 1 | EA" on a picking slip is a
+                PART with quantity 1 and no price. "Change oil and oil filter" on a job card is an
+                OPERATION with no price. Null prices are the correct answer here, not a reason to omit
+                the line.
+
+                When the document prints no total either, totalCost is null and the lines still stand.
+                A document can describe work completely and cost nothing.
 
                 The grouping into services is a convenience; the lines are the record. Never drop a
                 line because it does not fit the service you chose to create. Receipts commonly list

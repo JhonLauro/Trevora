@@ -1,0 +1,41 @@
+{
+  "id": "powerstart-battery-purchase",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "powerstart-battery-purchase.jpg",
+  "format": "Handwritten cash sales invoice from a parts shop - one battery, no labour, no vehicle named",
+  "why": [
+    "The smallest real receipt in the set, and the shape most owners will actually upload. One handwritten line, a total, and a warranty note. Everything else here is a printed form; this is four words of ballpoint on a BIR booklet page.",
+    "It records a PURCHASE, not a service. Nobody worked on the vehicle - a battery was bought over the counter and, judging by the absence of any labour line, fitted by the owner. Every line is a PART and there is no OPERATION anywhere, which is the only evidence on the page that distinguishes a parts sale from a repair.",
+    "It names no vehicle at all. No plate, no model, no odometer, no chassis. The vehicle a record like this belongs to comes entirely from which vehicle the owner filed it under, never from the paper, and nothing in extraction may pretend otherwise.",
+    "The whole VAT block is printed and left blank - VATable, VAT-Exempt, VAT Zero Rated, VAT-12%, Total Amount Due, Cash Tendered, Change - alongside a printed BIR authority number, a printer accreditation number and a series range. Eight or nine labelled empty boxes surrounding one real amount is a strong test of whether boilerplate can be told from content.",
+    "The only total, 750.00, is handwritten twice: once in the AMOUNT column and once beside the printed TOTAL. A reader has to recognise them as one figure rather than two."
+  ],
+  "vehicle": {
+    "make": null,
+    "model": null,
+    "modelYear": null,
+    "bodyType": "motorcycle",
+    "vehicleClass": "motorcycle",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "cashier signature"
+  ],
+  "kept": [
+    "shop name, address, VAT TIN and telephone - public business details",
+    "the invoice number 16129 and the BIR authority and accreditation numbers, which are exactly the long numbers that must not be mistaken for a total",
+    "the handwritten article, amount and warranty note"
+  ],
+  "pendingGroundTruth": [
+    "odometer"
+  ],
+  "notes": [
+    "CONFIRMED by the owner: the handwritten 10.01.25 is 1 October 2025, month-day-year. Extraction read it as 10 January 2025, so this case scores the date honestly rather than being adjusted to match what the model returned.",
+    "ASSUMPTION, NOT VERIFIED: filed as a motorcycle. NF4L-B is a small battery format typical of motorcycles and scooters, but the receipt itself names no vehicle and nobody has confirmed which bike it was for. vehicleClass only selects the component vocabulary here, and Battery is common to both classes, so the risk is low - but it is an inference, not a reading.",
+    "documentType is PARTS_PURCHASE. On the first run, before that type existed, this document was classified OFFICIAL_RECEIPT - which followed the rules as written, since money with no work is exactly that - and the battery line was discarded with it. The type exists because a document that itemises goods and no labour had nowhere correct to sit, and both available answers lost something real.",
+    "Whether the battery was fitted at all, and to what, is not on this page. The useful history entry is that a Motolite NF4L-B was bought on this date for 750.00 with a one-week warranty - which tells the next mechanic how old the battery is, and that is worth having from four handwritten words."
+  ]
+}

@@ -13,6 +13,7 @@ import com.trevora.api.features.validation.ValidationResult;
 import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.shared.exception.UnauthorizedVehicleAccessException;
+import com.trevora.api.features.serviceinput.DocumentType;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,6 +125,26 @@ public class ServiceDraftValidationService {
         }
     }
 
+    /**
+     * Whether this draft came off a document that priced the visit and
+     * described none of it.
+     *
+     * <p>An official receipt carries a total, a date and a PAID stamp, and not
+     * one word about what was done to the car. Blocking confirmation on it was
+     * asking the owner for something the paper never had - and the common case
+     * is exactly this one, because people keep the receipt and throw the
+     * invoice away.
+     *
+     * <p>So the empty services list stops being an error and becomes a warning:
+     * the record is real, its cost is real, and the work is genuinely unknown.
+     * What must never happen is the gap being filled by inference, which is why
+     * the message asks the owner rather than offering a suggestion.
+     */
+    private boolean costOnlyDocument(ServiceDraft draft) {
+        DocumentType documentType = draft.getDocumentType();
+        return documentType != null && documentType.isCostOnly();
+    }
+
     private List<FieldValidationIssue> findMissingRequiredFields(ServiceDraft draft, List<ServiceDraftItem> items) {
         List<FieldValidationIssue> issues = new ArrayList<>();
 
@@ -145,17 +166,29 @@ public class ServiceDraftValidationService {
         }
 
         if (items == null || items.isEmpty()) {
-            issues.add(new FieldValidationIssue(
-                    "services",
-                    "Services performed",
-                    "MISSING_REQUIRED",
-                    "ERROR",
-                    "At least one service performed must be added before confirmation.",
-                    null,
-                    metadataSource(draft),
-                    true,
-                    true
-            ));
+            issues.add(costOnlyDocument(draft)
+                    ? new FieldValidationIssue(
+                            "services",
+                            "Services performed",
+                            "COST_ONLY_DOCUMENT",
+                            "WARNING",
+                            "This document records a payment but does not say what work was done."
+                                    + " The cost is reliable. Add the services yourself if you know them"
+                                    + " - they must not be guessed from the receipt.",
+                            null,
+                            metadataSource(draft),
+                            false,
+                            true)
+                    : new FieldValidationIssue(
+                            "services",
+                            "Services performed",
+                            "MISSING_REQUIRED",
+                            "ERROR",
+                            "At least one service performed must be added before confirmation.",
+                            null,
+                            metadataSource(draft),
+                            true,
+                            true));
         }
 
         if (draft.getVehicleId() != null) {

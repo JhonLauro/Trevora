@@ -1,0 +1,43 @@
+{
+  "id": "talisay-repair-order-skewed",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-repair-order-skewed.jpg",
+  "format": "The same repair order, photographed at an angle - the skew case",
+  "why": [
+    "Same document and same correct answers as talisay-repair-order, photographed badly. That is the entire point: the pair isolates capture quality from content, so any score difference between the two is caused by the photograph and nothing else. Two different receipts at two different angles could not have told you that.",
+    "The paper is rotated and perspective-skewed - the sheet is held in one hand, the far edge is narrower than the near edge, and the printed rows run visibly downhill from left to right. This is the condition that splits a row in GoogleVisionOCRProvider.layoutTextFromPages: a row spanning the page drifts vertically further than the row tolerance allows, and the price column lands on lines of its own.",
+    "It is also overwritten with handwriting - a large A4U 5-W, a diagonal pen stroke through the line-item table, and 3,106.44 below the grand total. Real receipts are annotated by the people handling them, and none of that ink may reach a field.",
+    "Watch orphan amounts in the OCR report rather than only the field scores. If this case scores worse than its flat twin, that number says whether the prices came unstuck from their descriptions or something else went wrong."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "customer address",
+    "mobile number",
+    "customer number",
+    "plate number",
+    "chassis and engine numbers",
+    "service advisor and job controller names",
+    "signatures"
+  ],
+  "kept": [
+    "shop name, branch, address, phone and VAT TIN",
+    "document numbers",
+    "all part numbers, quantities and amounts"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Ground truth is identical to talisay-repair-order by construction. If the two expected.json files ever disagree, one of them is wrong.",
+    "The left edge of the page is cut off in this shot, taking part of the payment-method block with it. Nothing scored here depends on that region."
+  ]
+}

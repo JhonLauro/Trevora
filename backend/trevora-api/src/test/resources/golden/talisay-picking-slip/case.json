@@ -1,0 +1,39 @@
+{
+  "id": "talisay-picking-slip",
+  "layer": "image",
+  "floorBaseline": false,
+  "imageFile": "talisay-picking-slip.jpg",
+  "format": "Internal parts picking slip - real parts, no prices, never meant for the customer",
+  "why": [
+    "A document that names real parts that really went into the car and cannot price any of them. It tests that has-parts and is-a-bill are separate questions.",
+    "It lists PROTSHEET and a TTY00-PROTS-HEENT part number that appear on none of the customer-facing documents, because a seat protector sheet is workshop consumable rather than something billed. Parts present here and absent from the invoice are normal, not a discrepancy to reconcile.",
+    "The left-hand column is cut off in the photograph, leaving stray two-digit fragments (30, 50, 70) down the edge. They look like amounts and are not. An extractor that assembles a total out of them has invented money from a crop.",
+    "It agrees with the other documents on 242 KM, which is what makes the repair order competing MILEAGE 3 KM resolvable at all."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios 1.3 XLE CVT",
+    "modelYear": 2025,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "sourceImage": "not committed - see GOLDEN_IMAGE_DIR",
+  "ocrProvider": "google_vision",
+  "redacted": [
+    "customer name",
+    "plate number",
+    "chassis and engine numbers",
+    "service advisor name"
+  ],
+  "kept": [
+    "shop name",
+    "repair order number G7IA123581",
+    "part numbers, descriptions and quantities"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Printed in a monospaced typeface unlike every other document in the set, which is worth having: it exercises a different failure profile in OCR than the proportional print on the invoices.",
+    "totalCost is null because the document prints no total, not because the parts were free."
+  ]
+}

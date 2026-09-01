@@ -50,6 +50,19 @@ public class ServiceRecord {
     @Column(name = "validation_status", nullable = false)
     private ValidationStatus validationStatus = ValidationStatus.NEEDS_REVIEW;
 
+    /**
+     * What kind of document this record was confirmed from.
+     *
+     * <p>Carried over from the draft rather than re-derived. A record built
+     * from an ESTIMATE holds a quoted total, and one built from an
+     * OFFICIAL_RECEIPT holds a real total with no work behind it; both are
+     * legitimate history and neither may be presented as an ordinary bill.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false)
+    private com.trevora.api.features.serviceinput.DocumentType documentType =
+            com.trevora.api.features.serviceinput.DocumentType.defaultType();
+
     @Column(name = "service_date", nullable = false)
     private LocalDate serviceDate;
 
@@ -141,6 +154,16 @@ public class ServiceRecord {
 
     public void setValidationStatus(ValidationStatus validationStatus) {
         this.validationStatus = validationStatus;
+    }
+
+    public com.trevora.api.features.serviceinput.DocumentType getDocumentType() {
+        return documentType;
+    }
+
+    public void setDocumentType(com.trevora.api.features.serviceinput.DocumentType documentType) {
+        this.documentType = documentType == null
+                ? com.trevora.api.features.serviceinput.DocumentType.defaultType()
+                : documentType;
     }
 
     public LocalDate getServiceDate() {

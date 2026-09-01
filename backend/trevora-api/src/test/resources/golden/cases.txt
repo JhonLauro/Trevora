@@ -5,3 +5,25 @@ toyota-talisay-body-paint
 gta-toledo-cooling
 
 scooter-cvt-service
+
+# The Talisay stack: five documents from one visit on 2025-04-30, plus the
+# repair order photographed a second time at an angle. Image-layer cases - they
+# carry a photograph and run under -Pgolden-image, which needs GOLDEN_IMAGE_DIR.
+talisay-service-invoice
+talisay-official-receipt
+talisay-repair-order
+talisay-repair-order-skewed
+talisay-picking-slip
+talisay-work-performed
+
+# Independent shop, one sheet that is the whole bill. Awaiting its
+# photograph: ground truth is written, ocr.txt is not.
+jftruck-toledo-sales-order
+
+# The whole visit as one upload: five documents, two totals, one right
+# answer. The only case that measures per-document merging.
+talisay-visit
+
+# Parts shop, handwritten, one battery and no labour. The smallest real
+# receipt in the set and the shape most owners will actually upload.
+powerstart-battery-purchase

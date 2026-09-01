@@ -127,6 +127,9 @@ public class ServiceInputService {
         draft.setVehicleId(vehicleId);
         draft.setOwnerId(currentUserService.getCurrentUserId());
         draft.setInputMethod(InputMethod.RECEIPT);
+        // Which sheet of the stack this came off. The voice path leaves the
+        // default: a spoken account is not a document and has no type to read.
+        draft.setDocumentType(extraction.documentType());
         draft.setServiceDate(extraction.serviceDate());
         draft.setOdometer(extraction.odometer());
         draft.setTotalCost(extraction.totalCost());

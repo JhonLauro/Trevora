@@ -1,0 +1,101 @@
+[PAGE 1 - UPLOAD - talisay-repair-order.jpg]
+TOYOTA | AB000C
+Aaaaaaa Aaaaaaa
+TOYOTA TALISAY , CEBU
+Promised Delivery Date & Time : | Owned and operated by Toyota Cebu City ,
+04/30/2025 17:00:00 | SRP . Road , Lawan 1 , City of Talisay | Inc.
+Cebu , 6045
+Repeat Repair | Tel : ( 032 ) 260-9201 / 505-8249 / 505-8253
+Fax : (032)384-0010
+Appointment | VAT Reg . TIN : 000-313-856-00005
+Business Style : Toyota Talisay , Cebu
+Walk In
+Waiting
+Non Waiting
+REPAIR ORDER
+G7IA123581
+e 1 of 3 | Business
+Style :
+stomer No. | Customer
+Name & Address
+3000000000 | Ms. AAAAAA D. | Home Phone No. | Appointment
+e Received | AAAAAA | Z200 Service Repair Order
+00A AA AAAAA AAA'A . AAAAA AAA . CORNER | Cust . Appt . Time ( Rec . Time ) | Year / Make / Model
+me 04/30/2025 | A.A. AAAA AAAAA ST . , AAAAAAA AAAAAAA | Business Phone No. | Date : | 2025 / Vios 1.3 XLE CVT - EKE - 038
+Received | City AAAAAA AAAA , AAAAA AAAAAA | Time : | am / pm | Chassis No./VIN/Serial No.
+03:58:10 PM | Aa Aaaaaa 0000 Aaaaa Aaaaaa | Mobile No.
+Purchase Order No. | +639000000000 | Production | AA0A00A00A0000000
+Time | Color | CS No.
+Email Address | TIN | Date | T | BLACKISH RED | AB000C
+Payment Cash Method | Time : | am / pm | Kilometers KM | Selling Dealer
+Credit | Assignee's Name | 242
+Card | Assignee's Contact No. Appointment Reconfirmation | Warr Exp KM | Delivery Date
+Cheque | Driver's Name | Date Made : | 100,000 | 03/31/2025
+Charge Account | Driver's Contact No. | Time Made :: _______ am / pm | Engine No. | Warr Exp Date
+HISTORY | 0AAA000000 | 03/31/2028
+DATE
+REPAIR ORDER NO . | 11 | MILEAGE | SERVICE ADVISOR
+USTOMER 03/31/2025 | G7NA058266 | 3 KM | Aaaaaaaa Aaaa Aaaaaaa
+REQUEST | SERVICE ADVISOR INSTRUCTIONS
+CHANGE OIL OIL FILTER AND D / P GASKET
+K LIGHTS , DELTS , HORN , | WIPER RUBBERS , A / C
+PERFORMANCE | CURE . AND ENSION
+( ) REPLACE SPARK PLUGS | K BATTERY - USING MIDTRONICS ( WITH
+PRINTOUT
+( ) CLEAN ENGINE AIR FILTER AND A / C FILTER
+ADD WASHER FLUID
+CHECK AIRCON USING BORSECOPE
+NOTE : THIS IS ONLY AN ESTIMATE PARTS FOUND DEFECTIVE DURING THE
+ACTUAL REPAIR ARE NOT INCLUDED IN THIS SERVICE ESTIMATE
+JOB NO . JOB TYPE | OPERATION CODE / PART NO . | DESCRIPTION | QY | UNIT PRICE | TOTAL
+REMARKS - TOYOTA MAITENANCE | 0.000 | 0.00
+PROMO
+1 | X00001 | 1,000 KM CHECK - UP | 500.00 | 700.00
+PM | 90915 - YZZN2 | OIL FILTER | 372.77 | 372.77
+GASKET | 67.86 | 67.66
+PM | 90430 - T0024
+730.58 | 2.922.32
+08880-85126 | TGFS SN / CF 5W - 30 1L
+PM | 878.13 | 878.13
+TOYOTA GENUINE BACTAKLENZ ( 7ML )
+2 | PM | 08877-80041 | Total Labor | 700.00
+Total Part | 440.63
+Total Sublet | 0.00
+Total Oil / Lubricant | 3,800.45
+Total Misc / Material | 0.00
+Sub Total | 4,941.08
+LESS DISCOUNT | 0.00
+592.93
+VAT
+5,534.01
+GRAND TOTAL
+3,10G
+TECHNICIAN INSTRUCTION
+KM CHECK - UP
+X00001 1,000 | OIL
+( ) REPLACE ENGINE
+ENGINE OIL FILTER
+( ) REPLACE | PADS & DISCS
+( ) INSPECT BRAKE
+CUSTOMER'S COPY
+the back of the Repair Order
+written at
+AND CONDITIONS
+agree to the TERMS
+I hereby | AAAAAA
+D. | DATE
+AAAAA
+Customer | OVER PRINTED NAME
+SIGNATURE
+CUSTOMER'S
+Copy
+Ack . Cert . Ctrl . No. | AC 124_122024_000239
+01/01/2025
+Date Issued
+G71A000001 - G71Z999999 | Version 6 / EHP 7.0 / SP09
+IR Approved Series Range | SAP ECC - Dealer Business Management
+oftware Name / Version
+INPUT TAX . "
+FOR CLAIM OF
+IS NOT VALID
+" THIS DOCUMENT

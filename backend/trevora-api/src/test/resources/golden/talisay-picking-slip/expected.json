@@ -1,0 +1,44 @@
+{
+  "documentType": "PARTS_SLIP",
+  "serviceDate": "2025-04-30",
+  "odometer": 242,
+  "totalCost": null,
+  "shopName": "Toyota Talisay, Cebu",
+  "location": null,
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter"
+  ],
+  "lineEntries": [
+    {
+      "kind": "PART",
+      "description": "OIL FILTER",
+      "lineTotal": null
+    },
+    {
+      "kind": "PART",
+      "description": "GASKET",
+      "lineTotal": null
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TGFS SN/CF 5W-30 1L",
+      "lineTotal": null
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "TOYOTA GENUINE BACTAKLENZ (7ML)",
+      "lineTotal": null
+    },
+    {
+      "kind": "MATERIAL",
+      "description": "PROTSHEET",
+      "lineTotal": null
+    }
+  ],
+  "_comment": [
+    "Every lineTotal is null and that is correct: this document prints quantities and no prices at all. An extractor that supplies prices here has taken them from somewhere it should not have.",
+    "location is null. The slip names the shop but prints no address.",
+    "relatedComponents was corrected from [\"Engine\"] after checking the vocabulary in ServiceClassificationService: \"Engine Oil\" and \"Oil Filter\" are first-class components there, and scooter-cvt-service already uses them for this kind of service. The original expectation was wrong by the set's own convention and was scoring the ground truth rather than the pipeline. Steering wheel, linkage and gear box are deliberately left out: the invoice records them as inspected, and whether that belongs under Suspension or Transmission is a judgement nobody has settled."
+  ]
+}
