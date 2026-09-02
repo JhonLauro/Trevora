@@ -31,6 +31,28 @@ const passwordFields = [
   ['confirmPassword', 'Repeat new password'],
 ];
 
+/**
+ * Moves focus to the first field a save rejected, so the reason is on screen.
+ *
+ * <p>This page is long enough that a rejected save could set an error two
+ * screens above the button that was just pressed, leaving nothing to see —
+ * login and register have always focused the first bad field and this had not
+ * caught up.
+ *
+ * <p>The field is found in DOM order rather than by walking the errors object,
+ * so it lands on the topmost error whatever order the caller happened to list
+ * them in, and reordering the form keeps it right without anyone remembering
+ * to reorder a list here as well.
+ */
+function focusFirstInvalid(formElement, errors) {
+  const invalid = Object.keys(errors).filter((name) => errors[name]);
+  if (!formElement || invalid.length === 0) return;
+  const field = [...formElement.querySelectorAll('[name]')]
+    .find((element) => invalid.includes(element.name));
+  // focus() brings it into view on its own; no separate scroll needed.
+  field?.focus();
+}
+
 function splitName(fullName) {
   const parts = String(fullName || 'Vehicle Owner').trim().split(/\s+/);
   return {
@@ -185,12 +207,6 @@ export default function AccountSettingsPage() {
     return null;
   }
 
-  function blurDetail(event) {
-    const { name, value } = event.target;
-    const error = validateDetail(name, value);
-    setDetailErrors((current) => ({ ...current, [name]: error }));
-  }
-
   function updatePasswordField(event) {
     const { name, value } = event.target;
     setPasswordForm((current) => ({ ...current, [name]: value }));
@@ -212,13 +228,11 @@ export default function AccountSettingsPage() {
     return null;
   }
 
-  function blurPassword(event) {
-    const { name, value } = event.target;
-    setPasswordErrors((current) => ({ ...current, [name]: validatePassword(name, value) }));
-  }
-
   async function saveProfile(event) {
     event.preventDefault();
+    // Held before the first await: the handler is async, and the event's
+    // currentTarget is not guaranteed to still point at the form afterwards.
+    const formElement = event.currentTarget;
     const firstName = form.firstName.trim();
     const lastName = form.lastName.trim();
     const email = form.email.trim();
@@ -232,6 +246,7 @@ export default function AccountSettingsPage() {
     setDetailErrors(errors);
     if (Object.values(errors).some(Boolean)) {
       setStatus('details', null);
+      focusFirstInvalid(formElement, errors);
       return;
     }
 
@@ -295,6 +310,7 @@ export default function AccountSettingsPage() {
 
   async function updatePassword(event) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     const errors = {
       currentPassword: validatePassword('currentPassword', passwordForm.currentPassword),
       newPassword: validatePassword('newPassword', passwordForm.newPassword),
@@ -303,6 +319,7 @@ export default function AccountSettingsPage() {
     setPasswordErrors(errors);
     if (Object.values(errors).some(Boolean)) {
       setStatus('password', null);
+      focusFirstInvalid(formElement, errors);
       return;
     }
     if (!supabase) {
@@ -445,17 +462,17 @@ export default function AccountSettingsPage() {
           <div className="set-grid">
             <label className={`set-field ${detailErrors.firstName ? 'invalid' : ''}`}>
               First name
-              <input name="firstName" value={form.firstName} onChange={updateField} onBlur={blurDetail} />
+              <input name="firstName" value={form.firstName} onChange={updateField} />
               {detailErrors.firstName && <span className="set-error">{detailErrors.firstName}</span>}
             </label>
             <label className={`set-field ${detailErrors.lastName ? 'invalid' : ''}`}>
               Last name
-              <input name="lastName" value={form.lastName} onChange={updateField} onBlur={blurDetail} />
+              <input name="lastName" value={form.lastName} onChange={updateField} />
               {detailErrors.lastName && <span className="set-error">{detailErrors.lastName}</span>}
             </label>
             <label className={`set-field ${detailErrors.email ? 'invalid' : ''}`}>
               Email
-              <input name="email" type="email" value={form.email} onChange={updateField} onBlur={blurDetail} />
+              <input name="email" type="email" value={form.email} onChange={updateField} />
               {detailErrors.email && <span className="set-error">{detailErrors.email}</span>}
             </label>
             <label className="set-field">
@@ -492,7 +509,6 @@ export default function AccountSettingsPage() {
                   type={showPasswords[key] ? 'text' : 'password'}
                   value={passwordForm[key]}
                   onChange={updatePasswordField}
-                  onBlur={blurPassword}
                 />
                 <button
                   className="set-reveal"

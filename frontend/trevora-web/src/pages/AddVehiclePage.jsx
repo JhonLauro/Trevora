@@ -106,11 +106,6 @@ export default function AddVehiclePage() {
     if (errors[name]) setErrors((current) => ({ ...current, [name]: validateVehicleField(name, value) }));
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setErrors((current) => ({ ...current, [name]: validateVehicleField(name, value) }));
-  }
-
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -180,7 +175,6 @@ export default function AddVehiclePage() {
             aria-invalid={errors.year ? true : undefined}
             aria-describedby={`vehicle-year-hint${errors.year ? ' vehicle-year-error' : ''}`}
             onChange={updateField}
-            onBlur={handleBlur}
           />
           {/* Names the document it is on and the mistake it invites. "Year
               Model" on the OR/CR is not the year the vehicle was bought, and
@@ -220,7 +214,6 @@ export default function AddVehiclePage() {
             aria-invalid={errors.odometer ? true : undefined}
             aria-describedby={errors.odometer ? 'vehicle-odometer-error' : 'vehicle-odometer-hint'}
             onChange={updateField}
-            onBlur={handleBlur}
           />
           {errors.odometer && <p className="ink-combo__error" id="vehicle-odometer-error">{errors.odometer}</p>}
         </div>

@@ -97,11 +97,6 @@ export default function RegisterVehiclePage() {
     }
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setFieldErrors((current) => ({ ...current, [name]: validateField(name, value) }));
-  }
-
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -194,7 +189,6 @@ export default function RegisterVehiclePage() {
                 maxLength={4}
                 value={form.year}
                 onChange={updateField}
-                onBlur={handleBlur}
                 /* Names the document it is on and the mistake it invites: "Year
                    Model" on the OR/CR is not the year the vehicle was bought. */
                 help="On your OR/CR as “Year Model”. Not the year you bought it."
@@ -223,7 +217,6 @@ export default function RegisterVehiclePage() {
               placeholder="45000"
               value={form.odometer}
               onChange={updateField}
-              onBlur={handleBlur}
               error={fieldErrors.odometer}
               help="Optional, and roughly is fine. You can update it any time."
             />
