@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateVehicle } from '../../api/vehicles.js';
-import { deleteServiceDraft } from '../../api/serviceDrafts.js';
+import { discardDraftAndRescan } from '../../utils/rescanDraft.js';
+import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
 
 /**
  * What the receipt says about the vehicle, asked as a question.
@@ -102,9 +103,12 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
     closeRef.current?.focus();
 
     function onKeyDown(event) {
-      if (event.key === 'Escape' && !saving) {
+      /* Escape does not close this either. On a conflict, closing means "use
+         it anyway" -- filing the record against a vehicle the receipt does not
+         match, which is the mistake nobody ever finds again. */
+      if (event.key === 'Escape') {
         event.preventDefault();
-        setDismissed(true);
+        if (!saving) insistOnAnswer(dialogRef.current);
         return;
       }
       if (event.key !== 'Tab') return;
@@ -165,19 +169,21 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
   async function scanAgain() {
     if (saving) return;
     setSaving(true);
-    try {
-      await deleteServiceDraft(draft.draftId ?? draft.serviceDraftId);
-    } catch {
-      // Deliberately swallowed; see above.
-    }
-    navigate(`/service-input/${vehicle.vehicleId}/receipt`, { replace: true });
+    await discardDraftAndRescan({ draft, vehicleId: vehicle.vehicleId, navigate });
   }
 
   const vehicleName = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'this vehicle';
   const conflicted = conflicts.length > 0;
 
   return (
-    <div className="ink-modal__backdrop" onClick={() => { if (!saving) setDismissed(true); }}>
+    <div
+      className="ink-modal__backdrop"
+      onClick={() => {
+        if (saving) return;
+        insistOnAnswer(dialogRef.current);
+        closeRef.current?.focus();
+      }}
+    >
       <div
         className="ink-modal vehicle-dialog"
         role="alertdialog"

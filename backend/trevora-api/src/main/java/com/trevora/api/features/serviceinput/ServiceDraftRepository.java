@@ -13,6 +13,11 @@ public interface ServiceDraftRepository extends JpaRepository<ServiceDraft, UUID
      *  receipt images that the database cascade cannot reach. */
     List<ServiceDraft> findByOwnerId(UUID ownerId);
 
+    /** Every unconfirmed draft for one vehicle, used by the duplicate check:
+     *  scanning the same receipt twice in a row produces two drafts and no
+     *  records at all, which is the case the confirmed-history check misses. */
+    List<ServiceDraft> findByVehicleIdAndOwnerId(UUID vehicleId, UUID ownerId);
+
     /** Draft items cascade at the database level. */
     long deleteByVehicleId(UUID vehicleId);
 }

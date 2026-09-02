@@ -4,6 +4,7 @@ import FlowChrome from '../components/flow/FlowChrome';
 import ReceiptStrip from '../components/flow/ReceiptStrip';
 import ReviewField, { signalFor } from '../components/flow/ReviewField';
 import RecordIssueBand from '../components/flow/RecordIssueBand';
+import DuplicateDraftDialog from '../components/flow/DuplicateDraftDialog.jsx';
 import StatusRail from '../components/flow/StatusRail';
 import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/ServiceLinesEditor';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
@@ -460,11 +461,23 @@ export default function ServiceDraftReviewPage() {
       {/* Not a card in the rail: being filed against the wrong vehicle is
           not something anyone notices later, so it interrupts once, here,
           while the draft can still be moved. */}
-      <VehicleDetailsDialog
-        draft={draft}
-        vehicle={vehicle}
-        onVehicleUpdated={setVehicle}
-      />
+      {/* A duplicate is the more definite of the two problems, and two
+          stacked modals is nobody's idea of a warning — so it goes first
+          and the vehicle one waits its turn. */}
+      {duplicateIssue ? (
+        <DuplicateDraftDialog
+          issue={duplicateIssue}
+          draft={draft}
+          vehicleId={draft?.vehicleId ?? vehicle?.vehicleId}
+          onDismiss={() => setDuplicateDismissed(true)}
+        />
+      ) : (
+        <VehicleDetailsDialog
+          draft={draft}
+          vehicle={vehicle}
+          onVehicleUpdated={setVehicle}
+        />
+      )}
 
       <ConfirmDialog
         open={leavePrompt}

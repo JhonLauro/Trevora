@@ -37,7 +37,12 @@ class ServiceDraftResponseSchemaTest {
         assertThat(fieldNames(root.path("properties"))).containsExactlyInAnyOrder(
                 "documentType", "documentNumber", "referenceNumbers",
                 "serviceDate", "services", "odometer", "totalCost", "shopName", "location",
-                "remarks", "classification", "confidenceNotes", "fieldSources",
+                // plateNumber and vinChassisNumber are read back by
+                // OCRProcessingService into the receiptPlateNumber and
+                // receiptVinChassisNumber metadata the review screen compares
+                // against the vehicle on file.
+                "remarks", "plateNumber", "vinChassisNumber",
+                "classification", "confidenceNotes", "fieldSources",
                 "fieldConfidence", "aiSuggestedFields", "warnings");
 
         // Not nullable, and closed. Every document is one of these and
