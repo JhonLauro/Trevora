@@ -88,11 +88,6 @@ export default function RegisterPage() {
     }
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setFieldErrors((current) => ({ ...current, [name]: validateField(name, value) }));
-  }
-
   async function handleGoogleSignIn() {
     setFormError('');
     setGoogleLoading(true);
@@ -202,7 +197,6 @@ export default function RegisterPage() {
             autoComplete="given-name"
             value={form.firstName}
             onChange={updateField}
-            onBlur={handleBlur}
             error={fieldErrors.firstName}
           />
           <InkField
@@ -213,7 +207,6 @@ export default function RegisterPage() {
             autoComplete="family-name"
             value={form.lastName}
             onChange={updateField}
-            onBlur={handleBlur}
             error={fieldErrors.lastName}
           />
         </div>
@@ -227,7 +220,6 @@ export default function RegisterPage() {
           autoComplete="email"
           value={form.email}
           onChange={updateField}
-          onBlur={handleBlur}
           error={fieldErrors.email}
         />
 
@@ -238,7 +230,6 @@ export default function RegisterPage() {
             autoComplete="new-password"
             value={form.password}
             onChange={updateField}
-            onBlur={handleBlur}
             error={fieldErrors.password}
           />
           {/* The requirement rides with the meter now, so the field no longer
@@ -260,7 +251,6 @@ export default function RegisterPage() {
           autoComplete="new-password"
           value={form.confirmPassword}
           onChange={updateField}
-          onBlur={handleBlur}
           error={fieldErrors.confirmPassword}
           help={fieldErrors.confirmPassword ? undefined : 'Re-type it so we know it is what you meant.'}
         />
