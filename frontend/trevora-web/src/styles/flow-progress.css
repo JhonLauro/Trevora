@@ -1,0 +1,50 @@
+/* The step bar across the top of "Add a service record".
+   Loaded after brand-app.css, which sets the filled colour.
+
+   Only one segment moves: the one this step just completed. Each step in this
+   flow is its own route, so the bar remounts every time — animating every
+   filled segment would replay the whole history on each page and read as a
+   loading sweep rather than as forward motion.
+
+   The fill is a pseudo-element rather than the segment's own background,
+   because a background cannot grow from one edge. `scaleX` from a left origin
+   can, and it is a compositor-only property, so a 5px bar animating at the top
+   of a page costs nothing while the page below it is still settling. */
+
+.flow .flow-progress__seg.is-done.is-latest {
+  /* Hold the empty-track colour on the element itself and let the fill above
+     it do the arriving. Without this, brand-app.css paints the whole segment
+     green immediately and there is nothing left to animate. */
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+
+.flow .flow-progress__seg.is-done.is-latest::after {
+  animation: flow-progress-fill 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  background: var(--brand);
+  border-radius: inherit;
+  content: '';
+  inset: 0;
+  position: absolute;
+  transform-origin: left center;
+}
+
+@keyframes flow-progress-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Here the travel is the whole effect, so there is nothing to reduce it to —
+     the segment simply arrives filled. A fade is kept so the change still
+     registers instead of the bar appearing to have always been that way. */
+  .flow .flow-progress__seg.is-done.is-latest::after {
+    animation: flow-progress-appear 220ms ease-out both;
+  }
+
+  @keyframes flow-progress-appear {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+}

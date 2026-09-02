@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Clock, FileText, UserRoundCheck } from 'lucide-react';
+import { Bell, Clock, UserRoundCheck } from 'lucide-react';
 import { getActiveCurrentUser } from '../api/currentUser.js';
 import { LOCAL_NOTIFICATIONS_CHANGED_EVENT, getLocalNotifications } from '../api/localNotifications.js';
 import {
@@ -20,7 +20,6 @@ import { getMechanicAccessRequests, getOwnerMechanicAccessSessions } from '../ap
 const CATEGORY_ICONS = {
   [NOTIFICATION_CATEGORIES.MECHANIC_REQUEST]: UserRoundCheck,
   [NOTIFICATION_CATEGORIES.TEMPORARY_EXPIRED]: Clock,
-  [NOTIFICATION_CATEGORIES.DRAFT_REVIEW]: FileText,
 };
 
 function notificationStorageKey(userId) {

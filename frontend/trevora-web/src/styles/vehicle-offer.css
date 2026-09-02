@@ -1,0 +1,108 @@
+/* "What this receipt says about your vehicle" — the dialog on draft review.
+   Built on .ink-modal, so only what is particular to this content is here.
+
+   It interrupts on purpose. A record filed under the wrong vehicle is not
+   something anybody discovers later — nobody re-reads a history looking for a
+   car that should not be in it. The one moment it can be caught is while the
+   draft is still a draft. */
+
+/* The shared action row is `display: flex` with `justify-content: flex-end`
+   and no wrapping, sized for two short labels in a 468px modal. A longer one
+   overflowed and the two buttons overlapped. Wrapping is the fix that does not
+   require every future label to be short. */
+.vehicle-dialog .ink-modal__actions {
+  flex-wrap: wrap;
+}
+
+.vehicle-dialog__lead {
+  color: var(--ink, #1c1b19);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- the facts */
+
+/* Labels left, values right. Prose said "the receipt shows a plate number of
+   X and your vehicle has none recorded" once per field, which repeats the
+   frame and buries the only part that changes. A list puts the varying part
+   in a column the eye can run down. */
+.vehicle-dialog__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0 0;
+}
+
+.vehicle-dialog__fact {
+  align-items: baseline;
+  border-top: 1px solid var(--rule-hairline, #efebe3);
+  display: grid;
+  gap: 4px 18px;
+  grid-template-columns: 128px minmax(0, 1fr);
+  padding: 11px 0;
+}
+
+.vehicle-dialog__fact:last-child {
+  border-bottom: 1px solid var(--rule-hairline, #efebe3);
+}
+
+.vehicle-dialog__fact dt {
+  color: var(--ink-muted, #57534c);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.vehicle-dialog__fact dd {
+  margin: 0;
+  min-width: 0;
+}
+
+/* A conflict is two values, stacked, so the difference is seen rather than
+   described. Each carries its own quiet label because "TRK-9876" above
+   "ABC-1234" says nothing about which is which. */
+.vehicle-dialog__fact.is-conflict dd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vehicle-dialog__side {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vehicle-dialog__side > span {
+  color: var(--ink-faint, #8a8377);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Plate and chassis numbers are strings to compare character by character.
+   Monospace with tabular figures is what makes O against 0, or I against 1,
+   visible at a glance — which is the whole reason this asks rather than
+   writing the value in unseen. `anywhere` because a 17-character VIN must
+   break rather than push the dialog wider. */
+.vehicle-dialog__value {
+  color: var(--ink, #1c1b19);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+
+.vehicle-dialog__advice {
+  color: var(--ink-muted, #57534c);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 14px 0 0;
+}
+
+@media (max-width: 480px) {
+  /* The label column stops earning its width once the values start wrapping. */
+  .vehicle-dialog__fact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

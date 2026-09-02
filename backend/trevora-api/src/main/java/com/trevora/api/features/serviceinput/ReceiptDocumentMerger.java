@@ -136,7 +136,12 @@ final class ReceiptDocumentMerger {
                 identitySource.fieldConfidence(),
                 distinct(documents, ReceiptDraftFields::aiSuggestedFields),
                 workSource == null ? identitySource.classification() : workSource.classification(),
-                warnings
+                warnings,
+                /* A plate or chassis printed on any document of the visit
+                   belongs to the same vehicle, so the first one found stands
+                   for all of them. */
+                firstNonBlank(documents, ReceiptDraftFields::plateNumber),
+                firstNonBlank(documents, ReceiptDraftFields::vinChassisNumber)
         );
     }
 
@@ -190,7 +195,9 @@ final class ReceiptDocumentMerger {
                 first.fieldConfidence(),
                 distinct(group, ReceiptDraftFields::aiSuggestedFields),
                 first.classification(),
-                distinct(group, ReceiptDraftFields::warnings)
+                distinct(group, ReceiptDraftFields::warnings),
+                firstNonBlank(group, ReceiptDraftFields::plateNumber),
+                firstNonBlank(group, ReceiptDraftFields::vinChassisNumber)
         );
     }
 

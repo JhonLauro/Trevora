@@ -17,7 +17,6 @@ const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
 // the original seven turned out to be. Grouped by what the notification is
 // about, because the two access ones are the consequential pair.
 const recordNotifications = [
-  ['draftReview', 'A draft needs review', 'A scanned receipt is waiting for you to check it.'],
 ];
 
 const accessNotifications = [

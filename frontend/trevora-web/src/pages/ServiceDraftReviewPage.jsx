@@ -12,6 +12,7 @@ import { issuesByField } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
 import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import VehicleDetailsDialog from '../components/flow/VehicleDetailsDialog.jsx';
 
 /**
  * Step 4 — the one screen between an extracted draft and confirming it.
@@ -272,8 +273,17 @@ export default function ServiceDraftReviewPage() {
     setForm((current) => ({ ...current, services }));
   }
 
-  async function handleSave(event) {
-    event.preventDefault();
+  /**
+   * Saves and reports what the server said back.
+   *
+   * <p>Returns the fresh validation rather than a bare success flag, because
+   * saving is what decides whether this draft may be confirmed — and reading
+   * `readyToConfirm` straight after awaiting would still hold the value from
+   * before the save. Continuing has to judge on the answer it just received.
+   *
+   * <p>Null means the save failed and nothing moved.
+   */
+  async function saveDraft() {
     setSaving(true);
     setError('');
 
@@ -284,11 +294,43 @@ export default function ServiceDraftReviewPage() {
       setValidation(response.validation);
       setForm(next);
       setSaved(next);
+      return response.validation ?? null;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setSaving(false);
     }
+  }
+
+  /*
+   * One button instead of two.
+   *
+   * Saving and continuing were separate controls, and Continue stayed disabled
+   * until you had saved — so every visit to this screen ended in the same two
+   * clicks, in the same order, every time. That is a sequence, not a choice,
+   * and a sequence belongs to the machine.
+   *
+   * The reason it was ever split is real and still holds: confirming reads the
+   * *saved* draft, not this form, so continuing with unsaved edits would
+   * silently drop them. That is why this saves first and only travels if the
+   * save came back clean — and if the server then flags something blocking, it
+   * stays put and shows it, rather than carrying you forward on the strength
+   * of a check that ran before the save.
+   */
+  async function handleContinue(event) {
+    event?.preventDefault();
+    if (saving) return;
+
+    if (dirty) {
+      const validation = await saveDraft();
+      if (!validation) return;            // save failed; the error is on screen
+      if (!validation.valid) return;      // saved, but the server is not happy
+    } else if (!readyToConfirm) {
+      return;
+    }
+
+    navigate(`/service-drafts/${draftId}/confirm`);
   }
 
   const counts = [
@@ -321,7 +363,7 @@ export default function ServiceDraftReviewPage() {
       {error && <div className="flow-alert">{error}</div>}
 
       {draft && (
-        <form className="flow-check" onSubmit={handleSave}>
+        <form className="flow-check" onSubmit={handleContinue}>
           <div className="flow-check__main">
             {draft.inputMethod === 'RECEIPT' && <ReceiptStrip draft={draft} />}
 
@@ -411,10 +453,18 @@ export default function ServiceDraftReviewPage() {
             vehicleSubtext={vehicleSubtext(vehicle)}
             saving={saving}
             dirty={dirty}
-            onContinue={() => navigate(`/service-drafts/${draftId}/confirm`)}
           />
         </form>
       )}
+
+      {/* Not a card in the rail: being filed against the wrong vehicle is
+          not something anyone notices later, so it interrupts once, here,
+          while the draft can still be moved. */}
+      <VehicleDetailsDialog
+        draft={draft}
+        vehicle={vehicle}
+        onVehicleUpdated={setVehicle}
+      />
 
       <ConfirmDialog
         open={leavePrompt}

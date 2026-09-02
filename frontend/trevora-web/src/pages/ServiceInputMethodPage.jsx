@@ -29,7 +29,6 @@ const methods = [
     recommended: true,
     body: 'We read the details off it. Multi-page receipts are fine — keep them in printed order.',
     foot: 'Every field will show where its value came from.',
-    cta: 'Continue with a photo',
   },
   {
     key: 'voice',
@@ -37,7 +36,6 @@ const methods = [
     icon: Mic,
     body: 'Say what was done. We write it down, and you can edit every word of it.',
     foot: 'Quickest when you have no paper.',
-    cta: 'Continue with a voice note',
   },
   {
     key: 'manual',
@@ -45,16 +43,13 @@ const methods = [
     icon: PenLine,
     body: 'Your own words. Nothing is read or guessed — what you type is what saves.',
     foot: 'Best for an old record you already know.',
-    cta: 'Continue by typing',
   },
 ];
 
 /** Step 1 — the vehicle, with the numbers that tell them apart. */
 function PickVehicle({ navigate }) {
   const { garages, loading, error } = useGarage();
-  const [selected, setSelected] = useState('');
 
-  const chosen = garages.find((entry) => entry.vehicle.vehicleId === selected);
 
   return (
     <FlowChrome
@@ -81,14 +76,12 @@ function PickVehicle({ navigate }) {
         <>
           <div className="flow-pick">
             {garages.map(({ vehicle, records }) => {
-              const isSelected = vehicle.vehicleId === selected;
               return (
                 <button
-                  className={`flow-pick__card${isSelected ? ' is-selected' : ''}`}
-                  type="button"
-                  key={vehicle.vehicleId}
-                  onClick={() => setSelected(vehicle.vehicleId)}
-                  aria-pressed={isSelected}
+                    className="flow-pick__card"
+                    type="button"
+                    key={vehicle.vehicleId}
+                    onClick={() => navigate(`/service-input/${vehicle.vehicleId}`)}
                 >
                   <span className="flow-pick__top">
                     <span>
@@ -121,14 +114,10 @@ function PickVehicle({ navigate }) {
 
           <div className="flow-actions">
             <p className="flow-note">Entering from a vehicle page? This step is skipped.</p>
-            <button
-              className="flow-btn"
-              type="button"
-              disabled={!chosen}
-              onClick={() => navigate(`/service-input/${chosen.vehicle.vehicleId}`)}
-            >
-              Proceed
-            </button>
+              {/* Same reasoning as the method step. This one had nothing
+                  selected by default and Proceed was disabled until you
+                  picked, so it cost everybody two clicks to answer one
+                  question: which car. */}
           </div>
         </>
       )}
@@ -139,7 +128,6 @@ function PickVehicle({ navigate }) {
 /** Step 2 — the method. */
 function PickMethod({ vehicleId, navigate }) {
   const [vehicle, setVehicle] = useState(null);
-  const [selected, setSelected] = useState('receipt');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -150,7 +138,6 @@ function PickMethod({ vehicleId, navigate }) {
     return () => { active = false; };
   }, [vehicleId]);
 
-  const chosen = methods.find((method) => method.key === selected) ?? methods[0];
 
   return (
     <FlowChrome
@@ -165,15 +152,12 @@ function PickMethod({ vehicleId, navigate }) {
       <div className="flow-methods">
         {methods.map((method) => {
           const Icon = method.icon;
-          const isSelected = method.key === selected;
           return (
             <button
-              className={`flow-method${isSelected ? ' is-selected' : ''}`}
+              className="flow-method"
               type="button"
               key={method.key}
-              onClick={() => setSelected(method.key)}
-              onDoubleClick={() => navigate(`/service-input/${vehicleId}/${method.key}`)}
-              aria-pressed={isSelected}
+              onClick={() => navigate(`/service-input/${vehicleId}/${method.key}`)}
             >
               <span className="flow-method__top">
                 <Icon size={30} strokeWidth={1.5} aria-hidden="true" />
@@ -199,13 +183,16 @@ function PickMethod({ vehicleId, navigate }) {
         >
           Back
         </button>
-        <button
-          className="flow-btn"
-          type="button"
-          onClick={() => navigate(`/service-input/${vehicleId}/${chosen.key}`)}
-        >
-          {chosen.cta}
-        </button>
+        {/* No confirm button.
+
+            Choosing a method and then confirming it was two actions for one
+            decision, and the decision is free to change -- Back sits on the
+            next screen and nothing has been entered yet. The card is the
+            choice now.
+
+            The double-click shortcut that used to do this went with it:
+            nobody double-clicks a card on the web, so it was a path only
+            its author knew about. */}
       </div>
     </FlowChrome>
   );

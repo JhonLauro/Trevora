@@ -175,7 +175,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 fields.fieldConfidence(),
                 fields.aiSuggestedFields(),
                 fields.classification(),
-                warnings
+                warnings,
+                fields.plateNumber(),
+                fields.vinChassisNumber()
         );
     }
 
@@ -408,6 +410,8 @@ public class OpenAIServiceDraftExtractionProvider {
             BigDecimal totalCost = asBigDecimal(fieldsNode.get("totalCost"));
             String shopName = asText(fieldsNode.get("shopName"));
             String location = asText(fieldsNode.get("location"));
+            String plateNumber = asText(fieldsNode.get("plateNumber"));
+            String vinChassisNumber = asText(fieldsNode.get("vinChassisNumber"));
             if (isInferredFactualValue(fieldSources, "serviceDate")) {
                 serviceDate = null;
                 warnings.add("Service date was not directly supported by receipt text and was left blank.");
@@ -428,6 +432,18 @@ public class OpenAIServiceDraftExtractionProvider {
                 location = null;
                 warnings.add("Location was not directly supported by receipt text and was left blank.");
             }
+            /*
+             * These two get the same treatment as every other factual value,
+             * and it matters more here than most: an inferred plate would be
+             * offered to the owner as something to write onto their vehicle.
+             * A guess is not worth offering.
+             */
+            if (isInferredFactualValue(fieldSources, "plateNumber")) {
+                plateNumber = null;
+            }
+            if (isInferredFactualValue(fieldSources, "vinChassisNumber")) {
+                vinChassisNumber = null;
+            }
             DocumentType documentType = DocumentType.fromNullable(asText(fieldsNode.get("documentType")));
             noteDocumentType(documentType, services, totalCost, warnings);
             reconcile(services, totalCost, warnings);
@@ -447,7 +463,9 @@ public class OpenAIServiceDraftExtractionProvider {
                     fieldConfidence,
                     aiSuggestedFields,
                     classification(fieldsNode.get("classification")),
-                    warnings
+                    warnings,
+                    plateNumber,
+                    vinChassisNumber
             );
         } catch (JsonProcessingException exception) {
             throw new MalformedResponseException(exception);
@@ -644,6 +662,15 @@ public class OpenAIServiceDraftExtractionProvider {
                 Factual values must be directly supported by visible OCR text. Do not invent or infer factual values.
                 Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, and chassis number.
                 If a factual value is missing or uncertain, return null for that field.
+
+                plateNumber and vinChassisNumber are now returned fields. Fill them only from what the
+                receipt itself prints — a plate, conduction sticker, VIN, chassis or engine number in
+                the vehicle block of the paper. The vehicle description given above the OCR text is
+                still never a source: if the receipt does not print the value, return null even when
+                the vehicle block above has one. Copy the characters exactly as printed, including any
+                dashes or spaces, and do not tidy them up. If the reading is doubtful — a character
+                that could be O or 0, I or 1, B or 8 — still return what you read, and add a warning
+                saying which characters were unclear.
                 If multiple possible factual values exist, choose the clearest source-supported value only and add a warning.
 
                 A single visit/receipt can include multiple distinct services (for example an oil change

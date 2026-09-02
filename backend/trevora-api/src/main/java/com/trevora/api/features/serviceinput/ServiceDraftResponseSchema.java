@@ -36,7 +36,8 @@ final class ServiceDraftResponseSchema {
      * {@code isInferredFactualValue} can blank out, plus remarks.
      */
     private static final List<String> EVIDENCE_FIELDS =
-            List.of("serviceDate", "odometer", "totalCost", "shopName", "location", "remarks");
+            List.of("serviceDate", "odometer", "totalCost", "shopName", "location", "remarks",
+                    "plateNumber", "vinChassisNumber");
 
     private static final List<String> CONFIDENCE_VALUES = List.of("high", "medium", "low", "not_found");
 
@@ -94,6 +95,18 @@ final class ServiceDraftResponseSchema {
         properties.put("shopName", nullable("string"));
         properties.put("location", nullable("string"));
         properties.put("remarks", nullable("string"));
+        /*
+         * The vehicle's own identifiers, when the paper prints them.
+         *
+         * These are not service facts and nothing is filed under them — they
+         * exist so the app can notice that a receipt names a plate or chassis
+         * the owner has never recorded, and offer to fill it in. They carry
+         * evidence like every other extracted field, because an offer to
+         * change a vehicle profile has to be able to show where the value came
+         * from.
+         */
+        properties.put("plateNumber", nullable("string"));
+        properties.put("vinChassisNumber", nullable("string"));
         properties.put("classification", classificationSchema());
         properties.put("confidenceNotes", array(Map.of("type", "string")));
         properties.put("fieldSources", fixedKeyMap(evidenceValue));

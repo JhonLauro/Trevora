@@ -94,7 +94,6 @@ export default function AccountSettingsPage() {
     newPassword: false,
     confirmPassword: false,
   });
-<<<<<<< HEAD
   const [notificationPrefs, setNotificationPrefs] = useState(() => loadJson(NOTIFICATION_PREFS_KEY, defaultNotificationPrefs));
   const [accessRequests, setAccessRequests] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
@@ -102,7 +101,6 @@ export default function AccountSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-=======
   const [savedPrefs, setSavedPrefs] = useState(storedPrefs);
   const [notificationPrefs, setNotificationPrefs] = useState(storedPrefs);
   // One status line per section, shown beside that section's own submit
@@ -112,7 +110,6 @@ export default function AccountSettingsPage() {
   const [savingSection, setSavingSection] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [signOutConfirming, setSignOutConfirming] = useState(false);
->>>>>>> 2f19b0287eddead38efc7147e895b5c283bb53ab
 
   const displayName = `${form.firstName} ${form.lastName}`.trim();
   const unsavedPrefCount = countChanges(savedPrefs, notificationPrefs);

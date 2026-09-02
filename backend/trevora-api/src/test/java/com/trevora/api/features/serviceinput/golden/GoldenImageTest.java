@@ -262,7 +262,7 @@ class GoldenImageTest {
                 java.util.Map.of(),
                 List.of(),
                 null,
-                List.of());
+                List.of(), null, null);
     }
 
     private static MockMultipartFile multipart(Path path) {
