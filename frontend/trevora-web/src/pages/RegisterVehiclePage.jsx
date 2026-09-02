@@ -1,5 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import React, { useRef, useState } from 'react';
+import { markOnboardingStep } from '../api/onboarding.js';
+import useOnboardingGate from '../hooks/useOnboardingGate.js';
 import { createVehicle } from '../api/vehicles.js';
 import { removeVehiclePhoto, uploadVehiclePhoto } from '../api/vehiclePhoto.js';
 import VehiclePhotoField from '../components/ink/VehiclePhotoField.jsx';
@@ -22,6 +24,9 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 export default function RegisterVehiclePage() {
   const navigate = useNavigate();
+  /* This page is the step after the walkthrough, and typing its URL was a
+     way around a walkthrough that can no longer be skipped. */
+  const { ready, walkthroughDone } = useOnboardingGate();
   // Every field that `handleSubmit` validates needs a ref here, or focusing
   // the first errored field silently does nothing.
   const fieldRefs = {
@@ -133,6 +138,10 @@ export default function RegisterVehiclePage() {
         photoBucket: photo?.bucket ?? null,
         photoPath: photo?.path ?? null,
       });
+      /* The gate's answer just changed. Without this the app bounces the
+         owner straight back here for the vehicle they have this second
+         finished adding. */
+      markOnboardingStep({ hasVehicle: true });
       navigate(`/service-input/${vehicle.vehicleId}`, { replace: true });
     } catch (err) {
       // Uploaded before the vehicle existed, so clean it up rather than
@@ -141,6 +150,13 @@ export default function RegisterVehiclePage() {
       setFormError(err.message || 'We could not save this vehicle. Please try again.');
       setSubmitting(false);
     }
+  }
+
+  if (!ready) {
+    return null;
+  }
+  if (!walkthroughDone) {
+    return <Navigate to="/welcome" replace />;
   }
 
   return (

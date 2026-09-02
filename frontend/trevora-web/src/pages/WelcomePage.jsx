@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import GarageTransition from '../components/GarageTransition.jsx';
 import InkLockup from '../components/InkLockup.jsx';
 import { isLoggedIn } from '../api/currentUser.js';
+import { markOnboardingStep } from '../api/onboarding.js';
 import { hasSeenWalkthrough, markWalkthroughSeen } from '../api/walkthrough.js';
 import { getVehicles } from '../api/vehicles.js';
 
@@ -382,13 +383,19 @@ const STEPS = [
 
 const LAST = STEPS.length - 1;
 
-/* How long a step holds before advancing itself. Counted from the moment the
-   heading finishes typing, not from arrival — otherwise a second of it is
-   spent watching the sentence appear and the reading time is really six. */
-const AUTO_ADVANCE_MS = 7000;
+/* Steps do not advance themselves any more, so there is no Pause control
+   either. Removing the button while keeping a seven-second timer would have
+   failed WCAG 2.2.2 -- content that moves on for longer than five seconds has
+   to be stoppable -- and, worse than the rule, it would take the walkthrough
+   away from the reader who most needs it: the slow one, now with no way to
+   hold a screen still and no way to skip out. The reader advances it.
+
+   The countdown was also the only thing the stepper's fill animation drew, so
+   `wt-foot` now reports auto="off" permanently -- a state that stylesheet
+   already handles. */
 
 /* How long the car gets before the route changes underneath it. Keep this in
-   step with `--gt-run` in styles/garage-transition.css — the car leaves the
+   step with `--gt-run` in styles/garage-transition.css - the car leaves the
    frame in the last fifth of it, so a mismatch either cuts it off mid-road or
    leaves an empty mint screen sitting there after it has gone. */
 const LEAVE_ANIMATION_MS = 5000;
@@ -401,7 +408,6 @@ export default function WelcomePage() {
      them later, not overlap them. Comparing against `step` means it resets
      itself on every move without a second piece of state to clear. */
   const [typedStep, setTypedStep] = useState(-1);
-  const [autoPlay, setAutoPlay] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const leaveTimerRef = useRef(null);
   /* Two clicks landing in the same frame both read the pre-click `step`, and
@@ -441,6 +447,10 @@ export default function WelcomePage() {
      mid-signup, and the worst case is seeing this once more. */
   const leave = useCallback(() => {
     markWalkthroughSeen();
+    /* Locally too, and before navigating. The POST above is not awaited, so
+       the gate on the next page would otherwise ask a server that has not
+       written the flag yet and send this owner straight back here. */
+    markOnboardingStep({ walkthroughDone: true });
     navigate(onward, { replace: true });
   }, [navigate, onward]);
 
@@ -501,20 +511,6 @@ export default function WelcomePage() {
   const headingDone = typedStep === step;
   const markTyped = useCallback(() => setTypedStep(step), [step]);
   const canAdvance = headingDone && step < LAST;
-  /* Drives the fill on the active stepper segment, so the seven seconds are
-     visible rather than a surprise. */
-  const runningAuto = autoPlay && canAdvance;
-
-  /* Auto-advance. Held until the heading has finished typing, so the seven
-     seconds are seven seconds of reading; cancelled by any move, because the
-     effect re-runs on `step` and the cleanup clears the pending timer.
-     Never runs on the last step — that one ends with a decision, not a
-     deadline. */
-  useEffect(() => {
-    if (!autoPlay || !headingDone || step >= LAST) return undefined;
-    const timer = window.setTimeout(() => go(step + 1), AUTO_ADVANCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [autoPlay, headingDone, go, step]);
 
   useEffect(() => {
     function onKeyDown(event) {
@@ -534,12 +530,11 @@ export default function WelcomePage() {
   return (
     <main className="wt-page" data-checked={checked ? 'true' : 'false'}>
       {leaving && <GarageTransition />}
+      {/* No skip. A new account cannot reach the app until this is finished,
+          so an exit here would only strand somebody on a page the router sends
+          straight back. The way out is the last step's button. */}
       <header className="wt-masthead">
         <InkLockup />
-        {/* Quiet, and available on every step. Taking it counts as having been
-            shown the walkthrough -- somebody who declines it has answered, and
-            asking again next time would be ignoring the answer. */}
-        <button className="wt-skip" type="button" onClick={leave}>Skip walkthrough</button>
       </header>
 
       {/* `key` is the animation. Changing it remounts the stage, so the CSS
@@ -572,7 +567,7 @@ export default function WelcomePage() {
         )}
       </section>
 
-      <nav className="wt-foot" aria-label="Walkthrough steps" data-auto={runningAuto ? 'on' : 'off'}>
+      <nav className="wt-foot" aria-label="Walkthrough steps" data-auto="off">
         <button
           className="wt-foot__back"
           type="button"
@@ -597,20 +592,6 @@ export default function WelcomePage() {
             </li>
           ))}
         </ol>
-
-        {/* Auto-advance is content that moves on its own for longer than five
-            seconds, so it has to be stoppable — that is WCAG 2.2.2, not a
-            nicety. Hidden on the last step, where nothing is advancing. */}
-        {step < LAST && (
-          <button
-            className="wt-foot__pause"
-            type="button"
-            aria-pressed={!autoPlay}
-            onClick={() => setAutoPlay((current) => !current)}
-          >
-            {autoPlay ? 'Pause' : 'Play'}
-          </button>
-        )}
 
         {step === LAST ? (
           <button className="wt-foot__next" type="button" disabled={leaving} onClick={startLeaving}>
