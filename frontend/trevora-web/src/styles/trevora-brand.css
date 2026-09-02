@@ -363,10 +363,26 @@ body {
   background: none;
 }
 
+/* The resting colour, which nothing was setting.
+
+   `.ink-link-button` clears the bare `button` rule's dark fill (ink-app.css)
+   but not its `color: var(--on-ink)` — so the label kept white type with no
+   fill left behind it. White on a white card: "Mark as reviewed" on the
+   vehicle timeline was invisible until the hover rule below finally handed it
+   a colour. Brand green at rest, brand-hover on hover, like every other text
+   action in the product.
+
+   The danger variant is excluded from both. It states its own red in
+   ink-vehicle.css, and this file loads after that one, so an unqualified rule
+   here would quietly turn "Delete" green — at rest and on hover. */
+.ink-link-button:not(.ink-link-button--danger) {
+  color: var(--brand);
+}
+
 .ink-toggle:hover:not(:disabled),
 .ink-toggle:active:not(:disabled),
-.ink-link-button:hover:not(:disabled),
-.ink-link-button:active:not(:disabled) {
+.ink-link-button:not(.ink-link-button--danger):hover:not(:disabled),
+.ink-link-button:not(.ink-link-button--danger):active:not(:disabled) {
   background: none;
   color: var(--brand-hover);
 }

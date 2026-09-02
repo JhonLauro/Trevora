@@ -8,6 +8,15 @@
    Built on the page's existing `flow-card` / `flow-eyebrow` so it belongs to
    the same screen rather than announcing itself as a new component. */
 
+/* `.flow-card` carries the surface and the hairline, never the padding — each
+   card in the flow sets its own (`.flow-recorder` 26/28, `.flow-fields`
+   24/26). This one never did, so every line in it sat against the border.
+   It takes the recorder's exact padding: the two cards stack, and their text
+   has to start on the same left edge. */
+.voice-guide {
+  padding: 26px 28px;
+}
+
 .voice-guide__lead {
   color: var(--ink-muted, #57534c);
   font-size: 15px;
@@ -16,16 +25,23 @@
   max-width: 62ch;
 }
 
-/* Six cells that reflow rather than a fixed grid: at 1200px they sit three
-   across, on a phone they stack into one column, and nothing is ever orphaned
-   as a lone item on its own row. */
+/* Six items, so the column count has to divide six or the last one is left
+   standing on a row of its own. `auto-fit` fitted five 170px columns across
+   the card and orphaned "Work" underneath them. Three and two both divide it;
+   auto-fit divides nothing on purpose. */
 .voice-guide__fields {
   display: grid;
   gap: 10px 20px;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   list-style: none;
   margin: 14px 0 0;
   padding: 0;
+}
+
+@media (max-width: 780px) {
+  .voice-guide__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .voice-guide__fields li {
@@ -76,16 +92,19 @@
 }
 
 @media (max-width: 560px) {
-  /* Two columns, not one.
+  /* Two columns, not one, and they come from the rule above rather than from
+     a lower auto-fit floor.
 
      Forcing a single column here was measured at 746px of guide on a 340px
      screen -- six full-width rows -- which put the record button below the
      fold on a phone, on the one screen where the button is the entire point.
-     A lower floor lets auto-fit keep two columns down to about 320px, which
-     halves the height and loses no words. */
+     Two columns halve that height and lose no words; only the gap tightens. */
+  .voice-guide {
+    padding: 20px;
+  }
+
   .voice-guide__fields {
     gap: 10px 14px;
-    grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
   }
 
   .voice-guide__example {

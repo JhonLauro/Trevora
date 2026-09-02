@@ -115,7 +115,7 @@ public class VoiceTranscriptionService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new VoiceTranscriptionException(errorMessage(response.body()));
+                throw new VoiceTranscriptionException(errorMessage(response.body(), "transcription", rawTranscriptionModel));
             }
 
             JsonNode body = objectMapper.readTree(response.body());
@@ -155,7 +155,7 @@ public class VoiceTranscriptionService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new VoiceTranscriptionException(errorMessage(response.body(), "translation"));
+                throw new VoiceTranscriptionException(errorMessage(response.body(), "translation", textTranslationModel));
             }
 
             JsonNode body = objectMapper.readTree(response.body());
@@ -235,20 +235,27 @@ public class VoiceTranscriptionService {
         return trimmed;
     }
 
-    private String errorMessage(String responseBody) {
-        return errorMessage(responseBody, "transcription");
-    }
-
-    private String errorMessage(String responseBody, String operation) {
+    /**
+     * OpenAI's own words, plus the model they were said about.
+     *
+     * <p>The model is named because the message that sent us looking for this
+     * was "invalid model ID" — true, unhelpful, and silent about which ID.
+     * The id is configuration, not a secret, and it is the first thing anyone
+     * debugging this needs: a quoted value out of a .env file arrives here as
+     * {@code "gpt-4o-mini-transcribe"}, quotes and all, and looks identical to
+     * the correct value in every log that does not print the delimiters.
+     */
+    private String errorMessage(String responseBody, String operation, String model) {
+        String sentModel = " (model sent: [" + model + "])";
         try {
             JsonNode error = objectMapper.readTree(responseBody).path("error");
             String message = error.path("message").asText("");
             if (!message.isBlank()) {
-                return "OpenAI " + operation + " failed: " + message;
+                return "OpenAI " + operation + " failed: " + message + sentModel;
             }
         } catch (IOException ignored) {
             // Fall through to generic message.
         }
-        return "OpenAI " + operation + " failed. Try again with a shorter or clearer recording.";
+        return "OpenAI " + operation + " failed. Try again with a shorter or clearer recording." + sentModel;
     }
 }

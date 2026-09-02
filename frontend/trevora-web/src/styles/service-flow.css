@@ -1772,6 +1772,9 @@
   height: 64px;
   border-radius: 50%;
   background: var(--ink);
+  /* Stated rather than inherited from the bare `button` rule, which now only
+     dresses buttons that carry no class of their own. */
+  color: var(--on-ink);
   border: 0;
   display: flex;
   align-items: center;
@@ -1829,10 +1832,24 @@
   gap: 14px;
 }
 
+/* An ordinary card, deliberately.
+
+   It was sunken and dashed, which is this product's idiom for something
+   missing that should be there — an undocumented year, a service with no
+   lines, an empty page slot. A translation is not missing: the note may
+   already be in English, or the owner may simply not want one. Drawing a hole
+   for an optional panel made the pair read as one real card beside a
+   placeholder, when they are two halves of the same row.
+
+   Only `align-items` survives, and only to stop the button stretching the
+   width of the card. The vertical centring went with the rest: it floated the
+   eyebrow to the middle of the card while its sibling's sat at the top, and
+   two labels on one row belong on one line.
+
+   The surface and the hairline come from `.flow-card`, which this element now
+   carries alongside the ones below — it did not before, and the dashed border
+   was doing double duty as its only visible edge. */
 .flow-transcript-card--empty {
-  background: var(--surface-sunken);
-  border: 1px dashed var(--border);
-  justify-content: center;
   align-items: flex-start;
 }
 
@@ -1939,6 +1956,18 @@
   .flow-lines { grid-template-columns: 1fr; gap: 8px; }
   .flow-service__row { flex-wrap: wrap; }
   .flow-service__subtotal { width: 100%; }
+
+  /* The middle column asked for 220px, which no phone can give it beside a
+     64px button and a 26px gap — so it wrapped, and the button ended up on a
+     line of its own above the timer it belongs next to. Letting the column
+     shrink keeps the two on one row; the label wraps inside it instead. */
+  .flow-recorder { gap: 16px; padding: 20px; }
+  .flow-recorder__mid { min-width: 0; }
+
+  /* Playback and "Record again" take the full width underneath rather than
+     competing with the timer for the first row — with all three side by side
+     the label wrapped to three lines and the waveform shrank to a stub. */
+  .flow-recorder__actions { width: 100%; }
 
   .flow-saved__actions { flex-direction: column; }
   .flow-saved__title { font-size: 28px; }

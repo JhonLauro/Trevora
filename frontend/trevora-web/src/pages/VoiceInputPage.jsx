@@ -392,7 +392,7 @@ export default function VoiceInputPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="flow-recorder__actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {audioUrl && (
               <audio controls src={audioUrl} style={{ height: 52 }}>
                 Your browser does not support audio playback.
@@ -438,7 +438,7 @@ export default function VoiceInputPage() {
               </p>
             </section>
           ) : (
-            <section className="flow-transcript-card flow-transcript-card--empty">
+            <section className="flow-card flow-transcript-card flow-transcript-card--empty">
               <span className="flow-eyebrow">In English</span>
               <p className="flow-note">Not translated yet. The original beside this stays either way.</p>
               <button

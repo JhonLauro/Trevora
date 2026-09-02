@@ -87,6 +87,9 @@ import './styles/mechanic-record.css';
 // service-flow.css, so it must come after it.
 import './styles/voice-guide.css';
 
+// The empty garage — the three ways to add a first record.
+import './styles/garage-start.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>

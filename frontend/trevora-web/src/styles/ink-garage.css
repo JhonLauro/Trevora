@@ -503,6 +503,69 @@
   flex: 1 1 auto;
 }
 
+/* One vehicle is not a carousel card made wider.
+
+   Stretching the 496px card to 1300px stretched everything in it: three stats
+   at 430px each, a chart with more air than bars, and two half-width buttons
+   the length of a sentence. Nothing was wrong and all of it looked wrong,
+   because the layout was built for a column and given a banner.
+
+   So the single card reflows rather than inflates. Identity on the left, the
+   numbers gathered at the right of the same row, the chart across the full
+   width where width actually helps it, and the actions at their natural size
+   instead of half the page each. Two or more vehicles keep the column card —
+   it is right for a row of them. */
+@media (min-width: 901px) {
+  .garage-carousel--single .garage-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head stats"
+      "chart chart"
+      "actions actions";
+    align-items: center;
+  }
+
+  /* The badge belongs to the name, not to the far side of the card. Spread
+     across a 1300px row it drifted into the middle of the layout and read as
+     a third thing between the vehicle and its numbers. */
+  .garage-carousel--single .garage-card__head {
+    grid-area: head;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 14px;
+  }
+  .garage-carousel--single .garage-card__chart { grid-area: chart; }
+  .garage-carousel--single .garage-card__chart-empty { grid-area: chart; }
+  .garage-carousel--single .garage-card__due { grid-area: chart; }
+
+  /* The stats sit in the head row, so they lose the rules that separated them
+     from it and gain one between each other. Auto columns, not thirds: a
+     number is as wide as it is. */
+  .garage-carousel--single .garage-card__stats {
+    grid-area: stats;
+    grid-template-columns: repeat(3, auto);
+    border-top: 0;
+    border-bottom: 0;
+    padding-right: 6px;
+  }
+
+  .garage-carousel--single .garage-stat {
+    padding: 18px 26px;
+    min-width: 118px;
+  }
+
+  .garage-carousel--single .garage-stat + .garage-stat {
+    border-left: 1px solid var(--rule-faint);
+  }
+
+  .garage-carousel--single .garage-card__actions {
+    grid-area: actions;
+    grid-template-columns: auto auto;
+    justify-content: flex-start;
+  }
+}
+
 .garage-card__head {
   align-items: flex-start;
   display: flex;

@@ -392,6 +392,16 @@
   border-bottom: 1px solid var(--rule-faint);
 }
 
+/* With one vehicle the head is half a row rather than a whole one — the stats
+   sit beside it — so the band has to carry across both cells or it stops dead
+   in the middle of the row and reads as two different surfaces. */
+@media (min-width: 901px) {
+  .garage-page .garage-carousel--single .garage-card__stats {
+    background: var(--brand-wash);
+    border-bottom: 1px solid var(--rule-faint);
+  }
+}
+
 /* ------------------------------------------------------ dashboard panels */
 
 /* Scope label. Both panels read every vehicle, and with a row of six cards
@@ -1287,6 +1297,72 @@
 
 .flow .flow-alert {
   border-radius: 18px;
+}
+
+/* The status panel filled with `--ink`, which in this palette is a green-black
+   (#16211c). At badge size that reads as near-black; across a whole panel it
+   reads as murky green — brand colour by accident.
+
+   Only the ready state takes the brand's own green. The not-ready state keeps
+   the ink ground: green here means "nothing is in the way", the same thing it
+   means on the progress bar and the primary button, and a blocked save wearing
+   it would be saying the opposite of its own heading.
+
+   Type is stated rather than inherited: the `--on-ink-*` family is mixed for a
+   near-black ground and drops under 4.5:1 on green. These three clear AA
+   against #0e7a52. */
+.flow .flow-status.is-ready {
+  background: var(--brand);
+}
+
+.flow .flow-status.is-ready .flow-status__eyebrow {
+  color: var(--brand-tint);
+}
+
+.flow .flow-status.is-ready .flow-status__title {
+  color: #ffffff;
+}
+
+.flow .flow-status.is-ready .flow-status__body {
+  color: #e8f4ee;
+}
+
+/* The recorder is the primary action of its screen — the one control the owner
+   came there to press — so it takes the brand green the other primary actions
+   take. It keeps the green while recording: the glyph carries the state (a
+   circle to start, a square to stop), and a control that changes colour under
+   the thumb reads as a different button rather than the same one mid-task. */
+.flow .flow-recorder__btn {
+  background: var(--brand);
+}
+
+.flow .flow-recorder__btn:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.flow .flow-recorder__btn span {
+  background: #ffffff;
+}
+
+/* Recording is the exception to the green: red is what a recording control
+   means everywhere, and it is the one moment on this screen where something is
+   running that the owner has to come back and stop. The glyph still carries
+   the state — this makes it readable without looking at the shape. It is the
+   flow's own `--tier1`, not a new red. */
+.flow .flow-recorder__btn:not(.is-idle) {
+  background: var(--tier1);
+}
+
+.flow .flow-recorder__btn:not(.is-idle):hover:not(:disabled) {
+  background: #8f1c13;
+}
+
+/* The record is saved — the same green the flow used to say "done" at every
+   earlier step, rather than the ink it kept from before the brand. Matches
+   `.flow-pick__tick` above. */
+.flow .flow-saved__tick {
+  background: var(--brand);
+  color: #ffffff;
 }
 
 /* The reading modal is progress, so it is green by the rule above — the same

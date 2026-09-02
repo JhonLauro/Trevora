@@ -274,11 +274,32 @@ button,
     color 120ms ease-out;
 }
 
+/* Sizing for every button; the dark fill only for the ones with no class.
+
+   The fill and its white label used to apply to every button on the site, and
+   a classed button that reset only `background` kept the white `color` with
+   nothing behind it — white on white, readable on hover if some other rule
+   happened to state a colour there. That was `.ink-link-button` ("Mark as
+   reviewed" on the vehicle timeline, and the mechanic page's clear-search),
+   invisible at rest for exactly this reason.
+
+   The hover below was already narrowed to unclassed buttons for a related
+   specificity fight; this brings the resting state into line with it. `:where`
+   contributes no specificity, so the rule still ranks at (0,0,1) — anything
+   that overrode it before overrides it now — it simply stops matching buttons
+   that dress themselves.
+
+   Every classed button in the app was checked for both failure directions
+   before this changed: none lost a fill it depended on, and none was left
+   dark-on-dark. */
 button {
-  background: var(--ink);
-  color: var(--on-ink);
   min-height: var(--field-h);
   padding: 0 20px;
+}
+
+button:where(:not([class])) {
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 /* `:not([class])`, and it matters more than it looks.

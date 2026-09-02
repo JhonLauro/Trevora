@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ScanLine, TrendingDown, TrendingUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Mic, PenLine, TrendingDown, TrendingUp } from 'lucide-react';
 import MonthBars from '../components/ink/MonthBars.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
@@ -80,13 +80,23 @@ function VehicleCard({ vehicle, records }) {
         <Stat label="Last service" value={records[0]?.serviceDate ? formatMonthYear(records[0].serviceDate) : 'None yet'} />
       </div>
 
-      <div className="garage-card__chart">
-        <MonthBars
-          series={series}
-          showRange
-          label={`Service activity for ${name} over the last 12 months`}
-        />
-      </div>
+      {/* Twelve empty bars and a date range is a chart of nothing — the most
+          visibly empty thing on an empty garage, and it says less than the
+          "0" above it already did. A car with no records says what the chart
+          will become instead. */}
+      {records.length === 0 ? (
+        <p className="garage-card__chart-empty">
+          Add a record and twelve months of service activity chart here.
+        </p>
+      ) : (
+        <div className="garage-card__chart">
+          <MonthBars
+            series={series}
+            showRange
+            label={`Service activity for ${name} over the last 12 months`}
+          />
+        </div>
+      )}
 
       <div className="garage-card__actions">
         <Link className="ink-button ink-button--sm" to={`/service-input/${vehicleId}`}>Add record</Link>
@@ -429,6 +439,90 @@ function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
   );
 }
 
+/* The three ways in, in the words the flow itself uses. Kept identical to
+   `methods` in ServiceInputMethodPage on purpose: the owner is about to see
+   that screen, or skip straight past it, and two descriptions of the same
+   three choices is how they drift apart. */
+const START_METHODS = [
+  {
+    key: 'receipt',
+    icon: FileText,
+    title: 'Photo of the receipt',
+    body: 'We read the date, shop, services and cost off it. You correct anything before it saves.',
+    recommended: true,
+  },
+  {
+    key: 'voice',
+    icon: Mic,
+    title: 'Voice note',
+    body: 'Say what was done and we write it down. Quickest when you have no paper.',
+  },
+  {
+    key: 'manual',
+    icon: PenLine,
+    title: 'Type it in',
+    body: 'Your own words, nothing guessed. Best for a service you already know.',
+  },
+];
+
+/**
+ * The empty garage's one panel.
+ *
+ * <p>It replaced a "Scan a receipt" button that did not scan a receipt: it and
+ * the "Type it in" beside it both linked to `/service-input`, the screen that
+ * asks which of the three methods you want. Two labels, one destination, and
+ * neither promise kept. The three methods are the choice, so the panel offers
+ * them directly.
+ *
+ * <p>With one vehicle each card goes straight into that method — the flow is
+ * built to skip its vehicle step when the car is already known, and an owner
+ * with one car should never be asked which. With several, the link goes to the
+ * picker, which is then a question worth asking.
+ */
+function StartHere({ vehicles }) {
+  const onlyVehicleId = vehicles.length === 1 ? vehicles[0].vehicleId : null;
+  const hrefFor = (key) => (onlyVehicleId ? `/service-input/${onlyVehicleId}/${key}` : '/service-input');
+
+  return (
+    <section className="garage-start tv-reveal" style={{ '--reveal-index': 2 }}>
+      <div className="garage-start__head">
+        <h2 className="ink-empty__title">Add your first service record</h2>
+        <p className="ink-empty__body">
+          One record is enough to start. However it goes in, you see every value and correct it
+          before anything is saved.
+        </p>
+      </div>
+
+      <div className="garage-start__methods">
+        {START_METHODS.map((method) => (
+          <Link className="garage-start__method" key={method.key} to={hrefFor(method.key)}>
+            <span className="garage-start__method-top">
+              <method.icon size={20} aria-hidden="true" />
+              {method.recommended && <span className="garage-start__rec">Recommended</span>}
+            </span>
+            <span className="garage-start__method-title">{method.title}</span>
+            <span className="garage-start__method-body">{method.body}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* What the garage becomes, in the order it happens. Three lines of fact
+          rather than a picture of a dashboard nobody has yet: the panels above
+          stay hidden until they have something real to plot. */}
+      <ol className="garage-start__next">
+        <li>
+          <span className="garage-start__step">Then</span>
+          Your spending and service history fill the panels on this page.
+        </li>
+        <li>
+          <span className="garage-start__step">And</span>
+          A mechanic can read that history from a QR code, for as long as you allow.
+        </li>
+      </ol>
+    </section>
+  );
+}
+
 /**
  * Renders only when something actually needs action, which is why the old
  * dashboard's four separate empty states are gone — an empty panel that is
@@ -522,22 +616,7 @@ export default function GaragePage() {
 
       {hasVehicles && <VehicleCarousel garages={garages} />}
 
-      {hasVehicles && !hasRecords && !loading && (
-        <section className="ink-empty tv-reveal" style={{ '--reveal-index': 2 }}>
-          <h2 className="ink-empty__title">Start with your last receipt</h2>
-          <p className="ink-empty__body">
-            One receipt is enough to begin. Trevora reads the date, shop, services and cost off it,
-            and you correct anything it got wrong before it is saved.
-          </p>
-          <div className="ink-empty__actions">
-            <Link className="ink-button" to="/service-input">
-              <ScanLine size={17} aria-hidden="true" />
-              Scan a receipt
-            </Link>
-            <Link className="ink-button ink-button--outline" to="/service-input">Type it in</Link>
-          </div>
-        </section>
-      )}
+      {hasVehicles && !hasRecords && !loading && <StartHere vehicles={vehicles} />}
 
       {hasRecords && (
         <>
