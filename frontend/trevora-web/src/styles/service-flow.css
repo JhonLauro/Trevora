@@ -592,6 +592,12 @@
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--ink-muted);
+  /* OCR text is not prose: reference numbers, part codes and rules of dashes
+     arrive as single unbreakable runs. Normal wrapping only breaks at spaces,
+     so one of those was wider than a phone and took the whole document with
+     it — the page scrolled sideways and every other card stopped short of the
+     right edge. `anywhere` breaks the run instead of the layout. */
+  overflow-wrap: anywhere;
 }
 
 /* --- the conflicting-value chooser --- */
@@ -639,6 +645,11 @@
   gap: 12px;
   cursor: pointer;
   font-size: 16px;
+  /* The real checkbox below is taken out of the flow so the track can stand in
+     for it. Without a positioned ancestor it resolved against the initial
+     containing block instead of this label, which put it outside the page and
+     gave the whole document a horizontal scrollbar. */
+  position: relative;
 }
 
 .flow-switch input { position: absolute; opacity: 0; pointer-events: none; }
@@ -801,7 +812,9 @@
   padding-left: 6px;
 }
 
-.flow-transcript { font-size: 16px; line-height: 1.65; }
+/* Same guard as `.flow-quote`: a transcript is usually prose, but a spoken
+   plate number or a pasted reference arrives as one unbreakable run. */
+.flow-transcript { font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
 
 .flow-source__foot {
   font-size: 15px;
@@ -1093,6 +1106,9 @@
   letter-spacing: 0.04em;
   color: var(--ink-muted);
   padding-left: 2px;
+  /* Printed part numbers are unbreakable runs, and this cell is `min-width: 0`
+     — without this the code overflows the grid rather than wrapping in it. */
+  overflow-wrap: anywhere;
 }
 
 /* The kind legend. Collapsed by default: the explanation matters, but only to
