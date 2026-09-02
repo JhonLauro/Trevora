@@ -25,7 +25,7 @@ class ExplanationTemplateTest {
     private static final String GENERIC = "Having this written down";
 
     private String whyItMatters(String serviceType, String parts, String labor) throws Exception {
-        AIExplanationService service = new AIExplanationService(null, null, null, null, null);
+        AIExplanationService service = new AIExplanationService(null, null, null, null, null, null);
         Method method = AIExplanationService.class.getDeclaredMethod(
                 "buildWhyItMatters", String.class, String.class, String.class);
         method.setAccessible(true);

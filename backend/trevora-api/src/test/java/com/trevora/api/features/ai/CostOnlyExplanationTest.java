@@ -122,7 +122,7 @@ class CostOnlyExplanationTest {
             Method method = AIExplanationService.class.getDeclaredMethod(name, signature);
             method.setAccessible(true);
             // Null collaborators are safe here: neither method touches them.
-            return method.invoke(new AIExplanationService(null, null, null, null, null), args);
+            return method.invoke(new AIExplanationService(null, null, null, null, null, null), args);
         } catch (ReflectiveOperationException exception) {
             throw new RuntimeException(exception);
         }
