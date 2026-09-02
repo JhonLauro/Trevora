@@ -1953,7 +1953,34 @@
   .flow-pages { grid-template-columns: 1fr 1fr; }
   .flow-camera__stage { height: 360px; }
 
-  .flow-lines { grid-template-columns: 1fr; gap: 8px; }
+  /* One line, two rows — not four.
+
+     A single column gave every cell a row of its own: the description, the
+     kind, the amount, and then a delete cross stranded on a line by itself
+     with nothing to say which entry it belonged to. Consecutive entries ran
+     together into one undifferentiated stack.
+
+     The description takes the full width because it is the long one, and the
+     three short controls share the row beneath it, in the order the desktop
+     header names them. A rule above every entry but the first makes each one
+     read as a unit. */
+  .flow-lines {
+    grid-template-columns: minmax(0, 1fr) 104px 44px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .flow-lines__desc {
+    grid-column: 1 / -1;
+  }
+
+  /* The description is the only `div` among these cells, so "every one after
+     the first" is every entry after the first. */
+  .flow-lines__desc:nth-of-type(n + 2) {
+    border-top: 1px solid var(--rule-faint);
+    padding-top: 14px;
+    margin-top: 6px;
+  }
   .flow-service__row { flex-wrap: wrap; }
   .flow-service__subtotal { width: 100%; }
 
