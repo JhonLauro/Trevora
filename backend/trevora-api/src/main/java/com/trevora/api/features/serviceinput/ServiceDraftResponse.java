@@ -17,6 +17,16 @@ public record ServiceDraftResponse(
         UUID vehicleId,
         UUID ownerId,
         InputMethod inputMethod,
+        /**
+         * What kind of document this was read off, and the numbers printed on
+         * it. Exposed because a stored value nothing can fetch is a stored
+         * value nobody sees: the type is what tells an owner that a total came
+         * off a quote rather than a bill, and documentNumber is what they quote
+         * back to the shop to reach the shop's own record of the visit.
+         */
+        DocumentType documentType,
+        String documentNumber,
+        List<String> referenceNumbers,
         LocalDate serviceDate,
         List<ServiceItemResponse> services,
         Integer odometer,
@@ -47,6 +57,9 @@ public record ServiceDraftResponse(
                 draft.getVehicleId(),
                 draft.getOwnerId(),
                 draft.getInputMethod(),
+                draft.getDocumentType(),
+                draft.getDocumentNumber(),
+                draft.getReferenceNumbers(),
                 legacyMockVoiceDraft ? null : draft.getServiceDate(),
                 services,
                 legacyMockVoiceDraft ? null : draft.getOdometer(),

@@ -7,6 +7,8 @@ import java.util.Map;
 
 public record ReceiptExtractionResult(
         DocumentType documentType,
+        String documentNumber,
+        List<String> referenceNumbers,
         LocalDate serviceDate,
         List<ServiceItemFields> services,
         Integer odometer,

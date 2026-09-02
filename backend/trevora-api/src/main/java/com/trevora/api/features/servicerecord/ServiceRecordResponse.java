@@ -16,6 +16,16 @@ public record ServiceRecordResponse(
         UUID vehicleId,
         UUID ownerId,
         InputMethod sourceInputMethod,
+        /**
+         * The kind of document behind this record, and the numbers on it. A
+         * record confirmed from an estimate holds a quoted total and has to be
+         * able to say so; documentNumber is the reference an owner quotes to
+         * the shop that did the work, which reaches everything that shop
+         * recorded and this record never held.
+         */
+        com.trevora.api.features.serviceinput.DocumentType documentType,
+        String documentNumber,
+        List<String> referenceNumbers,
         LocalDate serviceDate,
         List<ServiceItemResponse> services,
         Integer odometer,
@@ -37,6 +47,9 @@ public record ServiceRecordResponse(
                 record.getVehicleId(),
                 record.getOwnerId(),
                 record.getSourceInputMethod(),
+                record.getDocumentType(),
+                record.getDocumentNumber(),
+                record.getReferenceNumbers(),
                 record.getServiceDate(),
                 items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
                 record.getOdometer(),

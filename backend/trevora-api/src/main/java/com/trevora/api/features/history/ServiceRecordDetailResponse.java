@@ -19,6 +19,15 @@ public record ServiceRecordDetailResponse(
         UUID ownerId,
         InputMethod sourceInputMethod,
         ValidationStatus validationStatus,
+        /**
+         * The kind of document this record came off, and the numbers on it.
+         * This is the screen a mechanic is shown at handoff, so it is the one
+         * place documentNumber matters most: it is the reference that reaches
+         * the servicing shop's own record of the visit.
+         */
+        com.trevora.api.features.serviceinput.DocumentType documentType,
+        String documentNumber,
+        List<String> referenceNumbers,
         LocalDate serviceDate,
         List<ServiceItemResponse> services,
         Integer odometer,
@@ -44,6 +53,9 @@ public record ServiceRecordDetailResponse(
                 record.getOwnerId(),
                 record.getSourceInputMethod(),
                 record.getValidationStatus(),
+                record.getDocumentType(),
+                record.getDocumentNumber(),
+                record.getReferenceNumbers(),
                 record.getServiceDate(),
                 items == null ? List.of() : items.stream().map(ServiceItemResponse::from).toList(),
                 record.getOdometer(),

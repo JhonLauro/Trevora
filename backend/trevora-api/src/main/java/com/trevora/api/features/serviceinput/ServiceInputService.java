@@ -130,6 +130,10 @@ public class ServiceInputService {
         // Which sheet of the stack this came off. The voice path leaves the
         // default: a spoken account is not a document and has no type to read.
         draft.setDocumentType(extraction.documentType());
+        // The shop's own reference, and the documents it points at. Kept on the
+        // draft so an owner can quote it back to the service centre.
+        draft.setDocumentNumber(extraction.documentNumber());
+        draft.setReferenceNumbers(extraction.referenceNumbers());
         draft.setServiceDate(extraction.serviceDate());
         draft.setOdometer(extraction.odometer());
         draft.setTotalCost(extraction.totalCost());

@@ -63,6 +63,22 @@ public class ServiceRecord {
     private com.trevora.api.features.serviceinput.DocumentType documentType =
             com.trevora.api.features.serviceinput.DocumentType.defaultType();
 
+    /**
+     * The number to quote to the shop that did the work.
+     *
+     * <p>Carried over from the draft. It is the key to the shop's own system,
+     * which holds far more about the visit than this record ever will - what
+     * the technician found, the parts by number, the specs. Handing a mechanic
+     * "Toyota Talisay, repair order G7IA123581" is the handoff working.
+     */
+    @Column(name = "document_number")
+    private String documentNumber;
+
+    /** The other documents of this visit, so the rest of the paperwork can be found. */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "reference_numbers", columnDefinition = "jsonb")
+    private java.util.List<String> referenceNumbers = new java.util.ArrayList<>();
+
     @Column(name = "service_date", nullable = false)
     private LocalDate serviceDate;
 
@@ -154,6 +170,26 @@ public class ServiceRecord {
 
     public void setValidationStatus(ValidationStatus validationStatus) {
         this.validationStatus = validationStatus;
+    }
+
+    public String getDocumentNumber() {
+        return documentNumber;
+    }
+
+    public void setDocumentNumber(String documentNumber) {
+        this.documentNumber = documentNumber == null || documentNumber.isBlank()
+                ? null
+                : documentNumber.trim();
+    }
+
+    public java.util.List<String> getReferenceNumbers() {
+        return referenceNumbers;
+    }
+
+    public void setReferenceNumbers(java.util.List<String> referenceNumbers) {
+        this.referenceNumbers = referenceNumbers == null
+                ? new java.util.ArrayList<>()
+                : new java.util.ArrayList<>(referenceNumbers);
     }
 
     public com.trevora.api.features.serviceinput.DocumentType getDocumentType() {

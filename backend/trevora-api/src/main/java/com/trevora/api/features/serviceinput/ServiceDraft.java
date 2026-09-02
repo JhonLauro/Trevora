@@ -12,6 +12,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -48,6 +50,22 @@ public class ServiceDraft {
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false)
     private DocumentType documentType = DocumentType.defaultType();
+
+    /**
+     * The document's own printed reference, and the documents it points at.
+     *
+     * <p>Kept as columns rather than in {@code fieldMetadata} because they are
+     * answers, not diagnostics. The number a service centre prints is the key
+     * to that shop's own system: an owner who can quote it gets back everything
+     * the dealership recorded and this app never saw. Null and empty are normal
+     * - a small shop prints neither.
+     */
+    @Column(name = "document_number")
+    private String documentNumber;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "reference_numbers", columnDefinition = "jsonb")
+    private List<String> referenceNumbers = new ArrayList<>();
 
     @Column(name = "service_date")
     private LocalDate serviceDate;
@@ -129,6 +147,24 @@ public class ServiceDraft {
 
     public void setInputMethod(InputMethod inputMethod) {
         this.inputMethod = inputMethod;
+    }
+
+    public String getDocumentNumber() {
+        return documentNumber;
+    }
+
+    public void setDocumentNumber(String documentNumber) {
+        this.documentNumber = documentNumber == null || documentNumber.isBlank()
+                ? null
+                : documentNumber.trim();
+    }
+
+    public List<String> getReferenceNumbers() {
+        return referenceNumbers;
+    }
+
+    public void setReferenceNumbers(List<String> referenceNumbers) {
+        this.referenceNumbers = referenceNumbers == null ? new ArrayList<>() : new ArrayList<>(referenceNumbers);
     }
 
     public DocumentType getDocumentType() {

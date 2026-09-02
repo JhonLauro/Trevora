@@ -253,6 +253,8 @@ public class OCRProcessingService {
 
         return new ReceiptExtractionResult(
                 fields.documentType(),
+                fields.documentNumber(),
+                fields.referenceNumbers() == null ? List.of() : fields.referenceNumbers(),
                 fields.serviceDate(),
                 classifiedServices,
                 fields.odometer(),
@@ -324,6 +326,8 @@ public class OCRProcessingService {
                 null,
                 List.of(),
                 null,
+                List.of(),
+                null,
                 null,
                 null,
                 null,
@@ -368,6 +372,8 @@ public class OCRProcessingService {
     ) {
         return new ReceiptExtractionResult(
                 DocumentType.defaultType(),
+                null,
+                List.of(),
                 null,
                 List.of(),
                 null,

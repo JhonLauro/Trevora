@@ -171,6 +171,8 @@ public class ServiceRecordService {
         // estimate is still an estimate's cost, and history has no other way to
         // know that once the draft is gone.
         record.setDocumentType(draft.getDocumentType());
+        record.setDocumentNumber(draft.getDocumentNumber());
+        record.setReferenceNumbers(draft.getReferenceNumbers());
         record.setServiceDate(draft.getServiceDate());
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());
