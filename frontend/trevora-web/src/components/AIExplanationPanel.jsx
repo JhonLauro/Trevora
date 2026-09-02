@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Sparkles, TriangleAlert } from 'lucide-react';
+import { Sparkles, TriangleAlert } from 'lucide-react';
 import { getServiceRecordAIExplanation } from '../api/aiExplanations';
 
 /**
@@ -20,6 +20,11 @@ import { getServiceRecordAIExplanation } from '../api/aiExplanations';
  * `{ label, values }` — and this renders it. If a response arrives without
  * that field the sentence is simply shown as written, which is the correct
  * behaviour for a client that no longer pretends to know how prose was built.
+ *
+ * <p>There is deliberately no Regenerate button. Every press is another
+ * model call on a shared budget, and the second answer is not better than
+ * the first — only different. The one retry left is inside the error state,
+ * where nothing was produced to keep.
  */
 
 function DetailValues({ values }) {
@@ -73,15 +78,6 @@ export default function AIExplanationPanel({ recordId }) {
           <Sparkles size={18} aria-hidden="true" />
           In plain language
         </h2>
-        <button
-          className="aiex__refresh"
-          type="button"
-          onClick={() => setReloadKey((value) => value + 1)}
-          disabled={loading}
-        >
-          <RefreshCw size={15} aria-hidden="true" />
-          {loading ? 'Working…' : 'Regenerate'}
-        </button>
       </div>
 
       {loading && <p className="aiex__note">Putting this record into plain language…</p>}

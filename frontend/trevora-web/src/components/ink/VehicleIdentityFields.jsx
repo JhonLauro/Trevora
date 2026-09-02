@@ -4,9 +4,9 @@ import Combobox from './Combobox.jsx';
 import {
   bodyTypeFor,
   bodyTypeForModelAnywhere,
-  catalogMakes,
   modelsForMake,
 } from '../../data/vehicleCatalog';
+import { allMakes } from '../../data/vehicleMakes';
 
 /**
  * Make, model and body type — the three fields that have to agree.
@@ -61,7 +61,7 @@ export function deriveVehicleIdentity(current, changes) {
 }
 
 export default function VehicleIdentityFields({ form, errors = {}, onChange, refs = {} }) {
-  const makes = catalogMakes();
+  const makes = allMakes();
   const models = modelsForMake(form.make);
   const knownMake = models.length > 0;
 
@@ -78,8 +78,8 @@ export default function VehicleIdentityFields({ form, errors = {}, onChange, ref
         value={form.make}
         options={makes}
         error={errors.make}
-        placeholder="Toyota, Honda, Mitsubishi…"
-        hint="Pick from the list, or type it if the brand is not there."
+        placeholder="Search brands — Toyota, Honda, Mitsubishi…"
+        hint="Start typing to search the list. If your brand is not there, type it anyway."
         emptyHint="Not on the list — it will be saved exactly as you typed it."
         onChange={(value) => update({ make: value })}
       />

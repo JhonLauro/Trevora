@@ -105,7 +105,6 @@ export default function ForgotPasswordPage() {
             setFormError('');
             if (fieldError) setFieldError(validate(event.target.value));
           }}
-          onBlur={(event) => setFieldError(validate(event.target.value))}
           error={fieldError}
         />
 

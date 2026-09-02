@@ -10,6 +10,8 @@ import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.text.NumberFormat;
 import com.trevora.api.features.serviceinput.DocumentType;
 import com.trevora.api.features.serviceinput.ServiceLineKind;
@@ -21,14 +23,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AIExplanationService {
+    private static final Logger log = LoggerFactory.getLogger(AIExplanationService.class);
+
     private static final String SOURCE = "template";
     private static final String FALLBACK_SOURCE = "template_fallback";
     /** Not a fallback: the correct and complete answer for a record with no work. */
@@ -44,19 +51,22 @@ public class AIExplanationService {
     private final CurrentUserService currentUserService;
     private final VehicleService vehicleService;
     private final OpenAIExplanationProvider explanationProvider;
+    private final ServiceRecordExplanationRepository explanationRepository;
 
     public AIExplanationService(
             ServiceRecordRepository serviceRecordRepository,
             ServiceRecordItemReader serviceRecordItemReader,
             CurrentUserService currentUserService,
             VehicleService vehicleService,
-            OpenAIExplanationProvider explanationProvider
+            OpenAIExplanationProvider explanationProvider,
+            ServiceRecordExplanationRepository explanationRepository
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.currentUserService = currentUserService;
         this.vehicleService = vehicleService;
         this.explanationProvider = explanationProvider;
+        this.explanationRepository = explanationRepository;
     }
 
     public AIExplanationResponse getExplanationForRecord(UUID recordId) {
@@ -147,13 +157,21 @@ public class AIExplanationService {
     }
 
     /**
+     * The model's explanation for this record: the stored one where it still
+     * applies, a newly written one otherwise.
+     *
+     * <p>A record's facts do not change after confirmation, so the second call
+     * to the model for the same record buys a differently-worded answer to the
+     * same question at the same price. It is written once and kept.
+     *
+     * <p>The cache is read before the provider is even asked whether it is
+     * available, deliberately: an explanation written last week is still the
+     * best thing to show an owner today, including on a day when the API key
+     * is missing and every fresh call would fall to the template.
+     *
      * @return the model's explanation, or null to fall through to the template.
      */
     private AIExplanationResponse generateModelExplanation(ServiceRecord record, List<ServiceRecordItem> items) {
-        if (!explanationProvider.available()) {
-            return null;
-        }
-
         boolean tagged = hasLineEntries(items);
         List<String> parts = tagged
                 ? lineEntriesOfKind(items, ServiceLineKind.PART)
@@ -163,28 +181,137 @@ public class AIExplanationService {
                 ? lineEntriesOfKind(items, ServiceLineKind.OPERATION)
                 : itemFieldValues(items, ServiceRecordItem::getLaborPerformed);
 
-        OpenAIExplanationProvider.Explanation explanation = explanationProvider.explain(
-                new OpenAIExplanationProvider.Facts(
-                        vehicleLabelFor(record),
-                        serviceSummaryFor(items),
-                        parts,
-                        materials,
-                        labor,
-                        blankToNull(record.getShopName()),
-                        formatDate(record.getServiceDate()),
-                        record.getOdometer() == null ? null : record.getOdometer() + " km",
-                        record.getTotalCost() == null ? null : formatMoney(record.getTotalCost()),
-                        blankToNull(record.getRemarks())
-                ));
+        OpenAIExplanationProvider.Facts facts = new OpenAIExplanationProvider.Facts(
+                vehicleLabelFor(record),
+                serviceSummaryFor(items),
+                parts,
+                materials,
+                labor,
+                blankToNull(record.getShopName()),
+                formatDate(record.getServiceDate()),
+                record.getOdometer() == null ? null : record.getOdometer() + " km",
+                record.getTotalCost() == null ? null : formatMoney(record.getTotalCost()),
+                blankToNull(record.getRemarks()));
 
+        /* The details are rebuilt from the record every time and never read
+           from the cache. They are the owner's own parts list and total, and a
+           stored copy of a figure is a figure that can go stale silently. */
+        List<AIExplanationDetail> details = buildDetails(record, parts, materials, labor);
+        String fingerprint = fingerprintOf(facts);
+
+        ServiceRecordExplanation stored = explanationRepository.findById(record.getRecordId()).orElse(null);
+        if (stored != null && fingerprint.equals(stored.getFactsFingerprint())) {
+            return modelResponse(
+                    record,
+                    stored.getModel(),
+                    stored.getWhatWasDone(),
+                    details,
+                    stored.getWhyItMatters(),
+                    stored.getWatchFor(),
+                    stored.getGeneratedAt());
+        }
+
+        if (!explanationProvider.available()) {
+            return null;
+        }
+
+        OpenAIExplanationProvider.Explanation explanation = explanationProvider.explain(facts);
         if (explanation == null) {
             return null;
         }
 
-        /* The facts stay structured and stay ours. The model writes the prose;
-           it does not restate the parts list or the total, because those are
-           the owner's own figures and a model that retypes them can mistype
-           them. */
+        Instant generatedAt = Instant.now();
+        String model = explanationProvider.model();
+        remember(record.getRecordId(), fingerprint, model, explanation, generatedAt);
+
+        return modelResponse(
+                record,
+                model,
+                explanation.whatWasDone(),
+                details,
+                explanation.whyItMatters(),
+                explanation.watchFor(),
+                generatedAt);
+    }
+
+    private AIExplanationResponse modelResponse(
+            ServiceRecord record,
+            String model,
+            String whatWasDone,
+            List<AIExplanationDetail> details,
+            String whyItMatters,
+            List<String> watchFor,
+            Instant generatedAt
+    ) {
+        return new AIExplanationResponse(
+                record.getRecordId(),
+                record.getVehicleId(),
+                MODEL_SOURCE_PREFIX + model,
+                false,
+                whatWasDone,
+                List.copyOf(details),
+                whyItMatters,
+                List.copyOf(watchFor),
+                DISCLAIMER,
+                generatedAt
+        );
+    }
+
+    /**
+     * Stores an explanation, and never lets storing one cost the owner the
+     * explanation itself.
+     *
+     * <p>The text has already been paid for and is already correct. A failed
+     * write here means the next view pays again -- annoying, and not a reason
+     * to show somebody the failure card instead of their answer.
+     */
+    private void remember(
+            UUID recordId,
+            String fingerprint,
+            String model,
+            OpenAIExplanationProvider.Explanation explanation,
+            Instant generatedAt
+    ) {
+        try {
+            explanationRepository.save(new ServiceRecordExplanation(
+                    recordId,
+                    fingerprint,
+                    model,
+                    explanation.whatWasDone(),
+                    explanation.whyItMatters(),
+                    explanation.watchFor(),
+                    generatedAt));
+        } catch (RuntimeException failure) {
+            log.warn("Could not cache the explanation for record {} ({})",
+                    recordId, failure.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * A fingerprint of everything the explanation was written from.
+     *
+     * <p>Taken over the prompt itself rather than over a list of fields, so it
+     * cannot drift from what the model actually saw: change how the facts are
+     * assembled and every fingerprint changes with it. Correcting a service
+     * type or adding a part therefore regenerates on the next view, with
+     * nothing anywhere needing to remember to clear a row.
+     */
+    static String fingerprintOf(OpenAIExplanationProvider.Facts facts) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(
+                    digest.digest(facts.asPrompt().getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            // SHA-256 is required of every Java platform.
+            throw new IllegalStateException(impossible);
+        }
+    }
+
+    /* The facts stay structured and stay ours. The model writes the prose; it
+       does not restate the parts list or the total, because those are the
+       owner's own figures and a model that retypes them can mistype them. */
+    private List<AIExplanationDetail> buildDetails(
+            ServiceRecord record, List<String> parts, List<String> materials, List<String> labor) {
         List<AIExplanationDetail> details = new ArrayList<>();
         addDetail(details, "Parts noted", parts);
         addDetail(details, "Materials used", materials);
@@ -192,19 +319,7 @@ public class AIExplanationService {
         if (record.getTotalCost() != null) {
             addDetail(details, "Total recorded cost", List.of(formatMoney(record.getTotalCost())));
         }
-
-        return new AIExplanationResponse(
-                record.getRecordId(),
-                record.getVehicleId(),
-                MODEL_SOURCE_PREFIX + explanationProvider.model(),
-                false,
-                explanation.whatWasDone(),
-                List.copyOf(details),
-                explanation.whyItMatters(),
-                List.copyOf(explanation.watchFor()),
-                DISCLAIMER,
-                Instant.now()
-        );
+        return details;
     }
 
     private String vehicleLabelFor(ServiceRecord record) {
@@ -257,13 +372,7 @@ public class AIExplanationService {
         }
         whatWasDone.append(".");
 
-        List<AIExplanationDetail> details = new ArrayList<>();
-        addDetail(details, "Parts noted", parts);
-        addDetail(details, "Materials used", materials);
-        addDetail(details, "Work performed", labor);
-        if (record.getTotalCost() != null) {
-            addDetail(details, "Total recorded cost", List.of(formatMoney(record.getTotalCost())));
-        }
+        List<AIExplanationDetail> details = buildDetails(record, parts, materials, labor);
 
         String whyItMatters = buildWhyItMatters(serviceSummary, joinForMatching(parts), joinForMatching(labor));
         List<String> watchFor = buildWatchFor(items, record.getOdometer());

@@ -1,0 +1,136 @@
+/* ----------------------------------------------------------------------
+   The empty garage.
+
+   An owner with a vehicle and no records used to get a panel offering "Scan
+   a receipt" and "Type it in", both linking to the screen that asks which of
+   three methods they want. This sheet styles what replaced it: the three
+   methods themselves, so the choice is made here and the flow starts on the
+   screen that does the thing.
+
+   No illustration, no sample chart, no greyed-out preview of a dashboard the
+   owner has not earned yet. The page stays quiet and states what is true.
+   ---------------------------------------------------------------------- */
+
+.garage-start {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 30px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.garage-start__head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.garage-start__methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* A card, not a button: each one is a different thing to do, and three equal
+   pills would have made the recommended one impossible to say. */
+.garage-start__method {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 20px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.garage-start__method:hover {
+  border-color: var(--brand, var(--ink));
+  background: var(--brand-wash, var(--surface-sunken));
+}
+
+.garage-start__method-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-muted);
+}
+
+/* Outlined word, not a coloured ribbon — the method screen argues this and it
+   holds here: chroma marks record state, not emphasis. */
+.garage-start__rec {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 3px 7px;
+}
+
+.garage-start__method-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.garage-start__method-body {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.garage-start__next {
+  list-style: none;
+  margin: 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--rule-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--ink-muted);
+}
+
+.garage-start__next li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  line-height: 1.5;
+}
+
+.garage-start__step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  flex: 0 0 42px;
+}
+
+/* The chart a car with no records does not get. Sized to leave the card
+   shorter than the charted version rather than holding its height open. */
+.garage-card__chart-empty {
+  margin: 0;
+  /* The card's own gutter, the same 22px `.garage-card__chart` uses — at 0 it
+     sat flush against the border while every other line on the card was
+     inset. */
+  padding: 15px 22px 17px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 900px) {
+  .garage-start__methods { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .garage-start { padding: 24px 20px 26px; }
+  .garage-start__step { flex-basis: auto; }
+}

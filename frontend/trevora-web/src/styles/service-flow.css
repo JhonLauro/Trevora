@@ -592,6 +592,12 @@
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--ink-muted);
+  /* OCR text is not prose: reference numbers, part codes and rules of dashes
+     arrive as single unbreakable runs. Normal wrapping only breaks at spaces,
+     so one of those was wider than a phone and took the whole document with
+     it — the page scrolled sideways and every other card stopped short of the
+     right edge. `anywhere` breaks the run instead of the layout. */
+  overflow-wrap: anywhere;
 }
 
 /* --- the conflicting-value chooser --- */
@@ -639,6 +645,11 @@
   gap: 12px;
   cursor: pointer;
   font-size: 16px;
+  /* The real checkbox below is taken out of the flow so the track can stand in
+     for it. Without a positioned ancestor it resolved against the initial
+     containing block instead of this label, which put it outside the page and
+     gave the whole document a horizontal scrollbar. */
+  position: relative;
 }
 
 .flow-switch input { position: absolute; opacity: 0; pointer-events: none; }
@@ -801,7 +812,9 @@
   padding-left: 6px;
 }
 
-.flow-transcript { font-size: 16px; line-height: 1.65; }
+/* Same guard as `.flow-quote`: a transcript is usually prose, but a spoken
+   plate number or a pasted reference arrives as one unbreakable run. */
+.flow-transcript { font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
 
 .flow-source__foot {
   font-size: 15px;
@@ -1093,6 +1106,9 @@
   letter-spacing: 0.04em;
   color: var(--ink-muted);
   padding-left: 2px;
+  /* Printed part numbers are unbreakable runs, and this cell is `min-width: 0`
+     — without this the code overflows the grid rather than wrapping in it. */
+  overflow-wrap: anywhere;
 }
 
 /* The kind legend. Collapsed by default: the explanation matters, but only to
@@ -1756,6 +1772,9 @@
   height: 64px;
   border-radius: 50%;
   background: var(--ink);
+  /* Stated rather than inherited from the bare `button` rule, which now only
+     dresses buttons that carry no class of their own. */
+  color: var(--on-ink);
   border: 0;
   display: flex;
   align-items: center;
@@ -1813,10 +1832,24 @@
   gap: 14px;
 }
 
+/* An ordinary card, deliberately.
+
+   It was sunken and dashed, which is this product's idiom for something
+   missing that should be there — an undocumented year, a service with no
+   lines, an empty page slot. A translation is not missing: the note may
+   already be in English, or the owner may simply not want one. Drawing a hole
+   for an optional panel made the pair read as one real card beside a
+   placeholder, when they are two halves of the same row.
+
+   Only `align-items` survives, and only to stop the button stretching the
+   width of the card. The vertical centring went with the rest: it floated the
+   eyebrow to the middle of the card while its sibling's sat at the top, and
+   two labels on one row belong on one line.
+
+   The surface and the hairline come from `.flow-card`, which this element now
+   carries alongside the ones below — it did not before, and the dashed border
+   was doing double duty as its only visible edge. */
 .flow-transcript-card--empty {
-  background: var(--surface-sunken);
-  border: 1px dashed var(--border);
-  justify-content: center;
   align-items: flex-start;
 }
 
@@ -1859,9 +1892,35 @@
   .flow-progress__compact { display: block; }
   .flow-lines { grid-template-columns: 1fr 1fr; }
   .flow-lines__h { display: none; }
+  /* Label above value rather than beside it. The value keeps the bottom rule,
+     so the pair reads as one fact and the rule separates facts. */
   .flow-summary { grid-template-columns: 1fr; }
   .flow-summary__v { border-left: 0; padding-top: 0; }
-  .flow-summary__k { border-bottom: 0; padding-bottom: 6px; }
+
+  .flow-summary__k {
+    border-bottom: 0;
+    /* The desktop top padding sat a 15px label in a 43px row, and with six
+       facts stacked that is most of a screen spent on air. The pair below is
+       what needs the room. */
+    padding: 13px 24px 4px;
+  }
+
+  /* The badge belongs to the value, not to the far edge of the row.
+     `space-between` anchors it against the right hand side of the cell, which
+     reads as deliberate on a wide desktop row and as two unrelated things once
+     the row is a phone wide. It sits after the value instead, and wraps under
+     it when the value is long. */
+  .flow-summary__v {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px 10px;
+  }
+
+  /* The stacked services keep their spread: a description on the left and its
+     amount on the right is a two-column reading, not a badge. */
+  .flow-summary__v--stack { gap: 9px; }
+
+  .flow-summary__line { justify-content: space-between; }
 }
 
 @media (max-width: 767px) {
@@ -1920,9 +1979,48 @@
   .flow-pages { grid-template-columns: 1fr 1fr; }
   .flow-camera__stage { height: 360px; }
 
-  .flow-lines { grid-template-columns: 1fr; gap: 8px; }
+  /* One line, two rows — not four.
+
+     A single column gave every cell a row of its own: the description, the
+     kind, the amount, and then a delete cross stranded on a line by itself
+     with nothing to say which entry it belonged to. Consecutive entries ran
+     together into one undifferentiated stack.
+
+     The description takes the full width because it is the long one, and the
+     three short controls share the row beneath it, in the order the desktop
+     header names them. A rule above every entry but the first makes each one
+     read as a unit. */
+  .flow-lines {
+    grid-template-columns: minmax(0, 1fr) 104px 44px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .flow-lines__desc {
+    grid-column: 1 / -1;
+  }
+
+  /* The description is the only `div` among these cells, so "every one after
+     the first" is every entry after the first. */
+  .flow-lines__desc:nth-of-type(n + 2) {
+    border-top: 1px solid var(--rule-faint);
+    padding-top: 14px;
+    margin-top: 6px;
+  }
   .flow-service__row { flex-wrap: wrap; }
   .flow-service__subtotal { width: 100%; }
+
+  /* The middle column asked for 220px, which no phone can give it beside a
+     64px button and a 26px gap — so it wrapped, and the button ended up on a
+     line of its own above the timer it belongs next to. Letting the column
+     shrink keeps the two on one row; the label wraps inside it instead. */
+  .flow-recorder { gap: 16px; padding: 20px; }
+  .flow-recorder__mid { min-width: 0; }
+
+  /* Playback and "Record again" take the full width underneath rather than
+     competing with the timer for the first row — with all three side by side
+     the label wrapped to three lines and the waveform shrank to a stub. */
+  .flow-recorder__actions { width: 100%; }
 
   .flow-saved__actions { flex-direction: column; }
   .flow-saved__title { font-size: 28px; }

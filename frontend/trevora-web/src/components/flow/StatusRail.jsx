@@ -51,7 +51,11 @@ export default function StatusRail({
 
   return (
     <aside className="flow-check__rail">
-      <section className="flow-status">
+      {/* Green is the ready state, not the panel. A blocked save announcing
+          itself on the same green as the primary button and the progress bar
+          reads as approval; it keeps the neutral ink ground until there is
+          genuinely nothing in the way. */}
+      <section className={`flow-status${ready ? ' is-ready' : ''}`}>
         <div>
           <p className="flow-status__eyebrow">Status</p>
           <p className="flow-status__title">{ready ? 'Ready to save' : 'Not ready to save yet'}</p>

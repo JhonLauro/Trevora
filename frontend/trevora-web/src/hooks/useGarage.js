@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getGarageSummary } from '../api/serviceHistory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 import { needsReview } from '../utils/recordStatus';
@@ -60,5 +60,26 @@ export default function useGarage() {
 
   const reviewCount = useMemo(() => allRecords.filter(needsReview).length, [allRecords]);
 
-  return { garages, allRecords, reviewCount, loading, error };
+  /**
+   * Drops a deleted record from the loaded garage.
+   *
+   * <p>Here rather than in the page because `garages` is the source both
+   * `allRecords` and `reviewCount` are derived from — a page that filtered a
+   * deleted row out of its own copy would leave the review badge counting a
+   * record that no longer exists.
+   *
+   * <p>No refetch: the server has already confirmed the delete by the time
+   * this is called, and re-reading the whole garage to learn one row is gone
+   * is a second round trip to be told what we know.
+   */
+  const removeRecord = useCallback((recordId) => {
+    if (!recordId) return;
+    setGarages((current) => current.map((entry) => (
+      entry.records.some((record) => record.recordId === recordId)
+        ? { ...entry, records: entry.records.filter((record) => record.recordId !== recordId) }
+        : entry
+    )));
+  }, []);
+
+  return { garages, allRecords, reviewCount, loading, error, removeRecord };
 }

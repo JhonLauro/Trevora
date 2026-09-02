@@ -216,7 +216,12 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                 <span className="flow-lines__h">Line on the receipt</span>
                 <span className="flow-lines__h">Kind</span>
                 <span className="flow-lines__h flow-lines__h--right">Amount</span>
-                <span />
+                {/* The header cell above the delete column. It carries the
+                    header class despite having no text so that it hides with
+                    the other three on a narrow screen — bare, it stayed behind
+                    as an empty grid cell and pushed the first line down a
+                    row. */}
+                <span className="flow-lines__h" />
                 {lines.map((line, lineIndex) => (
                   <React.Fragment key={line.entryId ?? `new-line-${lineIndex}`}>
                     <div className="flow-lines__desc">

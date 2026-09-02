@@ -3274,3 +3274,30 @@ added - response bodies carry customer names, addresses and plate numbers, and
 application logs are not a place to put those - but there is now a concrete
 question that only the body can answer, which is a better reason than "so we can
 see it".
+
+## Explanations are cached; the template deliberately is not (021)
+
+Every open of a record page was a fresh chat completion. Records do not change
+after confirmation, so the second call bought a differently-worded answer to the
+same question at the same price, on a key four people share. Migration `021`
+adds `service_record_explanations`, one row per record.
+
+**Only model-written text is stored.** The template, the cost-only answer and
+the failure fallback are computed from the record, cost nothing, and are not
+cached on purpose: storing one would freeze a stand-in in place, so a record
+explained by the template on a day the API key was missing would read that way
+forever. If someone later "completes" the cache by storing those too, that is
+the bug they will have written.
+
+Invalidation is a SHA-256 of the prompt itself rather than of a list of fields,
+so it cannot drift from what the model actually saw — change how the facts are
+assembled and every fingerprint changes with it. A corrected record regenerates
+on the next view and nothing has to remember to clear a row.
+
+The cache is read *before* the provider is asked whether it is available: an
+explanation written last week is still the best thing to show an owner on a day
+when a fresh call would fall to the template.
+
+Not done, and not obviously worth doing: nothing ever deletes a row except the
+record's own `on delete cascade`. A regenerated explanation overwrites in place,
+so the table cannot outgrow the record count.

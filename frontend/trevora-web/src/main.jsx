@@ -96,6 +96,9 @@ import './styles/flow-progress.css';
 // The "add this to your vehicle?" offer on the draft review screen.
 import './styles/vehicle-offer.css';
 
+// The empty garage — the three ways to add a first record.
+import './styles/garage-start.css';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>

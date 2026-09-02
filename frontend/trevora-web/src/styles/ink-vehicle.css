@@ -1342,9 +1342,14 @@
   background: var(--surface-sunken);
 }
 
+/* The brand tint, not the near-black. A filled-in near-black row reads as a
+   modal selection — the strongest thing on a quiet form — when all it means is
+   "this is the one you have typed". The mint says the same thing at the volume
+   the fact deserves, and it is the ground the rest of the product already uses
+   to mark something as ours. */
 .ink-combo__option[aria-selected='true'] {
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--brand-tint);
+  color: var(--brand-hover);
   font-weight: 600;
 }
 

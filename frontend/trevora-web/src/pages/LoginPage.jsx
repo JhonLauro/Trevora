@@ -41,11 +41,6 @@ export default function LoginPage() {
     }
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setFieldErrors((current) => ({ ...current, [name]: validateField(name, value) }));
-  }
-
   async function handleGoogleSignIn() {
     setFormError('');
     setGoogleLoading(true);
@@ -125,7 +120,6 @@ export default function LoginPage() {
           autoComplete="email"
           value={form.email}
           onChange={updateField}
-          onBlur={handleBlur}
           error={fieldErrors.email}
         />
 
@@ -135,7 +129,6 @@ export default function LoginPage() {
           autoComplete="current-password"
           value={form.password}
           onChange={updateField}
-          onBlur={handleBlur}
           error={fieldErrors.password}
         />
 

@@ -132,11 +132,6 @@ export default function EditVehicleDetailsDialog({ open, vehicle, photoUrl = nul
     if (errors[name]) setErrors((current) => ({ ...current, [name]: '' }));
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setErrors((current) => ({ ...current, [name]: validateVehicleField(name, value) }));
-  }
-
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -239,7 +234,6 @@ export default function EditVehicleDetailsDialog({ open, vehicle, photoUrl = nul
                   aria-invalid={errors[field.name] ? true : undefined}
                   aria-describedby={errors[field.name] ? `${hintId} ${errorId}` : hintId}
                   onChange={updateField}
-                  onBlur={handleBlur}
                 />
                 {field.note && <p className="ink-combo__note">{field.note}</p>}
                 {errors[field.name] && (

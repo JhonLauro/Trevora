@@ -76,11 +76,6 @@ export default function ResetPasswordPage() {
     }
   }
 
-  function handleBlur(event) {
-    const { name, value } = event.target;
-    setFieldErrors((current) => ({ ...current, [name]: validateField(name, value) }));
-  }
-
   async function handleSubmit(event) {
     event.preventDefault();
     const errors = {
@@ -164,7 +159,6 @@ export default function ResetPasswordPage() {
             autoComplete="new-password"
             value={form.password}
             onChange={updateField}
-            onBlur={handleBlur}
             error={fieldErrors.password}
             help={PASSWORD_HELP}
           />
@@ -178,7 +172,6 @@ export default function ResetPasswordPage() {
           autoComplete="new-password"
           value={form.confirmPassword}
           onChange={updateField}
-          onBlur={handleBlur}
           error={fieldErrors.confirmPassword}
         />
 
