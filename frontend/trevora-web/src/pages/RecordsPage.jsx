@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import FilterMenu from '../components/ink/FilterMenu.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
-import { pluralize } from '../utils/format';
+import { deleteVehicleServiceRecord } from '../api/serviceHistory';
+import { formatDate, pluralize } from '../utils/format';
 import { recordSearchText } from '../utils/serviceComponents';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
 import { displayVehicleName } from '../utils/vehicleText';
@@ -21,9 +23,26 @@ const ALL_VEHICLES = 'all';
  * would only be thrown away.
  */
 export default function RecordsPage() {
-  const { garages, allRecords, loading, error } = useGarage();
+  const { garages, allRecords, loading, error, removeRecord } = useGarage();
   const [query, setQuery] = useState('');
   const [vehicleId, setVehicleId] = useState(ALL_VEHICLES);
+  const [pendingRecord, setPendingRecord] = useState(null);
+
+  /* Each row carries its own `vehicleId`: this list spans every vehicle, so
+     the page's filter value is not the record's owner and using it would
+     delete against whichever car happened to be selected. */
+  const recordDelete = useDeleteAction(
+    () => deleteVehicleServiceRecord(pendingRecord.vehicleId, pendingRecord.recordId),
+    () => {
+      removeRecord(pendingRecord.recordId);
+      setPendingRecord(null);
+    },
+  );
+
+  function askDeleteRecord(record) {
+    setPendingRecord(record);
+    recordDelete.ask();
+  }
 
   /* Every registered vehicle, not just the ones with records — a car with
      nothing filed under it is a real answer ("nothing documented yet"), and
@@ -165,9 +184,39 @@ export default function RecordsPage() {
         </section>
       ) : (
         <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 1 }}>
-          <RecordsTable records={filtered} ariaLabel="All service records across your vehicles" />
+          <RecordsTable
+            records={filtered}
+            ariaLabel="All service records across your vehicles"
+            onDelete={askDeleteRecord}
+          />
         </section>
       )}
+
+      <ConfirmDialog
+        open={recordDelete.open}
+        busy={recordDelete.busy}
+        error={recordDelete.error}
+        title="Delete this record?"
+        confirmLabel="Delete record"
+        onCancel={() => { recordDelete.cancel(); setPendingRecord(null); }}
+        onConfirm={recordDelete.confirm}
+        body={pendingRecord && (
+          <>
+            <p>
+              <strong>{serviceItemsSummaryLabel(pendingRecord.services)}</strong>
+              {pendingRecord.serviceDate && <> &mdash; {formatDate(pendingRecord.serviceDate)}</>}
+            </p>
+            {/* Named here and not on the vehicle page's copy of this dialog:
+                this list spans every car, so "your history" is not specific
+                enough to catch deleting the right service off the wrong one. */}
+            {pendingRecord.vehicleName && <p>On {pendingRecord.vehicleName}.</p>}
+            <p>
+              It disappears from that vehicle&apos;s history and from everything worked out
+              from it. There is no undo.
+            </p>
+          </>
+        )}
+      />
     </main>
   );
 }

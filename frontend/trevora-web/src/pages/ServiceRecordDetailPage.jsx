@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Car, Clock, FileText, Gauge, MapPin,
-  ReceiptText, Share2, Store, Wallet, Wrench,
+  ReceiptText, Share2, Store, Trash2, Wallet, Wrench,
 } from 'lucide-react';
 import AIExplanationPanel from '../components/AIExplanationPanel';
+import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
-import { getVehicleServiceRecord } from '../api/serviceHistory';
+import { deleteVehicleServiceRecord, getVehicleServiceRecord } from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
 import { formatAmount, formatDate, formatOdometer } from '../utils/format';
 import { needsReview, recordStatusLabel, sourceLabel } from '../utils/recordStatus';
@@ -86,6 +87,15 @@ function Field({ icon: Icon, label, value, mono, absent = 'Not recorded' }) {
 
 export default function ServiceRecordDetailPage() {
   const { vehicleId, recordId } = useParams();
+  const navigate = useNavigate();
+
+  /* Back to the vehicle, replacing this entry: the record it showed no
+     longer exists, so leaving it in history means Back lands on a 'not
+     found' page for something the user themselves just deleted. */
+  const recordDelete = useDeleteAction(
+    () => deleteVehicleServiceRecord(vehicleId, recordId),
+    () => navigate(`/vehicles/${vehicleId}`, { replace: true }),
+  );
   const [vehicle, setVehicle] = useState(null);
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +180,19 @@ export default function ServiceRecordDetailPage() {
             <Share2 size={16} aria-hidden="true" />
             <span className="record-topbar__label">Share history</span>
           </Link>
+          {/* Last in the row, and the only outline-danger control on the page.
+              Deleting is the one action here that cannot be undone, so it sits
+              apart from the two that just move you somewhere — reachable
+              without hunting, never the button nearest your thumb. */}
+          <button
+            className="ink-button ink-button--outline ink-button--sm ink-button--danger-outline"
+            type="button"
+            onClick={recordDelete.ask}
+            aria-label="Delete this record"
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            <span className="record-topbar__label">Delete</span>
+          </button>
         </div>
       </div>
 
@@ -289,6 +312,27 @@ export default function ServiceRecordDetailPage() {
         </aside>
       </div>
 
+      <ConfirmDialog
+        open={recordDelete.open}
+        busy={recordDelete.busy}
+        error={recordDelete.error}
+        title="Delete this record?"
+        confirmLabel="Delete record"
+        onCancel={recordDelete.cancel}
+        onConfirm={recordDelete.confirm}
+        body={(
+          <>
+            <p>
+              <strong>{serviceItemsSummaryLabel(record.services)}</strong>
+              {record.serviceDate && <> &mdash; {formatDate(record.serviceDate)}</>}
+            </p>
+            <p>
+              It disappears from {name}&apos;s history and from everything worked out
+              from it. There is no undo.
+            </p>
+          </>
+        )}
+      />
     </main>
   );
 }
