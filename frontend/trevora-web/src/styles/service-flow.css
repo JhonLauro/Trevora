@@ -1892,9 +1892,35 @@
   .flow-progress__compact { display: block; }
   .flow-lines { grid-template-columns: 1fr 1fr; }
   .flow-lines__h { display: none; }
+  /* Label above value rather than beside it. The value keeps the bottom rule,
+     so the pair reads as one fact and the rule separates facts. */
   .flow-summary { grid-template-columns: 1fr; }
   .flow-summary__v { border-left: 0; padding-top: 0; }
-  .flow-summary__k { border-bottom: 0; padding-bottom: 6px; }
+
+  .flow-summary__k {
+    border-bottom: 0;
+    /* The desktop top padding sat a 15px label in a 43px row, and with six
+       facts stacked that is most of a screen spent on air. The pair below is
+       what needs the room. */
+    padding: 13px 24px 4px;
+  }
+
+  /* The badge belongs to the value, not to the far edge of the row.
+     `space-between` anchors it against the right hand side of the cell, which
+     reads as deliberate on a wide desktop row and as two unrelated things once
+     the row is a phone wide. It sits after the value instead, and wraps under
+     it when the value is long. */
+  .flow-summary__v {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px 10px;
+  }
+
+  /* The stacked services keep their spread: a description on the left and its
+     amount on the right is a two-column reading, not a badge. */
+  .flow-summary__v--stack { gap: 9px; }
+
+  .flow-summary__line { justify-content: space-between; }
 }
 
 @media (max-width: 767px) {
