@@ -1,5 +1,6 @@
 import { apiRequest } from './http.js';
 import { clearLoggedInUser, setLoggedInUser } from './currentUser.js';
+import { AVATAR_METADATA_KEY } from './profilePhoto.js';
 import { requireSupabaseClient } from './supabaseClient.js';
 
 export async function registerUser(payload) {
@@ -189,10 +190,19 @@ function profileFromSupabaseUser(user) {
     firstName: metadata.first_name || metadata.firstName || fallbackFirst || 'User',
     lastName: metadata.last_name || metadata.lastName || fallbackRest.join(' ') || 'Account',
     role: normalizeRole(metadata.role),
-    // `avatar_url` is what we write when a photo is uploaded; `picture` is
-    // what Google sends on OAuth sign-in. Reading both means a Google account
-    // arrives with its photo already in place.
-    avatar: metadata.avatar_url || metadata.avatarUrl || metadata.picture || '',
+    /* Order matters, and this is the whole fix for a photo that reverted on
+       its own: a photo the user uploaded here outranks whatever the provider
+       supplied. `avatar_url` and `picture` are Google's, rewritten from its
+       identity data on every OAuth sign-in, so a Google account still arrives
+       with its photo already in place — it just cannot overwrite a choice.
+
+       `avatar_url` is read second rather than dropped because photos uploaded
+       before this split still live there. */
+    avatar: metadata[AVATAR_METADATA_KEY]
+      || metadata.avatar_url
+      || metadata.avatarUrl
+      || metadata.picture
+      || '',
   };
 }
 
