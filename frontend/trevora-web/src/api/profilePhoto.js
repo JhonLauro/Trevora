@@ -6,17 +6,28 @@ import { requireSupabaseClient } from './supabaseClient.js';
  * Storage under the owner's own user id, and only a pointer to it travels
  * anywhere else.
  *
- * The pointer lives in Supabase Auth `user_metadata.avatar_url`, next to the
- * name and role already kept there — not in the backend `users` table. That
- * choice is what makes the photo follow the account rather than the browser:
- * the previous implementation read the file with FileReader and kept the
- * base64 string in localStorage, so a photo set on a laptop was invisible on a
- * phone, and a couple of megapixels of data URL sat in a 5 MB store shared
- * with every other preference until it overflowed. It also means Google
- * sign-in arrives with a photo already set, since Google populates the same
- * metadata field.
+ * The pointer lives in Supabase Auth `user_metadata`, next to the name and
+ * role already kept there — not in the backend `users` table. That choice is
+ * what makes the photo follow the account rather than the browser: the
+ * previous implementation read the file with FileReader and kept the base64
+ * string in localStorage, so a photo set on a laptop was invisible on a phone,
+ * and a couple of megapixels of data URL sat in a 5 MB store shared with every
+ * other preference until it overflowed.
  */
 export const AVATAR_BUCKET = import.meta.env.VITE_SUPABASE_AVATAR_BUCKET ?? 'profile-photos';
+
+/**
+ * Our own key, not `avatar_url`.
+ *
+ * `avatar_url` belongs to the OAuth provider. Supabase refreshes
+ * `user_metadata` from Google's identity data on every Google sign-in, so a
+ * photo written there survived until the next sign-in and was then silently
+ * replaced by the Google picture — the user's chosen photo reverting on its
+ * own, with nothing in the app having touched it.
+ *
+ * Google never writes this key, so what the user uploaded stays uploaded.
+ */
+export const AVATAR_METADATA_KEY = 'trevora_avatar_url';
 
 /** Generous for a 64px circle, small enough that a phone photo gets rejected
  *  before it wastes the upload rather than after. */
@@ -72,7 +83,7 @@ export async function uploadProfilePhoto(file) {
   }
 
   const { error: metadataError } = await client.auth.updateUser({
-    data: { avatar_url: publicUrl },
+    data: { [AVATAR_METADATA_KEY]: publicUrl },
   });
   if (metadataError) {
     // Nothing points at the new file, so leaving it would be litter.
