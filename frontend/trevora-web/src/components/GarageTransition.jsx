@@ -13,10 +13,16 @@ import React from 'react';
  * that creates a vehicle, and the garage is somewhere the owner has not been
  * yet. Pass `label` to reuse this for a different destination.
  *
- * <p>Five seconds, which is long enough that it is a journey rather than a
- * wipe: the car arrives, drives, and leaves the frame as the next page takes
- * over. It is also long enough to need an escape, so any click or key skips
- * it — see the listener in WelcomePage.
+ * <p>Five seconds by default, which is long enough that it is a journey rather
+ * than a wipe: the car arrives, drives, and leaves the frame as the next page
+ * takes over. It is also long enough to need an escape, so any click or key
+ * skips it — see the listener in WelcomePage.
+ *
+ * <p>`durationMs` retimes the whole sequence: the CSS is percentages of
+ * `--gt-run`, so the arc holds its shape at any length. A caller that shortens
+ * it must shorten its own timer to match, and should drop the skip hint with
+ * `hint={null}` unless it actually listens for the skip — a two-second overlay
+ * is over before the offer can be taken up.
  *
  * <p>It is decorative and it is also a status: the wheels and the road are
  * `aria-hidden`, and the line of text underneath is what a screen reader gets,
@@ -24,9 +30,18 @@ import React from 'react';
  * the caller skips this component entirely and navigates straight through —
  * see `startLeaving` in WelcomePage.
  */
-export default function GarageTransition({ label = 'Let’s add your vehicle' }) {
+export default function GarageTransition({
+  label = 'Let’s add your vehicle',
+  durationMs = 5000,
+  hint = 'Tap anywhere to skip',
+}) {
   return (
-    <div className="gt" role="status" aria-live="polite">
+    <div
+      className="gt"
+      role="status"
+      aria-live="polite"
+      style={{ '--gt-run': `${durationMs}ms` }}
+    >
       <div className="gt__stage">
         {/* Side profile, because a car seen from the side is the only angle
             that reads as moving.
@@ -74,8 +89,10 @@ export default function GarageTransition({ label = 'Let’s add your vehicle' })
       <p className="gt__label">{label}</p>
       {/* Five seconds is long enough that it has to be escapable, and long
           enough that saying so is worth the line. The listener is in
-          WelcomePage — any click or key cuts it short. */}
-      <p className="gt__hint">Tap anywhere to skip</p>
+          WelcomePage — any click or key cuts it short. A shorter caller passes
+          `hint={null}`: an offer to skip that expires in two seconds is worse
+          than no offer. */}
+      {hint && <p className="gt__hint">{hint}</p>}
     </div>
   );
 }

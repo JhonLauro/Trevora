@@ -116,7 +116,52 @@ export function getServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}`);
 }
 
+/**
+ * A review request started before the screen that needs it exists.
+ *
+ * <p>The receipt flow knows the draft id about two seconds before the review
+ * screen mounts — it spends them playing the hand-off transition. Without
+ * this, that whole animation is dead time and the request only starts once it
+ * ends, so the transition lands on "Loading…" instead of on the screen it just
+ * promised. Priming spends the animation on the request instead.
+ *
+ * <p>It is deliberately a single slot, consumed once and never refilled on
+ * read. A draft is editable, so a cache that answered twice would eventually
+ * hand somebody the version from before their own corrections — the bug this
+ * is not worth. Nothing changes for callers that never prime.
+ */
+let primedReview = null;
+
+/** How long a primed request stays usable. Longer than the transition it was
+ *  started under, short enough that an abandoned one is never served. */
+const PRIMED_REVIEW_TTL_MS = 30000;
+
+export function primeServiceDraftReview(draftId) {
+  const request = fetchServiceDraftReview(draftId);
+  // No one is awaiting this yet, and an unhandled rejection between now and
+  // the consumer arriving is noise, not a failure: `getServiceDraftReview`
+  // below refetches rather than surfacing it.
+  request.catch(() => {});
+  primedReview = { draftId, request, primedAt: Date.now() };
+}
+
 export function getServiceDraftReview(draftId) {
+  const primed = primedReview;
+  primedReview = null;
+
+  const usable = primed
+    && primed.draftId === draftId
+    && Date.now() - primed.primedAt < PRIMED_REVIEW_TTL_MS;
+
+  if (!usable) return fetchServiceDraftReview(draftId);
+
+  // A primed request that failed is not an answer. The owner never asked for
+  // it and cannot retry it, so a real one is made instead of showing them an
+  // error from a request they did not make.
+  return primed.request.catch(() => fetchServiceDraftReview(draftId));
+}
+
+function fetchServiceDraftReview(draftId) {
   return apiRequest(`/service-drafts/${draftId}/review`).then(normalizeDraftValidationPayload);
 }
 

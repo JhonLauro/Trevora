@@ -1550,94 +1550,195 @@
   text-underline-offset: 4px;
 }
 
-/* --- the reading overlay: two steps, both driven by real counts --- */
+/* --- the reading modal: two steps, both driven by what actually happened ---
+
+   This was a full-bleed opaque dark panel, which read as a separate
+   "processing" screen: the receipt page vanished and came back, so the wait
+   felt like a navigation. It is an Ink modal now and borrows `.ink-modal`'s
+   geometry exactly -- same scrim, same white surface, same radius, the one
+   shadow Ink allows -- because the wait belongs to the page behind it.
+
+   Only two things move, and both mean something. The first bar is a real
+   fraction of pages stored. The second is indeterminate on purpose: OCR
+   returns when it returns, and a bar that pretends to know how far along it
+   is would be the timer this screen already had removed once. */
 
 .flow-reading {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--ink);
-  color: var(--on-ink);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 34px;
-  padding: 44px 28px;
+  padding: 20px;
+  background: rgba(15, 14, 13, 0.55);
+  animation: flow-reading-scrim 200ms ease both;
 }
 
 .flow-reading__inner {
-  max-width: 460px;
-  margin: 0 auto;
   width: 100%;
+  max-width: 468px;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-card);
+  box-shadow: 0 18px 48px rgba(15, 14, 13, 0.3);
+  padding: 26px 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 34px;
+  gap: 24px;
+  animation: flow-reading-card 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .flow-reading__title {
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
-.flow-reading__sub { font-size: 16px; color: var(--on-ink-muted); line-height: 1.55; }
+.flow-reading__sub {
+  font-size: 15px;
+  color: var(--ink-muted);
+  line-height: 1.55;
+  /* styles.css zeroes only `margin-top` on `p`, so every paragraph in here
+     still carries the browser's 1em bottom margin unless it is stated. */
+  margin: 6px 0 0;
+}
 
 .flow-reading__steps {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
+/* The step being worked on is at full strength and the other is dimmed, so
+   which of the two is happening can be read without reading the words. */
 .flow-reading__step {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  opacity: 0.45;
+  transition: opacity 260ms ease;
 }
 
+.flow-reading__step.is-active,
+.flow-reading__step.is-done { opacity: 1; }
+
 .flow-reading__dot {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--on-ink);
-  flex: 0 0 26px;
+  border: 1.5px solid var(--border);
+  flex: 0 0 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: transparent;
+  background: var(--surface);
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+/* The ring of the step in progress breathes; it is the only motion on an
+   element that is otherwise standing still. */
+.flow-reading__dot.is-active {
+  border-color: var(--ink);
+  animation: flow-reading-pulse 1.8s ease-in-out infinite;
 }
 
 .flow-reading__dot.is-done {
-  background: var(--on-ink);
-  border-color: var(--on-ink);
-  color: var(--ink);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
 }
 
-.flow-reading__name { font-size: 16px; font-weight: 600; }
-.flow-reading__count { font-size: 15px; color: var(--on-ink-faint); }
+.flow-reading__dot svg { display: block; }
+
+.flow-reading__dot.is-done svg { animation: flow-reading-check 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* The line box is the dot's height, so the two centre on each other. Left at
+   the default 1.2 the dot sat a few pixels proud of its own label. */
+.flow-reading__name {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  margin: 0;
+}
+
+.flow-reading__count {
+  font-size: 15px;
+  color: var(--ink-faint);
+  margin: 2px 0 0;
+}
 
 .flow-reading__bar {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--on-ink-rule);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sunken);
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 8px;
+  position: relative;
 }
 
 .flow-reading__bar i {
   display: block;
-  height: 5px;
-  background: var(--on-ink);
-  border-radius: 3px;
-  transition: width 200ms ease;
+  height: 4px;
+  background: var(--ink);
+  border-radius: 2px;
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Indeterminate: a short segment crossing the track. It says "running", and
+   deliberately says nothing about how far along. */
+.flow-reading__bar--waiting i {
+  width: 38%;
+  animation: flow-reading-sweep 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 .flow-reading__foot {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.55;
-  color: var(--on-ink-faint);
-  border-top: 1px solid var(--on-ink-rule);
-  padding-top: 18px;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--rule-faint);
+  padding-top: 16px;
+  margin: 0;
+}
+
+@keyframes flow-reading-scrim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes flow-reading-card {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes flow-reading-check {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes flow-reading-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(28, 27, 25, 0.16); }
+  50% { box-shadow: 0 0 0 5px rgba(28, 27, 25, 0); }
+}
+
+@keyframes flow-reading-sweep {
+  from { transform: translateX(-105%); }
+  to { transform: translateX(268%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-reading,
+  .flow-reading__inner,
+  .flow-reading__dot.is-active,
+  .flow-reading__dot.is-done svg { animation: none; }
+
+  .flow-reading__bar--waiting i { animation: none; width: 100%; opacity: 0.35; }
 }
 
 /* ------------------------------------------------- step 3b · the voice */
@@ -1837,6 +1938,7 @@
   }
 }
 
-/* The camera preview and the reading overlay are the only dark surfaces in
-   the product, and both are dark for a reason: one to judge a photo against,
-   one to sit in front of while nothing can be done. Neither inverts. */
+/* The camera preview is the one dark surface in the product, and it is dark
+   for a reason: it is what a photo gets judged against. It does not invert.
+   The reading modal used to be dark too, on no better grounds than "a wait
+   feels heavy" -- it is an ordinary Ink modal now. */

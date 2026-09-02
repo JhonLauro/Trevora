@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import ServiceLinesEditor from '../components/flow/ServiceLinesEditor';
-import { createManualServiceDraft } from '../api/serviceDrafts';
+import { createManualServiceDraft, primeServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import { formatPeso, lineEntriesOf, pesosFromCentavos, reconciliation } from '../utils/serviceLines';
 
@@ -75,6 +75,9 @@ export default function ManualEntryPage() {
     event.preventDefault();
     setSaving(true);
     setError('');
+    // The review screen is a lazy route; start its chunk now so it downloads
+    // alongside the save rather than after it.
+    import('./ServiceDraftReviewPage.jsx').catch(() => {});
 
     try {
       const draft = await createManualServiceDraft({
@@ -91,6 +94,12 @@ export default function ManualEntryPage() {
           sortOrder: index,
         })),
       });
+      // No hand-off animation here, unlike the receipt and voice routes: this
+      // is a plain POST of what the owner already typed, and there is no wait
+      // to cover. Two seconds of transition on an instant save is two seconds
+      // of nothing. The prime still earns its place — it overlaps the review
+      // request with the lazy route resolving.
+      primeServiceDraftReview(draft.draftId);
       navigate(`/service-drafts/${draft.draftId}`);
     } catch (err) {
       setError(err.message);

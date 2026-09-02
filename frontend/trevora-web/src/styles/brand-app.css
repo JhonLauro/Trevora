@@ -1289,6 +1289,29 @@
   border-radius: 18px;
 }
 
+/* The reading modal is progress, so it is green by the rule above — the same
+   green as the step bar it follows and the same filled tick as a selected
+   card. service-flow.css builds it in ink; only the accent moves here. */
+.flow .flow-reading__bar i {
+  background: var(--brand);
+}
+
+.flow .flow-reading__dot.is-active {
+  border-color: var(--brand);
+  animation-name: flow-reading-pulse-brand;
+}
+
+.flow .flow-reading__dot.is-done {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+@keyframes flow-reading-pulse-brand {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14, 122, 82, 0.22); }
+  50% { box-shadow: 0 0 0 5px rgba(14, 122, 82, 0); }
+}
+
 /* =====================================================================
    Account settings
    ===================================================================== */

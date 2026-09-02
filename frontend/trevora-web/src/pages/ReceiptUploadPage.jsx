@@ -1,10 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Camera, Check, Plus, Sun, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, Camera, Plus, Sun, Upload } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
-import { createReceiptPagesServiceDraft } from '../api/serviceDrafts';
+import GarageTransition from '../components/GarageTransition.jsx';
+import ProcessingModal, {
+  ProcessingStep,
+  formatWait,
+  useElapsedSeconds,
+} from '../components/flow/ProcessingModal.jsx';
+import { createReceiptPagesServiceDraft, primeServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
+
+/** Length of the hand-off into the draft review screen. */
+const HANDOFF_MS = 2000;
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
 
 export default function ReceiptUploadPage() {
   const { vehicleId } = useParams();
@@ -26,6 +40,9 @@ export default function ReceiptUploadPage() {
   const [vehicle, setVehicle] = useState(null);
   const [pages, setPages] = useState([]);
   const [previewPage, setPreviewPage] = useState(null);
+  // The draft to open once the hand-off has played. Set only on success, so
+  // the car never appears over a receipt that failed to read.
+  const [handoffDraftId, setHandoffDraftId] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [cameraUnavailable, setCameraUnavailable] = useState(false);
@@ -353,6 +370,15 @@ export default function ReceiptUploadPage() {
     setError('');
     setProgress({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
 
+    // The review screen is a lazy route, so without this its chunk starts
+    // downloading at `navigate()` — the moment the car leaves the frame — and
+    // the hand-off ends on a Suspense fallback instead of the screen it just
+    // promised. Reading a receipt takes seconds; the chunk is a few KB. Start
+    // it now and it is resident long before the transition is over. Rejection
+    // is ignored on purpose: this is a warm-up, and the real import on the
+    // route will surface any genuine failure.
+    import('./ServiceDraftReviewPage.jsx').catch(() => {});
+
     try {
       const draft = await createReceiptPagesServiceDraft({
         vehicleId,
@@ -363,7 +389,14 @@ export default function ReceiptUploadPage() {
         onProgress: setProgress,
       });
       stopCamera();
-      navigate(`/service-drafts/${draft.draftId}`);
+      // Start the review request now rather than on arrival, so the two
+      // seconds of transition are spent fetching instead of waiting. The
+      // review screen calls the same function and is handed this result.
+      primeServiceDraftReview(draft.draftId);
+      // Reduced motion gets the same cut the walkthrough gives it: straight
+      // to the draft, no car.
+      if (prefersReducedMotion()) navigate(`/service-drafts/${draft.draftId}`);
+      else setHandoffDraftId(draft.draftId);
     } catch (err) {
       setError(friendlyReceiptError(err));
       setProgress(null);
@@ -371,6 +404,18 @@ export default function ReceiptUploadPage() {
       setSaving(false);
     }
   }
+
+  // Two seconds, matched to HANDOFF_MS in both places at once: the overlay is
+  // told how long to drive and the timer waits exactly that long, so the car
+  // is still leaving the frame as the review screen arrives.
+  useEffect(() => {
+    if (!handoffDraftId) return undefined;
+    const timer = window.setTimeout(
+      () => navigate(`/service-drafts/${handoffDraftId}`),
+      HANDOFF_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [handoffDraftId, navigate]);
 
   const vehicleName = vehicle ? vehicle.nickname || `${vehicle.make} ${vehicle.model}` : '';
 
@@ -386,6 +431,19 @@ export default function ReceiptUploadPage() {
       onExit={() => { stopCamera(); navigate('/'); }}
     >
       {saving && <ReadingOverlay progress={progress} />}
+
+      {/* The read succeeded and the next screen is a different kind of task —
+          checking what we got, rather than adding to it. Same hand-off the
+          walkthrough uses into the vehicle form, at two seconds rather than
+          five: there is a real screen waiting behind it here, so it is a beat,
+          not a journey. No skip hint, because nothing listens for one. */}
+      {handoffDraftId && (
+        <GarageTransition
+          label="Let’s check what we read"
+          durationMs={HANDOFF_MS}
+          hint={null}
+        />
+      )}
 
       {error && <div className="flow-alert">{error}</div>}
 
@@ -662,58 +720,41 @@ export default function ReceiptUploadPage() {
 }
 
 /**
- * Two steps, because two things happen, and both bars move with real page
- * counts. There used to be four steps walked through on a 900ms timer with no
- * connection to the request: it claimed to be "Analyzing service details" 1.8s
- * in whether or not OCR had returned, then sat on the last step indefinitely.
+ * Two steps, because two things happen and neither of them is invented.
+ *
+ * <p>The first counts pages actually stored, and its bar is that fraction. The
+ * second has no fraction to show — OCR is one request that returns when it
+ * returns — so it gets an indeterminate bar and the seconds it has really been
+ * waiting. See ProcessingModal for why that distinction is load-bearing here.
  */
 function ReadingOverlay({ progress }) {
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
   const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
+  const readingSeconds = useElapsedSeconds(!storing);
+  const pageWord = `${totalPages} page${totalPages === 1 ? '' : 's'}`;
 
   return (
-    <div className="flow-reading" role="status" aria-live="polite">
-      <div className="flow-reading__inner">
-        <div>
-          <h2 className="flow-reading__title">
-            {storing ? 'Saving your pages' : 'Reading your receipt'}
-          </h2>
-          <p className="flow-reading__sub">
-            Two steps. This is the slow part — leave it running and it will finish.
-          </p>
-        </div>
-
-        <div className="flow-reading__steps">
-          <div className="flow-reading__step">
-            <span className={`flow-reading__dot${storing ? '' : ' is-done'}`} aria-hidden="true">
-              <Check size={14} strokeWidth={3} />
-            </span>
-            <div style={{ flex: 1 }}>
-              <p className="flow-reading__name">Saving the pages</p>
-              <p className="flow-reading__count">{storedPages} of {totalPages} saved</p>
-              {storing && (
-                <div className="flow-reading__bar"><i style={{ width: `${storedPct}%` }} /></div>
-              )}
-            </div>
-          </div>
-
-          <div className="flow-reading__step">
-            <span className="flow-reading__dot" aria-hidden="true" />
-            <div style={{ flex: 1 }}>
-              <p className="flow-reading__name">Reading them</p>
-              <p className="flow-reading__count">
-                {storing
-                  ? 'Waiting for the pages'
-                  : `${totalPages} page${totalPages === 1 ? '' : 's'} to read`}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <p className="flow-reading__foot">Both counts are real. Neither is a timer.</p>
-      </div>
-    </div>
+    <ProcessingModal
+      title={storing ? 'Saving your pages' : 'Reading your receipt'}
+      sub="Two steps. This is the slow part — leave it running and it will finish."
+      foot={storing
+        ? 'Both counts are real. Neither is a timer.'
+        : 'A long receipt takes longer. Nothing is lost while this runs.'}
+    >
+      <ProcessingStep
+        name="Saving the pages"
+        state={storing ? 'active' : 'done'}
+        count={storing ? `${storedPages} of ${totalPages} saved` : `${pageWord} saved`}
+        progress={storing ? storedPct : null}
+      />
+      <ProcessingStep
+        name="Reading them"
+        state={storing ? 'pending' : 'active'}
+        count={storing ? 'Waiting for the pages' : `${pageWord} · ${formatWait(readingSeconds)}`}
+        progress={storing ? null : 'waiting'}
+      />
+    </ProcessingModal>
   );
 }
 

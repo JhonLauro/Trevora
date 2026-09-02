@@ -1,7 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
-import { createVoiceServiceDraft, transcribeVoiceAudio, translateVoiceTranscript } from '../api/serviceDrafts';
+import GarageTransition from '../components/GarageTransition.jsx';
+import ProcessingModal, {
+  ProcessingStep,
+  formatWait,
+  useElapsedSeconds,
+} from '../components/flow/ProcessingModal.jsx';
+import {
+  createVoiceServiceDraft,
+  primeServiceDraftReview,
+  transcribeVoiceAudio,
+  translateVoiceTranscript,
+} from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
 /**
@@ -20,6 +31,15 @@ import { getVehicle } from '../api/vehicles';
  * and changing which language the extractor sees is an extraction change, not
  * a layout one.
  */
+
+/** Length of the hand-off into the draft review screen. Matched to the
+ *  receipt flow: both paths end on the same screen and should feel alike. */
+const HANDOFF_MS = 2000;
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
 
 function preferredAudioMimeType() {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -116,6 +136,9 @@ export default function VoiceInputPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // The draft to open once the hand-off has played. Set only on success, so
+  // the car never appears over a note that failed to file.
+  const [handoffDraftId, setHandoffDraftId] = useState(null);
   const recorderSupported = typeof window !== 'undefined'
     && 'MediaRecorder' in window
     && Boolean(navigator.mediaDevices?.getUserMedia);
@@ -279,16 +302,33 @@ export default function VoiceInputPage() {
 
     setSaving(true);
     setError('');
+    // The review screen is a lazy route: without this its chunk only starts
+    // downloading when the car leaves the frame, and the hand-off lands on a
+    // Suspense fallback instead of the screen it promised.
+    import('./ServiceDraftReviewPage.jsx').catch(() => {});
 
     try {
       const draft = await createVoiceServiceDraft({ vehicleId, transcript: toRead });
-      navigate(`/service-drafts/${draft.draftId}`);
+      // Start the review request now rather than on arrival, so the two seconds
+      // of transition are spent fetching instead of waiting.
+      primeServiceDraftReview(draft.draftId);
+      if (prefersReducedMotion()) navigate(`/service-drafts/${draft.draftId}`);
+      else setHandoffDraftId(draft.draftId);
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (!handoffDraftId) return undefined;
+    const timer = window.setTimeout(
+      () => navigate(`/service-drafts/${handoffDraftId}`),
+      HANDOFF_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [handoffDraftId, navigate]);
 
   const vehicleName = vehicle ? vehicle.nickname || `${vehicle.make} ${vehicle.model}` : '';
   const busy = recording || transcribing || translating || saving;
@@ -302,6 +342,18 @@ export default function VoiceInputPage() {
       subtitle="Date, cost, shop, and what was replaced. Anything you leave out you can type on the next screen."
       onExit={() => navigate('/')}
     >
+      {saving && <FilingOverlay />}
+
+      {/* Same hand-off the receipt takes, because it ends on the same screen
+          and a note filed by voice should not feel like a lesser route in. */}
+      {handoffDraftId && (
+        <GarageTransition
+          label="Let’s check what we heard"
+          durationMs={HANDOFF_MS}
+          hint={null}
+        />
+      )}
+
       {error && <div className="flow-alert">{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -415,5 +467,30 @@ export default function VoiceInputPage() {
         </div>
       </form>
     </FlowChrome>
+  );
+}
+
+/**
+ * One step, because one thing happens: the transcript goes to the extractor
+ * and comes back as a draft. There is no fraction to show — it is a single
+ * request — so it shows an indeterminate bar and the seconds it has actually
+ * been running, and claims nothing else.
+ */
+function FilingOverlay() {
+  const seconds = useElapsedSeconds(true);
+
+  return (
+    <ProcessingModal
+      title="Reading your note"
+      sub="Pulling out the date, the shop, the cost and the work. This is the slow part — leave it running and it will finish."
+      foot="Whatever it misses, you fill in on the next screen. Nothing is lost while this runs."
+    >
+      <ProcessingStep
+        name="Reading what you said"
+        state="active"
+        count={formatWait(seconds)}
+        progress="waiting"
+      />
+    </ProcessingModal>
   );
 }
