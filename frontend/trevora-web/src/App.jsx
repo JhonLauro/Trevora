@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { isLoggedIn } from './api/currentUser.js';
+import useOnboardingGate from './hooks/useOnboardingGate.js';
 import AppShell from './components/AppShell.jsx';
 
 /* Every screen below is its own chunk, fetched the first time it is
@@ -65,9 +66,26 @@ const Loading = null;
 
 function AppRoutes() {
   const location = useLocation();
+  const { ready, walkthroughDone, hasVehicle } = useOnboardingGate();
 
   if (!isLoggedIn()) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  /* Onboarding, in order, before any of the app is reachable. Both targets are
+     routed above this component rather than inside it, so a redirect here
+     cannot bounce against the guard that sent it.
+
+     `replace` on both: these are steps in a sequence, not places you came from,
+     and leaving them in history gives Back a way around the gate. */
+  if (!ready) {
+    return Loading;
+  }
+  if (!walkthroughDone) {
+    return <Navigate to="/welcome" replace />;
+  }
+  if (!hasVehicle) {
+    return <Navigate to="/register/vehicle" replace />;
   }
 
   return (
