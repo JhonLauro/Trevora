@@ -2,6 +2,22 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 /**
+ * Lowercased and stripped of accents, for comparing what was typed against
+ * what is listed.
+ *
+ * Nobody reaches for the ¨ key to look up a Citroën, and a search that only
+ * matches the correctly-accented spelling tells them their car is not in a
+ * list it is sitting in. Škoda has the same problem.
+ */
+function fold(text) {
+  return String(text ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/**
  * A picker you can also type into.
  *
  * The list is the point — it is what stops `Receipt` and `Koyota` becoming
@@ -35,17 +51,31 @@ export default function Combobox({
   const listId = `${fieldId}-list`;
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
+  /* Set only by the chevron, cleared by any keystroke. Typing always filters —
+     typing "BYD" and being shown 205 brands is the list ignoring you — but a
+     field that already holds a make still has to be re-openable to change it,
+     and filtering "BYD" down to BYD would leave nothing to change it to. The
+     chevron is that door. */
+  const [browsing, setBrowsing] = useState(false);
   const wrapperRef = useRef(null);
   const listRef = useRef(null);
 
   const query = String(value ?? '');
-  const needle = query.trim().toLowerCase();
-  // An exact match means the user has settled on an option; showing the list
-  // filtered down to that one row is noise, so show everything again.
-  const exact = options.some((option) => option.toLowerCase() === needle);
-  const filtered = !needle || exact
+  const needle = fold(query);
+  const filtered = !needle || browsing
     ? options
-    : options.filter((option) => option.toLowerCase().includes(needle));
+    : options.filter((option) => fold(option).includes(needle));
+
+  /* A field with nothing to offer does not open a list. Picking a make the
+     catalogue holds no models for used to drop a one-row popup reading "not on
+     the list — it will be saved exactly as you typed it" before anything had
+     been typed. With 205 makes and models for nineteen of them that is now the
+     common case, and the field is simply a text box in it.
+
+     Note this is `options`, not `filtered`: text matching nothing SHOULD still
+     get that row, because there was a list and the answer is not in it. */
+  const hasOptions = options.length > 0;
+  const expanded = open && hasOptions && !disabled;
 
   useEffect(() => {
     function handlePointerDown(event) {
@@ -65,6 +95,7 @@ export default function Combobox({
   function commit(option) {
     onChange(option);
     setOpen(false);
+    setBrowsing(false);
     setHighlight(-1);
   }
 
@@ -112,34 +143,51 @@ export default function Combobox({
           id={fieldId}
           ref={inputRef}
           type="text"
-          role="combobox"
           autoComplete="off"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={open && highlight >= 0 ? `${fieldId}-opt-${highlight}` : undefined}
+          /* With no options this is a text box and says so. Announcing a
+             combobox whose listbox never appears sends a screen reader looking
+             for a list that is not there. */
+          role={hasOptions ? 'combobox' : undefined}
+          aria-expanded={hasOptions ? expanded : undefined}
+          aria-controls={hasOptions ? listId : undefined}
+          aria-autocomplete={hasOptions ? 'list' : undefined}
+          aria-activedescendant={expanded && highlight >= 0 ? `${fieldId}-opt-${highlight}` : undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           disabled={disabled}
           placeholder={placeholder}
           value={query}
-          onChange={(event) => { onChange(event.target.value); setOpen(true); setHighlight(-1); }}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setOpen(true);
+            setBrowsing(false);
+            setHighlight(-1);
+          }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
         />
+        {/* Nothing to drop down, so no control that promises one. */}
+        {hasOptions && (
         <button
           type="button"
           className="ink-combo__toggle"
           tabIndex={-1}
           aria-label={`${open ? 'Hide' : 'Show'} ${label.toLowerCase()} options`}
           disabled={disabled}
-          onClick={() => { setOpen((current) => !current); setHighlight(-1); }}
+          onClick={() => {
+            // Opening from the chevron is a request to see the whole list.
+            const next = !open;
+            setOpen(next);
+            setBrowsing(next);
+            setHighlight(-1);
+          }}
         >
           <ChevronDown size={18} aria-hidden="true" />
         </button>
+        )}
       </div>
 
-      {open && !disabled && (
+      {expanded && (
         <ul className="ink-combo__list" id={listId} role="listbox" ref={listRef}>
           {filtered.length === 0 ? (
             <li className="ink-combo__empty" role="presentation">
@@ -151,7 +199,7 @@ export default function Combobox({
                 key={option}
                 id={`${fieldId}-opt-${index}`}
                 role="option"
-                aria-selected={option.toLowerCase() === needle}
+                aria-selected={fold(option) === needle}
                 className={`ink-combo__option${index === highlight ? ' is-highlighted' : ''}`}
                 onMouseEnter={() => setHighlight(index)}
                 onMouseDown={(event) => { event.preventDefault(); commit(option); }}
