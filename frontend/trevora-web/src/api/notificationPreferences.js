@@ -36,7 +36,6 @@ export const NOTIFICATION_PREFERENCES_CHANGED_EVENT = 'trevora:notification-pref
  * into an object nobody queries and disappears on the next save.
  */
 export const NOTIFICATION_CATEGORIES = {
-  DRAFT_REVIEW: 'draftReview',
   MECHANIC_REQUEST: 'mechanicRequest',
   TEMPORARY_EXPIRED: 'temporaryExpired',
 };
@@ -48,7 +47,6 @@ export const KNOWN_NOTIFICATION_CATEGORIES = new Set(Object.values(NOTIFICATION_
 /** On by default: someone who has never opened Settings should still be told
  *  a mechanic is asking for their service history. */
 export const defaultNotificationPreferences = {
-  draftReview: true,
   mechanicRequest: true,
   temporaryExpired: true,
 };

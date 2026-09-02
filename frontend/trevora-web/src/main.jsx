@@ -86,6 +86,15 @@ import './styles/mechanic-record.css';
 // Voice input's "Saying it well" guide. Builds on the flow-* classes in
 // service-flow.css, so it must come after it.
 import './styles/voice-guide.css';
+// Hover, press and focus states for the choice cards in the add-record flow.
+// After brand-app.css, which restyles one of the two.
+import './styles/flow-cards.css';
+// Access-request toasts. A floating surface, so it comes after the page styles.
+import './styles/toast.css';
+// Step-bar fill for the add-record flow. After brand-app.css, which colours it.
+import './styles/flow-progress.css';
+// The "add this to your vehicle?" offer on the draft review screen.
+import './styles/vehicle-offer.css';
 
 // The empty garage — the three ways to add a first record.
 import './styles/garage-start.css';

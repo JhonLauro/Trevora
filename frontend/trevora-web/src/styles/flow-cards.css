@@ -1,0 +1,80 @@
+/* The choice cards in "Add a service record" — vehicle (step 1) and method
+   (step 2). Loaded last, because brand-app.css restyles one of them.
+
+   WHY THESE NEEDED A PASS
+
+   Both cards became the action itself rather than a selection to confirm, so
+   they have to read as clickable. Three things were missing:
+
+   1. No transition on either. The hover state snapped on and off, which is
+      what makes a card feel like a diagram instead of a control.
+
+   2. They hovered differently. brand-app.css gives the vehicle card a green
+      wash and a green border; the method card only ever got the plain grey
+      from service-flow.css. Two cards, one wizard, two hover languages.
+
+   3. No visible focus ring on either. Tabbing through step 2 showed nothing
+      at all, which is a keyboard user navigating blind. */
+
+.flow-pick__card,
+.flow-method {
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    transform 140ms ease-out;
+  will-change: transform;
+}
+
+/* One hover language for both. The border does most of the work — it is the
+   edge you are aiming at — and the wash confirms it without shouting. */
+.flow .flow-pick__card:hover:not(:disabled),
+.flow-pick__card:hover:not(:disabled),
+.flow-method:hover:not(:disabled) {
+  background: var(--brand-wash, #f7faf8);
+  border-color: var(--brand, #0e7a52);
+  transform: translateY(-2px);
+}
+
+/* Pressing puts it back down. Without this the card stays lifted through the
+   click and the press has no physical answer. */
+.flow-pick__card:active:not(:disabled),
+.flow-method:active:not(:disabled) {
+  transform: translateY(0);
+  transition-duration: 60ms;
+}
+
+/* Keyboard parity: tabbing to a card should look at least as clear as
+   pointing at one. `:focus-visible` rather than `:focus`, so a mouse click
+   does not leave a ring behind. */
+.flow-pick__card:focus-visible,
+.flow-method:focus-visible {
+  border-color: var(--brand, #0e7a52);
+  outline: 2px solid var(--brand, #0e7a52);
+  outline-offset: 2px;
+}
+
+/* The recommendation badge belongs to the card it sits on, so it warms up
+   with it rather than staying grey while everything around it moves. */
+.flow-method:hover .flow-method__rec {
+  border-color: var(--brand, #0e7a52);
+  color: var(--brand, #0e7a52);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduce, not remove. The colour change carries the whole message and has
+     nothing to trigger anyone — it is the two pixels of travel that go, along
+     with the easing on them. Hover still reads exactly as clearly. */
+  .flow-pick__card,
+  .flow-method {
+    transition: background-color 140ms ease-out, border-color 140ms ease-out;
+    will-change: auto;
+  }
+
+  .flow .flow-pick__card:hover:not(:disabled),
+  .flow-pick__card:hover:not(:disabled),
+  .flow-method:hover:not(:disabled),
+  .flow-pick__card:active:not(:disabled),
+  .flow-method:active:not(:disabled) {
+    transform: none;
+  }
+}

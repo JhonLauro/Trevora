@@ -42,7 +42,6 @@ export default function StatusRail({
   vehicleSubtext,
   saving,
   dirty,
-  onContinue,
 }) {
   const statusLine = ready
     ? 'Nothing is stopping this from being saved. Anything still flagged is yours to judge.'
@@ -88,27 +87,30 @@ export default function StatusRail({
       </section>
 
       <div className="flow-rail-actions">
-        {/* Submits the enclosing form. That form's onSubmit is the only save
-            path on this screen — every field here writes through it. */}
-        <button className="flow-btn" type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
-        {/* Confirming reads the saved draft, not this form, so unsaved edits
-            would be silently left behind — the exact failure this screen was
-            merged together to remove. */}
+        {/* One control.
+
+            There used to be a Save button beside this one, and this one stayed
+            disabled until you had pressed it — so leaving this screen always
+            took the same two clicks in the same order. Saving is not a decision
+            the owner makes; it is what has to happen before the next step can
+            read the draft.
+
+            Nothing but a submit: the enclosing form's onSubmit is the single
+            path, so a click and Enter-in-a-field do the same thing and cannot
+            fire twice. That handler saves first and travels only if the server
+            accepts what it saved. */}
         <button
           className="flow-btn"
-          type="button"
-          disabled={saving || dirty || !ready}
-          onClick={onContinue}
+          type="submit"
+          disabled={saving || (!dirty && !ready)}
         >
-          Continue to confirm
+          {saving ? 'Saving…' : 'Continue to confirm'}
         </button>
-        {dirty && (
-          <p className="flow-rail-actions__hint">Save your changes first — then you can go on.</p>
-        )}
         {!dirty && !ready && (
           <p className="flow-rail-actions__hint">Fix what is listed above to continue.</p>
+        )}
+        {dirty && (
+          <p className="flow-rail-actions__hint">Your changes are saved as you continue.</p>
         )}
       </div>
     </aside>

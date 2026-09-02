@@ -246,6 +246,20 @@ public class OCRProcessingService {
         // metadata rather than columns because nothing queries them yet: they
         // exist so the documents of one visit can be grouped later without
         // paying for another extraction pass over receipts already uploaded.
+        /*
+         * The vehicle identifiers the paper printed, kept in metadata rather
+         * than on the draft's columns because they describe the vehicle, not
+         * the service. Nothing reads them automatically: they are here so the
+         * review screen can notice a plate or chassis the owner has never
+         * recorded and offer to add it, with the receipt as the evidence.
+         *
+         * Null when the receipt printed nothing — the vehicle block above the
+         * OCR text is explicitly not a source, so an absent value stays absent
+         * rather than being filled from what we already knew.
+         */
+        metadata.put("receiptPlateNumber", fields.plateNumber());
+        metadata.put("receiptVinChassisNumber", fields.vinChassisNumber());
+
         metadata.put("documentType", fields.documentType().name());
         metadata.put("documentNumber", fields.documentNumber());
         metadata.put("referenceNumbers",

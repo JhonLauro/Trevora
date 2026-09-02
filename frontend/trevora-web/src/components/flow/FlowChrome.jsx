@@ -55,7 +55,16 @@ export default function FlowChrome({
           {STEPS.map((label, index) => (
             <li
               key={label}
-              className={`flow-progress__seg${index < step ? ' is-done' : ''}`}
+              /* `is-latest` marks the segment this step just completed, so only
+                 that one animates. Every page in this flow is its own route, so
+                 the bar remounts on each step -- without this every filled
+                 segment would re-sweep every time, which reads as loading
+                 rather than as progress. */
+              className={[
+                'flow-progress__seg',
+                index < step ? 'is-done' : '',
+                index === step - 1 ? 'is-latest' : '',
+              ].filter(Boolean).join(' ')}
               aria-hidden="true"
             />
           ))}

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -103,6 +104,13 @@ public class ServiceRecordController {
     @PostMapping("/voice/translate")
     public VoiceTranscriptionResponse translateVoiceTranscript(@Valid @RequestBody VoiceTranslationRequest request) {
         return voiceTranscriptionService.translate(request);
+    }
+
+    /** Discards a draft. Used when a receipt turns out to be for another vehicle. */
+    @DeleteMapping("/{draftId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDraft(@PathVariable UUID draftId) {
+        serviceInputService.deleteDraftForCurrentUser(draftId);
     }
 
     @GetMapping("/{draftId}")

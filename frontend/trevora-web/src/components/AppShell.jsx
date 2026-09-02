@@ -15,6 +15,7 @@ import {
   isNotificationEnabled,
 } from '../api/notificationPreferences.js';
 import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
+import AccessRequestToasts from './AccessRequestToasts.jsx';
 import { supabase } from '../api/supabaseClient.js';
 import ConfirmDialog from './ink/ConfirmDialog.jsx';
 import InkLockup from './InkLockup.jsx';
@@ -381,6 +382,15 @@ export default function AppShell({ children }) {
           </div>
         </div>
       )}
+
+      {/* Lives in the shell so it reaches every signed-in screen. Gated on the
+          same two conditions as the sidebar count, so an owner who has turned
+          mechanic-request notifications off does not get popped at anyway. */}
+      <AccessRequestToasts
+        enabled={canUseOwnerWorkflows}
+        mechanicRequests={mechanicRequestsEnabled}
+        preferences={notificationPreferences}
+      />
 
       <ConfirmDialog
         open={confirmSignOut}

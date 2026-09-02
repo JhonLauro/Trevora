@@ -197,6 +197,24 @@ public class ServiceInputService {
     }
 
 
+    /**
+     * Throws a draft away.
+     *
+     * <p>Added for the one case that needs it: a receipt read against the
+     * wrong vehicle. Without this the owner is told to scan again and the
+     * mistaken draft stays behind, counting itself in the Garage's "needs
+     * review" and asking to be finished — a nag for work nobody should do.
+     *
+     * <p>Scoped by owner like every read: a draft id is not permission.
+     * Items and line entries go with it through the database cascade declared
+     * in migrations 007 and 011.
+     */
+    @Transactional
+    public void deleteDraftForCurrentUser(UUID draftId) {
+        ServiceDraft draft = getDraftForCurrentUser(draftId);
+        serviceDraftRepository.delete(draft);
+    }
+
     public ServiceDraft getDraftForCurrentUser(UUID draftId) {
         return serviceDraftRepository.findByDraftIdAndOwnerId(draftId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service draft was not found."));

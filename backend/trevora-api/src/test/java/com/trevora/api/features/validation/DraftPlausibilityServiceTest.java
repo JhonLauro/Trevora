@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -34,12 +35,17 @@ class DraftPlausibilityServiceTest {
     private static final UUID OWNER = UUID.randomUUID();
 
     private ServiceRecordRepository records;
+    private com.trevora.api.features.serviceinput.ServiceDraftRepository drafts;
     private DraftPlausibilityService service;
 
     @BeforeEach
     void setUp() {
         records = mock(ServiceRecordRepository.class);
-        service = new DraftPlausibilityService(records);
+        drafts = mock(com.trevora.api.features.serviceinput.ServiceDraftRepository.class);
+        // No sibling drafts by default: these tests are about the confirmed
+        // history, and an unstubbed finder would return null rather than empty.
+        when(drafts.findByVehicleIdAndOwnerId(any(), any())).thenReturn(java.util.List.of());
+        service = new DraftPlausibilityService(records, drafts);
         history();
     }
 
@@ -196,7 +202,145 @@ class DraftPlausibilityServiceTest {
         assertThat(service.check(draft, vehicle(null))).isEmpty();
     }
 
+    // ---- what the exact-match rule used to miss --------------------------
+
+    /*
+     * All three of these were reported as "I scanned the same receipt twice and
+     * nothing happened". The old rule needed the date, the total and the shop
+     * to match exactly, which anchored it to the two fields extraction is worst
+     * at: against the golden set serviceDate scores about 80% and shopName
+     * about 40%, while totalCost is around 90%. So the same piece of paper read
+     * twice produced two different dates and two different shop names, and the
+     * check saw two unrelated services.
+     */
+
+    @Test
+    @DisplayName("a misread date does not hide a duplicate")
+    void flagsADuplicateReadWithADifferentDate() {
+        // The reported case: one receipt read as the 11th, then as the 30th.
+        history(record(LocalDate.of(2026, 8, 11), null, "3981.60", "Canyon Creek Toyota"));
+
+        assertThat(service.check(
+                draft(LocalDate.of(2026, 8, 30), null, "3981.60", "Canyon Creek Toyota"), vehicle(null)))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a shop name read once and missed once does not hide a duplicate")
+    void flagsADuplicateWhenOneShopNameIsBlank() {
+        // Four times in ten the shop does not come off the paper at all. Absence
+        // is not disagreement, so it must not be read as one.
+        history(record(LocalDate.of(2026, 8, 11), null, "3981.60", "Canyon Creek Toyota"));
+
+        assertThat(service.check(
+                draft(LocalDate.of(2026, 8, 12), null, "3981.60", null), vehicle(null)))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a truncated shop name still matches the full one")
+    void flagsADuplicateWhenOneShopNameIsTruncated() {
+        history(record(LocalDate.of(2026, 8, 11), null, "3981.60", "Canyon Creek Toyota Service Center"));
+
+        assertThat(service.check(
+                draft(LocalDate.of(2026, 8, 11), null, "3981.60", "Canyon Creek Toyota"), vehicle(null)))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("an identical odometer flags a duplicate however far apart the dates read")
+    void identicalOdometerOutweighsTheDates() {
+        /*
+         * The one signal a misread date cannot spoil. A vehicle serviced twice
+         * for real was driven in between -- that is what the second visit is
+         * for -- so the same reading on both is the same afternoon.
+         */
+        history(record(LocalDate.of(2026, 2, 3), 62_140, "3981.60", "Canyon Creek Toyota"));
+
+        assertThat(service.check(
+                draft(LocalDate.of(2026, 8, 30), 62_140, "3981.60", "Canyon Creek Toyota"), vehicle(null)))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a real service interval apart is still not a duplicate")
+    void aGenuineLaterVisitIsNotADuplicate() {
+        /*
+         * The guard on widening the window. Standard-price servicing repeats to
+         * the peso, so an unbounded rule would accuse every routine oil change
+         * of duplicating the last one and train the owner to dismiss it. Real
+         * visits are months apart; the window is one month.
+         */
+        history(record(LocalDate.of(2026, 3, 14), 40_000, "1500.00", "Powerstart"));
+
+        assertThat(service.check(
+                draft(LocalDate.of(2026, 9, 14), 46_800, "1500.00", "Powerstart"), vehicle(null)))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
     // ---- fixtures --------------------------------------------------------
+
+    // ---- the same receipt scanned twice, neither confirmed ---------------
+
+    @Test
+    @DisplayName("a second scan of the same receipt is flagged before either is confirmed")
+    void warnsAboutASiblingDraft() {
+        /*
+         * The confirmed-history check cannot see this: photograph a receipt,
+         * doubt it worked, photograph it again, and there are two drafts and
+         * no records at all. That is the likelier slip of the two.
+         */
+        ServiceDraft alreadyScanned = draft(LocalDate.of(2026, 5, 20), 40_000, "1500.00", "Powerstart");
+        setField(alreadyScanned, "draftId", UUID.randomUUID());
+        siblings(alreadyScanned);
+
+        ServiceDraft scanningAgain = draft(LocalDate.of(2026, 5, 20), 40_000, "1500.00", "Powerstart");
+        setField(scanningAgain, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(scanningAgain, new VehicleProfile()))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a draft does not flag itself")
+    void ignoresItsOwnDraft() {
+        UUID id = UUID.randomUUID();
+        ServiceDraft only = draft(LocalDate.of(2026, 5, 20), 40_000, "1500.00", "Powerstart");
+        setField(only, "draftId", id);
+        siblings(only);
+
+        assertThat(service.check(only, new VehicleProfile()))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a different amount on the same day is not a duplicate")
+    void differentAmountIsNotADuplicate() {
+        ServiceDraft other = draft(LocalDate.of(2026, 5, 20), 40_000, "1500.00", "Powerstart");
+        setField(other, "draftId", UUID.randomUUID());
+        siblings(other);
+
+        ServiceDraft mine = draft(LocalDate.of(2026, 5, 20), 40_000, "2300.00", "Powerstart");
+        setField(mine, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(mine, new VehicleProfile()))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    private void siblings(ServiceDraft... rows) {
+        when(drafts.findByVehicleIdAndOwnerId(eq(VEHICLE), eq(OWNER))).thenReturn(List.of(rows));
+    }
+
+    /** draftId is @GeneratedValue, so a unit test has to place it directly. */
+    private static void setField(Object target, String field, Object value) {
+        try {
+            java.lang.reflect.Field f = target.getClass().getDeclaredField(field);
+            f.setAccessible(true);
+            f.set(target, value);
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
 
     private void history(ServiceRecord... rows) {
         when(records.findByVehicleIdAndOwnerId(eq(VEHICLE), eq(OWNER), any(Sort.class)))

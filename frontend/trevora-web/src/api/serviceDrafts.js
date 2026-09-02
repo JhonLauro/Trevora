@@ -1,32 +1,24 @@
 import { apiRequest } from './http';
-import { NOTIFICATION_CATEGORIES } from './notificationPreferences.js';
-import { dismissLocalNotification, recordLocalNotification } from './localNotifications.js';
 import { removeStoredReceipt, uploadReceiptPages } from './receiptStorage';
 
-/**
- * Nothing on the backend records that a draft was created or confirmed, so
- * these two moments are captured here, where every input method (manual,
- * receipt, voice) passes through, rather than in each of the three pages.
+/*
+ * There was a "your draft needs review" notification raised here, on every
+ * input method. It is gone, along with the pairing it belonged to.
+ *
+ * Creating a draft navigates straight into that draft, so the notice arrived
+ * announcing the screen its reader was already looking at. It then sat in the
+ * list until confirmation quietly took it back — a round trip whose only
+ * visible effect was a line telling somebody to do what they were doing.
+ *
+ * Nothing is lost with it: the Garage counts what still needs review, and an
+ * unconfirmed draft is reachable from the vehicle it belongs to.
  */
-function announceDraftCreated(draft) {
-  const draftId = draft?.serviceDraftId ?? draft?.draftId ?? draft?.id;
-  if (!draftId) return draft;
-  recordLocalNotification({
-    category: NOTIFICATION_CATEGORIES.DRAFT_REVIEW,
-    title: 'Service draft needs review',
-    body: 'A service draft is waiting for you to check what was read from it.',
-    action: 'Review draft',
-    href: `/service-drafts/${draftId}`,
-    dedupeKey: draftId,
-  });
-  return draft;
-}
 
 export function createManualServiceDraft(draft) {
   return apiRequest('/service-drafts/manual', {
     method: 'POST',
     body: JSON.stringify(draft),
-  }).then(announceDraftCreated);
+  });
 }
 
 export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
@@ -77,10 +69,10 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
 
   try {
     onProgress?.({ stage: 'READING', storedPages: storedPages.length, totalPages: pages.length });
-    return announceDraftCreated(await apiRequest('/service-drafts/receipt', {
+    return await apiRequest('/service-drafts/receipt', {
       method: 'POST',
       body: formData,
-    }));
+    });
   } catch (error) {
     await Promise.all(storedPages.map((page) => removeStoredReceipt(page)));
     throw error;
@@ -91,7 +83,7 @@ export function createVoiceServiceDraft(draft) {
   return apiRequest('/service-drafts/voice', {
     method: 'POST',
     body: JSON.stringify(draft),
-  }).then(announceDraftCreated);
+  });
 }
 
 export function transcribeVoiceAudio({ vehicleId, audioFile }) {
@@ -172,20 +164,24 @@ export function updateServiceDraftCorrections(draftId, corrections) {
   }).then(normalizeDraftValidationPayload);
 }
 
+/**
+ * Throws a draft away.
+ *
+ * <p>For the receipt that turns out to belong to another vehicle. Without it
+ * the owner is sent to scan again and the mistaken draft stays behind, still
+ * counted in the Garage's "needs review" and still asking to be finished.
+ */
+export function deleteServiceDraft(draftId) {
+  return apiRequest(`/service-drafts/${encodeURIComponent(draftId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export function confirmServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}/confirm`, {
     method: 'POST',
   })
-    .then(normalizeDraftValidationPayload)
-    .then((result) => {
-      // The draft no longer needs reviewing, so its prompt is taken back.
-      // Otherwise the list kept pointing at a draft that was already filed.
-      dismissLocalNotification({
-        category: NOTIFICATION_CATEGORIES.DRAFT_REVIEW,
-        dedupeKey: draftId,
-      });
-      return result;
-    });
+    .then(normalizeDraftValidationPayload);
 }
 
 function normalizeDraftValidationPayload(payload) {

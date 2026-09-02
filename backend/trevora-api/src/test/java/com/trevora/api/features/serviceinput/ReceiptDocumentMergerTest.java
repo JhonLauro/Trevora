@@ -99,7 +99,7 @@ class ReceiptDocumentMergerTest {
         ReceiptDraftFields pageTwo = new ReceiptDraftFields(
                 DocumentType.SERVICE_INVOICE, "G7YA009184", List.of(), VISIT,
                 List.of(service("Brake inspection")), null, null, null, null, null,
-                List.of(), Map.of(), Map.of(), List.of(), null, List.of());
+                List.of(), Map.of(), Map.of(), List.of(), null, List.of(), null, null);
 
         ReceiptDraftFields merged = ReceiptDocumentMerger.merge(List.of(pageOne, pageTwo));
 
@@ -248,7 +248,7 @@ class ReceiptDocumentMergerTest {
                 source.serviceDate(), source.services(), odometer, source.totalCost(),
                 source.shopName(), source.location(), source.remarks(), source.confidenceNotes(),
                 source.fieldSources(), source.fieldConfidence(), source.aiSuggestedFields(),
-                source.classification(), source.warnings());
+                source.classification(), source.warnings(), null, null);
     }
 
     private static ReceiptDraftFields document(
@@ -269,7 +269,7 @@ class ReceiptDocumentMergerTest {
                 Map.of(),
                 List.of(),
                 null,
-                List.of());
+                List.of(), null, null);
     }
 
     private static ServiceItemFields service(String serviceType) {

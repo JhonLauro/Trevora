@@ -40,7 +40,9 @@ class ServiceDraftValidationServiceTest {
         VehicleService vehicles = mock(VehicleService.class);
         CurrentUserService users = mock(CurrentUserService.class);
         DraftPlausibilityService plausibility =
-                new DraftPlausibilityService(mock(com.trevora.api.features.servicerecord.ServiceRecordRepository.class));
+                new DraftPlausibilityService(
+                        mock(com.trevora.api.features.servicerecord.ServiceRecordRepository.class),
+                        mock(com.trevora.api.features.serviceinput.ServiceDraftRepository.class));
 
         VehicleProfile profile = new VehicleProfile();
         when(vehicles.getVehicleForCurrentUser(any())).thenReturn(profile);
