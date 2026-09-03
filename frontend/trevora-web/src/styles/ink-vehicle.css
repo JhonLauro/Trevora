@@ -1855,3 +1855,30 @@
     min-width: max-content;
   }
 }
+
+/* ------------------------------------------------ modal: make it scroll
+
+   .ink-modal caps itself to the viewport and lays out as a column so that
+   "the content region scrolls instead" of the shell overflowing. The
+   content region was never told to scroll, though: .ink-modal__body has no
+   overflow, and a flex child will not shrink below its own content without
+   min-height: 0. So a tall dialog overflowed the cap it had just been given
+   and pushed its own buttons off the bottom of the screen.
+
+   Landscape on a phone is where this bites -- 375px of height, of which the
+   shell may use 335 -- and it is where it hurts most, because the two flow
+   dialogs no longer close on a backdrop click or Escape. Unreachable
+   buttons there are not an awkward layout, they are no way out at all.
+
+   The title and the action row are pinned so that shrinking lands on the
+   body, which is the only part that can afford it. */
+
+.ink-modal__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ink-modal h2,
+.ink-modal__actions {
+  flex-shrink: 0;
+}
