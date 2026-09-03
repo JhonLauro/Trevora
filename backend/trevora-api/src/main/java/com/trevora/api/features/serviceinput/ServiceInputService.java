@@ -19,6 +19,7 @@ import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Comparator;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -213,6 +214,30 @@ public class ServiceInputService {
     public void deleteDraftForCurrentUser(UUID draftId) {
         ServiceDraft draft = getDraftForCurrentUser(draftId);
         serviceDraftRepository.delete(draft);
+    }
+
+    /**
+     * Every draft this owner started and has not confirmed.
+     *
+     * <p>Until this existed there was no way back to a draft except the URL of
+     * the review screen. Leaving that screen -- which "Save and finish later"
+     * invites -- stranded the work: it was stored, owner-scoped and intact, and
+     * nothing in the app would show it again.
+     *
+     * <p>CONFIRMED drafts are excluded because they have become service
+     * records, and listing them would invite someone to "finish" a draft whose
+     * record already exists.
+     */
+    public List<ServiceDraft> listUnfinishedDraftsForCurrentUser() {
+        return serviceDraftRepository.findByOwnerId(currentUserService.getCurrentUserId()).stream()
+                .filter(draft -> draft.getStatus() != DraftStatus.CONFIRMED)
+                // Newest first: the one being come back to is nearly always the
+                // last one left. Nulls last so a draft with no timestamp is
+                // still listed rather than throwing.
+                .sorted(Comparator.comparing(
+                        ServiceDraft::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
     }
 
     public ServiceDraft getDraftForCurrentUser(UUID draftId) {

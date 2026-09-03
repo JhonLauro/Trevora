@@ -108,6 +108,9 @@ class EndpointProtectionTest {
         registry.put("DELETE /api/vehicles/{vehicleId}/history/{recordId}", Guard.OWNER);
         registry.put("POST /api/vehicles/{vehicleId}/history/{recordId}/reviewed", Guard.OWNER);
         registry.put("GET /api/service-records/{recordId}/ai-explanation", Guard.OWNER);
+        // Listing is owner-scoped in the service: findByOwnerId on the
+        // current user, never a parameter, so there is no id to tamper with.
+        registry.put("GET /api/service-drafts", Guard.OWNER);
         registry.put("GET /api/service-drafts/{draftId}", Guard.OWNER);
         registry.put("DELETE /api/service-drafts/{draftId}", Guard.OWNER);
         registry.put("GET /api/service-drafts/{draftId}/review", Guard.OWNER);

@@ -98,6 +98,9 @@ import './styles/vehicle-offer.css';
 
 // The empty garage — the three ways to add a first record.
 import './styles/garage-start.css';
+// Unfinished drafts on the Records page. Standalone selectors; only needs
+// to follow styles.css.
+import './styles/unfinished-drafts.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

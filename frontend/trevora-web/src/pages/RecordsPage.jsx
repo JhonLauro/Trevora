@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import FilterMenu from '../components/ink/FilterMenu.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
 import { deleteVehicleServiceRecord } from '../api/serviceHistory';
+import { confirmServiceDraft, deleteServiceDraft, listServiceDrafts } from '../api/serviceDrafts';
 import { formatDate, pluralize } from '../utils/format';
 import { recordSearchText } from '../utils/serviceComponents';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
@@ -23,10 +24,83 @@ const ALL_VEHICLES = 'all';
  * would only be thrown away.
  */
 export default function RecordsPage() {
-  const { garages, allRecords, loading, error, removeRecord } = useGarage();
+  const { garages, allRecords, loading, error, removeRecord, refresh } = useGarage();
   const [query, setQuery] = useState('');
   const [vehicleId, setVehicleId] = useState(ALL_VEHICLES);
   const [pendingRecord, setPendingRecord] = useState(null);
+  const [drafts, setDrafts] = useState([]);
+  const [pendingDraft, setPendingDraft] = useState(null);
+
+  /* Remembered, because the answer to "I do not want to look at this" is not
+     "ask me again on every visit". The heading stays either way, so nothing is
+     truly hidden -- collapsed still reads "Not finished yet · 12". */
+  const [draftsOpen, setDraftsOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem('trevora.draftsCollapsed') !== '1';
+    } catch {
+      // Private windows and blocked site data throw on access.
+      return true;
+    }
+  });
+
+  function toggleDrafts() {
+    setDraftsOpen((open) => {
+      try {
+        window.localStorage.setItem('trevora.draftsCollapsed', open ? '1' : '0');
+      } catch { /* see above */ }
+      return !open;
+    });
+  }
+
+  const draftDelete = useDeleteAction(
+    () => deleteServiceDraft(pendingDraft.draftId),
+    () => {
+      setDrafts((current) => current.filter((d) => d.draftId !== pendingDraft.draftId));
+      setPendingDraft(null);
+    },
+  );
+
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [draftError, setDraftError] = useState('');
+
+  /*
+   * One click from the list to a filed record.
+   *
+   * Offered only on drafts the owner has already been through -- see
+   * `canValidate` below. The server decides the rest: it refuses a draft
+   * missing a vehicle, date, total or service, and that refusal is shown here
+   * rather than swallowed, because the fix is to open the draft.
+   */
+  async function markValidated(draft) {
+    if (confirmingId) return;
+    setConfirmingId(draft.draftId);
+    setDraftError('');
+    try {
+      await confirmServiceDraft(draft.draftId);
+      setDrafts((current) => current.filter((d) => d.draftId !== draft.draftId));
+      // The confirmed record is one the garage has never loaded.
+      refresh();
+    } catch (err) {
+      setDraftError(err.message);
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+  function askDiscardDraft(draft) {
+    setPendingDraft(draft);
+    draftDelete.ask();
+  }
+
+  /* Drafts started and not finished. Failing quietly to none is right: this is
+     a prompt, and a prompt that cannot load is better absent than wrong. */
+  useEffect(() => {
+    let active = true;
+    listServiceDrafts()
+      .then((data) => { if (active) setDrafts(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setDrafts([]); });
+    return () => { active = false; };
+  }, []);
 
   /* Each row carries its own `vehicleId`: this list spans every vehicle, so
      the page's filter value is not the record's owner and using it would
@@ -90,6 +164,27 @@ export default function RecordsPage() {
       ].join(' ').toLowerCase().includes(needle);
     });
   }, [allRecords, query, vehicleId]);
+
+  /* A draft earns the word only if confirming it will actually be filed as
+     validated: manual entry, or one the owner has opened and corrected. */
+  const canValidate = (draft) => draft.inputMethod === 'MANUAL'
+    || draft.status === 'READY_FOR_REVIEW';
+
+  /* Follows the vehicle filter so the page reads as one thing, but not the
+     search box: a draft is half-entered by definition, so searching it by
+     content would hide the ones with the least in them -- exactly the ones
+     most in need of finishing. */
+  const visibleDrafts = useMemo(
+    () => (vehicleId === ALL_VEHICLES
+      ? drafts
+      : drafts.filter((draft) => draft.vehicleId === vehicleId)),
+    [drafts, vehicleId],
+  );
+
+  const vehicleNameFor = useMemo(() => {
+    const byId = new Map(vehicleOptions.map((option) => [option.vehicleId, option.name]));
+    return (id) => byId.get(id) ?? 'your vehicle';
+  }, [vehicleOptions]);
 
   /* The old line reported the unfiltered total while the table showed a
      filtered subset, so searching left "3 records" above a single row. */
@@ -172,6 +267,96 @@ export default function RecordsPage() {
           records…", so there is nothing lost by holding this back and
           everything gained: the block now mounts when the data lands, which is
           the moment the animation is for. */}
+      {/*
+        * Unfinished drafts, above the history and deliberately not in it.
+        *
+        * They are listed here because this is where people come looking for a
+        * record they entered -- "Save and finish later" saved it and nothing
+        * showed it again. But a draft is not history: it is unvalidated, its
+        * total may be half-read, and the project rule that drafts are never
+        * displayed as service history exists because one folded into the table
+        * would count toward spend, stretch the years covered, and reach
+        * mechanics through the shared view. So it sits in its own block, with
+        * its own heading, and never enters `filtered`.
+        */}
+      {visibleDrafts.length > 0 && (
+        <section className="draft-strip tv-reveal" style={{ '--reveal-index': 1 }}>
+          <div className="draft-strip__head">
+            <div className="draft-strip__heading">
+              <h2 className="draft-strip__title">
+                Not finished yet <span className="draft-strip__count">{visibleDrafts.length}</span>
+              </h2>
+              <button
+                className="draft-strip__toggle"
+                type="button"
+                aria-expanded={draftsOpen}
+                aria-controls="draft-strip-list"
+                onClick={toggleDrafts}
+              >
+                {draftsOpen ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {draftError && (
+              <p className="draft-strip__error" role="alert">{draftError}</p>
+            )}
+            {draftsOpen && (
+              <p className="draft-strip__note">
+                Saved, but not added to your history until you finish and confirm.
+              </p>
+            )}
+          </div>
+          <ul className="draft-strip__list" id="draft-strip-list" hidden={!draftsOpen}>
+            {visibleDrafts.map((draft) => (
+              <li className="draft-strip__row" key={draft.draftId}>
+                <div className="draft-strip__facts">
+                  <span className="draft-strip__vehicle">{vehicleNameFor(draft.vehicleId)}</span>
+                  <span className="draft-strip__meta">
+                    {[
+                      draft.serviceDate ? formatDate(draft.serviceDate) : 'No date yet',
+                      draft.shopName?.trim() || 'No shop yet',
+                    ].join(' · ')}
+                  </span>
+                </div>
+                <div className="draft-strip__actions">
+                  {/* Without this the list only ever grows: a draft nobody
+                      intends to finish has no other way out, and the block
+                      that was meant to help ends up burying the records. */}
+                  <button
+                    className="ink-link-button ink-link-button--danger"
+                    type="button"
+                    onClick={() => askDiscardDraft(draft)}
+                  >
+                    Discard
+                  </button>
+                  {/* Only where the word is true.
+                      ServiceRecordService.validationStatusFor grants VALIDATED
+                      to manual entry and to drafts the owner opened and
+                      corrected (READY_FOR_REVIEW). A receipt confirmed straight
+                      off the extraction is filed NEEDS_REVIEW no matter which
+                      button did it -- so offering "Mark as validated" on one
+                      would promise a status the server will not give, and the
+                      record would come back still asking to be reviewed. Those
+                      drafts get Finish, which is the review this is missing. */}
+                  {canValidate(draft) && (
+                    <button
+                      className="ink-link-button"
+                      type="button"
+                      disabled={confirmingId === draft.draftId}
+                      onClick={() => markValidated(draft)}
+                    >
+                      {confirmingId === draft.draftId ? 'Saving…' : 'Mark as validated'}
+                    </button>
+                  )}
+                  <Link className="ink-button ink-button--outline" to={`/service-drafts/${draft.draftId}`}>
+                    Finish
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {loading ? null : filtered.length === 0 ? (
         <section className="ink-empty tv-reveal" style={{ '--reveal-index': 1 }}>
           <h2 className="ink-empty__title">{emptyTitle()}</h2>
@@ -191,6 +376,21 @@ export default function RecordsPage() {
           />
         </section>
       )}
+
+      {/* Wording deliberately unlike the record one. Discarding a draft throws
+          away work that was never in the history, so the warning should not
+          borrow the weight of deleting a confirmed record -- but it is still
+          gone for good, and says so. */}
+      <ConfirmDialog
+        open={draftDelete.open}
+        busy={draftDelete.busy}
+        error={draftDelete.error}
+        title="Discard this draft?"
+        confirmLabel="Discard draft"
+        body="It has not been added to your history, so nothing there changes. The draft itself cannot be recovered."
+        onCancel={() => { draftDelete.cancel(); setPendingDraft(null); }}
+        onConfirm={draftDelete.confirm}
+      />
 
       <ConfirmDialog
         open={recordDelete.open}

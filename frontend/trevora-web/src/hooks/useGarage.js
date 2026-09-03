@@ -22,6 +22,13 @@ export default function useGarage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  /* Bumped to re-run the load. A draft confirmed elsewhere on the page becomes
+     a record the garage has never seen, and rebuilding it from the confirm
+     response would mean reproducing the vehicle tagging that allRecords does
+     here -- a second copy of that shape, free to drift from this one. */
+  const [reloadToken, setReloadToken] = useState(0);
+  const refresh = useCallback(() => setReloadToken((n) => n + 1), []);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -46,7 +53,7 @@ export default function useGarage() {
       });
 
     return () => { active = false; };
-  }, []);
+  }, [reloadToken]);
 
   /** Every record across every vehicle, newest first, tagged with its vehicle. */
   const allRecords = useMemo(() => garages
@@ -81,5 +88,5 @@ export default function useGarage() {
     )));
   }, []);
 
-  return { garages, allRecords, reviewCount, loading, error, removeRecord };
+  return { garages, allRecords, reviewCount, loading, error, removeRecord, refresh };
 }

@@ -113,6 +113,14 @@ public class ServiceRecordController {
         serviceInputService.deleteDraftForCurrentUser(draftId);
     }
 
+    /** The drafts this owner has started and not finished. */
+    @GetMapping
+    public List<ServiceDraftSummaryResponse> listDrafts() {
+        return serviceInputService.listUnfinishedDraftsForCurrentUser().stream()
+                .map(ServiceDraftSummaryResponse::from)
+                .toList();
+    }
+
     @GetMapping("/{draftId}")
     public ServiceDraftResponse getDraft(@PathVariable UUID draftId) {
         ServiceDraft draft = serviceInputService.getDraftForCurrentUser(draftId);

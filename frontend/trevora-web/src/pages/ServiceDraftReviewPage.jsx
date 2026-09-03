@@ -257,6 +257,32 @@ export default function ServiceDraftReviewPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  /*
+   * "Save and finish later" now saves.
+   *
+   * It was wired to leaveFlow -- the same handler as Exit -- so the one
+   * control that promised to keep the work did not write anything, and on a
+   * dirty form it opened "Leave without saving?" and offered to discard it.
+   * The button did the opposite of its label.
+   *
+   * It deliberately does not check validation.valid the way Continue does.
+   * An incomplete draft is the whole point of finishing later; refusing to
+   * save one until it is correct would leave nothing to come back to.
+   */
+  async function saveAndLeave() {
+    if (saving) return;
+
+    if (dirty) {
+      const validation = await saveDraft();
+      // Null means the save threw and the message is on screen. Staying put
+      // is the point: navigating away from a failed save is how the work
+      // disappears.
+      if (!validation) return;
+    }
+
+    navigate('/');
+  }
+
   function leaveFlow() {
     if (dirty) {
       setLeavePrompt(true);
@@ -351,7 +377,7 @@ export default function ServiceDraftReviewPage() {
       title="Check the details"
       subtitle={subtitle}
       onExit={leaveFlow}
-      onSaveLater={leaveFlow}
+      onSaveLater={saveAndLeave}
       band={draft && (
         <RecordIssueBand
           issue={duplicateIssue}

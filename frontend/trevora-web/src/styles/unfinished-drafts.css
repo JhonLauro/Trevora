@@ -1,0 +1,169 @@
+/* "Not finished yet" — saved drafts, on the Records page.
+
+   Above the history and visibly not part of it. A draft is unvalidated and
+   often half-read, and the project rule that drafts are never shown as
+   service history exists for good reasons: one folded into the table would
+   count toward spend, stretch the years covered, and reach mechanics through
+   the shared view. So this block states what it is, and looks unlike a
+   record while doing it. */
+
+.draft-strip {
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  /* Dashed, and the one place in Ink that is: a solid card reads as a filed
+     thing. This is a thing still open. */
+  border-style: dashed;
+  border-radius: 12px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+}
+
+.draft-strip__head {
+  margin-bottom: 12px;
+}
+
+.draft-strip__title {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.draft-strip__note {
+  color: var(--ink-muted, #57534c);
+  font-size: 15px;
+  margin: 3px 0 0;
+}
+
+/* Author rules beat the UA stylesheet, so `display: flex` here silently wins
+   over the browser's own `[hidden] { display: none }` and the collapse toggle
+   does nothing at all. Any element given a display value needs its own hidden
+   rule to stay hideable. */
+.draft-strip__list[hidden] {
+  display: none;
+}
+
+.draft-strip__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.draft-strip__row {
+  align-items: center;
+  border-top: 1px solid var(--rule-hairline, #efebe3);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 0 0;
+}
+
+.draft-strip__row + .draft-strip__row {
+  padding-top: 12px;
+}
+
+.draft-strip__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.draft-strip__vehicle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.draft-strip__meta {
+  color: var(--ink-muted, #57534c);
+  font-size: 15px;
+}
+
+/* The action goes full width under the facts rather than being squeezed
+   beside them; the timeline card taught this the hard way. */
+@media (max-width: 560px) {
+  .draft-strip__row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .draft-strip__row .ink-button {
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------- heading controls
+
+   The block earns its place only while it is small. Ten abandoned drafts
+   push the actual records below the fold, so it has to be closable -- and
+   the count stays in the heading when it is, because a collapsed block that
+   hides how much it is hiding is worse than one left open. */
+
+.draft-strip__heading {
+  align-items: baseline;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.draft-strip__count {
+  color: var(--ink-muted, #57534c);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.draft-strip__toggle {
+  background: none;
+  border: 0;
+  color: var(--ink-muted, #57534c);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 15px;
+  padding: 2px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.draft-strip__toggle:hover:not(:disabled) {
+  color: var(--ink, #1c1b19);
+}
+
+/* ------------------------------------------------------------- row actions */
+
+.draft-strip__actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+@media (max-width: 560px) {
+  /* Stacked rather than side by side: at full width they would read as a pair
+     of equals, and the destructive one should not look like the one people
+     actually want. Reversed so Finish takes the top -- the same order, and the
+     same column-reverse, that .ink-modal__actions already uses on this
+     breakpoint. */
+  .draft-strip__actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .draft-strip__actions .ink-link-button {
+    padding: 6px 0;
+  }
+}
+
+/* The server's refusal to confirm an incomplete draft, shown rather than
+   swallowed: the message names what is missing, and the fix is to open the
+   draft and fill it in. */
+.draft-strip__error {
+  color: var(--danger-ink, #8c2018);
+  font-size: 15px;
+  margin: 8px 0 0;
+}
