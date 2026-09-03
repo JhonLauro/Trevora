@@ -104,6 +104,20 @@ export function translateVoiceTranscript({ vehicleId, transcript }) {
   });
 }
 
+/**
+ * Every draft this owner started and has not confirmed, newest first.
+ *
+ * <p>There was no way back to a draft except the review screen's URL. Leaving
+ * that screen -- which "Save and finish later" invites you to do -- stored the
+ * work and then showed it nowhere.
+ *
+ * <p>Rows are summaries, not whole drafts: the list needs a date, a total and
+ * a shop to be recognisable, not every service line behind them.
+ */
+export function listServiceDrafts() {
+  return apiRequest('/service-drafts');
+}
+
 export function getServiceDraft(draftId) {
   return apiRequest(`/service-drafts/${draftId}`);
 }

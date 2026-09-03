@@ -11,6 +11,7 @@ import {
   allTimeSeries, lastTwelveMonths, monthSeries, peakMonth, previousPeriodTotal, seriesTotal,
 } from '../utils/monthlySeries';
 import { needsReview } from '../utils/recordStatus';
+import { listServiceDrafts } from '../api/serviceDrafts';
 import { spendTotals } from '../utils/spend';
 import { spendByCategory, UNCATEGORISED } from '../utils/serviceCategory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
@@ -528,14 +529,23 @@ function StartHere({ vehicles }) {
  * dashboard's four separate empty states are gone — an empty panel that is
  * permanently empty teaches people to stop looking at that part of the page.
  */
-function AttentionStrip({ reviewCount, requestCount }) {
+function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId }) {
   const items = [];
+  /* First, because it is the only one of the three that can be lost. A record
+     needing review and a waiting request both keep until they are opened; an
+     unfinished draft used to have no way back to it at all. */
+  if (draftCount > 0) {
+    items.push(`${pluralize(draftCount, 'service record')} you started but have not finished`);
+  }
   if (reviewCount > 0) items.push(`${pluralize(reviewCount, 'record')} still need${reviewCount === 1 ? 's' : ''} review`);
   if (requestCount > 0) items.push(`${pluralize(requestCount, 'mechanic access request')} waiting for your approval`);
   if (!items.length) return null;
 
-  const total = (reviewCount > 0 ? 1 : 0) + (requestCount > 0 ? 1 : 0);
-  const target = reviewCount > 0 ? '/records' : '/access/requests';
+  const total = (draftCount > 0 ? 1 : 0) + (reviewCount > 0 ? 1 : 0) + (requestCount > 0 ? 1 : 0);
+  /* Straight back into the draft rather than to a list of one. */
+  const target = draftCount > 0
+    ? `/service-drafts/${firstDraftId}`
+    : reviewCount > 0 ? '/records' : '/access/requests';
 
   return (
     <section className="garage-attention tv-reveal">
@@ -546,7 +556,7 @@ function AttentionStrip({ reviewCount, requestCount }) {
         {items.map((item) => <p className="garage-attention__item" key={item}>{item}</p>)}
       </div>
       <Link className="ink-button ink-button--outline garage-attention__action" to={target}>
-        {total > 1 ? 'Review both' : 'Review'}
+        {draftCount > 0 ? 'Finish it' : total > 1 ? 'Review both' : 'Review'}
       </Link>
     </section>
   );
@@ -555,6 +565,7 @@ function AttentionStrip({ reviewCount, requestCount }) {
 export default function GaragePage() {
   const { garages, allRecords, reviewCount, loading, error } = useGarage();
   const [requestCount, setRequestCount] = useState(0);
+  const [drafts, setDrafts] = useState([]);
   /* One selection for both panels. Held here rather than in either of
      them so they cannot drift apart. */
   const [scopeId, setScopeId] = useState(ALL_VEHICLES);
@@ -567,6 +578,17 @@ export default function GaragePage() {
     getPendingMechanicAccessRequests()
       .then((data) => { if (active) setRequestCount(data.length); })
       .catch(() => { if (active) setRequestCount(0); });
+    return () => { active = false; };
+  }, []);
+
+  /* Drafts the owner started and left. Failing quietly to none is right here:
+     the strip is a prompt, and a prompt that cannot load is better absent than
+     wrong. The drafts are still reachable from their own screen. */
+  useEffect(() => {
+    let active = true;
+    listServiceDrafts()
+      .then((data) => { if (active) setDrafts(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setDrafts([]); });
     return () => { active = false; };
   }, []);
 
@@ -598,7 +620,12 @@ export default function GaragePage() {
           as a jolt; a step of 60ms between blocks reads as the page settling.
           See styles/reveal.css. */}
       {!loading && hasVehicles && (
-        <AttentionStrip reviewCount={reviewCount} requestCount={requestCount} />
+        <AttentionStrip
+          reviewCount={reviewCount}
+          requestCount={requestCount}
+          draftCount={drafts.length}
+          firstDraftId={drafts[0]?.draftId}
+        />
       )}
 
       {!loading && !hasVehicles && (
