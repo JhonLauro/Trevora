@@ -1810,3 +1810,48 @@
     width: 100%;
   }
 }
+
+
+/* --------------------------------------------- timeline card action row
+
+   The card footer is one flex row of up to five things -- status badge,
+   cost, Open, Mark reviewed, Delete -- and it never wrapped. On a phone the
+   card is about 200px wide while those five want roughly 400px, so two
+   things failed at once. The row overflowed, carrying "Mark reviewed" off
+   the right edge of the screen; and the cost box, which mobile sets to
+   min-width: 0, shrank narrower than its own digits. A too-narrow box does
+   not clip a number, it lets it paint outside itself -- which is why the
+   total appeared written across the "Open" link rather than beside it.
+
+   Grouping the three controls lets the line break in a chosen place instead
+   of wherever the width happens to run out: the badge and the total stay
+   together on the first line, the actions take the second. */
+
+.vehicle-timeline__card-actions {
+  align-items: center;
+  display: flex;
+  /* The gap the flat row already had, so wide screens are unchanged. */
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .vehicle-timeline__card-side {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  /* A full-width basis, so the break lands here and never between two
+     actions. They wrap among themselves too: Open, Mark reviewed and Delete
+     together still exceed a narrow card. */
+  .vehicle-timeline__card-actions {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  /* Digits must not be squeezed narrower than they are. */
+  .vehicle-timeline__cost {
+    flex-shrink: 0;
+    min-width: max-content;
+  }
+}

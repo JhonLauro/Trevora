@@ -85,29 +85,35 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                     {/* A fixed-width cost box so figures line up down the column
                         even though each card sizes itself. */}
                     <span className="vehicle-timeline__cost"><RecordCost record={record} /></span>
-                    <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
-                      Open
-                    </Link>
-                    {onMarkReviewed && status === 'warn' && (
-                      <button
-                        className="ink-link-button"
-                        type="button"
-                        aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
-                        onClick={() => onMarkReviewed(record)}
-                      >
-                        Mark reviewed
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        className="ink-link-button ink-link-button--danger"
-                        type="button"
-                        aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
-                        onClick={() => onDelete(record)}
-                      >
-                        Delete
-                      </button>
-                    )}
+                    {/* Grouped so the row breaks between the facts and the
+                        actions rather than wherever it runs out of width.
+                        Carries the same gap the row already used, so on a
+                        wide screen this renders exactly as it did flat. */}
+                    <div className="vehicle-timeline__card-actions">
+                      <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
+                        Open
+                      </Link>
+                      {onMarkReviewed && status === 'warn' && (
+                        <button
+                          className="ink-link-button"
+                          type="button"
+                          aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
+                          onClick={() => onMarkReviewed(record)}
+                        >
+                          Mark reviewed
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          className="ink-link-button ink-link-button--danger"
+                          type="button"
+                          aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
+                          onClick={() => onDelete(record)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </article>
