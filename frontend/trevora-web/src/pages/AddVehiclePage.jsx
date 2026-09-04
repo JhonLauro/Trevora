@@ -29,7 +29,7 @@ export function validateVehicleField(name, value) {
 
   switch (name) {
     case 'make':
-      return trimmed ? '' : 'Enter the make — Toyota, Honda, Mitsubishi and so on.';
+      return trimmed ? '' : 'Enter the make or brand — Toyota, Honda, Mitsubishi and so on.';
     case 'model':
       return trimmed ? '' : 'Enter the model, like Vios or Civic.';
     case 'bodyType':

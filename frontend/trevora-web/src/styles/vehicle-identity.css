@@ -1,0 +1,26 @@
+/* ----------------------------------------------------------------------
+   Make and model, as one block.
+
+   They were two siblings of the surrounding form. They are wrapped now so a
+   tip can highlight both at once — asking "what is your vehicle?" and
+   spotlighting only half the answer reads as though the other field is
+   something else.
+
+   The wrapper exists for that reason alone, so it must leave the layout
+   exactly as it found it. `gap: inherit` is what does that: the two forms
+   using this component space their fields differently (20px on signup, 22px
+   in the app, 18px on a phone), and taking the parent's own value means the
+   wrapper is right on all three without repeating any of them — and stays
+   right if either form changes its mind.
+   ---------------------------------------------------------------------- */
+
+.veh-identity-pair {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+
+  /* A flex item defaults to min-width:auto and refuses to shrink below its
+     content. Without this the pair can push a narrow form wider than its
+     column, which the two fields did not do when they sat directly in it. */
+  min-width: 0;
+}

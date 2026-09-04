@@ -80,7 +80,7 @@ export default function VehiclePhotoField({
   }
 
   return (
-    <div className="veh-photo">
+    <div className="veh-photo" data-tip="vehicle-photo">
       <div className="veh-photo__head">
         <span className="veh-photo__label">Photo</span>
         <span className="veh-photo__optional">Optional</span>

@@ -156,6 +156,11 @@ function PickMethod({ vehicleId, navigate }) {
             <button
               className="flow-method"
               type="button"
+              /* One anchor per card, not one around all three. They sit in a
+                 row on a desktop but stack into a column on a phone, where a
+                 single spotlight over the group would be a box taller than the
+                 screen with nowhere left to put the card explaining it. */
+              data-tip={`method-${method.key}`}
               key={method.key}
               onClick={() => navigate(`/service-input/${vehicleId}/${method.key}`)}
             >

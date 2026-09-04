@@ -1,0 +1,110 @@
+/* ----------------------------------------------------------------------
+   The receipt being read, in the processing modal.
+
+   Decorative, and deliberately so. Everything else on that modal is bound
+   by the rule its component states — every number on it is one that
+   actually happened — and a sweep that appeared to track progress would
+   break that rule while looking like it was keeping it. This says one
+   thing only: your page, being worked on, right now. It carries no
+   fraction, no percentage and no estimate, and it runs at the same speed
+   whether the read takes two seconds or forty.
+
+   Nothing here sets the shape of the frame. The image sizes itself inside a
+   width cap and a height cap — which is all `max-width`/`max-height` on a
+   replaced element does, and it keeps the photograph's own proportions for
+   free — and the frame shrink-wraps whatever the image turns out to be.
+
+   Two earlier attempts got this wrong in ways worth naming, because both
+   looked reasonable in the stylesheet. A fixed portrait box cropped a
+   receipt lying on a table down to two bands of table. Replacing the crop
+   with an `aspect-ratio` read off the photo did not help either: with a
+   fixed height and a width cap as well, the caps and the ratio fought, and
+   `contain` letterboxed the difference in black. There is no shape to
+   declare here. The photograph has one already.
+   ---------------------------------------------------------------------- */
+
+.flow-scan {
+  align-self: center;
+  border: 1px solid var(--rule, #e5eae7);
+  border-radius: 10px;
+  /* Shrink-wraps the image, so the frame is exactly the photograph. */
+  display: block;
+  /* Kills the descender gap a replaced element leaves under itself, which
+     would otherwise show as a sliver of background along the bottom edge. */
+  line-height: 0;
+  overflow: hidden;
+  position: relative;
+  width: fit-content;
+}
+
+.flow-scan__img {
+  display: block;
+  /* Both caps, both dimensions auto: the browser fits the photo inside the
+     box and keeps its proportions. A tall receipt is governed by the height,
+     a wide one by the width, and neither is stretched or cropped. */
+  height: auto;
+  max-height: 240px;
+  max-width: min(260px, 60vw);
+  width: auto;
+  /* Dimmed so the sweep reads as light passing over paper rather than as a
+     bright bar sitting on top of a bright photo. */
+  filter: grayscale(0.3) contrast(1.05) brightness(0.92);
+}
+
+/* The moving band. A soft gradient rather than a hard line: a 1px rule
+   travelling down a photograph reads as a rendering seam, and the glow is
+   what makes it read as a scanner. */
+.flow-scan__line {
+  animation: flow-scan-sweep 2.1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  background: linear-gradient(
+    to bottom,
+    rgba(14, 122, 82, 0) 0%,
+    rgba(14, 122, 82, 0.18) 35%,
+    rgba(14, 122, 82, 0.6) 50%,
+    rgba(14, 122, 82, 0.18) 65%,
+    rgba(14, 122, 82, 0) 100%
+  );
+  height: 48px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+/* `top`, not `transform`: the frame's height is whatever the photograph
+   makes it, and a percentage in `top` resolves against that height. One
+   animation covers every shape and every screen, with no pixel distance to
+   restate per breakpoint and none to fall out of step with the frame. */
+@keyframes flow-scan-sweep {
+  0% { top: -48px; }
+  100% { top: 100%; }
+}
+
+/* A held frame while the pages are still uploading: nothing is being read
+   yet, so nothing should look like it is. */
+.flow-scan.is-waiting .flow-scan__line {
+  animation: none;
+  opacity: 0;
+}
+
+.flow-scan.is-waiting .flow-scan__img {
+  opacity: 0.55;
+}
+
+/* The sweep is the whole point of the element, so with motion turned down
+   the element goes too rather than sitting there as a still photograph
+   pretending to be an animation. */
+@media (prefers-reduced-motion: reduce) {
+  .flow-scan__line {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Phones: smaller caps, same rule. The shape still comes from the photo. */
+@media (max-width: 560px) {
+  .flow-scan__img {
+    max-height: 200px;
+    max-width: min(220px, 62vw);
+  }
+}

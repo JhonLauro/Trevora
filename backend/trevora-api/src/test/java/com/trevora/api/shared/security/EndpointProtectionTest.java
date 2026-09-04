@@ -88,6 +88,11 @@ class EndpointProtectionTest {
         // -- the caller's own account --------------------------------------
         registry.put("GET /api/auth/me", Guard.SELF);
         registry.put("POST /api/auth/me/walkthrough/seen", Guard.SELF);
+        // Which in-app tips the caller has dismissed. Keyed on the current
+        // user inside UserTipService, so one account cannot read or write
+        // another's -- the tip key in the path is not a resource id.
+        registry.put("GET /api/auth/me/tips", Guard.SELF);
+        registry.put("POST /api/auth/me/tips/{tipKey}/seen", Guard.SELF);
         registry.put("POST /api/auth/sync", Guard.SELF);
         registry.put("DELETE /api/auth/account", Guard.SELF);
 

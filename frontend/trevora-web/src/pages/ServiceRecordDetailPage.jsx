@@ -174,6 +174,7 @@ export default function ServiceRecordDetailPage() {
               control is never unnamed. */}
           <Link
             className="ink-button ink-button--outline ink-button--sm record-topbar__share"
+            data-tip="record-share"
             to={`/vehicles/${vehicleId}/share`}
             aria-label="Share history"
           >

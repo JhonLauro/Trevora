@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { isLoggedIn } from './api/currentUser.js';
 import useOnboardingGate from './hooks/useOnboardingGate.js';
+import TipGuide from './tips/TipGuide.jsx';
 import AppShell from './components/AppShell.jsx';
 
 /* Every screen below is its own chunk, fetched the first time it is
@@ -144,6 +145,11 @@ function RootRoute() {
 export default function App() {
   return (
     <Suspense fallback={Loading}>
+    {/* Outside <Routes> so one instance follows the whole journey: the guide
+        starts on the signup-side add-vehicle page and ends on a record inside
+        the app shell, and nothing mounted within a single route could span
+        that. Renders nothing. */}
+    <TipGuide />
     <Routes>
       {/* `/` is the Garage for a signed-in owner and the marketing page for
           everyone else. It used to be the landing page unconditionally, which

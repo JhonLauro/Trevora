@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import java.util.List;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,10 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final AuthService authService;
     private final AccountDeletionService accountDeletionService;
+    private final UserTipService userTipService;
 
-    public AuthController(AuthService authService, AccountDeletionService accountDeletionService) {
+    public AuthController(
+            AuthService authService,
+            AccountDeletionService accountDeletionService,
+            UserTipService userTipService
+    ) {
         this.authService = authService;
         this.accountDeletionService = accountDeletionService;
+        this.userTipService = userTipService;
     }
 
     @PostMapping("/register")
@@ -53,5 +61,23 @@ public class AuthController {
     @PostMapping("/me/walkthrough/seen")
     public CurrentUserResponse markWalkthroughSeen() {
         return authService.markWalkthroughSeen();
+    }
+
+    /**
+     * The in-app tips this owner has already been shown.
+     *
+     * <p>Keys only. What each one says and where it points is the frontend's,
+     * so there is nothing here for the server to describe.
+     */
+    @GetMapping("/me/tips")
+    public List<String> seenTips() {
+        return userTipService.seenTipKeys();
+    }
+
+    /** Returns the full set rather than nothing, so the caller reconciles
+        against the server's answer instead of the one it just sent. */
+    @PostMapping("/me/tips/{tipKey}/seen")
+    public List<String> markTipSeen(@PathVariable String tipKey) {
+        return userTipService.markTipSeen(tipKey);
     }
 }

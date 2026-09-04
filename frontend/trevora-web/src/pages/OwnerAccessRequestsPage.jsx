@@ -107,14 +107,18 @@ function ShareControl({ vehicles, loading }) {
 
   if (vehicles.length === 1) {
     return (
-      <Link className="ink-button" to={`/vehicles/${vehicles[0].vehicleId}/share`}>
+      <Link
+        className="ink-button"
+        data-tip="share-start"
+        to={`/vehicles/${vehicles[0].vehicleId}/share`}
+      >
         Share {displayVehicleName(vehicles[0])}
       </Link>
     );
   }
 
   return (
-    <div className="access-share">
+    <div className="access-share" data-tip="share-start">
       <label className="ink-sr-only" htmlFor="share-which">Vehicle to share</label>
       <select
         id="share-which"

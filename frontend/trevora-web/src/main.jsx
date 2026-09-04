@@ -101,6 +101,9 @@ import './styles/garage-start.css';
 // Unfinished drafts on the Records page. Standalone selectors; only needs
 // to follow styles.css.
 import './styles/unfinished-drafts.css';
+import './styles/vehicle-identity.css';
+import './styles/receipt-scan.css';
+import './styles/tips.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
