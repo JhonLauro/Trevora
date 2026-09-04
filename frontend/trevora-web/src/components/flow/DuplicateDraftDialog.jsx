@@ -32,7 +32,6 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
      question with the same words; answering the dialog and then being asked
      again by the band reads as not having been listened to. */
   const setDismissed = () => onDismiss?.();
-  const closeRef = useRef(null);
   const dialogRef = useRef(null);
 
   const open = Boolean(issue);
@@ -40,8 +39,15 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
   useEffect(() => {
     if (!open) return undefined;
 
-    // Focus the way that changes nothing, as with every other dialog here.
-    closeRef.current?.focus();
+    /* The dialog takes focus, not a button.
+       Focusing a button on open painted its focus ring the moment the dialog
+       appeared -- a green outline on "It is a different service" that nobody
+       had asked for, and that stayed put through clicks on either button
+       because clicking a button focuses it. Focus has to go somewhere inside
+       for the trap and for screen readers, and the WAI-ARIA practice for a
+       dialog is the dialog itself: it is announced, it is not a control, and
+       it draws no ring. Tab from here still reaches the buttons in order. */
+    dialogRef.current?.focus();
 
     function onKeyDown(event) {
       /* Escape does not close this. It is the same bypass as the backdrop by
@@ -89,12 +95,13 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
         // Not a dismissal. Closing this means "it is a different service",
         // which is an answer, and a click beside the dialog is not one.
         insistOnAnswer(dialogRef.current);
-        closeRef.current?.focus();
+        dialogRef.current?.focus();
       }}
     >
       <div
         className="ink-modal vehicle-dialog"
         role="alertdialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="duplicate-dialog-title"
         ref={dialogRef}
@@ -122,7 +129,6 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
           <button
             className="ink-button ink-button--outline"
             type="button"
-            ref={closeRef}
             disabled={working}
             onClick={() => setDismissed()}
           >

@@ -249,8 +249,7 @@ public class DraftPlausibilityService {
      * was nothing to match against and nothing was said.
      */
     private List<FieldValidationIssue> checkDuplicateDraft(ServiceDraft draft) {
-        if (draft.getServiceDate() == null || draft.getTotalCost() == null
-                || draft.getVehicleId() == null || draft.getOwnerId() == null) {
+        if (draft.getVehicleId() == null || draft.getOwnerId() == null || !hasSomethingToMatchOn(draft)) {
             return List.of();
         }
 
@@ -258,8 +257,8 @@ public class DraftPlausibilityService {
                 .findByVehicleIdAndOwnerId(draft.getVehicleId(), draft.getOwnerId())
                 .stream()
                 .filter(other -> other.getDraftId() != null && !other.getDraftId().equals(draft.getDraftId()))
-                .filter(other -> sameVisit(draft, other.getServiceDate(), other.getOdometer()))
-                .filter(other -> sameMoney(draft.getTotalCost(), other.getTotalCost()))
+                .filter(other -> looksLikeOneReceipt(
+                        draft, other.getServiceDate(), other.getOdometer(), other.getTotalCost()))
                 .filter(other -> shopDoesNotContradict(draft.getShopName(), other.getShopName()))
                 .findFirst()
                 .orElse(null);
@@ -273,8 +272,9 @@ public class DraftPlausibilityService {
                 "Possible duplicate",
                 "POSSIBLE_DUPLICATE",
                 "WARNING",
-                "You have another draft for the same total, dated " + match.getServiceDate()
-                        + ", that has not been confirmed yet. If this is the same receipt scanned "
+                "You have another draft " + agreementWith(draft, match.getTotalCost(), match.getOdometer())
+                        + dateClause(match.getServiceDate())
+                        + ". It has not been confirmed yet. If this is the same receipt scanned "
                         + "twice, throw one away rather than confirming both.",
                 draft.getTotalCost(),
                 draft,
@@ -283,14 +283,14 @@ public class DraftPlausibilityService {
     }
 
     private List<FieldValidationIssue> checkDuplicate(ServiceDraft draft, List<ServiceRecord> history) {
-        if (draft.getServiceDate() == null || draft.getTotalCost() == null) {
+        if (!hasSomethingToMatchOn(draft)) {
             return List.of();
         }
 
         ServiceRecord match = history.stream()
                 .filter(record -> !isSameDraft(record, draft))
-                .filter(record -> sameVisit(draft, record.getServiceDate(), record.getOdometer()))
-                .filter(record -> sameMoney(draft.getTotalCost(), record.getTotalCost()))
+                .filter(record -> looksLikeOneReceipt(
+                        draft, record.getServiceDate(), record.getOdometer(), record.getTotalCost()))
                 .filter(record -> shopDoesNotContradict(draft.getShopName(), record.getShopName()))
                 .min(Comparator.comparing(ServiceRecord::getServiceDate))
                 .orElse(null);
@@ -308,10 +308,10 @@ public class DraftPlausibilityService {
                 "Possible duplicate",
                 "POSSIBLE_DUPLICATE",
                 "WARNING",
-                "This vehicle already has a record for the same total, dated "
-                        + match.getServiceDate() + ". If it is the same receipt, delete this draft "
-                        + "rather than confirming it — a second copy would inflate the spend total "
-                        + "and the years covered.",
+                "This vehicle already has a record " + agreementWith(draft, match.getTotalCost(), match.getOdometer())
+                        + dateClause(match.getServiceDate())
+                        + ". If it is the same receipt, delete this draft rather than confirming it "
+                        + "— a second copy would inflate the spend total and the years covered.",
                 draft.getTotalCost(),
                 draft,
                 false
@@ -319,21 +319,71 @@ public class DraftPlausibilityService {
     }
 
     /**
-     * Whether these two could be one visit to the shop.
+     * Is there anything solid enough here to compare against?
      *
-     * <p>An identical odometer settles it on its own, whatever the dates say.
-     * A car that was genuinely serviced twice was driven in between — that is
-     * what the second visit is for — so the same reading on both is the same
-     * afternoon, and this is the one signal a misread date cannot spoil. A
-     * zero or absent reading proves nothing either way and falls through to
-     * the dates.
+     * <p>A total or an odometer reading. The check used to demand a total and
+     * give up without one — which is exactly when it was needed most, because
+     * a receipt whose total did not extract is a receipt somebody is likely to
+     * photograph a second time. A date and a shop name alone are too weak: one
+     * shop can bill a vehicle twice in a day.
      */
-    private boolean sameVisit(ServiceDraft draft, LocalDate otherDate, Integer otherOdometer) {
-        Integer mine = draft.getOdometer();
-        if (mine != null && otherOdometer != null && mine > 0 && mine.equals(otherOdometer)) {
+    private boolean hasSomethingToMatchOn(ServiceDraft draft) {
+        return draft.getTotalCost() != null
+                || (draft.getOdometer() != null && draft.getOdometer() > 0);
+    }
+
+    /**
+     * Enough agreement between two entries to be worth asking about.
+     *
+     * <p>Two signals are strong enough to raise this on their own, and at
+     * least one has to be present. An exact total, because money to the
+     * centavo does not repeat by accident. And an identical odometer, because
+     * a vehicle genuinely serviced twice was driven in between — that is what
+     * the second visit is for — which also makes it the one signal a misread
+     * date cannot spoil, so it needs no date agreement at all.
+     *
+     * <p>Matching on the total still asks the dates to be close, since the
+     * same round figure can recur across a year of routine servicing.
+     */
+    private boolean looksLikeOneReceipt(
+            ServiceDraft draft, LocalDate otherDate, Integer otherOdometer, BigDecimal otherTotal) {
+        /* Two totals that both read cleanly and disagree settle it, and settle
+           it against a match. One visit can produce a parts slip and a labour
+           invoice on the same afternoon at the same odometer: same visit, two
+           documents, two records -- not two copies of one. Without this the
+           odometer alone would accuse them of duplicating each other. */
+        if (draft.getTotalCost() != null && otherTotal != null
+                && !sameMoney(draft.getTotalCost(), otherTotal)) {
+            return false;
+        }
+        if (sameOdometer(draft.getOdometer(), otherOdometer)) {
             return true;
         }
-        return nearlySameDate(draft.getServiceDate(), otherDate);
+        return sameMoney(draft.getTotalCost(), otherTotal)
+                && nearlySameDate(draft.getServiceDate(), otherDate);
+    }
+
+    /** A reading of zero is a placeholder, not a measurement. */
+    private boolean sameOdometer(Integer first, Integer second) {
+        return first != null && second != null && first > 0 && first.equals(second);
+    }
+
+    /** Names whichever signal actually matched, rather than assuming the total. */
+    private String agreementWith(ServiceDraft draft, BigDecimal otherTotal, Integer otherOdometer) {
+        if (sameMoney(draft.getTotalCost(), otherTotal)) {
+            return "for the same total";
+        }
+        if (sameOdometer(draft.getOdometer(), otherOdometer)) {
+            return "at the same odometer reading";
+        }
+        return "that looks the same";
+    }
+
+    /* No trailing punctuation of its own: it carried a comma, which ran
+       straight into the full stop that follows it and printed "dated
+       2026-03-18,. If it is". Each caller punctuates its own sentence. */
+    private String dateClause(LocalDate date) {
+        return date == null ? "" : ", dated " + date;
     }
 
     /** Within a month either way. See DUPLICATE_DATE_WINDOW_DAYS. */

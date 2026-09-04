@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateVehicle } from '../../api/vehicles.js';
 import { discardDraftAndRescan } from '../../utils/rescanDraft.js';
 import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
 
@@ -68,7 +67,7 @@ export function readVehicleDetails(draft, vehicle) {
 /* The vehicle endpoint is a PUT that replaces the record — it calls setMake,
    setModel and the rest unconditionally — so the whole vehicle goes back with
    exactly one key changed. Sending only the new field would blank the others. */
-function vehicleWithField(vehicle, field, value) {
+export function vehicleWithField(vehicle, field, value) {
   return {
     make: vehicle.make,
     model: vehicle.model,
@@ -88,19 +87,28 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const closeRef = useRef(null);
   const dialogRef = useRef(null);
 
-  const { offers, conflicts } = readVehicleDetails(draft, vehicle);
-  const open = !dismissed && (offers.length > 0 || conflicts.length > 0);
+  /* Conflicts only. The offer half moved to VehicleDetailsOffer on the saved
+     screen: it is an errand about the vehicle profile, not about the record
+     being filed, and it does not deserve a modal on the busiest path in the
+     app. A conflict is the opposite -- the receipt may belong to another car,
+     and after the record is filed nobody ever goes looking for it. */
+  const { conflicts } = readVehicleDetails(draft, vehicle);
+  const open = !dismissed && conflicts.length > 0;
 
   useEffect(() => {
     if (!open) return undefined;
 
-    /* Focus lands on the safe way out, not on the button that changes the
-       vehicle — the same reason ConfirmDialog focuses Cancel. */
-    closeRef.current?.focus();
+    /* The dialog takes focus, not a button.
+       Focusing a button on open painted its focus ring the moment the dialog
+       appeared -- a green outline on "It is a different service" that nobody
+       had asked for, and that stayed put through clicks on either button
+       because clicking a button focuses it. Focus has to go somewhere inside
+       for the trap and for screen readers, and the WAI-ARIA practice for a
+       dialog is the dialog itself: it is announced, it is not a control, and
+       it draws no ring. Tab from here still reaches the buttons in order. */
+    dialogRef.current?.focus();
 
     function onKeyDown(event) {
       /* Escape does not close this either. On a conflict, closing means "use
@@ -133,30 +141,6 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
 
   if (!open) return null;
 
-  async function addAll() {
-    if (saving) return;
-    setSaving(true);
-    setError('');
-    try {
-      let current = vehicle;
-      // One request per field, in order, so a failure on the second leaves the
-      // first genuinely saved rather than rolling both back invisibly.
-      for (const offer of offers) {
-        // eslint-disable-next-line no-await-in-loop
-        current = await updateVehicle(
-          current.vehicleId,
-          vehicleWithField(current, offer.field, offer.value),
-        );
-      }
-      onVehicleUpdated?.(current);
-      setDismissed(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   /*
    * Start over with the right paper.
    *
@@ -173,7 +157,6 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
   }
 
   const vehicleName = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'this vehicle';
-  const conflicted = conflicts.length > 0;
 
   return (
     <div
@@ -181,28 +164,23 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
       onClick={() => {
         if (saving) return;
         insistOnAnswer(dialogRef.current);
-        closeRef.current?.focus();
+        dialogRef.current?.focus();
       }}
     >
       <div
         className="ink-modal vehicle-dialog"
         role="alertdialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="vehicle-dialog-title"
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="vehicle-dialog-title">
-          {conflicted
-            ? 'This may be the wrong vehicle'
-            : `Add these to your ${vehicleName}?`}
-        </h2>
+        <h2 id="vehicle-dialog-title">This may be the wrong vehicle</h2>
 
         <div className="ink-modal__body">
           <p className="vehicle-dialog__lead">
-            {conflicted
-              ? `What this receipt prints does not match ${vehicleName}.`
-              : `This receipt prints details your ${vehicleName} has no record of.`}
+            What this receipt prints does not match {vehicleName}.
           </p>
 
           {/* A comparison, not a sentence. Two prose paragraphs saying "the
@@ -227,77 +205,41 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
                 </dd>
               </div>
             ))}
-
-            {offers.map((item) => (
-              <div className="vehicle-dialog__fact" key={item.field}>
-                <dt>{item.label}</dt>
-                <dd><b className="vehicle-dialog__value">{item.value}</b></dd>
-              </div>
-            ))}
           </dl>
 
           <p className="vehicle-dialog__advice">
-            {conflicted
-              ? 'Either this receipt belongs to another vehicle, or to one you have not added yet. Scanning again throws this draft away and starts over — nothing has been saved to your history.'
-              : 'Read off the paper, so check it matches before adding.'}
+            Either this receipt belongs to another vehicle, or to one you have not added
+            yet. Scanning again throws this draft away and starts over — nothing has been
+            saved to your history.
           </p>
         </div>
 
-        {error && <p className="ink-modal__error" role="alert">{error}</p>}
-
         <div className="ink-modal__actions">
-          {conflicted ? (
-            <>
-              {/* The way out is kept, and deliberately.
+          {/* The way out is kept, and deliberately.
 
-                  A conflict can be a misread rather than a wrong receipt --
-                  OCR reads O as 0 and I as 1, which is the whole reason this
-                  asks instead of writing values in. Forcing a rescan on a
-                  false conflict would send someone back to photograph the same
-                  paper and get the same misread, with no way past it. So
-                  scanning again is the loud option and continuing is the
-                  quiet one, rather than the only one being a dead end. */}
-              <button
-                className="ink-button ink-button--outline"
-                type="button"
-                ref={closeRef}
-                disabled={saving}
-                onClick={() => setDismissed(true)}
-              >
-                Use it anyway
-              </button>
-              <button
-                className="ink-button ink-button--primary"
-                type="button"
-                disabled={saving}
-                onClick={scanAgain}
-              >
-                {saving ? 'Starting over…' : 'Scan the right receipt'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="ink-button ink-button--outline"
-                type="button"
-                ref={closeRef}
-                disabled={saving}
-                onClick={() => setDismissed(true)}
-              >
-                Not now
-              </button>
-              {offers.length > 0 && (
-                <button
-                  className="ink-button ink-button--primary"
-                  type="button"
-                  disabled={saving}
-                  onClick={addAll}
-                >
-                  {saving ? 'Adding…' : offers.length > 1 ? 'Add both' : 'Add it'}
-                </button>
-              )}
-            </>
-          )}
+              A conflict can be a misread rather than a wrong receipt --
+              OCR reads O as 0 and I as 1, which is the whole reason this
+              asks instead of writing values in. Forcing a rescan on a
+              false conflict would send someone back to photograph the same
+              paper and get the same misread, with no way past it. So
+              scanning again is the loud option and continuing is the
+              quiet one, rather than the only one being a dead end. */}
+          <button
+            className="ink-button ink-button--outline"
+            type="button"
+            disabled={saving}
+            onClick={() => setDismissed(true)}
+          >
+            Use it anyway
+          </button>
+          <button
+            className="ink-button ink-button--primary"
+            type="button"
+            disabled={saving}
+            onClick={scanAgain}
+          >
+            {saving ? 'Starting over…' : 'Scan the right receipt'}
+          </button>
         </div>
       </div>
     </div>
