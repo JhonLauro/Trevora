@@ -430,7 +430,9 @@ export default function ReceiptUploadPage() {
         : `${pages.length} page${pages.length === 1 ? '' : 's'}, in the order they print.`}
       onExit={() => { stopCamera(); navigate('/'); }}
     >
-      {saving && <ReadingOverlay progress={progress} />}
+      {/* The first page, which is the one being read first. Local blob URLs,
+          so nothing is fetched to show it. */}
+      {saving && <ReadingOverlay progress={progress} preview={pages[0]?.previewUrl} />}
 
       {/* The read succeeded and the next screen is a different kind of task —
           checking what we got, rather than adding to it. Same hand-off the
@@ -452,7 +454,7 @@ export default function ReceiptUploadPage() {
             submit sent only the active one, so photographing two pages and
             then adding a third from the gallery filed a one-page receipt and
             dropped the other two without saying so. */}
-        <div className="flow-tabs" role="tablist" aria-label="How to add pages">
+        <div className="flow-tabs" role="tablist" aria-label="How to add pages" data-tip="receipt-capture">
           <button
             className={activeMode === 'UPLOAD' ? 'is-active' : ''}
             type="button"
@@ -727,7 +729,7 @@ export default function ReceiptUploadPage() {
  * returns — so it gets an indeterminate bar and the seconds it has really been
  * waiting. See ProcessingModal for why that distinction is load-bearing here.
  */
-function ReadingOverlay({ progress }) {
+function ReadingOverlay({ progress, preview }) {
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
   const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
@@ -736,6 +738,8 @@ function ReadingOverlay({ progress }) {
 
   return (
     <ProcessingModal
+      preview={preview}
+      previewWaiting={storing}
       title={storing ? 'Saving your pages' : 'Reading your receipt'}
       sub="Two steps. This is the slow part — leave it running and it will finish."
       foot={storing

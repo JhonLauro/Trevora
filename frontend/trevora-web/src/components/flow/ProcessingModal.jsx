@@ -18,7 +18,7 @@ import { Check } from 'lucide-react';
  * no third option, and specifically there is no percentage for work whose
  * length nobody knows.
  */
-export default function ProcessingModal({ title, sub, foot, children }) {
+export default function ProcessingModal({ title, sub, foot, children, preview, previewWaiting }) {
   return (
     <div className="flow-reading">
       <div className="flow-reading__inner" role="status" aria-live="polite" aria-busy="true">
@@ -26,6 +26,16 @@ export default function ProcessingModal({ title, sub, foot, children }) {
           <h2 className="flow-reading__title">{title}</h2>
           {sub && <p className="flow-reading__sub">{sub}</p>}
         </div>
+
+        {/* Decorative, and outside the aria-live text on purpose: a screen
+            reader is already being told what is happening by the steps below,
+            and a sweeping band is nothing to announce. */}
+        {preview && (
+          <div className={`flow-scan${previewWaiting ? ' is-waiting' : ''}`} aria-hidden="true">
+            <img className="flow-scan__img" src={preview} alt="" />
+            <span className="flow-scan__line" />
+          </div>
+        )}
 
         <div className="flow-reading__steps">{children}</div>
 
