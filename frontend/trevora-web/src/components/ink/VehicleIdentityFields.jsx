@@ -4,9 +4,9 @@ import Combobox from './Combobox.jsx';
 import {
   bodyTypeFor,
   bodyTypeForModelAnywhere,
-  modelsForMake,
 } from '../../data/vehicleCatalog';
 import { allMakes } from '../../data/vehicleMakes';
+import { MODEL_ALIASES, makeDerivesBodyType, modelsFor } from '../../data/vehicleModels';
 
 /**
  * Make, model and body type — the three fields that have to agree.
@@ -28,7 +28,7 @@ export function deriveVehicleIdentity(current, changes) {
     // The old model belonged to the old make. Keeping it would let "Toyota
     // Xpander" through, which is exactly the kind of row the picker exists
     // to prevent.
-    const stillValid = modelsForMake(next.make).includes(next.model);
+    const stillValid = modelsFor(next.make).includes(next.model);
     if (!stillValid) {
       next.model = '';
       next.bodyType = '';
@@ -62,8 +62,13 @@ export function deriveVehicleIdentity(current, changes) {
 
 export default function VehicleIdentityFields({ form, errors = {}, onChange, refs = {} }) {
   const makes = allMakes();
-  const models = modelsForMake(form.make);
-  const knownMake = models.length > 0;
+  const models = modelsFor(form.make);
+  const hasModels = models.length > 0;
+  /* Not the same question as "are there models". Most makes now list their
+     models without claiming a body type for any of them, and promising that
+     picking one fills the body type in would be a promise the catalogue
+     cannot keep for a G-Class. */
+  const derivesBodyType = makeDerivesBodyType(form.make);
 
   function update(changes) {
     onChange(deriveVehicleIdentity(form, changes));
@@ -71,9 +76,14 @@ export default function VehicleIdentityFields({ form, errors = {}, onChange, ref
 
   return (
     <>
+      {/* Wrapped so make and model can be highlighted together. The pair
+          inherits the form's own gap rather than restating it, so the two
+          pages that use this component -- signup at 20px, the in-app form at
+          22px, both 18px on a phone -- keep the spacing they had. */}
+      <div className="veh-identity-pair" data-tip="vehicle-identity">
       <Combobox
         id="vehicle-make"
-        label="Make"
+        label="Make/Brand"
         inputRef={refs.make}
         value={form.make}
         options={makes}
@@ -91,13 +101,17 @@ export default function VehicleIdentityFields({ form, errors = {}, onChange, ref
         value={form.model}
         options={models}
         error={errors.model}
-        placeholder={knownMake ? 'Pick the model' : 'Type the model'}
-        hint={knownMake
+        aliases={MODEL_ALIASES}
+        placeholder={hasModels ? 'Search models' : 'Type the model'}
+        hint={derivesBodyType
           ? 'Picking a listed model fills in the body type for you.'
-          : 'Type the model — the list only covers brands Trevora knows.'}
+          : hasModels
+            ? 'Pick yours from the list, then choose the body type below.'
+            : 'Type the model — this brand has no list yet, and what you type is saved as written.'}
         emptyHint="Not on the list — it will be saved exactly as you typed it."
         onChange={(value) => update({ model: value })}
       />
+      </div>
 
       <BodyTypePicker
         value={form.bodyType}

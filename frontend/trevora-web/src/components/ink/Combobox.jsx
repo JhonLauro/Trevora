@@ -17,6 +17,11 @@ function fold(text) {
     .toLowerCase();
 }
 
+/** Folded, then stripped of anything that is not a letter or a digit. */
+function squash(text) {
+  return fold(text).replace(/[^a-z0-9]+/g, '');
+}
+
 /**
  * A picker you can also type into.
  *
@@ -45,6 +50,8 @@ export default function Combobox({
   disabled,
   emptyHint,
   inputRef,
+  dataTip,
+  aliases,
 }) {
   const generatedId = useId();
   const fieldId = id || generatedId;
@@ -62,9 +69,50 @@ export default function Combobox({
 
   const query = String(value ?? '');
   const needle = fold(query);
+  /* Matched against the option plus whatever else that option is called.
+     "G-Wagon" has to find G-Class, because the official name is not the name
+     anybody uses -- and the value committed is still the official one, so one
+     car is never filed under two spellings. */
+  /* Matched twice: as typed, and with every space and hyphen removed from
+     both sides. People write "gwagon", "g wagon" and "G-Wagon" for the same
+     car, and a picker that only recognises the spacing it chose hides that car
+     from most of the people looking for it. The same pass finds
+     "Mercedes-Benz" from "mercedesbenz". */
+  const squashed = squash(query);
+
+  /* How well an option answers what was typed. Lower is better.
+
+     Matching anywhere in the string is right -- it is what finds "Mercedes-Benz"
+     from "benz" -- but on its own it buries the obvious answer: typing "to"
+     listed Aston Martin, Brixton and CFMoto while Toyota sat below the fold,
+     because "to" appears inside all of them. A picker that cannot surface
+     Toyota for "to" is not a picker.
+
+     So the matches are banded. What starts with what you typed comes first,
+     then what has a word starting with it (so "class" still finds G-Class),
+     then anything else containing it. Within a band the original order stands:
+     alphabetical for makes, and for a make's models the order the catalogue
+     chose, which is by how common the car is here. */
+  const matchRank = (option) => {
+    const text = fold(option);
+    if (text.startsWith(needle)) return 0;
+    if (text.split(/[^a-z0-9]+/).some((word) => word.startsWith(needle))) return 1;
+    if (text.includes(needle)) return 2;
+    // Reached only by an alias or by ignoring spacing, so it goes last: the
+    // name itself does not contain what was typed.
+    return 3;
+  };
+
   const filtered = !needle || browsing
     ? options
-    : options.filter((option) => fold(option).includes(needle));
+    : options
+        .filter((option) => {
+          const text = `${option} ${aliases?.[option] ?? ''}`;
+          return fold(text).includes(needle)
+            || (squashed.length > 0 && squash(text).includes(squashed));
+        })
+        // Stable, so equally-ranked options keep the order they arrived in.
+        .sort((first, second) => matchRank(first) - matchRank(second));
 
   /* A field with nothing to offer does not open a list. Picking a make the
      catalogue holds no models for used to drop a one-row popup reading "not on
@@ -134,7 +182,7 @@ export default function Combobox({
   ].filter(Boolean).join(' ') || undefined;
 
   return (
-    <div className="ink-combo" ref={wrapperRef}>
+    <div className="ink-combo" ref={wrapperRef} data-tip={dataTip}>
       <label className="ink-combo__label" htmlFor={fieldId}>{label}</label>
       {hint && <p className="ink-combo__hint" id={`${fieldId}-hint`}>{hint}</p>}
 
