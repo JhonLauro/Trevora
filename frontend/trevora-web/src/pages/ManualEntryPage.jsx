@@ -127,7 +127,7 @@ export default function ManualEntryPage() {
       {error && <div className="flow-alert">{error}</div>}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-        <div className="flow-grid">
+        <div className="flow-grid" data-tip="manual-fields">
           {fields.map(([key, label, type, required, placeholder]) => (
             <label className="flow-field" key={key}>
               <span>{label}{required ? ' *' : ''}</span>
@@ -155,7 +155,7 @@ export default function ManualEntryPage() {
           ))}
         </div>
 
-        <section className="flow-card">
+        <section className="flow-card" data-tip="manual-lines">
           <div className="flow-done__head">
             <div>
               <h2 className="flow-done__title">What was done</h2>

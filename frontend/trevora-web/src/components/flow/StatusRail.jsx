@@ -102,6 +102,7 @@ export default function StatusRail({
         <button
           className="flow-btn"
           type="submit"
+          data-tip="draft-confirm"
           disabled={saving || (!dirty && !ready)}
         >
           {saving ? 'Saving…' : 'Continue to confirm'}

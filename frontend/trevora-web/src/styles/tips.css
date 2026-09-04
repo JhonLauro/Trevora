@@ -1,0 +1,125 @@
+/* ----------------------------------------------------------------------
+   In-app tips — the Driver.js popover, wearing Trevora's paint.
+
+   Driver.js ships its own light theme: white card, blue buttons, its own
+   type scale. Left alone it reads as a third-party widget dropped on the
+   page, which is the one thing a tip cannot afford — it is asking to be
+   trusted about the product it is sitting on.
+
+   Only `.tip-popover` is styled, the class the runner passes as
+   `popoverClass`, so nothing here touches a future tour with different
+   needs.
+   ---------------------------------------------------------------------- */
+
+.driver-popover.tip-popover {
+  background: var(--paper, #ffffff);
+  border: 1px solid var(--rule, #e5eae7);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(28, 27, 25, 0.16);
+  font-family: var(--font-sans);
+  max-width: 320px;
+  padding: 18px 20px 16px;
+}
+
+.driver-popover.tip-popover .driver-popover-title {
+  color: var(--ink, #1c1b19);
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+/* 15px is the reading floor the rest of the product holds to, and a tip is
+   read once by somebody who has never seen this screen — the worst possible
+   moment to make them squint. */
+.driver-popover.tip-popover .driver-popover-description {
+  color: var(--ink-muted, #55605a);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.driver-popover.tip-popover .driver-popover-arrow {
+  border-color: var(--paper, #ffffff);
+}
+
+/* ------------------------------------------------------------- footer */
+
+.driver-popover.tip-popover .driver-popover-footer {
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.driver-popover.tip-popover .driver-popover-progress-text {
+  color: var(--ink-faint, #8a938e);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.driver-popover.tip-popover .driver-popover-navigation-btns button {
+  border-radius: 100px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  /* 40px, not the 44px target the rest of the product uses: this button sits
+     inside a small floating card, and a full-height pill in it reads as a
+     dialog demanding a decision rather than as an acknowledgement. It is
+     still comfortably tappable. */
+  min-height: 40px;
+  padding: 0 18px;
+  text-shadow: none;
+}
+
+.driver-popover.tip-popover .driver-popover-next-btn {
+  background: var(--brand, #0e7a52);
+  border: 1px solid var(--brand, #0e7a52);
+  color: #ffffff;
+}
+
+.driver-popover.tip-popover .driver-popover-next-btn:hover {
+  background: var(--brand-hover, #0a5a3c);
+  border-color: var(--brand-hover, #0a5a3c);
+}
+
+.driver-popover.tip-popover .driver-popover-prev-btn {
+  background: transparent;
+  border: 1px solid var(--rule, #e5eae7);
+  color: var(--ink-muted, #55605a);
+}
+
+.driver-popover.tip-popover .driver-popover-prev-btn:hover {
+  border-color: var(--border, #cfd8d3);
+  color: var(--ink, #1c1b19);
+}
+
+.driver-popover.tip-popover .driver-popover-close-btn {
+  color: var(--ink-faint, #8a938e);
+}
+
+.driver-popover.tip-popover .driver-popover-close-btn:hover {
+  color: var(--ink, #1c1b19);
+}
+
+.driver-popover.tip-popover button:focus-visible {
+  outline: 2px solid var(--brand, #0e7a52);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------- phones */
+
+/* The card is placed against a highlighted element, and on a 375px screen a
+   320px card beside a full-width button has nowhere to go. Letting it use the
+   width means it sits above or below the target instead of squeezing beside
+   it — and never covers the thing it is pointing at. */
+@media (max-width: 560px) {
+  .driver-popover.tip-popover {
+    max-width: calc(100vw - 32px);
+    padding: 16px 18px 14px;
+  }
+
+  .driver-popover.tip-popover .driver-popover-title {
+    font-size: 18px;
+  }
+}

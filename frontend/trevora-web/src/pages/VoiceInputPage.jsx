@@ -362,6 +362,7 @@ export default function VoiceInputPage() {
         <section className="flow-card flow-recorder">
           <button
             className={`flow-recorder__btn${recording ? '' : ' is-idle'}`}
+            data-tip="voice-record"
             type="button"
             onClick={recording ? stopRecording : startRecording}
             disabled={transcribing || translating || saving}
