@@ -278,6 +278,63 @@ class DraftPlausibilityServiceTest {
                 .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
     }
 
+    // ---- when the total never came off the paper -------------------------
+
+    @Test
+    @DisplayName("an unread total does not hide a duplicate")
+    void flagsADuplicateWithNoTotalAtAll() {
+        /*
+         * Reported from the review screen: MIKE'S AUTO REPAIR, 18/03/2026,
+         * odometer 68,542, total blank and flagged "required before
+         * confirmation" -- and the same receipt already scanned once. The
+         * check bailed on the null total and said nothing, which is the worst
+         * moment for it to go quiet: a receipt whose total did not extract is
+         * exactly the one somebody scans again.
+         */
+        ServiceDraft alreadyScanned = draft(LocalDate.of(2026, 3, 18), 68_542, null, "MIKE'S AUTO REPAIR");
+        setField(alreadyScanned, "draftId", UUID.randomUUID());
+        siblings(alreadyScanned);
+
+        ServiceDraft scanningAgain = draft(LocalDate.of(2026, 3, 18), 68_542, null, "MIKE'S AUTO REPAIR");
+        setField(scanningAgain, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(scanningAgain, new VehicleProfile()))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("neither a total nor an odometer means nothing to match on")
+    void staysQuietWithNothingSolid() {
+        /*
+         * A date and a shop name are not enough on their own -- one shop can
+         * bill one vehicle twice in a day, and accusing it of duplicating
+         * itself teaches the owner to dismiss this warning.
+         */
+        ServiceDraft other = draft(LocalDate.of(2026, 3, 18), null, null, "MIKE'S AUTO REPAIR");
+        setField(other, "draftId", UUID.randomUUID());
+        siblings(other);
+
+        ServiceDraft mine = draft(LocalDate.of(2026, 3, 18), null, null, "MIKE'S AUTO REPAIR");
+        setField(mine, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(mine, new VehicleProfile()))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("a zero odometer on both is a placeholder, not a match")
+    void zeroOdometerIsNotEvidence() {
+        ServiceDraft other = draft(LocalDate.of(2026, 3, 18), 0, null, "MIKE'S AUTO REPAIR");
+        setField(other, "draftId", UUID.randomUUID());
+        siblings(other);
+
+        ServiceDraft mine = draft(LocalDate.of(2026, 3, 18), 0, null, "MIKE'S AUTO REPAIR");
+        setField(mine, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(mine, new VehicleProfile()))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
     // ---- fixtures --------------------------------------------------------
 
     // ---- the same receipt scanned twice, neither confirmed ---------------

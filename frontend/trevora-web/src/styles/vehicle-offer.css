@@ -10,8 +10,33 @@
    and no wrapping, sized for two short labels in a 468px modal. A longer one
    overflowed and the two buttons overlapped. Wrapping is the fix that does not
    require every future label to be short. */
+/* Both dialogs ask a question whose answers need a sentence, not a word --
+   "It is a different service" against "Scan a different receipt" -- and the
+   two of them wanted 438px inside a shell that offers 412. That is close
+   enough to the edge that it landed differently per machine: on one the pair
+   squeezed onto a single line with the second pill flush against the shell,
+   on another they wrapped and stacked right-aligned at two different widths.
+   Cramped or ragged, depending on your font metrics.
+
+   So the shell gives them room, and the pair splits it evenly instead of each
+   taking what its own label happens to need. Equal halves read as two equal
+   choices, which is what these are. */
+.vehicle-dialog {
+  max-width: 520px;
+}
+
 .vehicle-dialog .ink-modal__actions {
   flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* Only where they sit side by side. Below this the shared modal rule stacks
+   them column-reverse at width: 100%, and a flex-basis of 0 on that axis would
+   be fighting over height instead. */
+@media (min-width: 561px) {
+  .vehicle-dialog .ink-modal__actions .ink-button {
+    flex: 1 1 0;
+  }
 }
 
 .vehicle-dialog__lead {
@@ -105,4 +130,101 @@
   .vehicle-dialog__fact {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ------------------------------- the offer, after the record is saved
+
+   This half used to be a modal on the review screen. It is not about the
+   record being filed -- it is an errand about the vehicle profile -- and it
+   arrived on the busiest path in the app, since most receipts print a plate
+   and plenty of vehicles have none on file. A card on the saved screen asks
+   the same question of somebody who has finished what they came to do.
+
+   Built on .flow-card so it sits in the saved screen's own language rather
+   than importing the modal's. */
+
+.vehicle-offer__lead {
+  color: var(--ink, #1c1b19);
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.vehicle-offer__facts {
+  display: flex;
+  flex-direction: column;
+  margin: 14px 0 0;
+}
+
+.vehicle-offer__fact {
+  align-items: baseline;
+  border-top: 1px solid var(--rule-hairline, #efebe3);
+  display: grid;
+  gap: 4px 18px;
+  grid-template-columns: 128px minmax(0, 1fr);
+  padding: 10px 0;
+}
+
+.vehicle-offer__fact:last-child {
+  border-bottom: 1px solid var(--rule-hairline, #efebe3);
+}
+
+.vehicle-offer__fact dt {
+  color: var(--ink-muted, #57534c);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.vehicle-offer__fact dd {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Monospace with tabular figures for the same reason the dialog used it: O
+   against 0 and I against 1 have to be visible, which is the whole reason
+   this asks rather than writing the value in unseen. */
+.vehicle-offer__value {
+  color: var(--ink, #1c1b19);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+
+.vehicle-offer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.vehicle-offer__error {
+  color: var(--danger-ink, #8c2018);
+  font-size: 15px;
+  margin: 12px 0 0;
+}
+
+.vehicle-offer__done {
+  color: var(--ink-muted, #57534c);
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .vehicle-offer__fact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vehicle-offer__actions .flow-btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* The shell takes focus when the dialog opens, so that no button wears a ring
+   nobody asked for. It carries tabindex="-1" and is never reachable by Tab,
+   so suppressing its own outline costs no keyboard affordance -- the buttons
+   inside keep theirs. */
+.vehicle-dialog:focus {
+  outline: none;
 }

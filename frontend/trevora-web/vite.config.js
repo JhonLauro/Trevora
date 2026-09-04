@@ -23,5 +23,18 @@ export default defineConfig({
   envDir: '../..',
   server: {
     port: 5173,
+    /*
+     * Fail rather than drift.
+     *
+     * Without this, a busy 5173 sends Vite quietly to 5174 -- and Supabase's
+     * redirect allow list only names 5173. A redirectTo the list does not
+     * match is not refused; Supabase falls back to the Site URL, which is the
+     * deployed site. So signing in with Google on a drifted port lands you on
+     * trevora-web.onrender.com, logged into production, with nothing on screen
+     * to say why.
+     *
+     * Refusing to start is the smaller problem, and it names itself.
+     */
+    strictPort: true,
   },
 });

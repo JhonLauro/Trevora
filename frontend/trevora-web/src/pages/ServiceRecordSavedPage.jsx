@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
 import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
+import VehicleDetailsOffer from '../components/flow/VehicleDetailsOffer.jsx';
 import { getVehicleServiceHistory } from '../api/serviceHistory';
 import { formatDay } from '../utils/format';
 import { serviceItemsArray } from '../utils/serviceText';
@@ -122,6 +123,13 @@ export default function ServiceRecordSavedPage() {
           </span>
         </div>
       </section>
+
+      {/* Asked here rather than during review. It is an errand about the
+          vehicle profile, not about the record just filed, and it arrives once
+          somebody has finished what they came to do. Its sibling -- the
+          "this may be the wrong vehicle" warning -- stayed on the review
+          screen, because that one has to be caught before the record exists. */}
+      <VehicleDetailsOffer draft={draft} vehicle={vehicle} onVehicleUpdated={setVehicle} />
 
       <div className="flow-saved__actions">
         <button

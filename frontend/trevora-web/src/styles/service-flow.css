@@ -52,8 +52,21 @@
 
    `:where()` contributes zero specificity, so this whole block sits at (0,1,0)
    — enough to beat the bare element selector, low enough that every component
-   class below still wins. Each control states its own height and fill. */
-.flow :where(button) {
+   class below still wins. Each control states its own height and fill.
+
+   Except that "every component class below still wins" was not true of
+   `.ink-button`. It is also (0,1,0), and this sheet loads after ink-garage.css,
+   so the tie broke the wrong way and the reset's `padding: 0` beat the
+   component's `padding: 0 22px`. Every .ink-button inside the flow lost its
+   horizontal padding: "Not now" rendered 62px wide instead of 109px, its label
+   touching both edges. It was invisible on phones, where the modal action row
+   gives buttons `width: 100%` regardless, and showed only on desktop.
+
+   Excluding it is safe rather than a special case: `.ink-button` already
+   declares its own background, border-radius, colour, font-weight, min-height
+   and padding, which is every property this reset neutralises. There is
+   nothing left for the reset to protect it from. */
+.flow :where(button:not(.ink-button)) {
   background: none;
   border-radius: 0;
   color: inherit;
