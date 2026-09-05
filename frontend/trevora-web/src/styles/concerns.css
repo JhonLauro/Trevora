@@ -1,0 +1,238 @@
+/*
+ * Concerns — the owner's own words, on their vehicle page and in the shared
+ * mechanic view.
+ *
+ * Two surfaces, one idea, deliberately drawn differently. The owner's list is a
+ * working surface: edit, resolve, delete. The mechanic's is a quotation — no
+ * controls, more air, and the note itself set larger than anything around it,
+ * because on that page it is the only thing nobody inferred.
+ *
+ * Its own stylesheet rather than an edit to styles.css, per CLAUDE.md.
+ *
+ * Every colour is a token, none is a literal: theme.css redefines these for the
+ * dark theme, and a hardcoded ground here would be a white card on a dark page.
+ * The two exceptions are the resolve and delete hover tints and the amber rule
+ * on the mechanic's quotation, which are semantic accents rather than surfaces.
+ */
+
+/* ---- owner: the add form ---------------------------------------------- */
+
+.concerns-add {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.1rem;
+  padding: 0.9rem;
+}
+
+.concerns-add__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Two rows tall on purpose. Tall enough not to feel like a search box, short
+   enough that it reads as a note rather than a form to fill in. */
+.concerns-add__field {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  padding: 0.55rem 0.65rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.concerns-add__foot {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.concerns-add__hint {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+/* ---- owner: the list --------------------------------------------------- */
+
+.concerns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.concern {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+}
+
+.concern__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* pre-wrap: the owner's line breaks are theirs. Someone who wrote three
+   symptoms on three lines meant three lines. */
+.concern__note {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.concern__age {
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+}
+
+.concern__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+.concern__action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.concern__action:hover {
+  background: var(--ink-hover);
+  color: var(--ink);
+}
+
+.concern__action--ok:hover {
+  color: #15803d;
+}
+
+.concern__action--danger:hover {
+  color: #b91c1c;
+}
+
+.concern__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.concern__edit-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.concerns-empty {
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+/* ---- owner: resolved, collapsed --------------------------------------- */
+
+.concerns-resolved {
+  margin-top: 1rem;
+}
+
+.concerns-resolved__toggle {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.3rem 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.concerns-list--resolved {
+  margin-top: 0.5rem;
+}
+
+/* Resolved is quieter, not struck through: it still has to be readable when
+   the same symptom comes back. */
+.concern--resolved .concern__note {
+  color: var(--ink-muted);
+}
+
+/* ---- the confirmation prompt ------------------------------------------ */
+
+.concern-prompt__title {
+  font-size: 0.95rem;
+  margin: 0 0 0.25rem;
+}
+
+.concern-prompt__note {
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+  margin: 0 0 0.7rem;
+}
+
+.concern-prompt__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.concern-prompt__item {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: 0.55rem;
+}
+
+/* ---- mechanic: read-only quotation ------------------------------------ */
+
+.mechanic-concerns ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A left rule rather than a card: these are quoted, and a quote wants a margin
+   mark, not a container. The amber matches the "needs attention" tone the
+   briefing already uses on this page. */
+.mechanic-concern {
+  border-left: 3px solid #d97706;
+  padding: 0.1rem 0 0.1rem 0.75rem;
+}
+
+.mechanic-concern__note {
+  font-size: 1rem;
+  margin: 0 0 0.15rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.mechanic-concern__age {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}

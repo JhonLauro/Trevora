@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.concern.ConcernService;
 import com.trevora.api.features.sharing.MechanicAccessRepository;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
@@ -58,7 +59,8 @@ class MechanicSessionTokenTest {
                 mock(ServiceRecordRepository.class),
                 mock(ServiceRecordItemReader.class),
                 mock(VehicleRepository.class),
-                mock(CurrentUserService.class));
+                mock(CurrentUserService.class),
+                mock(ConcernService.class));
     }
 
     private static void setField(Object target, String field, Object value) {

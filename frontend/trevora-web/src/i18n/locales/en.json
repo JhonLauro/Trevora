@@ -452,5 +452,20 @@
   "leave.saving": "Saving…",
   "leave.discard": "Delete this draft",
   "leave.discarding": "Deleting…",
-  "leave.stay": "Keep editing"
+  "leave.stay": "Keep editing",
+  "vehicle.concerns": "Concerns",
+  "vehicle.openConcerns": "Open concerns",
+  "concerns.addLabel": "Something you noticed",
+  "concerns.placeholder": "AC not cold. Weird sound when turning left.",
+  "concerns.hint": "Written down now so it is not forgotten at the counter.",
+  "concerns.save": "Save",
+  "concerns.cancel": "Cancel",
+  "concerns.edit": "Edit",
+  "concerns.resolve": "Mark as sorted",
+  "concerns.reopen": "Reopen",
+  "concerns.delete": "Delete",
+  "concerns.none": "Nothing noted for this vehicle yet.",
+  "concerns.resolvedCount": "Sorted ({count})",
+  "confirm.concernsTitle": "Did this cover any of these?",
+  "confirm.concernsNote": "Tick anything this visit dealt with. You can skip this."
 }

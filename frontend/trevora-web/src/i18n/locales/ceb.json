@@ -452,5 +452,20 @@
   "leave.saving": "Gi-save…",
   "leave.discard": "Papason kini nga draft",
   "leave.discarding": "Gipapas…",
-  "leave.stay": "Padayon sa pag-edit"
+  "leave.stay": "Padayon sa pag-edit",
+  "vehicle.concerns": "Mga namatikdan",
+  "vehicle.openConcerns": "Wala pa maayo",
+  "concerns.addLabel": "Naa ba kay namatikdan",
+  "concerns.placeholder": "Dili mobugnaw ang AC. Naay lahi nga tingog kung moliko sa wala.",
+  "concerns.hint": "Isulat na karon aron dili malimtan sa shop.",
+  "concerns.save": "I-save",
+  "concerns.cancel": "Kanselahon",
+  "concerns.edit": "Usbon",
+  "concerns.resolve": "Markahi nga ayo na",
+  "concerns.reopen": "Ablihi pag-usab",
+  "concerns.delete": "Papason",
+  "concerns.none": "Wala pay narekord nga namatikdan sa kini nga sakyanan.",
+  "concerns.resolvedCount": "Ayo na ({count})",
+  "confirm.concernsTitle": "Naa bay naayo niini?",
+  "confirm.concernsNote": "Tseki ang naayo niining bisitaha. Mahimo nimo kining laktawan."
 }

@@ -6,6 +6,7 @@ import Tabs from '../components/ink/Tabs.jsx';
 import { getMechanicSessionHistory } from '../api/mechanicAccess';
 import { componentStatuses } from '../utils/componentStatus';
 import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/format';
+import { noticedAgo } from '../utils/noticedAgo';
 import { historyGaps, odometerFindings, recurringWork, trustSummary } from '../utils/mechanicBriefing';
 import { needsReview, sourceLabel } from '../utils/recordStatus';
 import { serviceItemsPartsInline, serviceItemsSummaryLabel } from '../utils/serviceText';
@@ -145,6 +146,37 @@ function Summary({ records, trust, odometer }) {
           </span>
         </div>
       ))}
+    </section>
+  );
+}
+
+/**
+ * What the owner says is wrong, in their words.
+ *
+ * Placed above everything the page infers -- the briefing, the history, the
+ * search -- because it is the only thing here nobody derived. The briefing
+ * reasons from gaps and repeat visits and can be wrong; this is the owner
+ * telling you what the car is doing. Keeping the two visually separate is the
+ * point: folded into "Worth knowing" it would read as another inference.
+ *
+ * Nothing here is interactive. The session is read-only and lasts minutes.
+ * No open concerns renders nothing at all -- an empty state here would be
+ * telling a mechanic about an absence they cannot do anything about.
+ */
+function OwnerConcerns({ concerns }) {
+  if (!concerns || concerns.length === 0) return null;
+
+  return (
+    <section className="ink-card mechanic-concerns">
+      <h2 className="ink-section-title">What the owner has noticed</h2>
+      <ul>
+        {concerns.map((concern) => (
+          <li className="mechanic-concern" key={concern.concernId}>
+            <p className="mechanic-concern__note">{concern.note}</p>
+            <span className="mechanic-concern__age">{noticedAgo(concern.noticedAt)}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -340,6 +372,12 @@ export default function MechanicAccessSessionPlaceholderPage() {
       </header>
 
       <Summary records={records} trust={trust} odometer={odometer} />
+
+      {/* Above the empty-history branch as well as the populated one: a vehicle
+          with nothing filed can still have an owner saying the AC is dead, and
+          that is the most useful thing on the page when there is no history to
+          read. */}
+      <OwnerConcerns concerns={history.openConcerns} />
 
       {records.length === 0 ? (
         <section className="ink-empty">

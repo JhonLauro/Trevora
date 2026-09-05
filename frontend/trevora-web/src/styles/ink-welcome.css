@@ -381,6 +381,42 @@
   display: block;
 }
 
+/* The QR and the four numbered stages sit side by side while there is room for
+   both. There is not, on a phone: the code shrank to a strip and each stage
+   became a column about one word wide. They stack instead, and the code takes
+   its natural size rather than whatever is left over. */
+.wt-preview--share {
+  flex-wrap: wrap;
+}
+
+.wt-preview--share > .wt-screen {
+  flex: 1 1 260px;
+}
+
+.wt-preview--share > .wt-stages {
+  flex: 1 1 300px;
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .wt-preview--share {
+    display: block;
+  }
+
+  .wt-preview--share > .wt-stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 460px) {
+  /* Two stage cards still fit at 390px; one per row wastes the height a
+     walkthrough step does not have. Below this they finally stack. */
+  .wt-preview--share > .wt-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .wt-screen {
   border: 1px solid var(--rule);
   border-radius: 18px;
@@ -859,9 +895,12 @@
     display: none;
   }
 
-  /* Both tables carry more columns than a phone can hold. They scroll inside
-     their own screen rather than the page scrolling sideways. */
-  .wt-screen {
+  /* Both tables carry more columns than a tablet can hold. The table scrolls
+     inside its own box rather than the whole screen doing it: when the screen
+     scrolled, the head went with it, so reaching the Flag column slid "Step 4
+     of 6" off the left edge. Below 600 they stop being tables at all — see the
+     block underneath. */
+  .wt-screen__scroll {
     overflow-x: auto;
   }
 
@@ -899,6 +938,110 @@
 
   .wt-arrow__glyph {
     transform: rotate(90deg);
+  }
+
+  /* ------------------------------------------------- the demo tables
+
+     A 520px table on a 375px screen means dragging a mockup sideways to find
+     out what the walkthrough is showing you — the one screen in the product
+     whose whole job is to be understood at a glance.
+
+     The app itself already answers this: `.ink-table` is hidden below 720px
+     and `.ink-record-cards` takes over. These previews cannot reuse that
+     markup (they are static demos, not RecordsTable), so they take the same
+     shape from their own — each row becomes a card, laid out on a small grid
+     of named areas. The `<td>`s stay where they are and are simply placed. */
+  .wt-screen {
+    overflow-x: visible;
+  }
+
+  .wt-fields,
+  .wt-records {
+    min-width: 0;
+  }
+
+  .wt-fields thead,
+  .wt-records thead {
+    /* The column headings become the labels on each card instead. */
+    display: none;
+  }
+
+  .wt-fields,
+  .wt-fields tbody,
+  .wt-records,
+  .wt-records tbody {
+    display: block;
+  }
+
+  .wt-fields td,
+  .wt-records td {
+    border-top: 0;
+    padding: 0;
+  }
+
+  .wt-fields tr,
+  .wt-records tr {
+    border-top: 1px solid var(--rule-hairline);
+    display: grid;
+    gap: 4px 12px;
+    padding: 14px 18px;
+  }
+
+  .wt-fields tbody tr:first-child,
+  .wt-records tbody tr:first-child {
+    border-top: 0;
+  }
+
+  /* Field · flag on one line, the value beneath — the flag belongs beside the
+     field it is judging, not at the end of a row. */
+  .wt-fields tr {
+    grid-template-areas:
+      "field flag"
+      "value value";
+    grid-template-columns: 1fr auto;
+  }
+
+  .wt-fields td:nth-child(1) {
+    color: var(--ink-faint);
+    font-size: 13px;
+    grid-area: field;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .wt-fields td:nth-child(2) { grid-area: value; }
+
+  .wt-fields td:nth-child(3) {
+    grid-area: flag;
+    justify-self: end;
+  }
+
+  /* Date and status, then what it was, then the figures — the order the record
+     cards use in the app. */
+  .wt-records tr {
+    grid-template-areas:
+      "date     status"
+      "what     what"
+      "odometer cost";
+    grid-template-columns: 1fr auto;
+  }
+
+  .wt-records td:nth-child(1) {
+    color: var(--ink-muted);
+    grid-area: date;
+  }
+
+  .wt-records td:nth-child(2) { grid-area: what; }
+  .wt-records td:nth-child(3) { grid-area: odometer; }
+
+  .wt-records td:nth-child(4) {
+    grid-area: cost;
+    justify-self: end;
+  }
+
+  .wt-records td:nth-child(5) {
+    grid-area: status;
+    justify-self: end;
   }
 }
 

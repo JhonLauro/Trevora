@@ -10,13 +10,19 @@
  *
  * Appended as its own stylesheet rather than edited into styles.css, per
  * CLAUDE.md — that file is 11k lines and shared by four people.
+ *
+ * Every colour is a token. This shipped with literals — an amber pair and a
+ * black hairline — which was invisible while there was one theme and would have
+ * drawn a light badge with a black outline on a dark page. The uncategorised
+ * badge now uses the app's own --status-warn-* set rather than an amber picked
+ * by hand, so it matches every other warn state and follows the theme.
  */
 
 .dashboard-badge {
   cursor: default;
   user-select: none;
   font-weight: 650;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 6%);
+  box-shadow: inset 0 0 0 1px var(--rule);
 }
 
 /*
@@ -27,8 +33,9 @@
  * have nothing that says what kind of service it was.
  */
 .dashboard-badge-uncategorised {
-  background: #fbf0e0;
-  color: #b45309;
+  background: var(--status-warn-bg);
+  border-color: var(--status-warn-border);
+  color: var(--status-warn-text);
 }
 
 /* Two badges in one cell need air between them without becoming a list. */

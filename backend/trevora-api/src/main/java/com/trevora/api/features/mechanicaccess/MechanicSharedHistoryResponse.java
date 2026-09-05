@@ -1,5 +1,6 @@
 package com.trevora.api.features.mechanicaccess;
 
+import com.trevora.api.features.concern.MechanicConcernResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,12 @@ public record MechanicSharedHistoryResponse(
         Instant approvedAt,
         Instant expiresAt,
         int totalRecords,
+        // Added to this payload rather than fetched separately: the shared view
+        // is a read-only page open for minutes, and a second round trip to show
+        // three lines of text is a second thing that can fail on a phone in a
+        // workshop. Open concerns only — a resolved one read as live wastes the
+        // few minutes the session lasts.
+        List<MechanicConcernResponse> openConcerns,
         List<MechanicSharedServiceRecordResponse> records
 ) {
 }

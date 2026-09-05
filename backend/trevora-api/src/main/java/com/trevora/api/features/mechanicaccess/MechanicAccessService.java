@@ -5,6 +5,8 @@ import com.trevora.api.features.mechanicaccess.MechanicSharedRecordDetailRespons
 import com.trevora.api.features.mechanicaccess.MechanicSharedServiceRecordResponse;
 import com.trevora.api.features.mechanicaccess.OwnerMechanicAccessSessionResponse;
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.concern.ConcernService;
+import com.trevora.api.features.concern.MechanicConcernResponse;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSession;
@@ -48,6 +50,7 @@ public class MechanicAccessService {
     private final ServiceRecordItemReader serviceRecordItemReader;
     private final VehicleRepository vehicleRepository;
     private final CurrentUserService currentUserService;
+    private final ConcernService concernService;
 
     public MechanicAccessService(
             MechanicAccessSessionRepository mechanicAccessSessionRepository,
@@ -56,7 +59,8 @@ public class MechanicAccessService {
             ServiceRecordRepository serviceRecordRepository,
             ServiceRecordItemReader serviceRecordItemReader,
             VehicleRepository vehicleRepository,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            ConcernService concernService
     ) {
         this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
         this.mechanicAccessRepository = mechanicAccessRepository;
@@ -65,6 +69,7 @@ public class MechanicAccessService {
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.vehicleRepository = vehicleRepository;
         this.currentUserService = currentUserService;
+        this.concernService = concernService;
     }
 
     @Transactional
@@ -105,6 +110,13 @@ public class MechanicAccessService {
                 session.getApprovedAt(),
                 session.getExpiresAt(),
                 records.size(),
+                /* The session has already been checked for approval and expiry
+                   above, and it names the vehicle it is scoped to. That check is
+                   the authorisation for these concerns too, which is why the
+                   lookup takes no current user -- a mechanic has none. */
+                concernService.listOpenForVehicle(session.getVehicleId()).stream()
+                        .map(MechanicConcernResponse::from)
+                        .toList(),
                 records.stream().map(this::toSharedRecord).toList()
         );
     }
