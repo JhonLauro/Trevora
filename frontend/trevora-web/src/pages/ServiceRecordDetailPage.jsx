@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Calendar, Car, Clock, FileText, Gauge, MapPin,
+  ArrowLeft, Calendar, Car, Check, Clock, FileText, Gauge, MapPin,
   ReceiptText, Share2, Store, Trash2, Wallet, Wrench,
 } from 'lucide-react';
 import AIExplanationPanel from '../components/AIExplanationPanel';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
-import { deleteVehicleServiceRecord, getVehicleServiceRecord } from '../api/serviceHistory';
+import {
+  deleteVehicleServiceRecord,
+  getVehicleServiceRecord,
+  markServiceRecordReviewed,
+} from '../api/serviceHistory';
 import { getVehicle } from '../api/vehicles';
 import { formatAmount, formatDate, formatOdometer } from '../utils/format';
 import { needsReview, recordStatusLabel, sourceLabel } from '../utils/recordStatus';
@@ -100,6 +104,7 @@ export default function ServiceRecordDetailPage() {
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reviewError, setReviewError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -124,6 +129,26 @@ export default function ServiceRecordDetailPage() {
 
     return () => { active = false; };
   }, [vehicleId, recordId]);
+
+  /* Optimistic, the same way the vehicle page's timeline does it: the badge
+     and the banner clear immediately and go back if the request fails. A
+     spinner on a one-field change costs more than the rare failure does.
+
+     Kept in step with that copy deliberately -- two screens marking the same
+     record reviewed should behave identically, and the difference between
+     them was never meant to be behavioural. It was that this one had no
+     button at all, and told the reader to go and find the other one. */
+  async function markReviewedHere() {
+    const previous = record.validationStatus ?? null;
+    setReviewError('');
+    setRecord((current) => ({ ...current, validationStatus: 'VALIDATED' }));
+    try {
+      await markServiceRecordReviewed(vehicleId, recordId);
+    } catch (err) {
+      setReviewError(err.message);
+      setRecord((current) => ({ ...current, validationStatus: previous }));
+    }
+  }
 
   if (loading) {
     return (
@@ -224,11 +249,23 @@ export default function ServiceRecordDetailPage() {
       </header>
 
       {unreviewed && (
-        <p className="record-notice">
-          Nobody has checked these fields against the receipt. They were read automatically and
-          saved as-is — open the vehicle's timeline to mark this reviewed once you have.
-        </p>
+        <div className="record-notice record-notice--action">
+          <p>
+            Nobody has checked these fields against the receipt. They were read automatically and
+            saved as-is. Compare them with the receipt above, then mark it reviewed.
+          </p>
+          <button
+            className="ink-button ink-button--outline record-notice__action"
+            type="button"
+            onClick={markReviewedHere}
+          >
+            <Check size={16} aria-hidden="true" />
+            Mark reviewed
+          </button>
+        </div>
       )}
+
+      {reviewError && <div className="ink-alert">{reviewError}</div>}
 
       <div className="record-layout">
         <div className="record-main">
