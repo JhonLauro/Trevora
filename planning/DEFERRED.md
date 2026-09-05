@@ -3301,3 +3301,60 @@ when a fresh call would fall to the template.
 Not done, and not obviously worth doing: nothing ever deletes a row except the
 record's own `on delete cascade`. A regenerated explanation overwrites in place,
 so the table cannot outgrow the record count.
+
+---
+
+## Service category vocabulary — unified 2026-09-05, two pieces left
+
+`service_category` had four disagreeing definitions: the constant, two copies
+hardcoded inside the extraction prompts, and a keyword table inside
+`ServiceItemResponse`. The prompts now interpolate
+`ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES`, and
+`ServiceCategoryVocabularyTest` fails if a copy drifts from the constant again.
+
+`UNCATEGORIZED` was added, distinct from `Other`. `Other` means an owner looked
+and chose none of the above; `UNCATEGORIZED` means nothing has decided yet. One
+is a finished answer, the other an open question, and only the open one is worth
+putting in front of someone.
+
+Three things deliberately left:
+
+- **Per-item AI classification.** The model returns one `classification` object
+  per receipt, so `OCRProcessingService.classifyItems` fans a single visit-level
+  answer across every item and only the keyword text differentiates them. Real
+  per-item categories mean changing the extraction schema and prompt, which puts
+  it under the golden-set rule on a set where `lineKinds` scores ~53%. Out of
+  scope for the unification; worth doing on its own evidence.
+
+- **`Other` is currently unreachable.** No request DTO carries a category — not
+  `ServiceItemRequest`, not the correction path — so nothing lets an owner
+  choose one. `Other` is now a value only a human may set, and no human can.
+  Either add a category picker to the review screen or accept that `Other`
+  exists only on rows written before this change. Note those rows were
+  machine-set by the old classifier and are indistinguishable from a deliberate
+  choice; there is one such record in the database today.
+
+- **The voice prompt still hardcodes the *component* list** (`Engine, Engine
+  Oil, Oil Filter, ...`), the same class of duplication that this work removed
+  for categories, against `ALLOWED_RELATED_COMPONENTS`. It was left alone
+  because touching it is a prompt change and would have needed its own
+  golden-set run. Same fix, same test, when someone is next in that file.
+
+### Not fixed, found while unifying categories (2026-09-05)
+
+- **No upper bound on cost input.** A record carrying PHP 123,123,122.98 sat in
+  the database and was 99.7% of all recorded spend; the "Where it went" chart
+  drew it without complaint, so every other category rendered as a sliver.
+  `DraftPlausibilityService` bounds the odometer and the service date and says
+  nothing about money. The row is deleted; the hole that let it in is not.
+
+- **No test that a chart survives a nine-figure value.** Related and separate:
+  even with an input bound, one legitimate large record should not flatten the
+  rest, and nothing asserts that today.
+
+- **`field_metadata.source` has drifted from its own vocabulary.**
+  `ServiceClassificationService.normalizeSource` accepts AI, KEYWORD_FALLBACK,
+  MANUAL and MIXED, but two rows written by the manual-entry path hold
+  `owner_entered`, which is none of them. It reads as MANUAL to a human and as
+  unrecognised to the code. Same class of bug as the category vocabulary this
+  work unified — one value, two spellings, nothing comparing them.
