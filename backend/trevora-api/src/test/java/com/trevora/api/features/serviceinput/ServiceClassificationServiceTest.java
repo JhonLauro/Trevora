@@ -31,7 +31,9 @@ class ServiceClassificationServiceTest {
                 2
         );
 
-        assertThat(result.serviceCategory()).isEqualTo("Other");
+        // "Very Important" is not a category, and the answer to that is now that
+        // nobody has categorised this - not that nothing fits it.
+        assertThat(result.serviceCategory()).isEqualTo(ServiceClassificationService.UNCATEGORIZED);
         assertThat(result.relatedComponents()).containsExactly("Brakes", "Tires", "Suspension");
         assertThat(result.confidence()).isEqualTo("medium");
         assertThat(result.source()).isEqualTo("MIXED");
@@ -82,5 +84,76 @@ class ServiceClassificationServiceTest {
         assertThat(classifications.get(0).relatedComponents()).contains("Engine Oil", "Oil Filter");
         assertThat(classifications.get(2).relatedComponents()).contains("Brakes");
         assertThat(classifications.get(0).relatedComponents()).doesNotContain("Brakes");
+    }
+
+    @Test
+    void theKeywordFallbackNeverReturnsOther() {
+        // Text with nothing categorisable in it. The honest answer is that
+        // nobody has decided, which is not the same as deciding "none of these".
+        ServiceClassification result =
+                service.keywordFallback("Thank you for your business", null, null, null, null, 1);
+
+        assertThat(result.serviceCategory()).isEqualTo(ServiceClassificationService.UNCATEGORIZED);
+        assertThat(result.serviceCategory()).isNotEqualTo("Other");
+    }
+
+    @Test
+    void anAiAnswerOfOtherIsTreatedAsNoAnswer() {
+        /*
+         * "Other" means the owner looked and none of these fit. A model is not
+         * in a position to make that judgement, so it is not offered the value
+         * and is not believed if it returns one anyway.
+         */
+        ServiceClassification ai = new ServiceClassification(
+                "Something", "Other", List.of("Brakes"), List.of(), "high", "AI", List.of(), false);
+
+        ServiceClassification result =
+                service.classifyAiOrFallback(ai, "brake pads replaced", null, null, null, null, 1);
+
+        assertThat(result.serviceCategory()).isEqualTo(ServiceClassificationService.UNCATEGORIZED);
+    }
+
+    @Test
+    void noClassifierPathCanEverProduceOther() {
+        // The rule stated once, over every route a category can arrive by.
+        List<String> haystacks = List.of(
+                "", "Thank you for your business", "oil change", "brake service",
+                "warranty claim", "emergency tow", "diagnostic inspection", "replace battery");
+
+        for (String haystack : haystacks) {
+            assertThat(service.keywordFallback(haystack, null, null, null, null, 1).serviceCategory())
+                    .describedAs("keyword fallback for '%s'", haystack)
+                    .isNotEqualTo("Other");
+
+            ServiceClassification ai = new ServiceClassification(
+                    null, "Other", List.of(), List.of(), null, "AI", List.of(), false);
+            assertThat(service.classifyAiOrFallback(ai, haystack, null, null, null, null, 1).serviceCategory())
+                    .describedAs("AI path for '%s'", haystack)
+                    .isNotEqualTo("Other");
+        }
+    }
+
+    @Test
+    void otherAndUncategorizedAreBothAllowedValuesButNeitherIsOfferedToAClassifier() {
+        assertThat(ServiceClassificationService.ALLOWED_SERVICE_CATEGORIES)
+                .contains("Other", ServiceClassificationService.UNCATEGORIZED);
+        assertThat(ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES)
+                .doesNotContain("Other", ServiceClassificationService.UNCATEGORIZED)
+                .containsExactly("Maintenance", "Repair", "Inspection", "Replacement", "Warranty", "Emergency");
+    }
+
+    @Test
+    void anUndecidedCategoryIsNotCarriedAsASearchableTag() {
+        /*
+         * Only the category is asserted on. "Other" also appears here as a
+         * *component* - a different vocabulary on a different axis, and a
+         * legitimate tag - so this checks the value the category contributes
+         * rather than the absence of the word.
+         */
+        ServiceClassification result =
+                service.keywordFallback("Thank you for your business", null, null, null, null, 1);
+
+        assertThat(result.serviceCategory()).isEqualTo(ServiceClassificationService.UNCATEGORIZED);
+        assertThat(result.recordTags()).doesNotContain(ServiceClassificationService.UNCATEGORIZED);
     }
 }

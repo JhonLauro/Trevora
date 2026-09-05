@@ -17,7 +17,10 @@ public record ServiceClassification(
     public Map<String, Object> toMetadata() {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("normalizedServiceType", normalizedServiceType);
-        metadata.put("serviceCategory", serviceCategory == null ? "Other" : serviceCategory);
+        // Was "Other". A null category means nothing decided, which is what
+        // UNCATEGORIZED says; "Other" would claim a decision was made.
+        metadata.put("serviceCategory",
+                serviceCategory == null ? ServiceClassificationService.UNCATEGORIZED : serviceCategory);
         metadata.put("relatedComponents", relatedComponents == null ? List.of() : relatedComponents);
         metadata.put("recordTags", recordTags == null ? List.of() : recordTags);
         metadata.put("confidence", confidence == null ? "low" : confidence);

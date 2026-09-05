@@ -595,7 +595,8 @@ public class OpenAIServiceDraftExtractionProvider {
         };
     }
 
-    private String systemPrompt(VehicleContext vehicle) {
+    // Package-private so the prompt-vs-constant test can read what the model is actually sent.
+    String systemPrompt(VehicleContext vehicle) {
         return """
                 You are a vehicle service record extraction specialist for service center receipts, invoices, job orders, and official receipts.
                 Use only the OCR text and page/source metadata. Do not use outside knowledge.
@@ -849,7 +850,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
                 Classification must use only these serviceCategory values:
-                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                %s.
                 Classification relatedComponents must use only these values, which are the
                 components a %s has:
                 %s.
@@ -883,11 +884,12 @@ public class OpenAIServiceDraftExtractionProvider {
                 warnings must be an array of short user-safe notes about conflicts or limitations.
                 """.formatted(
                 ServiceDraftResponseSchema.evidenceFieldList(),
+                String.join(", ", ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES),
                 vehicle.isMotorcycle() ? "motorcycle" : "car",
                 String.join(", ", vehicle.allowedComponents()));
     }
 
-    private String voiceSystemPrompt() {
+    String voiceSystemPrompt() {
         return """
                 You are a vehicle service record extraction specialist for spoken owner notes.
                 Use only the voice transcript. Do not invent missing values.
@@ -911,7 +913,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 laborPerformed should include only explicit work performed, attributed to the correct service entry.
                 remarks should include only explicit visit-level notes that do not fit another field.
                 Classification must use only these serviceCategory values:
-                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                %s.
                 Classification relatedComponents must use only these values:
                 Engine, Engine Oil, Oil Filter, Brakes, Tires, Battery, Air Filter,
                 Transmission, Cooling System, Suspension, Lights, AC System,
@@ -941,7 +943,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 aiSuggestedFields and warnings must be arrays.
                 A voice note has no printed lines, so every service's lineEntries is an empty
                 array and lineCost is null.
-                """.formatted(ServiceDraftResponseSchema.evidenceFieldList());
+                """.formatted(
+                String.join(", ", ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES),
+                ServiceDraftResponseSchema.evidenceFieldList());
     }
 
     private LocalDate asDate(JsonNode node) {
