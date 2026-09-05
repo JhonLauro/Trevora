@@ -151,7 +151,7 @@ class DraftItemCorrectionTest {
         UUID itemId = seedBodyAndPaint();
 
         service.replaceDraftItems(DRAFT, List.of(
-                new ServiceItemRequest(itemId, "Body and paint", null, null, null, null)), null);
+                new ServiceItemRequest(itemId, "Body and paint", null, null, null, null, null)), null);
 
         assertThat(lines()).extracting(ServiceDraftLineEntry::getDescription)
                 .containsExactly("PAINTING JOB", "FLOORMAT", "TTY-DEGREASER");
@@ -173,7 +173,7 @@ class DraftItemCorrectionTest {
         seedBodyAndPaint();
 
         service.replaceDraftItems(DRAFT, List.of(
-                new ServiceItemRequest(null, "Wheel alignment", null, null, null, null)), null);
+                new ServiceItemRequest(null, "Wheel alignment", null, null, null, null, null)), null);
 
         assertThat(lines()).isEmpty();
     }
@@ -236,7 +236,7 @@ class DraftItemCorrectionTest {
     }
 
     private ServiceItemRequest item(UUID itemId, String serviceType, List<ServiceLineEntryRequest> lines) {
-        return new ServiceItemRequest(itemId, serviceType, null, null, null, lines);
+        return new ServiceItemRequest(itemId, serviceType, null, null, null, lines, null);
     }
 
     private ServiceLineEntryRequest line(String kind, String description, String lineTotal) {

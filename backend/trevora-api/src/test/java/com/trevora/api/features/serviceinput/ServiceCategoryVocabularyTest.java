@@ -1,6 +1,7 @@
 package com.trevora.api.features.serviceinput;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.dto.ServiceItemResponse;
@@ -117,4 +118,67 @@ class ServiceCategoryVocabularyTest {
     private record ServiceRecordItemStub(String serviceType, String serviceCategory) {
     }
 
+    private final ServiceClassificationService classifier = new ServiceClassificationService();
+
+    @Test
+    @DisplayName("a person may choose Other")
+    void otherIsAHumanChoice() {
+        assertThat(classifier.requireHumanChoosableCategory("Other")).isEqualTo("Other");
+        assertThat(classifier.requireHumanChoosableCategory("other")).isEqualTo("Other");
+    }
+
+    @Test
+    @DisplayName("a person may not choose UNCATEGORIZED")
+    void uncategorizedIsNotAHumanChoice() {
+        assertThatThrownBy(() -> classifier.requireHumanChoosableCategory(
+                ServiceClassificationService.UNCATEGORIZED))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nobody has chosen one");
+    }
+
+    @Test
+    @DisplayName("a value that is not a category at all is refused")
+    void nonsenseIsRefused() {
+        assertThatThrownBy(() -> classifier.requireHumanChoosableCategory("Tires & brakes"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("is not a service category");
+    }
+
+    @Test
+    @DisplayName("saying nothing is not the same as saying UNCATEGORIZED")
+    void silenceLeavesTheClassifierInCharge() {
+        assertThat(classifier.requireHumanChoosableCategory(null)).isNull();
+        assertThat(classifier.requireHumanChoosableCategory("  ")).isNull();
+    }
+
+    @Test
+    @DisplayName("an owner's choice is recorded as the owner's")
+    void anOwnerChoiceCarriesItsProvenance() {
+        /*
+         * The whole Other/UNCATEGORIZED split depends on this. "Other" written
+         * by a classifier and "Other" chosen by a person are the same string,
+         * and only the source beside it says which happened.
+         */
+        ServiceClassification machine = classifier.keywordFallback(
+                "Thank you for your business", null, null, null, null, 1);
+        assertThat(machine.source()).isEqualTo("KEYWORD_FALLBACK");
+        assertThat(machine.serviceCategory()).isEqualTo(ServiceClassificationService.UNCATEGORIZED);
+
+        ServiceClassification chosen = machine.withOwnerChosenCategory("Other");
+
+        assertThat(chosen.serviceCategory()).isEqualTo("Other");
+        assertThat(chosen.source()).isEqualTo("MANUAL");
+        assertThat(chosen.needsOwnerReview()).isFalse();
+        assertThat(chosen.toMetadata()).containsEntry("source", "MANUAL");
+    }
+
+    @Test
+    @DisplayName("a null category in metadata is UNCATEGORIZED, not Other")
+    void metadataDefaultsToUncategorized() {
+        ServiceClassification blank = new ServiceClassification(
+                null, null, List.of(), List.of(), null, null, List.of(), true);
+
+        assertThat(blank.toMetadata())
+                .containsEntry("serviceCategory", ServiceClassificationService.UNCATEGORIZED);
+    }
 }

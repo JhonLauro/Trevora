@@ -61,6 +61,45 @@ public class ServiceClassificationService {
                     .toList();
 
     /**
+     * What a person may choose. Everything except {@link #UNCATEGORIZED}.
+     *
+     * <p>"Other" is on this list and not on the classifier's: deciding that
+     * nothing fits is a judgement, and a person is entitled to make it.
+     * UNCATEGORIZED is on neither, because it means nobody has decided and
+     * selecting it would itself be a decision.
+     */
+    public static final List<String> HUMAN_CHOOSABLE_CATEGORIES =
+            ALLOWED_SERVICE_CATEGORIES.stream()
+                    .filter(category -> !UNCATEGORIZED.equals(category))
+                    .toList();
+
+    private static final Map<String, String> HUMAN_CHOOSABLE_LOOKUP = lookup(HUMAN_CHOOSABLE_CATEGORIES);
+
+    /**
+     * The canonical spelling of a category a person picked.
+     *
+     * @param value what the client sent; null or blank means they said nothing
+     * @return the canonical value, or null when nothing was said
+     * @throws IllegalArgumentException when the value is not one a person may
+     *     choose - including UNCATEGORIZED, which is the system's to write
+     */
+    public String requireHumanChoosableCategory(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = HUMAN_CHOOSABLE_LOOKUP.get(value.trim().toLowerCase(Locale.ROOT));
+        if (normalized != null) {
+            return normalized;
+        }
+        if (UNCATEGORIZED.equalsIgnoreCase(value.trim())) {
+            throw new IllegalArgumentException(
+                    "A service category cannot be set to " + UNCATEGORIZED
+                            + " - that is what the record says when nobody has chosen one.");
+        }
+        throw new IllegalArgumentException("\"" + value + "\" is not a service category. Choose one of: "
+                + String.join(", ", HUMAN_CHOOSABLE_CATEGORIES) + ".");
+    }
+    /**
      * Components both vehicle classes have. An engine is an engine.
      */
     private static final List<String> COMMON_COMPONENTS = List.of(

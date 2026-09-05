@@ -39,7 +39,21 @@ public record ServiceItemRequest(
         String partsReplaced,
         String laborPerformed,
         @DecimalMin("0.00") BigDecimal lineCost,
-        @Valid List<ServiceLineEntryRequest> lineEntries
+        @Valid List<ServiceLineEntryRequest> lineEntries,
+        /*
+         * The owner's own answer to what kind of service this was.
+         *
+         * Null means they did not say, and the keyword classifier decides as
+         * before - this is a PATCH and silence is not an instruction. A value
+         * is only accepted from the human-choosable list: "Other" is theirs to
+         * pick and UNCATEGORIZED is not, because UNCATEGORIZED means nobody has
+         * decided and choosing it would be a decision.
+         *
+         * Appended rather than slotted beside serviceType for the same reason
+         * the vehicle identifiers were appended to ReceiptDraftFields: this
+         * record is built positionally in several places.
+         */
+        String serviceCategory
 ) {
     public List<ServiceLineEntryRequest> lineEntriesOrEmpty() {
         return lineEntries == null ? List.of() : lineEntries;
