@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import GarageTransition from '../components/GarageTransition.jsx';
@@ -84,9 +85,10 @@ const SPOKEN_FIELDS = [
 ];
 
 function SpeakingGuide() {
+  const t = useT();
   return (
     <section className="flow-card voice-guide">
-      <span className="flow-eyebrow">Saying it well</span>
+      <span className="flow-eyebrow">{t('voice.sayingWell')}</span>
       <p className="voice-guide__lead">
         Mention these six and the next screen arrives mostly filled in. Say them in any
         order, in any language, in whatever way is natural.
@@ -102,7 +104,7 @@ function SpeakingGuide() {
       </ul>
 
       <p className="voice-guide__example">
-        <span className="voice-guide__example-tag">Like this</span>
+        <span className="voice-guide__example-tag">{t('voice.likeThis')}</span>
         “On August 11 I had the head gasket leak repaired at Canyon Creek Toyota.
         The odometer read 45,000 kilometres. They replaced the water outlet gasket
         and the timing chain. It came to 3,981 pesos.”
@@ -118,6 +120,7 @@ function SpeakingGuide() {
 }
 
 export default function VoiceInputPage() {
+  const t = useT();
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const recorderRef = useRef(null);
@@ -198,7 +201,7 @@ export default function VoiceInputPage() {
 
   async function startRecording() {
     if (!recorderSupported) {
-      setError('This browser cannot record audio. You can type what you want to say instead.');
+      setError(t('voice.noRecorder'));
       return;
     }
 
@@ -236,7 +239,7 @@ export default function VoiceInputPage() {
     } catch {
       stopStream();
       setRecording(false);
-      setError('Trevora could not reach the microphone. Allow access, or type what you want to say instead.');
+      setError(t('voice.noMic'));
     }
   }
 
@@ -296,7 +299,7 @@ export default function VoiceInputPage() {
 
     const toRead = (translation || original).trim();
     if (!toRead) {
-      setError('Record a voice note, or type what you want to say, before going on.');
+      setError(t('voice.needNote'));
       return;
     }
 
@@ -338,7 +341,7 @@ export default function VoiceInputPage() {
       step={3}
       width="mid"
       vehicleName={vehicleName}
-      title="Say what was done"
+      title={t('voice.title')}
       subtitle="Date, cost, shop, and what was replaced. Anything you leave out you can type on the next screen."
       onExit={() => navigate('/')}
     >
@@ -405,14 +408,14 @@ export default function VoiceInputPage() {
               onClick={clearRecording}
               disabled={!audioBlob && !recording && !original}
             >
-              Record again
+              {t('voice.recordAgain')}
             </button>
           </div>
         </section>
 
         <div className="flow-transcripts">
           <section className="flow-card flow-transcript-card">
-            <span className="flow-eyebrow">What we heard</span>
+            <span className="flow-eyebrow">{t('voice.whatWeHeard')}</span>
             <textarea
               value={original}
               onChange={(event) => {
@@ -423,24 +426,24 @@ export default function VoiceInputPage() {
                 setError('');
               }}
               placeholder="Example: I changed the oil and replaced the filter today. Total cost was around 1200."
-              aria-label="What we heard"
+              aria-label={t('voice.whatWeHeard')}
             />
             <p className="flow-source__foot">
-              This is the copy we keep. Editing here changes what we read.
+              {t('voice.copyKept')}
             </p>
           </section>
 
           {translation ? (
             <section className="flow-card flow-transcript-card">
-              <span className="flow-eyebrow">In English</span>
+              <span className="flow-eyebrow">{t('voice.inEnglish')}</span>
               <p className="flow-transcript">{translation}</p>
               <p className="flow-source__foot">
-                The original stays exactly as you said it. This is what we will read.
+                {t('voice.original')}
               </p>
             </section>
           ) : (
             <section className="flow-card flow-transcript-card flow-transcript-card--empty">
-              <span className="flow-eyebrow">In English</span>
+              <span className="flow-eyebrow">{t('voice.inEnglish')}</span>
               <p className="flow-note">Not translated yet. The original beside this stays either way.</p>
               <button
                 className="flow-btn flow-btn--ghost"
@@ -448,7 +451,7 @@ export default function VoiceInputPage() {
                 onClick={handleTranslate}
                 disabled={!original.trim() || busy}
               >
-                {translating ? 'Translating…' : 'Translate to English'}
+                {translating ? 'Translating…' : t('voice.translate')}
               </button>
             </section>
           )}
@@ -460,10 +463,10 @@ export default function VoiceInputPage() {
             type="button"
             onClick={() => navigate(`/service-input/${vehicleId}`)}
           >
-            Back
+            {t('flow.back')}
           </button>
           <button className="flow-btn" type="submit" disabled={busy || loading || !original.trim()}>
-            {saving ? 'Creating draft…' : 'Check the details'}
+            {saving ? 'Creating draft…' : t('common.checkDetails')}
           </button>
         </div>
       </form>
@@ -478,11 +481,12 @@ export default function VoiceInputPage() {
  * been running, and claims nothing else.
  */
 function FilingOverlay() {
+  const t = useT();
   const seconds = useElapsedSeconds(true);
 
   return (
     <ProcessingModal
-      title="Reading your note"
+      title={t('voice.reading')}
       sub="Pulling out the date, the shop, the cost and the work. This is the slow part — leave it running and it will finish."
       foot="Whatever it misses, you fill in on the next screen. Nothing is lost while this runs."
     >

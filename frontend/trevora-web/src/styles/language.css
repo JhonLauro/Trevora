@@ -1,0 +1,48 @@
+/* The language chooser on the settings page.
+
+   Built on .set-card and .set-row so it sits in the settings page's own
+   language rather than inventing a control. The rows are radios, not
+   switches: these are three states of one setting, and the notification rows
+   above them are independent toggles. Giving both the same furniture would
+   say they behave the same way. */
+
+.lang-choices .set-row {
+  cursor: pointer;
+}
+
+/* A ring that fills, which is what a radio looks like everywhere. The
+   notification rows use a sliding switch, and the difference is the point. */
+.lang-tick {
+  border: 1.5px solid var(--rule, #d9d3c8);
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 20px;
+  position: relative;
+  width: 20px;
+}
+
+.lang-tick.is-on {
+  border-color: var(--ink, #1c1b19);
+}
+
+.lang-tick.is-on::after {
+  background: var(--ink, #1c1b19);
+  border-radius: 50%;
+  content: '';
+  inset: 4px;
+  position: absolute;
+}
+
+/* The endonym leads; the English name sits under it, quieter, for anyone who
+   knows the language by that name instead. */
+.lang-choices .set-row-text strong {
+  display: block;
+  font-weight: 600;
+}
+
+.lang-choices .set-row-text span {
+  color: var(--ink-muted, #57534c);
+  display: block;
+  font-size: 14px;
+  margin-top: 2px;
+}

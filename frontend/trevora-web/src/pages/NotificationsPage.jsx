@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { Link } from 'react-router-dom';
 import { Bell, Clock, UserRoundCheck } from 'lucide-react';
 import { getActiveCurrentUser } from '../api/currentUser.js';
@@ -125,6 +126,7 @@ function buildLocalNotification(entry, readIds) {
 }
 
 export default function NotificationsPage() {
+  const t = useT();
   const currentUser = getActiveCurrentUser();
   const [filter, setFilter] = useState('all');
   const [requests, setRequests] = useState([]);
@@ -216,7 +218,7 @@ export default function NotificationsPage() {
     <main className="ink-page notif tv-reveal-group">
       <header className="notif__head">
         <div>
-          <h1 className="notif__title">Notifications</h1>
+          <h1 className="notif__title">{t('notif.title')}</h1>
           <p className="notif__summary">
             {loading
               ? 'Loading…'
@@ -229,7 +231,7 @@ export default function NotificationsPage() {
           onClick={markAllRead}
           disabled={unreadCount === 0}
         >
-          Mark all read
+          {t('notif.markAllRead')}
         </button>
       </header>
 
@@ -237,7 +239,7 @@ export default function NotificationsPage() {
 
       {/* Same segmented pill as the vehicle page's view switcher, so a
           two-way filter looks like a two-way filter wherever it appears. */}
-      <div className="ink-segmented notif__tabs" role="group" aria-label="Filter notifications">
+      <div className="ink-segmented notif__tabs" role="group" aria-label={t('notif.filter')}>
         <button
           className={filter === 'all' ? 'is-active' : undefined}
           type="button"
@@ -266,7 +268,7 @@ export default function NotificationsPage() {
             {filter === 'unread' ? 'Nothing unread' : 'Nothing yet'}
           </h2>
           <p className="notif__empty-body">
-            Mechanic access requests for your vehicles arrive here.
+            {t('notif.requestsArrive')}
           </p>
         </section>
       ) : (
@@ -287,7 +289,7 @@ export default function NotificationsPage() {
                     {/* The word, not only the tint. Unread is a state, and
                         this product's rule is that a state carries its own
                         word rather than relying on a colour. */}
-                    {notification.unread && <span className="notif__new">New</span>}
+                    {notification.unread && <span className="notif__new">{t('notif.new')}</span>}
                     <span className="notif__time">{notification.time}</span>
                   </div>
                   <p className="notif__text">{notification.body}</p>

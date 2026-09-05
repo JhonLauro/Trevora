@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/index.jsx';
 import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
 import { formatDate, formatOdometer } from '../../utils/format';
@@ -42,6 +43,7 @@ function subLine(record) {
 }
 
 export default function RecordsTable({ records, ariaLabel, showVehicle = true, onDelete }) {
+  const t = useT();
   /* The action column widens when it holds two controls rather than one. */
   const columns = (showVehicle ? CROSS_VEHICLE_COLUMNS : SINGLE_VEHICLE_COLUMNS)
     .replace(/ 60px$/, onDelete ? ' 132px' : ' 60px');
@@ -51,13 +53,13 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
       <table className="ink-table" style={{ '--table-columns': columns }} aria-label={ariaLabel}>
         <thead>
           <tr>
-            <th scope="col">Date</th>
-            {showVehicle && <th scope="col">Vehicle</th>}
-            <th scope="col">Service</th>
-            {!showVehicle && <th scope="col">Odometer</th>}
-            <th scope="col" className="is-numeric">Cost (PHP)</th>
-            <th scope="col">Status</th>
-            <th scope="col"><span className="ink-sr-only">Actions</span></th>
+            <th scope="col">{t('table.date')}</th>
+            {showVehicle && <th scope="col">{t('table.vehicle')}</th>}
+            <th scope="col">{t('table.service')}</th>
+            {!showVehicle && <th scope="col">{t('table.odometer')}</th>}
+            <th scope="col" className="is-numeric">{t('table.cost')}</th>
+            <th scope="col">{t('table.status')}</th>
+            <th scope="col"><span className="ink-sr-only">{t('table.actions')}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -77,7 +79,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                 </span>
               </td>
               <td className="ink-table__actions">
-                <Link className="ink-table__action" to={recordHref(record)}>View</Link>
+                <Link className="ink-table__action" to={recordHref(record)}>{t('table.view')}</Link>
                 {onDelete && (
                   <button
                     className="ink-link-button ink-link-button--danger"
@@ -85,7 +87,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                     aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
                     onClick={() => onDelete(record)}
                   >
-                    Delete
+                    {t('table.delete')}
                   </button>
                 )}
               </td>
@@ -114,7 +116,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
             </div>
             <div className="ink-record-card__actions">
               <Link className="ink-button ink-button--outline ink-button--sm" to={recordHref(record)}>
-                View record
+                {t('table.viewRecord')}
               </Link>
               {onDelete && (
                 <button
@@ -122,7 +124,7 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                   type="button"
                   onClick={() => onDelete(record)}
                 >
-                  Delete
+                  {t('table.delete')}
                 </button>
               )}
             </div>

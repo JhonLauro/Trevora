@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
+import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
@@ -22,25 +24,27 @@ import { formatPeso, lineEntriesOf, reconciliation } from '../utils/serviceLines
  * and the screen where you commit it is a badge nobody can learn to read.
  */
 
+/* Keys, resolved at render -- this array is built at module load, where no
+   translator is bound to a language yet. */
 const summaryFields = [
-  ['serviceDate', 'Date of service'],
-  ['odometer', 'Odometer'],
-  ['totalCost', 'Total cost'],
-  ['shopName', 'Shop'],
-  ['location', 'Location'],
-  ['remarks', 'Remarks'],
+  ['serviceDate', 'review.dateOfService'],
+  ['odometer', 'review.odometer'],
+  ['totalCost', 'review.totalCost'],
+  ['shopName', 'review.shopName'],
+  ['location', 'review.location'],
+  ['remarks', 'review.remarks'],
 ];
 
 function displayValue(key, value) {
-  if (value === null || value === undefined || value === '') return 'Not provided';
-  if (key === 'totalCost') return formatPeso(value) ?? 'Not provided';
+  if (value === null || value === undefined || value === '') return t('confirm.notProvided');
+  if (key === 'totalCost') return formatPeso(value) ?? t('confirm.notProvided');
   if (key === 'odometer') return `${Number(value).toLocaleString()} km`;
-  if (key === 'serviceDate') return formatDay(value, 'Not provided');
+  if (key === 'serviceDate') return formatDay(value, t('confirm.notProvided'));
   return String(value);
 }
 
 function vehicleName(vehicle, draft) {
-  if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
+  if (!vehicle) return draft?.vehicleId ?? t('review.selectedVehicle');
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 }
 
@@ -58,6 +62,7 @@ function linesSummary(draft) {
 }
 
 export default function ServiceRecordConfirmationPage() {
+  const t = useT();
   const { draftId } = useParams();
   const navigate = useNavigate();
   const [draft, setDraft] = useState(null);
@@ -121,8 +126,8 @@ export default function ServiceRecordConfirmationPage() {
       step={5}
       width="narrow"
       vehicleName={vehicleName(vehicle, draft)}
-      title="This is what will be saved"
-      subtitle="Nothing here is editable. Go back if anything is wrong."
+      title={t('confirm.title')}
+      subtitle={t('confirm.notEditable')}
       onExit={() => navigate('/')}
     >
       {loading && <p className="flow-note">Loading…</p>}
@@ -130,7 +135,7 @@ export default function ServiceRecordConfirmationPage() {
 
       {draft && !validation?.valid && (
         <div className="flow-alert">
-          Some fields still need attention. Go back to checking to finish them.
+          {t('confirm.stillNeed')}
         </div>
       )}
 
@@ -138,7 +143,7 @@ export default function ServiceRecordConfirmationPage() {
         <>
           <section className="flow-card">
             <dl className="flow-summary">
-              {summaryFields.map(([key, label]) => {
+              {summaryFields.map(([key, labelKey]) => {
                 const value = draft[key];
                 const signal = fieldSignal({
                   draft, fieldName: key, value, issue: issueMap.get(key),
@@ -152,7 +157,7 @@ export default function ServiceRecordConfirmationPage() {
 
                 return (
                   <React.Fragment key={key}>
-                    <dt className="flow-summary__k">{label}</dt>
+                    <dt className="flow-summary__k">{t(labelKey)}</dt>
                     <dd className="flow-summary__v">
                       <span>{displayValue(key, value)}</span>
                       {signal.label && <span className={badgeClass}>{signal.label}</span>}
@@ -161,14 +166,14 @@ export default function ServiceRecordConfirmationPage() {
                 );
               })}
 
-              <dt className="flow-summary__k">What was done</dt>
+              <dt className="flow-summary__k">{t('review.whatDone')}</dt>
               <dd className="flow-summary__v flow-summary__v--stack">
                 {services.length === 0 ? (
-                  <span>Not provided</span>
+                  <span>{t('confirm.notProvided')}</span>
                 ) : (
                   services.map((item, index) => (
                     <span className="flow-summary__line" key={item.itemId ?? `item-${index}`}>
-                      <strong>{item.serviceType || 'Service'}</strong>
+                      <strong>{item.serviceType || t('confirm.service')}</strong>
                       <span>{formatPeso(item.lineCost) ?? '—'}</span>
                     </span>
                   ))
@@ -176,7 +181,7 @@ export default function ServiceRecordConfirmationPage() {
                 <span className="flow-summary__foot">{linesSummary(draft)}</span>
               </dd>
 
-              <dt className="flow-summary__k">Receipt</dt>
+              <dt className="flow-summary__k">{t('confirm.receipt')}</dt>
               <dd className="flow-summary__v">
                 <span>
                   {pageCount > 0
@@ -195,10 +200,10 @@ export default function ServiceRecordConfirmationPage() {
             />
             <span>
               <span className="flow-assent__title">
-                I have checked these details and they match my receipt
+                {t('confirm.checked')}
               </span>
               <span className="flow-assent__note">
-                Required. You can edit the record later, and the change is logged.
+                {t('confirm.required')}
               </span>
             </span>
           </label>
@@ -209,10 +214,10 @@ export default function ServiceRecordConfirmationPage() {
               type="button"
               onClick={() => navigate(`/service-drafts/${draftId}`)}
             >
-              Back to checking
+              {t('confirm.backToChecking')}
             </button>
             <button className="flow-btn" type="button" disabled={!canSave} onClick={handleConfirm}>
-              {saving ? 'Saving…' : 'Save to my records'}
+              {saving ? 'Saving…' : t('confirm.save')}
             </button>
           </div>
         </>

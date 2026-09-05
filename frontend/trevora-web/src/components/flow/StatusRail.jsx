@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/index.jsx';
 
 /**
  * The rail: status, what to look at, where it is going, and the two buttons.
@@ -43,10 +44,11 @@ export default function StatusRail({
   saving,
   dirty,
 }) {
+  const t = useT();
   const statusLine = ready
-    ? 'Nothing is stopping this from being saved. Anything still flagged is yours to judge.'
+    ? t('rail.nothingStopping')
     : blocking.length === 1
-      ? 'One thing has to change before this can be saved. The rest is yours to judge.'
+      ? t('rail.oneThing')
       : `${blocking.length} things have to change before this can be saved. The rest is yours to judge.`;
 
   return (
@@ -58,7 +60,7 @@ export default function StatusRail({
       <section className={`flow-status${ready ? ' is-ready' : ''}`}>
         <div>
           <p className="flow-status__eyebrow">Status</p>
-          <p className="flow-status__title">{ready ? 'Ready to save' : 'Not ready to save yet'}</p>
+          <p className="flow-status__title">{ready ? t('rail.readyToSave') : t('rail.notReady')}</p>
         </div>
         <p className="flow-status__body">{statusLine}</p>
       </section>
@@ -81,7 +83,7 @@ export default function StatusRail({
       )}
 
       <section className="flow-card flow-saving-to">
-        <p className="flow-eyebrow">Saving to</p>
+        <p className="flow-eyebrow">{t('rail.savingTo')}</p>
         <p className="flow-saving-to__name">{vehicleName}</p>
         {vehicleSubtext && <p className="flow-note">{vehicleSubtext}</p>}
       </section>
@@ -105,13 +107,13 @@ export default function StatusRail({
           data-tip="draft-confirm"
           disabled={saving || (!dirty && !ready)}
         >
-          {saving ? 'Saving…' : 'Continue to confirm'}
+          {saving ? 'Saving…' : t('rail.continueConfirm')}
         </button>
         {!dirty && !ready && (
-          <p className="flow-rail-actions__hint">Fix what is listed above to continue.</p>
+          <p className="flow-rail-actions__hint">{t('rail.fixAbove')}</p>
         )}
         {dirty && (
-          <p className="flow-rail-actions__hint">Your changes are saved as you continue.</p>
+          <p className="flow-rail-actions__hint">{t('rail.savedAsYouGo')}</p>
         )}
       </div>
     </aside>

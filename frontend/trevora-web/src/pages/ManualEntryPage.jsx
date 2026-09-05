@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import ServiceLinesEditor from '../components/flow/ServiceLinesEditor';
@@ -32,6 +33,7 @@ const fields = [
 ];
 
 export default function ManualEntryPage() {
+  const t = useT();
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
@@ -120,8 +122,8 @@ export default function ManualEntryPage() {
       step={3}
       width="mid"
       vehicleName={vehicleName}
-      title="Type in the details"
-      subtitle="Only the date and the total are required."
+      title={t('manual.title')}
+      subtitle={t('manual.sub')}
       onExit={() => navigate('/')}
     >
       {error && <div className="flow-alert">{error}</div>}
@@ -158,8 +160,8 @@ export default function ManualEntryPage() {
         <section className="flow-card" data-tip="manual-lines">
           <div className="flow-done__head">
             <div>
-              <h2 className="flow-done__title">What was done</h2>
-              <p className="flow-note">A service, then the lines that paid for it.</p>
+              <h2 className="flow-done__title">{t('manual.whatDone')}</h2>
+              <p className="flow-note">{t('manual.serviceThenLines')}</p>
             </div>
           </div>
 
@@ -167,7 +169,7 @@ export default function ManualEntryPage() {
 
           {hasLines && (
             <div className="flow-done__total">
-              <span className="flow-note">Lines add up to</span>
+              <span className="flow-note">{t('manual.linesAddUp')}</span>
               <span className="flow-done__total-value">
                 {formatPeso(pesosFromCentavos(balance.lineSum)) ?? '—'}
               </span>
@@ -181,10 +183,10 @@ export default function ManualEntryPage() {
             type="button"
             onClick={() => navigate(`/service-input/${vehicleId}`)}
           >
-            Back
+            {t('flow.back')}
           </button>
           <button className="flow-btn" type="submit" disabled={saving || loading}>
-            {saving ? 'Creating draft…' : 'Check the details'}
+            {saving ? 'Creating draft…' : t('common.checkDetails')}
           </button>
         </div>
       </form>

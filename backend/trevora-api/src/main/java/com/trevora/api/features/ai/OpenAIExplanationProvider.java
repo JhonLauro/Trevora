@@ -265,6 +265,17 @@ public class OpenAIExplanationProvider {
         rather than sent as "unknown", so the model is never invited to fill a
         gap the record leaves open. */
     public record Facts(
+            /*
+             * The language the explanation is to be written in.
+             *
+             * <p>Held on Facts rather than passed alongside it, because the cache
+             * fingerprint is a hash of asPrompt() and nothing else. Putting the
+             * language in the prompt makes a language change invalidate the stored
+             * explanation on its own, with no schema change and no second cache
+             * key -- the fingerprint already means "everything this was written
+             * from", and the language is one of those things.
+             */
+            String language,
             String vehicle,
             String serviceTypes,
             List<String> partsFitted,
@@ -277,7 +288,9 @@ public class OpenAIExplanationProvider {
             String remarks
     ) {
         String asPrompt() {
-            StringBuilder text = new StringBuilder("Facts recorded for this visit:\n");
+            StringBuilder text = new StringBuilder();
+            text.append("Write every field of your answer in ").append(languageName()).append(".\n");
+            text.append("Facts recorded for this visit:\n");
             line(text, "Vehicle", vehicle);
             line(text, "Service", serviceTypes);
             list(text, "Parts fitted", partsFitted);
@@ -291,6 +304,24 @@ public class OpenAIExplanationProvider {
             return text.toString();
         }
 
+        /*
+         * Named, not coded. "Write in ceb" is a token the model may or may not
+         * recognise; "Cebuano (Bisaya)" is a language it has actually read. The
+         * parenthetical matters -- far more of its Cebuano training data is
+         * labelled Bisaya than Cebuano.
+         */
+        private String languageName() {
+            if ("tl".equals(language)) return "Filipino (Tagalog)";
+            if ("ceb".equals(language)) return "Cebuano (Bisaya)";
+            return "English";
+        }
+
+        /*
+         * Vocabulary is left alone on purpose. A Cebuano sentence around
+         * "head gasket" and "brake pad" is how the trade is actually spoken
+         * here; translating the part names would produce something no mechanic
+         * or owner would say out loud.
+         */
         private static void line(StringBuilder text, String label, String value) {
             if (value != null && !value.isBlank()) {
                 text.append("- ").append(label).append(": ").append(value.trim()).append('\n');

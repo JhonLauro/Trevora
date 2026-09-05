@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
+import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import ReceiptStrip from '../components/flow/ReceiptStrip';
@@ -104,7 +106,7 @@ function serializeCorrections(form) {
 }
 
 function vehicleDisplayName(vehicle, draft) {
-  if (!vehicle) return draft?.vehicleId ?? 'Selected vehicle';
+  if (!vehicle) return draft?.vehicleId ?? t('review.selectedVehicle');
   return vehicle.nickname || [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 }
 
@@ -124,10 +126,10 @@ function coverageHint(form) {
   const total = Number(form.totalCost);
   const covered = Number(form.amountCovered);
   if (!Number.isFinite(total) || form.totalCost === '') {
-    return 'Enter the total cost first, then how much of it was covered.';
+    return t('review.totalFirst');
   }
   if (!Number.isFinite(covered) || form.amountCovered === '' || covered <= 0) {
-    return 'How much of the total someone else paid. Leave blank if you paid all of it.';
+    return t('review.coveredHelp');
   }
   if (covered >= total) {
     return 'Fully covered — this record will show as costing you nothing.';
@@ -149,6 +151,7 @@ function sourceLine(draft) {
 }
 
 export default function ServiceDraftReviewPage() {
+  const t = useT();
   const { draftId } = useParams();
   const navigate = useNavigate();
   const [leavePrompt, setLeavePrompt] = useState(false);
@@ -233,7 +236,7 @@ export default function ServiceDraftReviewPage() {
     // The balance gap is a property of the record's lines rather than of a
     // field, but it does have somewhere to jump to, so it lists like the rest.
     const gap = balanceWarning(form.services, form.totalCost);
-    if (gap) reviewItems.push({ id: DONE_ID, name: 'What was done', why: gap });
+    if (gap) reviewItems.push({ id: DONE_ID, name: t('review.whatDone'), why: gap });
 
     return { blocking: blockingItems, review: reviewItems };
   }, [draft, form, issueMap]);
@@ -374,7 +377,7 @@ export default function ServiceDraftReviewPage() {
       step={4}
       width="wide"
       vehicleName={vehicleDisplayName(vehicle, draft)}
-      title="Check the details"
+      title={t('review.title')}
       subtitle={subtitle}
       onExit={leaveFlow}
       onSaveLater={saveAndLeave}
@@ -397,10 +400,10 @@ export default function ServiceDraftReviewPage() {
             {draft.inputMethod === 'VOICE' && (
               <section className="flow-card flow-source">
                 <div className="flow-source__head">
-                  <span className="flow-eyebrow">Your voice note</span>
+                  <span className="flow-eyebrow">{t('review.yourVoiceNote')}</span>
                 </div>
                 <p className="flow-transcript">
-                  {draft.fieldMetadata?.transcript || 'Nothing was recorded with this one.'}
+                  {draft.fieldMetadata?.transcript || t('review.nothingRecorded')}
                 </p>
                 <p className="flow-source__foot">
                   Same layout, same rail, same badges. Only this panel differs.
@@ -437,12 +440,12 @@ export default function ServiceDraftReviewPage() {
                     }))}
                   />
                   <span className="flow-switch__track" aria-hidden="true" />
-                  <span>Insurance or warranty covered part of this</span>
+                  <span>{t('review.coveredBy')}</span>
                 </label>
 
                 {form.hasCoverage && (
                   <label className="flow-field">
-                    <span>Amount covered</span>
+                    <span>{t('review.amountCovered')}</span>
                     <input
                       name="amountCovered"
                       type="number"
@@ -461,8 +464,8 @@ export default function ServiceDraftReviewPage() {
             <section className="flow-card">
               <div className="flow-done__head">
                 <div>
-                  <h2 className="flow-done__title">What was done</h2>
-                  <p className="flow-note">A service, then the lines that paid for it.</p>
+                  <h2 className="flow-done__title">{t('review.whatDone')}</h2>
+                  <p className="flow-note">{t('manual.serviceThenLines')}</p>
                 </div>
               </div>
               <div style={{ padding: '18px 24px 0' }}>
@@ -507,9 +510,9 @@ export default function ServiceDraftReviewPage() {
 
       <ConfirmDialog
         open={leavePrompt}
-        title="Leave without saving?"
+        title={t('review.leaveWithout')}
         body="Your changes to this draft have not been saved. Leaving now discards them and the draft keeps the values it was created with."
-        confirmLabel="Discard changes"
+        confirmLabel={t('review.discardChanges')}
         onConfirm={() => navigate('/')}
         onCancel={() => setLeavePrompt(false)}
       />

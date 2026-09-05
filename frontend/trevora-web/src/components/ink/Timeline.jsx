@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/index.jsx';
 import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
 import { formatDay, formatOdometer } from '../../utils/format';
@@ -51,6 +52,7 @@ function groupByYear(records) {
 }
 
 export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed }) {
+  const t = useT();
   const groups = groupByYear(records);
 
   return (
@@ -91,7 +93,7 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                         wide screen this renders exactly as it did flat. */}
                     <div className="vehicle-timeline__card-actions">
                       <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
-                        Open
+                        {t('table.open')}
                       </Link>
                       {onMarkReviewed && status === 'warn' && (
                         <button
@@ -100,7 +102,7 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                           aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
                           onClick={() => onMarkReviewed(record)}
                         >
-                          Mark reviewed
+                          {t('table.markReviewed')}
                         </button>
                       )}
                       {onDelete && (
@@ -110,7 +112,7 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                           aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
                           onClick={() => onDelete(record)}
                         >
-                          Delete
+                          {t('table.delete')}
                         </button>
                       )}
                     </div>
