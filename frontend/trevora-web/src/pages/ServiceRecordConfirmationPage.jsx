@@ -4,6 +4,8 @@ import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
+import { getConcerns, setConcernResolved } from '../api/concerns';
+import { hasOpenConcerns, openConcerns as onlyOpen } from '../utils/concerns';
 import { fieldSignal, issuesByField } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, tierFor } from '../utils/fieldTier';
 import { getVehicle } from '../api/vehicles';
@@ -72,6 +74,8 @@ export default function ServiceRecordConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [openConcerns, setOpenConcerns] = useState([]);
+  const [coveredConcerns, setCoveredConcerns] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -88,6 +92,15 @@ export default function ServiceRecordConfirmationPage() {
           if (active) setVehicle(vehicleData);
         } catch {
           if (active) setVehicle(null);
+        }
+        /* Concerns are a side offer, never a reason this screen fails. If the
+           list will not load the owner simply is not asked, and their concerns
+           stay open — which is the safe direction to be wrong in. */
+        try {
+          const list = await getConcerns(data.draft.vehicleId);
+          if (active) setOpenConcerns(onlyOpen(list));
+        } catch {
+          if (active) setOpenConcerns([]);
         }
       })
       .catch((err) => {
@@ -110,6 +123,12 @@ export default function ServiceRecordConfirmationPage() {
     setError('');
     try {
       const result = await confirmServiceDraft(draftId);
+      /* After the record is safely saved, and never in a way that can undo it.
+         A concern that fails to close is a tick box the owner can use again;
+         a record lost to a failed concern update is not recoverable. */
+      await Promise.allSettled(coveredConcerns.map((concernId) => (
+        setConcernResolved(draft.vehicleId, concernId, true)
+      )));
       navigate(`/service-drafts/${draftId}/saved`, { state: result });
     } catch (err) {
       setError(err.message);
@@ -191,6 +210,36 @@ export default function ServiceRecordConfirmationPage() {
               </dd>
             </dl>
           </section>
+
+          {/* Only when there is something to ask about. Mechanics get one short
+              session and will not close anything, so the moment just after the
+              owner files a record is the only reliable one — they have the visit
+              in mind and the paperwork in front of them. Skippable by design:
+              nothing here blocks saving. */}
+          {hasOpenConcerns(openConcerns) && (
+            <section className="flow-card concern-prompt">
+              <h2 className="concern-prompt__title">{t('confirm.concernsTitle')}</h2>
+              <p className="concern-prompt__note">{t('confirm.concernsNote')}</p>
+              <ul className="concern-prompt__list">
+                {openConcerns.map((concern) => (
+                  <li key={concern.concernId}>
+                    <label className="concern-prompt__item">
+                      <input
+                        type="checkbox"
+                        checked={coveredConcerns.includes(concern.concernId)}
+                        onChange={(event) => setCoveredConcerns((current) => (
+                          event.target.checked
+                            ? [...current, concern.concernId]
+                            : current.filter((id) => id !== concern.concernId)
+                        ))}
+                      />
+                      <span>{concern.note}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <label className="flow-assent">
             <input

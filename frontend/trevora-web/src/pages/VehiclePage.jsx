@@ -14,6 +14,15 @@ import { componentStatuses } from '../utils/componentStatus';
 import { historyCompleteness, listYears } from '../utils/completeness';
 import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/format';
 import { needsReview } from '../utils/recordStatus';
+import ConcernsPanel from '../components/ConcernsPanel';
+import { openConcernCount } from '../utils/concerns';
+import {
+  createConcern,
+  deleteConcern,
+  getConcerns,
+  setConcernResolved,
+  updateConcern,
+} from '../api/concerns';
 import { recordSearchText } from '../utils/serviceComponents';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
 import { spendTotals } from '../utils/spend';
@@ -174,6 +183,7 @@ export default function VehiclePage() {
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
   const [editingDetails, setEditingDetails] = useState(false);
+  const [concerns, setConcerns] = useState([]);
 
   /* Re-signed whenever the pointer changes, which covers the first load and a
      photo added, replaced or removed from the edit dialog. The URL is good for
@@ -245,11 +255,17 @@ export default function VehiclePage() {
     Promise.all([
       getVehicle(vehicleId),
       getVehicleServiceHistory(vehicleId, { sort: 'newest' }),
+      /* Fetched with the rest rather than when the tab opens: the count sits in
+         the tab badge and the stat strip, both of which are on screen before
+         anyone clicks. Failing softly because a concern list that will not load
+         should not blank a page whose subject is the service history. */
+      getConcerns(vehicleId).catch(() => []),
     ])
-      .then(([vehicleData, history]) => {
+      .then(([vehicleData, history, concernList]) => {
         if (!active) return;
         setVehicle(vehicleData);
         setRecords(history.records ?? []);
+        setConcerns(concernList ?? []);
         setError('');
       })
       .catch((err) => {
@@ -275,6 +291,10 @@ export default function VehiclePage() {
   const completeness = useMemo(() => historyCompleteness(records, vehicle), [records, vehicle]);
 
   const reviewCount = records.filter(needsReview).length;
+  /* Open only, on both the tab badge and the stat. A resolved concern is
+     history, not something waiting on the owner, and counting it would make the
+     number go up when they dealt with something. */
+  const openCount = openConcernCount(concerns);
   // "Total spent" means what the owner actually paid. Anything insurance or a
   // warranty absorbed is shown underneath rather than folded in silently —
   // a spend figure that quietly includes money someone else paid is wrong,
@@ -291,6 +311,7 @@ export default function VehiclePage() {
 
   const tabs = [
     { id: 'records', label: t('vehicle.allRecords'), count: records.length },
+    { id: 'concerns', label: t('vehicle.concerns'), count: openCount },
     { id: 'warranty', label: t('vehicle.warranty') },
   ];
 
@@ -400,6 +421,7 @@ export default function VehiclePage() {
           note={spend.hasCoverage ? `PHP ${formatAmount(spend.covered)} covered` : null}
         />
         <Stat label={t('vehicle.needsReview')} value={String(reviewCount)} />
+        <Stat label={t('vehicle.openConcerns')} value={String(openCount)} />
       </section>
 
       <Tabs tabs={tabs} activeId={tab} onChange={setTab} label={t('vehicle.sections')} />
@@ -489,6 +511,27 @@ export default function VehiclePage() {
                 />
               </section>
             )}
+          </div>
+        )}
+
+        {tab === 'concerns' && (
+          <div className="vehicle-concerns tv-reveal" style={{ '--reveal-index': 3 }}>
+            <ConcernsPanel
+              concerns={concerns}
+              onAdd={async (note) => setConcerns([await createConcern(vehicleId, note), ...concerns])}
+              onEdit={async (concernId, note) => {
+                const updated = await updateConcern(vehicleId, concernId, note);
+                setConcerns((current) => current.map((c) => (c.concernId === concernId ? updated : c)));
+              }}
+              onResolve={async (concernId, resolved) => {
+                const updated = await setConcernResolved(vehicleId, concernId, resolved);
+                setConcerns((current) => current.map((c) => (c.concernId === concernId ? updated : c)));
+              }}
+              onDelete={async (concernId) => {
+                await deleteConcern(vehicleId, concernId);
+                setConcerns((current) => current.filter((c) => c.concernId !== concernId));
+              }}
+            />
           </div>
         )}
 

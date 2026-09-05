@@ -110,6 +110,9 @@ import './styles/language.css';
 // Status badges as labels rather than controls. Additive, shares no selector
 // with anything above it.
 import './styles/record-badges.css';
+// Owner concerns, and their quotation in the shared mechanic view. Additive,
+// own `.concern*` namespace.
+import './styles/concerns.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

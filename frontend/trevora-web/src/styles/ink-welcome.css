@@ -859,8 +859,9 @@
     display: none;
   }
 
-  /* Both tables carry more columns than a phone can hold. They scroll inside
-     their own screen rather than the page scrolling sideways. */
+  /* Both tables carry more columns than a tablet can hold. They scroll inside
+     their own screen rather than the page scrolling sideways. Below 600 they
+     stop being tables at all — see the block underneath. */
   .wt-screen {
     overflow-x: auto;
   }
@@ -899,6 +900,110 @@
 
   .wt-arrow__glyph {
     transform: rotate(90deg);
+  }
+
+  /* ------------------------------------------------- the demo tables
+
+     A 520px table on a 375px screen means dragging a mockup sideways to find
+     out what the walkthrough is showing you — the one screen in the product
+     whose whole job is to be understood at a glance.
+
+     The app itself already answers this: `.ink-table` is hidden below 720px
+     and `.ink-record-cards` takes over. These previews cannot reuse that
+     markup (they are static demos, not RecordsTable), so they take the same
+     shape from their own — each row becomes a card, laid out on a small grid
+     of named areas. The `<td>`s stay where they are and are simply placed. */
+  .wt-screen {
+    overflow-x: visible;
+  }
+
+  .wt-fields,
+  .wt-records {
+    min-width: 0;
+  }
+
+  .wt-fields thead,
+  .wt-records thead {
+    /* The column headings become the labels on each card instead. */
+    display: none;
+  }
+
+  .wt-fields,
+  .wt-fields tbody,
+  .wt-records,
+  .wt-records tbody {
+    display: block;
+  }
+
+  .wt-fields td,
+  .wt-records td {
+    border-top: 0;
+    padding: 0;
+  }
+
+  .wt-fields tr,
+  .wt-records tr {
+    border-top: 1px solid var(--rule-hairline);
+    display: grid;
+    gap: 4px 12px;
+    padding: 14px 18px;
+  }
+
+  .wt-fields tbody tr:first-child,
+  .wt-records tbody tr:first-child {
+    border-top: 0;
+  }
+
+  /* Field · flag on one line, the value beneath — the flag belongs beside the
+     field it is judging, not at the end of a row. */
+  .wt-fields tr {
+    grid-template-areas:
+      "field flag"
+      "value value";
+    grid-template-columns: 1fr auto;
+  }
+
+  .wt-fields td:nth-child(1) {
+    color: var(--ink-faint);
+    font-size: 13px;
+    grid-area: field;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .wt-fields td:nth-child(2) { grid-area: value; }
+
+  .wt-fields td:nth-child(3) {
+    grid-area: flag;
+    justify-self: end;
+  }
+
+  /* Date and status, then what it was, then the figures — the order the record
+     cards use in the app. */
+  .wt-records tr {
+    grid-template-areas:
+      "date     status"
+      "what     what"
+      "odometer cost";
+    grid-template-columns: 1fr auto;
+  }
+
+  .wt-records td:nth-child(1) {
+    color: var(--ink-muted);
+    grid-area: date;
+  }
+
+  .wt-records td:nth-child(2) { grid-area: what; }
+  .wt-records td:nth-child(3) { grid-area: odometer; }
+
+  .wt-records td:nth-child(4) {
+    grid-area: cost;
+    justify-self: end;
+  }
+
+  .wt-records td:nth-child(5) {
+    grid-area: status;
+    justify-self: end;
   }
 }
 

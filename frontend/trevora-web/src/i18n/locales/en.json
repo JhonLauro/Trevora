@@ -416,5 +416,20 @@
   "ai.detail.parts": "Parts noted",
   "ai.detail.materials": "Materials used",
   "ai.detail.labor": "Work performed",
-  "ai.detail.total": "Total recorded cost"
+  "ai.detail.total": "Total recorded cost",
+  "vehicle.concerns": "Concerns",
+  "vehicle.openConcerns": "Open concerns",
+  "concerns.addLabel": "Something you noticed",
+  "concerns.placeholder": "AC not cold. Weird sound when turning left.",
+  "concerns.hint": "Written down now so it is not forgotten at the counter.",
+  "concerns.save": "Save",
+  "concerns.cancel": "Cancel",
+  "concerns.edit": "Edit",
+  "concerns.resolve": "Mark as sorted",
+  "concerns.reopen": "Reopen",
+  "concerns.delete": "Delete",
+  "concerns.none": "Nothing noted for this vehicle yet.",
+  "concerns.resolvedCount": "Sorted ({count})",
+  "confirm.concernsTitle": "Did this cover any of these?",
+  "confirm.concernsNote": "Tick anything this visit dealt with. You can skip this."
 }

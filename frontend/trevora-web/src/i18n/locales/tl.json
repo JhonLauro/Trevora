@@ -416,5 +416,20 @@
   "ai.detail.parts": "Mga parteng nabanggit",
   "ai.detail.materials": "Mga materyales na ginamit",
   "ai.detail.labor": "Trabahong ginawa",
-  "ai.detail.total": "Kabuuang naitalang halaga"
+  "ai.detail.total": "Kabuuang naitalang halaga",
+  "vehicle.concerns": "Mga napansin",
+  "vehicle.openConcerns": "Hindi pa ayos",
+  "concerns.addLabel": "May napansin ka ba",
+  "concerns.placeholder": "Hindi lumalamig ang AC. May kakaibang tunog kapag kumakaliwa.",
+  "concerns.hint": "Isulat na ngayon para hindi makalimutan sa shop.",
+  "concerns.save": "I-save",
+  "concerns.cancel": "Kanselahin",
+  "concerns.edit": "Baguhin",
+  "concerns.resolve": "Markahan bilang ayos na",
+  "concerns.reopen": "Buksan muli",
+  "concerns.delete": "Burahin",
+  "concerns.none": "Wala pang naitalang napansin sa sasakyang ito.",
+  "concerns.resolvedCount": "Ayos na ({count})",
+  "confirm.concernsTitle": "May naayos ba dito?",
+  "confirm.concernsNote": "Lagyan ng tsek ang naayos sa pagpunta na ito. Puwede mong laktawan."
 }

@@ -112,6 +112,17 @@ class EndpointProtectionTest {
         registry.put("GET /api/vehicles/{vehicleId}/history/{recordId}", Guard.OWNER);
         registry.put("DELETE /api/vehicles/{vehicleId}/history/{recordId}", Guard.OWNER);
         registry.put("POST /api/vehicles/{vehicleId}/history/{recordId}/reviewed", Guard.OWNER);
+
+        // Owner-written concerns. Every one of these goes through
+        // ConcernService, which calls verifyVehicleBelongsToCurrentUser before
+        // it reads or writes anything, and scopes on owner_id as well as
+        // vehicle_id. The mechanic's read is not here: it is folded into the
+        // shared-history payload and guarded by that session's own token.
+        registry.put("GET /api/vehicles/{vehicleId}/concerns", Guard.OWNER);
+        registry.put("POST /api/vehicles/{vehicleId}/concerns", Guard.OWNER);
+        registry.put("PUT /api/vehicles/{vehicleId}/concerns/{concernId}", Guard.OWNER);
+        registry.put("PATCH /api/vehicles/{vehicleId}/concerns/{concernId}/resolution", Guard.OWNER);
+        registry.put("DELETE /api/vehicles/{vehicleId}/concerns/{concernId}", Guard.OWNER);
         registry.put("GET /api/service-records/{recordId}/ai-explanation", Guard.OWNER);
         // Listing is owner-scoped in the service: findByOwnerId on the
         // current user, never a parameter, so there is no id to tamper with.
