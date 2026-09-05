@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { usePlural, useT } from '../i18n/index.jsx';
+import { translate as t } from '../i18n/index.jsx';
 import { ChevronLeft, ChevronRight, FileText, Mic, PenLine, TrendingDown, TrendingUp } from 'lucide-react';
 import MonthBars from '../components/ink/MonthBars.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
@@ -22,10 +24,14 @@ import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText
    many whole cards fit. */
 const CARD_GAP = 24;
 
-function greetingFor(hour) {
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+/* Returns a key, not a phrase. "Good afternoon, Johnny" puts the name last in
+   English and so do Tagalog and Cebuano, but that is a fact about those three
+   languages rather than about greetings -- the name belongs in the template
+   where each language wants it, not glued on here. */
+function greetingKeyFor(hour) {
+  if (hour < 12) return 'garage.greetMorning';
+  if (hour < 18) return 'garage.greetAfternoon';
+  return 'garage.greetEvening';
 }
 
 /** A value longer than about nine characters drops a type step rather than
@@ -45,6 +51,8 @@ function Stat({ label, value, note = null }) {
 }
 
 function VehicleCard({ vehicle, records }) {
+  const t = useT();
+  const plural = usePlural();
   const vehicleId = vehicle.vehicleId;
   const reviewCount = records.filter(needsReview).length;
   // Out-of-pocket, with anything covered called out underneath rather than
@@ -63,22 +71,22 @@ function VehicleCard({ vehicle, records }) {
         {/* "All validated" on a car with no records at all would be a claim
             about nothing. An empty card says so plainly instead. */}
         {records.length === 0 ? (
-          <span className="ink-badge ink-badge--none">No records yet</span>
+          <span className="ink-badge ink-badge--none">{t('garage.noRecordsYet')}</span>
         ) : reviewCount > 0 ? (
-          <span className="ink-badge ink-badge--warn">{pluralize(reviewCount, 'needs review', 'need review')}</span>
+          <span className="ink-badge ink-badge--warn">{plural('count.needsReview', reviewCount)}</span>
         ) : (
-          <span className="ink-badge ink-badge--ok">All validated</span>
+          <span className="ink-badge ink-badge--ok">{t('garage.allValidated')}</span>
         )}
       </div>
 
       <div className="garage-card__stats">
-        <Stat label="Records" value={String(records.length)} />
+        <Stat label={t('garage.statRecords')} value={String(records.length)} />
         <Stat
-          label="Spend, PHP"
+          label={t('garage.statSpend')}
           value={formatAmount(spend.ownerPaid)}
           note={spend.hasCoverage ? `${formatAmount(spend.covered)} covered` : null}
         />
-        <Stat label="Last service" value={records[0]?.serviceDate ? formatMonthYear(records[0].serviceDate) : 'None yet'} />
+        <Stat label={t('garage.lastService')} value={records[0]?.serviceDate ? formatMonthYear(records[0].serviceDate) : t('garage.noneYet')} />
       </div>
 
       {/* Twelve empty bars and a date range is a chart of nothing — the most
@@ -87,7 +95,7 @@ function VehicleCard({ vehicle, records }) {
           will become instead. */}
       {records.length === 0 ? (
         <p className="garage-card__chart-empty">
-          Add a record and twelve months of service activity chart here.
+          {t('garage.chartHint')}
         </p>
       ) : (
         <div className="garage-card__chart">
@@ -100,8 +108,8 @@ function VehicleCard({ vehicle, records }) {
       )}
 
       <div className="garage-card__actions">
-        <Link className="ink-button ink-button--sm" to={`/service-input/${vehicleId}`}>Add record</Link>
-        <Link className="ink-button ink-button--outline ink-button--sm" to={`/vehicles/${vehicleId}`}>Open vehicle</Link>
+        <Link className="ink-button ink-button--sm" to={`/service-input/${vehicleId}`}>{t('garage.addRecordShort')}</Link>
+        <Link className="ink-button ink-button--outline ink-button--sm" to={`/vehicles/${vehicleId}`}>{t('action.openVehicle')}</Link>
       </div>
     </article>
   );
@@ -125,6 +133,7 @@ function VehicleCard({ vehicle, records }) {
  * the first is not a choice worth offering.
  */
 function VehicleCarousel({ garages }) {
+  const t = useT();
   const trackRef = useRef(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
@@ -167,10 +176,10 @@ function VehicleCarousel({ garages }) {
       style={{ '--reveal-index': 1 }}
     >
       <div className="garage-carousel__head">
-        <h2 className="ink-section-title">Your vehicles</h2>
+        <h2 className="ink-section-title">{t('garage.yourVehicles')}</h2>
         <div className="garage-carousel__controls">
           <Link className="ink-button ink-button--outline garage-carousel__add" to="/vehicles/new">
-            Add vehicle
+            {t('garage.addVehicleShort')}
           </Link>
 
           {!single && (
@@ -178,7 +187,7 @@ function VehicleCarousel({ garages }) {
               <button
                 className="garage-carousel__arrow"
                 type="button"
-                aria-label="Scroll vehicles left"
+                aria-label={t('garage.scrollLeft')}
                 disabled={atStart}
                 onClick={() => nudge(-1)}
               >
@@ -187,7 +196,7 @@ function VehicleCarousel({ garages }) {
               <button
                 className="garage-carousel__arrow"
                 type="button"
-                aria-label="Scroll vehicles right"
+                aria-label={t('garage.scrollRight')}
                 disabled={atEnd}
                 onClick={() => nudge(1)}
               >
@@ -203,7 +212,7 @@ function VehicleCarousel({ garages }) {
         ref={trackRef}
         tabIndex={single ? -1 : 0}
         role={single ? undefined : 'group'}
-        aria-label={single ? undefined : 'Vehicles, scrollable'}
+        aria-label={single ? undefined : t('garage.scrollable')}
       >
         <div className="garage-track__row">
           {garages.map(({ vehicle, records }) => (
@@ -218,10 +227,14 @@ function VehicleCarousel({ garages }) {
 /* Three spans. Twelve stays the default because it matches a year of
    ownership; three answers "is this month unusual"; all-time is for deciding
    whether to keep the car. */
+/* Keys, not labels. `t` is a hook, so calling it out here runs it at module
+   load with nothing bound -- which does not fail quietly: the array is built
+   the instant the file is imported, so the whole page dies with "t is not
+   defined" before anything renders. The same reason NAV_ITEMS holds labelKey. */
 const RANGES = [
-  { id: '3', label: '3 months', months: 3 },
-  { id: '12', label: '12 months', months: 12 },
-  { id: 'all', label: 'All time', months: null },
+  { id: '3', labelKey: 'garage.months3', months: 3 },
+  { id: '12', labelKey: 'garage.months12', months: 12 },
+  { id: 'all', labelKey: 'garage.allTime', months: null },
 ];
 
 /** Every vehicle, plus the "all of them" option that stays the default. */
@@ -240,8 +253,9 @@ const ALL_VEHICLES = 'all';
  * current one is something to read and dismiss on every visit.
  */
 function ScopePicker({ vehicles, value, onChange, id, label }) {
+  const t = useT();
   if (vehicles.length < 2) {
-    return <span className="garage-panel__scope">All vehicles</span>;
+    return <span className="garage-panel__scope">{t('garage.allVehicles')}</span>;
   }
 
   return (
@@ -253,7 +267,7 @@ function ScopePicker({ vehicles, value, onChange, id, label }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
-        <option value={ALL_VEHICLES}>All vehicles</option>
+        <option value={ALL_VEHICLES}>{t('garage.allVehicles')}</option>
         {vehicles.map((vehicle) => (
           <option key={vehicle.vehicleId} value={vehicle.vehicleId}>
             {displayVehicleName(vehicle)}
@@ -279,10 +293,11 @@ function useScopedRecords(records, vehicles, scopeId) {
     [records, activeId],
   );
 
-  return { scoped, activeId, scopeLabel: vehicle ? displayVehicleName(vehicle) : 'All vehicles' };
+  return { scoped, activeId, scopeLabel: vehicle ? displayVehicleName(vehicle) : t('garage.allVehicles') };
 }
 
 function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
+  const t = useT();
   const [rangeId, setRangeId] = useState('12');
   const range = RANGES.find((option) => option.id === rangeId) ?? RANGES[1];
   const { scoped, activeId, scopeLabel } = useScopedRecords(records, vehicles, scopeId);
@@ -311,7 +326,7 @@ function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
     <section className="garage-panel">
       <div className="garage-panel__head">
         <div className="garage-panel__title">
-          <h2 className="ink-section-title">Spending</h2>
+          <h2 className="ink-section-title">{t('garage.spending')}</h2>
           {/* Which vehicles this counts. It was a static chip reading "All
               vehicles", which answered the question but did not let you ask a
               different one. Still a chip when there is only one vehicle,
@@ -321,10 +336,10 @@ function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
             value={scopeId}
             onChange={onScopeChange}
             id="spend-vehicle"
-            label="Vehicles counted in spending"
+            label={t('garage.countedSpending')}
           />
         </div>
-        <div className="ink-segmented garage-range" role="group" aria-label="Time range">
+        <div className="ink-segmented garage-range" role="group" aria-label={t('garage.timeRange')}>
           {RANGES.map((option) => (
             <button
               key={option.id}
@@ -333,7 +348,7 @@ function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
               aria-pressed={option.id === rangeId}
               onClick={() => setRangeId(option.id)}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           ))}
         </div>
@@ -349,7 +364,7 @@ function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
             {delta > 0
               ? <TrendingUp size={15} aria-hidden="true" />
               : <TrendingDown size={15} aria-hidden="true" />}
-            {Math.abs(delta)}% vs previous {range.label.toLowerCase()}
+            {Math.abs(delta)}% vs previous {t(range.labelKey).toLowerCase()}
           </span>
         )}
         {delta === null && peak?.total > 0 && (
@@ -367,7 +382,7 @@ function SpendingPanel({ records, vehicles, scopeId, onScopeChange }) {
           interactive
           showAxis={series.length <= 18}
           showRange={series.length > 18}
-          label={`Spending, ${scopeLabel.toLowerCase()}, ${range.label.toLowerCase()}, in pesos`}
+          label={`Spending, ${scopeLabel.toLowerCase()}, ${t(range.labelKey).toLowerCase()}, in pesos`}
         />
       </div>
     </section>
@@ -384,19 +399,21 @@ function categoryTipId(name) {
 }
 
 function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
+  const t = useT();
+  const plural = usePlural();
   const { scoped, activeId } = useScopedRecords(records, vehicles, scopeId);
   const categories = spendByCategory(scoped);
 
   return (
     <section className="garage-panel">
       <div className="garage-panel__title">
-        <h2 className="ink-section-title">Where it went</h2>
+        <h2 className="ink-section-title">{t('garage.whereItWent')}</h2>
         <ScopePicker
           vehicles={vehicles}
           value={scopeId}
           onChange={onScopeChange}
           id="breakdown-vehicle"
-          label="Vehicles counted in the breakdown"
+          label={t('garage.countedBreakdown')}
         />
       </div>
       <div className="garage-breakdown" key={activeId}>
@@ -422,12 +439,12 @@ function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
               {category.count > 0
                 ? (
                   <>
-                    <strong>{pluralize(category.count, 'record')}</strong>
+                    <strong>{plural('count.record', category.count)}</strong>
                     {category.examples.length > 0 && <span>{category.examples.join(', ')}</span>}
                     {category.percent > 0 && <span>{category.percent}% of all spend</span>}
                   </>
                 )
-                : <strong>Nothing in this category</strong>}
+                : <strong>{t('garage.nothingInCategory')}</strong>}
             </div>
           </div>
         ))}
@@ -444,25 +461,26 @@ function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
    `methods` in ServiceInputMethodPage on purpose: the owner is about to see
    that screen, or skip straight past it, and two descriptions of the same
    three choices is how they drift apart. */
+/* Keys, resolved at render -- built at module load, before any language. */
 const START_METHODS = [
   {
     key: 'receipt',
     icon: FileText,
-    title: 'Photo of the receipt',
-    body: 'We read the date, shop, services and cost off it. You correct anything before it saves.',
+    titleKey: 'method.receipt.title',
+    bodyKey: 'garage.startReceipt',
     recommended: true,
   },
   {
     key: 'voice',
     icon: Mic,
-    title: 'Voice note',
-    body: 'Say what was done and we write it down. Quickest when you have no paper.',
+    titleKey: 'method.voice.title',
+    bodyKey: 'garage.startVoice',
   },
   {
     key: 'manual',
     icon: PenLine,
-    title: 'Type it in',
-    body: 'Your own words, nothing guessed. Best for a service you already know.',
+    titleKey: 'method.manual.title',
+    bodyKey: 'garage.startManual',
   },
 ];
 
@@ -481,13 +499,14 @@ const START_METHODS = [
  * picker, which is then a question worth asking.
  */
 function StartHere({ vehicles }) {
+  const t = useT();
   const onlyVehicleId = vehicles.length === 1 ? vehicles[0].vehicleId : null;
   const hrefFor = (key) => (onlyVehicleId ? `/service-input/${onlyVehicleId}/${key}` : '/service-input');
 
   return (
     <section className="garage-start tv-reveal" style={{ '--reveal-index': 2 }}>
       <div className="garage-start__head">
-        <h2 className="ink-empty__title">Add your first service record</h2>
+        <h2 className="ink-empty__title">{t('garage.addFirstRecord')}</h2>
         <p className="ink-empty__body">
           One record is enough to start. However it goes in, you see every value and correct it
           before anything is saved.
@@ -499,10 +518,10 @@ function StartHere({ vehicles }) {
           <Link className="garage-start__method" key={method.key} to={hrefFor(method.key)}>
             <span className="garage-start__method-top">
               <method.icon size={20} aria-hidden="true" />
-              {method.recommended && <span className="garage-start__rec">Recommended</span>}
+              {method.recommended && <span className="garage-start__rec">{t('garage.recommended')}</span>}
             </span>
-            <span className="garage-start__method-title">{method.title}</span>
-            <span className="garage-start__method-body">{method.body}</span>
+            <span className="garage-start__method-title">{t(method.titleKey)}</span>
+            <span className="garage-start__method-body">{t(method.bodyKey)}</span>
           </Link>
         ))}
       </div>
@@ -530,15 +549,17 @@ function StartHere({ vehicles }) {
  * permanently empty teaches people to stop looking at that part of the page.
  */
 function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId }) {
+  const t = useT();
+  const plural = usePlural();
   const items = [];
   /* First, because it is the only one of the three that can be lost. A record
      needing review and a waiting request both keep until they are opened; an
      unfinished draft used to have no way back to it at all. */
   if (draftCount > 0) {
-    items.push(`${pluralize(draftCount, 'service record')} you started but have not finished`);
+    items.push(plural('count.unfinished', draftCount));
   }
-  if (reviewCount > 0) items.push(`${pluralize(reviewCount, 'record')} still need${reviewCount === 1 ? 's' : ''} review`);
-  if (requestCount > 0) items.push(`${pluralize(requestCount, 'mechanic access request')} waiting for your approval`);
+  if (reviewCount > 0) items.push(plural('count.stillNeedReview', reviewCount));
+  if (requestCount > 0) items.push(plural('count.accessRequest', requestCount));
   if (!items.length) return null;
 
   const total = (draftCount > 0 ? 1 : 0) + (reviewCount > 0 ? 1 : 0) + (requestCount > 0 ? 1 : 0);
@@ -551,18 +572,20 @@ function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId })
     <section className="garage-attention tv-reveal">
       <div className="garage-attention__copy">
         <span className="garage-attention__count">
-          {total === 1 ? '1 thing needs you' : `${total} things need you`}
+          {plural('garage.thingsNeedYou', total)}
         </span>
         {items.map((item) => <p className="garage-attention__item" key={item}>{item}</p>)}
       </div>
       <Link className="ink-button ink-button--outline garage-attention__action" to={target}>
-        {draftCount > 0 ? 'Finish it' : total > 1 ? 'Review both' : 'Review'}
+        {draftCount > 0 ? t('garage.finishIt') : total > 1 ? t('garage.reviewBoth') : 'Review'}
       </Link>
     </section>
   );
 }
 
 export default function GaragePage() {
+  const t = useT();
+  const plural = usePlural();
   const { garages, allRecords, reviewCount, loading, error } = useGarage();
   const [requestCount, setRequestCount] = useState(0);
   const [drafts, setDrafts] = useState([]);
@@ -594,9 +617,11 @@ export default function GaragePage() {
 
   const lastServiceRelative = useMemo(() => relativeDays(allRecords[0]?.serviceDate), [allRecords]);
   const summary = [
-    pluralize(garages.length, 'vehicle'),
-    pluralize(allRecords.length, 'record'),
-    lastServiceRelative ? `last service ${lastServiceRelative}` : 'no service recorded yet',
+    plural('count.vehicle', garages.length),
+    plural('count.record', allRecords.length),
+    lastServiceRelative
+      ? t('garage.lastServiceAgo', { when: lastServiceRelative })
+      : t('garage.noServiceYet'),
   ].join(' · ');
 
   const recentRecords = allRecords.slice(0, 5);
@@ -607,10 +632,10 @@ export default function GaragePage() {
     <main className="ink-page garage-page">
       <header className="ink-page__header">
         <div>
-          <h1 className="ink-page__title">{greetingFor(new Date().getHours())}, {firstName}</h1>
+          <h1 className="ink-page__title">{t(greetingKeyFor(new Date().getHours()), { name: firstName })}</h1>
           <p className="ink-page__summary">{loading ? 'Loading your garage…' : summary}</p>
         </div>
-        <Link className="ink-button" to="/service-input">Add service record</Link>
+        <Link className="ink-button" to="/service-input">{t('action.addRecord')}</Link>
       </header>
 
       {error && <div className="ink-alert">{error}</div>}
@@ -630,13 +655,13 @@ export default function GaragePage() {
 
       {!loading && !hasVehicles && (
         <section className="ink-empty tv-reveal">
-          <h2 className="ink-empty__title">Add your first vehicle</h2>
+          <h2 className="ink-empty__title">{t('garage.addFirstVehicle')}</h2>
           <p className="ink-empty__body">
             Everything in Trevora hangs off a vehicle &mdash; its records, its history and what you
             share with a mechanic. Start with the car you drive most.
           </p>
           <div className="ink-empty__actions">
-            <Link className="ink-button" to="/vehicles/new">Add a vehicle</Link>
+            <Link className="ink-button" to="/vehicles/new">{t('action.addVehicle')}</Link>
           </div>
         </section>
       )}
@@ -667,10 +692,10 @@ export default function GaragePage() {
               time. */}
           <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 3 }}>
             <div className="ink-table-card__head">
-              <h2 className="ink-section-title">Latest across all vehicles</h2>
+              <h2 className="ink-section-title">{t('garage.latestAcross')}</h2>
               <Link className="ink-table-card__link" to="/records">View all {allRecords.length}</Link>
             </div>
-            <RecordsTable records={recentRecords} ariaLabel="Latest service records across all vehicles" />
+            <RecordsTable records={recentRecords} ariaLabel={t('garage.latestAcrossAll')} />
           </section>
         </>
       )}

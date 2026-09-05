@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useT } from '../i18n/index.jsx';
 import React, { useRef, useState } from 'react';
 import { registerUser, signInWithGoogle } from '../api/auth.js';
 import InkAuthShell from '../components/InkAuthShell.jsx';
@@ -12,12 +13,13 @@ import {
 } from '../components/InkFormControls.jsx';
 
 const EMAIL_ERROR = "That address doesn't look right — check the spelling.";
-const PASSWORD_HELP = 'At least 8 characters, with a number.';
+const PASSWORD_HELP_KEY = 'auth.passwordHint';
 
 const HERO = 'Start your vehicle’s file.';
 const LEAD = 'One short form, then you are in. Add your first vehicle whenever you are ready — nothing here expires.';
 
 export default function RegisterPage() {
+  const t = useT();
   const navigate = useNavigate();
   const fieldRefs = {
     firstName: useRef(null),
@@ -49,20 +51,20 @@ export default function RegisterPage() {
   function validateField(name, value) {
     switch (name) {
       case 'firstName':
-        return value.trim() ? '' : 'Enter your first name.';
+        return value.trim() ? '' : t('auth.needFirst');
       case 'lastName':
-        return value.trim() ? '' : 'Enter your last name.';
+        return value.trim() ? '' : t('auth.needLast');
       case 'email':
-        if (!value.trim()) return 'Enter an email address we can reach you at.';
+        if (!value.trim()) return t('auth.needEmail');
         return isValidEmail(value.trim()) ? '' : EMAIL_ERROR;
       case 'password':
-        if (!value) return 'Choose a password.';
-        if (value.length < 8) return 'Use at least 8 characters.';
-        if (!/\d/.test(value)) return 'Include at least one number.';
+        if (!value) return t('auth.needPassword');
+        if (value.length < 8) return t('auth.min8');
+        if (!/\d/.test(value)) return t('auth.oneNumber');
         return '';
       case 'confirmPassword':
         if (!value) return 'Re-type your password.';
-        return value === form.password ? '' : 'These two passwords do not match.';
+        return value === form.password ? '' : t('auth.mismatch');
       default:
         return '';
     }
@@ -83,7 +85,7 @@ export default function RegisterPage() {
     if (name === 'password' && fieldErrors.confirmPassword) {
       setFieldErrors((current) => ({
         ...current,
-        confirmPassword: form.confirmPassword === nextValue ? '' : 'These two passwords do not match.',
+        confirmPassword: form.confirmPassword === nextValue ? '' : t('auth.mismatch'),
       }));
     }
   }
@@ -94,7 +96,7 @@ export default function RegisterPage() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setFormError(err.message || 'Unable to start Google sign-in.');
+      setFormError(err.message || t('auth.googleFail'));
       setGoogleLoading(false);
     }
   }
@@ -115,7 +117,7 @@ export default function RegisterPage() {
     }
 
     if (!form.agreedToTerms) {
-      setFormError('Please accept the Terms to continue.');
+      setFormError(t('auth.acceptTerms'));
       return;
     }
 
@@ -160,7 +162,7 @@ export default function RegisterPage() {
   return (
     <InkAuthShell hero={HERO} lead={LEAD} variant="signup">
       <div className="ink-auth__mobile-top-row">
-        <Link className="ink-back-button" to="/login" aria-label="Back to sign in">
+        <Link className="ink-back-button" to="/login" aria-label={t('auth.backToSignIn')}>
           ←
         </Link>
       </div>
@@ -169,7 +171,7 @@ export default function RegisterPage() {
           noise, and the vehicle form it used to count towards is out of the
           flow for now. */}
       <div className="ink-heading ink-heading--signup">
-        <h1>Create your account</h1>
+        <h1>{t('auth.createYours')}</h1>
         <p>Name, email, a password — that is the whole of it.</p>
       </div>
 
@@ -191,7 +193,7 @@ export default function RegisterPage() {
         <div className="ink-name-grid">
           <InkField
             inputRef={fieldRefs.firstName}
-            label="First name"
+            label={t('auth.firstName')}
             name="firstName"
             type="text"
             autoComplete="given-name"
@@ -201,7 +203,7 @@ export default function RegisterPage() {
           />
           <InkField
             inputRef={fieldRefs.lastName}
-            label="Last name"
+            label={t('auth.lastName')}
             name="lastName"
             type="text"
             autoComplete="family-name"
@@ -213,7 +215,7 @@ export default function RegisterPage() {
 
         <InkField
           inputRef={fieldRefs.email}
-          label="Email address"
+          label={t('auth.email')}
           name="email"
           type="email"
           inputMode="email"
@@ -239,20 +241,20 @@ export default function RegisterPage() {
               the first thing on the form that looked like a failure. */}
           {form.password && (
             <div className="ink-hide-mobile">
-              <InkStrengthMeter score={strength} hint={PASSWORD_HELP} />
+              <InkStrengthMeter score={strength} hint={t(PASSWORD_HELP_KEY)} />
             </div>
           )}
         </div>
 
         <InkPasswordField
-          label="Confirm password"
+          label={t('auth.confirmPassword')}
           inputRef={fieldRefs.confirmPassword}
           name="confirmPassword"
           autoComplete="new-password"
           value={form.confirmPassword}
           onChange={updateField}
           error={fieldErrors.confirmPassword}
-          help={fieldErrors.confirmPassword ? undefined : 'Re-type it so we know it is what you meant.'}
+          help={fieldErrors.confirmPassword ? undefined : t('auth.retype')}
         />
 
         <div className="ink-spacer ink-show-mobile-only" />
@@ -277,11 +279,11 @@ export default function RegisterPage() {
                 page load into a route that did not exist, so the catch-all
                 bounced the reader to /login and lost the half-filled form. */}
             <Link className="ink-link" to="/terms">
-              Terms of Service
+              {t('auth.terms')}
             </Link>{' '}
             and{' '}
             <Link className="ink-link" to="/privacy">
-              Privacy Policy
+              {t('auth.privacy')}
             </Link>
             .
           </span>
@@ -296,14 +298,14 @@ export default function RegisterPage() {
           className={`ink-button ink-button--primary ${submitting ? 'ink-button--loading' : ''}`.trim()}
           disabled={submitting}
         >
-          {submitting ? 'Creating account…' : 'Create account'}
+          {submitting ? 'Creating account…' : t('auth.createAccount')}
         </button>
       </form>
 
       <p className="ink-footer-note ink-hide-mobile">
         Already have an account?{' '}
         <Link className="ink-link" to="/login">
-          Sign in
+          {t('auth.signIn')}
         </Link>
       </p>
     </InkAuthShell>

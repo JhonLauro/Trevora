@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { CircleCheck, CircleX, Clock3, QrCode, ShieldCheck } from 'lucide-react';
 import Tabs from '../components/ink/Tabs.jsx';
@@ -35,13 +36,14 @@ import { pluralize } from '../utils/format';
  */
 
 const TONES = { PENDING: 'warn', APPROVED: 'ok', DENIED: 'bad' };
-const LABELS = { PENDING: 'Waiting on you', APPROVED: 'Approved', DENIED: 'Denied' };
+/* Keys, resolved at render: this object is built at module load. */
+const LABEL_KEYS = { PENDING: 'requests.waitingOnYou', APPROVED: 'requests.approved', DENIED: 'requests.denied' };
 
 const FILTERS = [
-  { id: 'PENDING', label: 'Pending' },
-  { id: 'APPROVED', label: 'Approved' },
-  { id: 'DENIED', label: 'Denied' },
-  { id: 'ALL', label: 'All' },
+  { id: 'PENDING', labelKey: 'requests.pending' },
+  { id: 'APPROVED', labelKey: 'requests.approved' },
+  { id: 'DENIED', labelKey: 'requests.denied' },
+  { id: 'ALL', labelKey: 'requests.all' },
 ];
 
 function formatDateTime(value) {
@@ -58,6 +60,7 @@ function statusOf(request) {
 
 /** How sharing works, for the owner who has never done it. */
 function HowItWorks() {
+  const t = useT();
   const steps = [
     { icon: QrCode, title: 'You generate a link', body: 'Open a vehicle and create a share link or QR code. It expires on its own.' },
     { icon: Clock3, title: 'The mechanic asks', body: 'Scanning it lets them request access. It grants nothing on its own.' },
@@ -66,7 +69,7 @@ function HowItWorks() {
 
   return (
     <section className="ink-card access-how">
-      <h2 className="ink-section-title">How sharing works</h2>
+      <h2 className="ink-section-title">{t('requests.howSharingWorks')}</h2>
       <ol>
         {steps.map((step, index) => (
           <li key={step.title}>
@@ -92,6 +95,7 @@ function HowItWorks() {
  * there is nothing to share yet.
  */
 function ShareControl({ vehicles, loading }) {
+  const t = useT();
   const navigate = useNavigate();
   const [chosen, setChosen] = useState('');
 
@@ -100,7 +104,7 @@ function ShareControl({ vehicles, loading }) {
   if (vehicles.length === 0) {
     return (
       <Link className="ink-button ink-button--outline" to="/vehicles/new">
-        Add a vehicle first
+        {t('requests.addVehicleFirst')}
       </Link>
     );
   }
@@ -119,7 +123,7 @@ function ShareControl({ vehicles, loading }) {
 
   return (
     <div className="access-share" data-tip="share-start">
-      <label className="ink-sr-only" htmlFor="share-which">Vehicle to share</label>
+      <label className="ink-sr-only" htmlFor="share-which">{t('requests.vehicleToShare')}</label>
       <select
         id="share-which"
         className="ink-select"
@@ -139,13 +143,14 @@ function ShareControl({ vehicles, loading }) {
         disabled={!chosen}
         onClick={() => navigate(`/vehicles/${chosen}/share`)}
       >
-        Generate QR
+        {t('requests.generateQr')}
       </button>
     </div>
   );
 }
 
 export default function OwnerAccessRequestsPage() {
+  const t = useT();
   const [requests, setRequests] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -217,8 +222,12 @@ export default function OwnerAccessRequestsPage() {
     }
   }
 
+  /* Tabs renders `label`; FILTERS holds `labelKey`, because it is module-level
+     data built before any language is bound. Resolving here is the one place
+     that knows both. */
   const tabs = FILTERS.map((entry) => ({
     ...entry,
+    label: t(entry.labelKey),
     count: entry.id === 'ALL' ? requests.length : counts[entry.id],
   }));
 
@@ -226,7 +235,7 @@ export default function OwnerAccessRequestsPage() {
     <main className="ink-page access-page tv-reveal-group">
       <header className="ink-page__header">
         <div>
-          <h1 className="ink-page__title">Shared access</h1>
+          <h1 className="ink-page__title">{t('nav.sharedAccess')}</h1>
           <p className="ink-page__summary">
             Every mechanic who has asked to see one of your vehicles, and what you decided.
           </p>
@@ -234,21 +243,21 @@ export default function OwnerAccessRequestsPage() {
         <ShareControl vehicles={vehicles} loading={loading} />
       </header>
 
-      <section className="access-summary" aria-label="Access at a glance">
+      <section className="access-summary" aria-label={t('requests.glance')}>
         <div className="access-summary__cell">
-          <span className="ink-eyebrow">Waiting on you</span>
+          <span className="ink-eyebrow">{t('requests.waitingOnYou')}</span>
           <strong className={counts.PENDING > 0 ? 'is-live' : undefined}>{counts.PENDING}</strong>
         </div>
         <div className="access-summary__cell">
-          <span className="ink-eyebrow">Approved</span>
+          <span className="ink-eyebrow">{t('requests.approved')}</span>
           <strong>{counts.APPROVED}</strong>
         </div>
         <div className="access-summary__cell">
-          <span className="ink-eyebrow">Denied</span>
+          <span className="ink-eyebrow">{t('requests.denied')}</span>
           <strong>{counts.DENIED}</strong>
         </div>
         <div className="access-summary__cell">
-          <span className="ink-eyebrow">Active right now</span>
+          <span className="ink-eyebrow">{t('requests.activeNow')}</span>
           <strong className={liveSessions.length > 0 ? 'is-live' : undefined}>{liveSessions.length}</strong>
         </div>
       </section>
@@ -256,7 +265,7 @@ export default function OwnerAccessRequestsPage() {
       <section className="ink-card access-notice">
         <span className="access-notice__icon" aria-hidden="true"><ShieldCheck size={20} /></span>
         <div>
-          <h2 className="ink-section-title">Nothing is shared until you approve it</h2>
+          <h2 className="ink-section-title">{t('requests.nothingShared')}</h2>
           <p>
             A mechanic who scans your QR can ask, and nothing more. Approving grants read-only access
             to that one vehicle's confirmed records, and it expires on its own. They can never edit,
@@ -271,17 +280,17 @@ export default function OwnerAccessRequestsPage() {
         <div className="ink-notice ink-notice--ok" role="status">
           Approved — access ends {formatDateTime(decision.session.expiresAt)}.{' '}
           <Link to={`/mechanic/access/${decision.session.mechanicAccessSessionId}`}>
-            See what the mechanic sees
+            {t('requests.seeWhatMechanic')}
           </Link>
         </div>
       )}
       {decision && !decision.session && (
         <div className="ink-notice" role="status">
-          Denied. Nothing was shared.
+          {t('requests.deniedNothing')}
         </div>
       )}
 
-      <Tabs tabs={tabs} activeId={filter} onChange={setFilter} label="Filter requests by status" />
+      <Tabs tabs={tabs} activeId={filter} onChange={setFilter} label={t('requests.filterByStatus')} />
 
       <div id={`panel-${filter}`} role="tabpanel" aria-labelledby={`tab-${filter}`} tabIndex={-1}>
         {loading ? (
@@ -295,7 +304,7 @@ export default function OwnerAccessRequestsPage() {
               <p className="ink-empty__body">
                 {requests.length === 0
                   ? 'No mechanic has asked for access yet. That starts when you share a vehicle and someone scans the link.'
-                  : `Nothing under ${FILTERS.find((f) => f.id === filter)?.label.toLowerCase()}. Try another tab.`}
+                  : `Nothing under ${t(FILTERS.find((f) => f.id === filter)?.labelKey ?? 'requests.all').toLowerCase()}. Try another tab.`}
               </p>
             </section>
             {requests.length === 0 && <HowItWorks />}
@@ -318,7 +327,7 @@ export default function OwnerAccessRequestsPage() {
                     </div>
                     <div className="access-request__meta">
                       <span className={`ink-badge ink-badge--${TONES[status] ?? 'none'}`}>
-                        {LABELS[status] ?? status}
+                        {LABEL_KEYS[status] ? t(LABEL_KEYS[status]) : status}
                       </span>
                       <span className="access-request__time ink-mono">
                         {formatDateTime(request.requestedAt)}
@@ -328,15 +337,15 @@ export default function OwnerAccessRequestsPage() {
 
                   <dl className="access-request__facts">
                     <div>
-                      <dt className="ink-eyebrow">Vehicle</dt>
+                      <dt className="ink-eyebrow">{t('table.vehicle')}</dt>
                       <dd>{request.vehicleLabel || 'Not recorded'}</dd>
                     </div>
                     <div>
-                      <dt className="ink-eyebrow">Permission</dt>
-                      <dd>Read-only, this vehicle only</dd>
+                      <dt className="ink-eyebrow">{t('share.permission')}</dt>
+                      <dd>{t('requests.readOnlyOne')}</dd>
                     </div>
                     <div>
-                      <dt className="ink-eyebrow">Reason given</dt>
+                      <dt className="ink-eyebrow">{t('requests.reasonGiven')}</dt>
                       <dd>{request.reason || 'None given'}</dd>
                     </div>
                   </dl>
@@ -359,7 +368,7 @@ export default function OwnerAccessRequestsPage() {
                         onClick={() => decide(request.mechanicAccessRequestId, 'deny')}
                       >
                         <CircleX size={17} aria-hidden="true" />
-                        Deny
+                        {t('requests.deny')}
                       </button>
                     </div>
                   )}

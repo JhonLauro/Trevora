@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import EditVehicleDetailsDialog from '../components/ink/EditVehicleDetailsDialog.jsx';
@@ -23,9 +24,9 @@ import { bodyTypeLabel, vehicleClassFor } from '../data/vehicleCatalog';
    first record exists: every part of the vehicle, most of them still empty.
    Timeline opening on "no records yet" taught a new owner nothing. */
 const VIEWS = [
-  { id: 'components', label: 'Components' },
-  { id: 'timeline', label: 'Timeline' },
-  { id: 'table', label: 'Table' },
+  { id: 'components', labelKey: 'vehicle.components' },
+  { id: 'timeline', labelKey: 'vehicle.timeline' },
+  { id: 'table', labelKey: 'vehicle.table' },
 ];
 
 /** Values past roughly nine characters drop a step rather than overflow. */
@@ -57,12 +58,13 @@ function Stat({ label, value, note = null }) {
  * The all-blank case never reaches here; see `hasVehicleDetails`.
  */
 function Detail({ label, value }) {
+  const t = useT();
   const recorded = value !== null && value !== undefined && String(value).trim() !== '';
   return (
     <div className="vehicle-detail">
       <dt className="ink-eyebrow">{label}</dt>
       <dd className={`vehicle-detail__value${recorded ? '' : ' is-empty'}`}>
-        {recorded ? value : 'Not recorded'}
+        {recorded ? value : t('vehicle.notRecorded')}
       </dd>
     </div>
   );
@@ -93,6 +95,7 @@ function hasVehicleDetails(vehicle) {
  * something missing rather than something small.
  */
 function Completeness({ summary }) {
+  const t = useT();
   if (!summary) return null;
 
   const { years, documentedCount, totalYears, missing, startYear } = summary;
@@ -101,7 +104,7 @@ function Completeness({ summary }) {
     <section className="ink-card vehicle-completeness">
       <div className="vehicle-completeness__main">
         <div className="vehicle-completeness__head">
-          <h2 className="ink-section-title">History completeness</h2>
+          <h2 className="ink-section-title">{t('vehicle.completeness')}</h2>
           {/* Not "Ownership from" — there is no ownership-start field, and
               inventing a purchase date would fake the very number this
               strip exists to be honest about. */}
@@ -153,6 +156,7 @@ function WarrantyPanel({ spend }) {
 }
 
 export default function VehiclePage() {
+  const t = useT();
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
@@ -286,8 +290,8 @@ export default function VehiclePage() {
     : '';
 
   const tabs = [
-    { id: 'records', label: 'All records', count: records.length },
-    { id: 'warranty', label: 'Warranty & coverage' },
+    { id: 'records', label: t('vehicle.allRecords'), count: records.length },
+    { id: 'warranty', label: t('vehicle.warranty') },
   ];
 
   if (loading) {
@@ -317,7 +321,7 @@ export default function VehiclePage() {
         <div className={`vehicle-identity__photo${photoUrl ? ' has-photo' : ''}`}>
           {photoUrl
             ? <img src={photoUrl} alt={`Photo of ${name}`} />
-            : <span aria-hidden="true">No photo</span>}
+            : <span aria-hidden="true">{t('vehicle.noPhoto')}</span>}
         </div>
         <div className="vehicle-identity__copy">
           <h1 className="ink-page__title">{name}</h1>
@@ -326,9 +330,9 @@ export default function VehiclePage() {
             {reviewCount > 0 ? (
               <span className="ink-badge ink-badge--warn">{pluralize(reviewCount, 'record')} need{reviewCount === 1 ? 's' : ''} review</span>
             ) : records.length > 0 ? (
-              <span className="ink-badge ink-badge--ok">All validated</span>
+              <span className="ink-badge ink-badge--ok">{t('garage.allValidated')}</span>
             ) : (
-              <span className="ink-badge ink-badge--none">No records yet</span>
+              <span className="ink-badge ink-badge--none">{t('garage.noRecordsYet')}</span>
             )}
           </div>
         </div>
@@ -338,10 +342,10 @@ export default function VehiclePage() {
             type="button"
             onClick={vehicleDelete.ask}
           >
-            Delete vehicle
+            {t('vehicle.deleteVehicle')}
           </button>
-          <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}/share`}>Share history</Link>
-          <Link className="ink-button" to={`/service-input/${vehicleId}`}>Add record</Link>
+          <Link className="ink-button ink-button--outline" to={`/vehicles/${vehicleId}/share`}>{t('vehicle.shareHistory')}</Link>
+          <Link className="ink-button" to={`/service-input/${vehicleId}`}>{t('garage.addRecordShort')}</Link>
         </div>
       </header>
 
@@ -356,22 +360,22 @@ export default function VehiclePage() {
           vehicle, date, service and cost alone. */}
       <section className="ink-card vehicle-details tv-reveal" style={{ '--reveal-index': 1 }}>
         <div className="vehicle-details__head">
-          <h2 className="vehicle-details__title">Vehicle details</h2>
+          <h2 className="vehicle-details__title">{t('vehicle.details')}</h2>
           <button
             className="ink-button ink-button--outline ink-button--sm"
             type="button"
             disabled={!vehicle}
             onClick={() => setEditingDetails(true)}
           >
-            Edit details
+            {t('vehicle.editDetails')}
           </button>
         </div>
         {hasVehicleDetails(vehicle) ? (
           <dl className="vehicle-details__grid">
-            <Detail label="Plate number" value={vehicle?.plateNumber} />
-            <Detail label="VIN / chassis" value={vehicle?.vinChassisNumber} />
-            <Detail label="Model year" value={vehicle?.year} />
-            <Detail label="Odometer" value={vehicle?.odometer == null ? null : formatOdometer(vehicle.odometer)} />
+            <Detail label={t('vehicle.plateNumber')} value={vehicle?.plateNumber} />
+            <Detail label={t('vehicle.vin')} value={vehicle?.vinChassisNumber} />
+            <Detail label={t('vehicle.modelYear')} value={vehicle?.year} />
+            <Detail label={t('vehicle.odometer')} value={vehicle?.odometer == null ? null : formatOdometer(vehicle.odometer)} />
           </dl>
         ) : (
           /* Said once, plainly, with the button beside it as the way in. No
@@ -388,17 +392,17 @@ export default function VehiclePage() {
 
       <section className="ink-card vehicle-stats tv-reveal" style={{ '--reveal-index': 2 }}>
         <Stat label="Records" value={String(records.length)} />
-        <Stat label="Last service" value={records[0]?.serviceDate ? formatDate(records[0].serviceDate) : 'None yet'} />
-        <Stat label="Odometer" value={formatOdometer(vehicle?.odometer, 'Not recorded')} />
+        <Stat label={t('garage.lastService')} value={records[0]?.serviceDate ? formatDate(records[0].serviceDate) : t('garage.noneYet')} />
+        <Stat label={t('vehicle.odometer')} value={formatOdometer(vehicle?.odometer, t('vehicle.notRecorded'))} />
         <Stat
-          label="Total spent"
+          label={t('vehicle.totalSpent')}
           value={`PHP ${formatAmount(spend.ownerPaid)}`}
           note={spend.hasCoverage ? `PHP ${formatAmount(spend.covered)} covered` : null}
         />
-        <Stat label="Needs review" value={String(reviewCount)} />
+        <Stat label={t('vehicle.needsReview')} value={String(reviewCount)} />
       </section>
 
-      <Tabs tabs={tabs} activeId={tab} onChange={setTab} label="Vehicle sections" />
+      <Tabs tabs={tabs} activeId={tab} onChange={setTab} label={t('vehicle.sections')} />
 
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
         {tab === 'records' && (
@@ -411,8 +415,8 @@ export default function VehiclePage() {
                 <input
                   type="search"
                   value={query}
-                  aria-label="Search this vehicle's records"
-                  placeholder="Search service, part, shop, or notes"
+                  aria-label={t('vehicle.searchRecords')}
+                  placeholder={t('records.searchPlaceholder')}
                   onChange={(event) => setQuery(event.target.value)}
                 />
               )}
@@ -425,7 +429,7 @@ export default function VehiclePage() {
                     className={view === option.id ? 'is-active' : undefined}
                     onClick={() => setView(option.id)}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </button>
                 ))}
               </div>
@@ -454,19 +458,19 @@ export default function VehiclePage() {
               </>
             ) : records.length === 0 ? (
               <section className="ink-empty">
-                <h2 className="ink-empty__title">No records for this vehicle yet</h2>
+                <h2 className="ink-empty__title">{t('vehicle.noRecordsHere')}</h2>
                 <p className="ink-empty__body">
                   One receipt is enough to begin. Everything on this page — the year strip, the
                   component list, the totals — is worked out from the records you add.
                 </p>
                 <div className="ink-empty__actions">
-                  <Link className="ink-button" to={`/service-input/${vehicleId}`}>Add the first record</Link>
+                  <Link className="ink-button" to={`/service-input/${vehicleId}`}>{t('vehicle.addFirst')}</Link>
                 </div>
               </section>
             ) : filtered.length === 0 ? (
               <section className="ink-empty">
-                <h2 className="ink-empty__title">Nothing matches that search</h2>
-                <p className="ink-empty__body">Try a shop name, a part, or the kind of service.</p>
+                <h2 className="ink-empty__title">{t('vehicle.noMatch')}</h2>
+                <p className="ink-empty__body">{t('vehicle.trySearch')}</p>
               </section>
             ) : view === 'timeline' ? (
               <Timeline
@@ -504,7 +508,7 @@ export default function VehiclePage() {
         busy={vehicleDelete.busy}
         error={vehicleDelete.error}
         title={`Delete ${name}?`}
-        confirmLabel="Delete vehicle"
+        confirmLabel={t('vehicle.deleteVehicle')}
         onCancel={vehicleDelete.cancel}
         onConfirm={vehicleDelete.confirm}
         body={(
@@ -518,9 +522,9 @@ export default function VehiclePage() {
                 along with any drafts and shared access.
               </p>
             ) : (
-              <p>Nothing has been filed against it yet, so only the vehicle goes.</p>
+              <p>{t('vehicle.onlyVehicleGoes')}</p>
             )}
-            <p>There is no undo.</p>
+            <p>{t('vehicle.noUndo')}</p>
           </>
         )}
       />
@@ -529,8 +533,8 @@ export default function VehiclePage() {
         open={recordDelete.open}
         busy={recordDelete.busy}
         error={recordDelete.error}
-        title="Delete this record?"
-        confirmLabel="Delete record"
+        title={t('records.deleteRecordAsk')}
+        confirmLabel={t('records.deleteRecord')}
         onCancel={() => { recordDelete.cancel(); setPendingRecord(null); }}
         onConfirm={recordDelete.confirm}
         body={pendingRecord && (
@@ -540,8 +544,8 @@ export default function VehiclePage() {
               {pendingRecord.serviceDate && <> &mdash; {formatDate(pendingRecord.serviceDate)}</>}
             </p>
             <p>
-              It disappears from this vehicle's history and from everything worked out from it.
-              There is no undo.
+              {t('vehicle.deleteBody')}
+              {t('vehicle.noUndo')}
             </p>
           </>
         )}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Copy, ExternalLink, ShieldCheck } from 'lucide-react';
@@ -36,15 +37,19 @@ import { pluralize } from '../utils/format';
  */
 
 const STATUS = {
-  ACTIVE: { tone: 'ok', label: 'Ready to scan' },
-  REQUESTED: { tone: 'warn', label: 'A mechanic has asked' },
-  APPROVED: { tone: 'ok', label: 'Approved' },
-  DENIED: { tone: 'bad', label: 'Denied' },
-  EXPIRED: { tone: 'none', label: 'Expired' },
+  ACTIVE: { tone: 'ok', labelKey: 'share.readyToScan' },
+  REQUESTED: { tone: 'warn', labelKey: 'share.mechanicAsked' },
+  APPROVED: { tone: 'ok', labelKey: 'requests.approved' },
+  DENIED: { tone: 'bad', labelKey: 'requests.denied' },
+  EXPIRED: { tone: 'none', labelKey: 'share.expired' },
 };
 
 function statusOf(request) {
-  return STATUS[String(request?.status || '').toUpperCase()] ?? { tone: 'none', label: request?.status ?? 'Unknown' };
+  /* The fallback returns a `text` rather than a key: an unrecognised status is
+     whatever the server called it, and there is no translation for a string we
+     have never seen. Callers prefer labelKey and fall back to text. */
+  return STATUS[String(request?.status || '').toUpperCase()]
+    ?? { tone: 'none', text: request?.status ?? 'Unknown' };
 }
 
 /** "26 Aug, 2:46 PM" — no seconds; nobody schedules around a second. */
@@ -65,6 +70,7 @@ function timeLeft(value) {
 }
 
 export default function QRSharingPage() {
+  const t = useT();
   const { vehicleId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -170,7 +176,7 @@ export default function QRSharingPage() {
   return (
     <main className="ink-page access-page tv-reveal-group">
       <nav className="vehicle-crumbs" aria-label="Breadcrumb">
-        <Link to="/">Garage</Link>
+        <Link to="/">{t('nav.garage')}</Link>
         <span aria-hidden="true">/</span>
         <Link to={`/vehicles/${vehicleId}`}>{name}</Link>
         <span aria-hidden="true">/</span>
@@ -184,7 +190,7 @@ export default function QRSharingPage() {
             A mechanic scans this and asks for access. You decide whether they get it.
           </p>
         </div>
-        <Link className="ink-button ink-button--outline" to="/access/requests">All requests</Link>
+        <Link className="ink-button ink-button--outline" to="/access/requests">{t('share.allRequests')}</Link>
       </header>
 
       <section className="ink-card access-notice">
@@ -208,7 +214,7 @@ export default function QRSharingPage() {
         {view === 'link' ? (
           <div className="share-grid">
             <section className="ink-card share-make">
-              <h2 className="ink-section-title">Make a link</h2>
+              <h2 className="ink-section-title">{t('share.makeShort')}</h2>
 
               <div className="ink-combo">
                 <label className="ink-combo__label" htmlFor="share-vehicle">Vehicle</label>
@@ -236,7 +242,7 @@ export default function QRSharingPage() {
               <dl className="share-scope">
                 <div>
                   <dt className="ink-eyebrow">Shares</dt>
-                  <dd>Confirmed service records</dd>
+                  <dd>{t('share.confirmedOnly')}</dd>
                 </div>
                 <div>
                   <dt className="ink-eyebrow">Of</dt>
@@ -244,11 +250,11 @@ export default function QRSharingPage() {
                 </div>
                 <div>
                   <dt className="ink-eyebrow">And nothing else</dt>
-                  <dd>No other vehicle, no drafts, no edits</dd>
+                  <dd>{t('share.nothingElse')}</dd>
                 </div>
                 <div>
                   <dt className="ink-eyebrow">For</dt>
-                  <dd>Four hours from your approval</dd>
+                  <dd>{t('share.fourHours')}</dd>
                 </div>
               </dl>
 
@@ -268,9 +274,9 @@ export default function QRSharingPage() {
               {current ? (
                 <>
                   <div className="share-result__head">
-                    <h2 className="ink-section-title">Ready to scan</h2>
+                    <h2 className="ink-section-title">{t('share.readyToScan')}</h2>
                     <span className={`ink-badge ink-badge--${statusOf(current).tone}`}>
-                      {statusOf(current).label}
+                      {statusOf(current).labelKey ? t(statusOf(current).labelKey) : statusOf(current).text}
                     </span>
                   </div>
 
@@ -297,13 +303,13 @@ export default function QRSharingPage() {
                     </button>
                     <Link className="ink-button ink-button--outline" to={`/access/request/${current.accessToken}`}>
                       <ExternalLink size={16} aria-hidden="true" />
-                      Open as mechanic
+                      {t('share.openAsMechanic')}
                     </Link>
                   </div>
 
                   <dl className="share-facts">
                     <div>
-                      <dt className="ink-eyebrow">Link expires</dt>
+                      <dt className="ink-eyebrow">{t('share.expires')}</dt>
                       <dd>
                         {shortDateTime(current.expiresAt)}
                         {timeLeft(current.expiresAt) && (
@@ -312,7 +318,7 @@ export default function QRSharingPage() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="ink-eyebrow">Records in scope</dt>
+                      <dt className="ink-eyebrow">{t('share.recordsInScope')}</dt>
                       <dd className="ink-mono">{current.confirmedRecordCount ?? 0}</dd>
                     </div>
                   </dl>
@@ -327,7 +333,7 @@ export default function QRSharingPage() {
                 </>
               ) : (
                 <div className="share-result__empty">
-                  <h2 className="ink-empty__title">No link yet</h2>
+                  <h2 className="ink-empty__title">{t('share.noLink')}</h2>
                   <p className="ink-empty__body">
                     Generate one and the QR appears here, ready to show a mechanic at the counter.
                   </p>
@@ -353,7 +359,7 @@ export default function QRSharingPage() {
                         </span>
                       </div>
                       <span className={`ink-badge ink-badge--${statusOf(request).tone}`}>
-                        {statusOf(request).label}
+                        {statusOf(request).labelKey ? t(statusOf(request).labelKey) : statusOf(request).text}
                       </span>
                     </li>
                   ))}
@@ -363,14 +369,14 @@ export default function QRSharingPage() {
           </div>
         ) : liveSessions.length === 0 ? (
           <section className="ink-empty">
-            <h2 className="ink-empty__title">No one has access right now</h2>
+            <h2 className="ink-empty__title">{t('share.noOne')}</h2>
             <p className="ink-empty__body">
               Approved mechanics appear here while their access lasts, with the time they have left
               and a way to cut it short.
             </p>
             <div className="ink-empty__actions">
               <button className="ink-button" type="button" onClick={() => setView('link')}>
-                Make a share link
+                {t('share.makeLink')}
               </button>
             </div>
           </section>
@@ -400,8 +406,8 @@ export default function QRSharingPage() {
                     <dd>{session.vehicleLabel || name}</dd>
                   </div>
                   <div>
-                    <dt className="ink-eyebrow">Permission</dt>
-                    <dd>Read-only</dd>
+                    <dt className="ink-eyebrow">{t('share.permission')}</dt>
+                    <dd>{t('share.readOnly')}</dd>
                   </div>
                 </dl>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { LanguageProvider } from './i18n/index.jsx';
 import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import './styles.css';
@@ -104,12 +105,16 @@ import './styles/unfinished-drafts.css';
 import './styles/vehicle-identity.css';
 import './styles/receipt-scan.css';
 import './styles/tips.css';
+// The language chooser on the settings page.
+import './styles/language.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
       <BrowserRouter>
-        <App />
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
       </BrowserRouter>
     </AppErrorBoundary>
   </React.StrictMode>,

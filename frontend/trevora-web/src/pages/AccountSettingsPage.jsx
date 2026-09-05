@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { LANGUAGES, useLanguage } from '../i18n/index.jsx';
 import { deleteAccount, syncCurrentUserProfile } from '../api/auth.js';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import { getGarageSummary } from '../api/serviceHistory.js';
@@ -19,15 +20,17 @@ const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
 const recordNotifications = [
 ];
 
+/* Keys, resolved at render: module-level data is built before a language is
+   bound, so a t() call here runs with nothing to look up. */
 const accessNotifications = [
-  ['mechanicRequest', 'A mechanic asks for access', 'You decide before anyone can see anything.'],
-  ['temporaryExpired', 'Temporary access has expired', 'The mechanic can no longer see the vehicle.'],
+  ['mechanicRequest', 'set.mechanicAsks', 'set.youDecide'],
+  ['temporaryExpired', 'set.accessExpired', 'set.noLongerSee'],
 ];
 
 const passwordFields = [
-  ['currentPassword', 'Current password'],
-  ['newPassword', 'New password'],
-  ['confirmPassword', 'Repeat new password'],
+  ['currentPassword', 'set.currentPassword'],
+  ['newPassword', 'set.newPassword'],
+  ['confirmPassword', 'set.repeatPassword'],
 ];
 
 /**
@@ -53,7 +56,7 @@ function focusFirstInvalid(formElement, errors) {
 }
 
 function splitName(fullName) {
-  const parts = String(fullName || 'Vehicle Owner').trim().split(/\s+/);
+  const parts = String(fullName || t('set.vehicleOwner')).trim().split(/\s+/);
   return {
     firstName: parts[0] || 'Vehicle',
     lastName: parts.slice(1).join(' ') || 'Owner',
@@ -82,11 +85,12 @@ function countChanges(a, b) {
 
 function changeCountLabel(count) {
   if (count === 0) return null;
-  const word = count === 1 ? 'One change' : count === 2 ? 'Two changes' : `${count} changes`;
+  const word = count === 1 ? t('set.oneChange') : count === 2 ? t('set.twoChanges') : `${count} changes`;
   return `${word} not saved yet.`;
 }
 
 export default function AccountSettingsPage() {
+  const { language, setLanguage, t } = useLanguage();
   const fileInputRef = useRef(null);
   const currentUser = getActiveCurrentUser();
   const baseName = currentUser?.firstName || currentUser?.lastName
@@ -197,11 +201,11 @@ export default function AccountSettingsPage() {
 
   function validateDetail(name, value) {
     const trimmed = String(value ?? '').trim();
-    if (name === 'firstName' && !trimmed) return 'Enter your first name.';
-    if (name === 'lastName' && !trimmed) return 'Enter your last name.';
+    if (name === 'firstName' && !trimmed) return t('set.needFirst');
+    if (name === 'lastName' && !trimmed) return t('set.needLast');
     if (name === 'email') {
-      if (!trimmed) return 'Enter your email address.';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'That does not look like an email address.';
+      if (!trimmed) return t('set.needEmail');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return t('set.badEmail');
     }
     return null;
   }
@@ -215,14 +219,14 @@ export default function AccountSettingsPage() {
 
   function validatePassword(name, value, source) {
     const state = source || passwordForm;
-    if (name === 'currentPassword' && !value) return 'Enter your current password.';
+    if (name === 'currentPassword' && !value) return t('set.needCurrent');
     if (name === 'newPassword') {
-      if (!value) return 'Enter a new password.';
-      if (value.length < 8) return 'Use at least 8 characters.';
+      if (!value) return t('set.needNew');
+      if (value.length < 8) return t('auth.min8');
     }
     if (name === 'confirmPassword') {
-      if (!value) return 'Repeat the new password.';
-      if (value !== state.newPassword) return 'These two do not match yet.';
+      if (!value) return t('set.needRepeat');
+      if (value !== state.newPassword) return t('set.noMatch');
     }
     return null;
   }
@@ -297,8 +301,8 @@ export default function AccountSettingsPage() {
       setStatus('details', {
         tone: 'ok',
         text: email !== currentUser?.email
-          ? 'Saved. Check your inbox to confirm the new email address.'
-          : 'Saved a moment ago.',
+          ? t('set.savedEmail')
+          : t('set.savedMoment'),
       });
     } catch (error) {
       setStatus('details', { tone: 'bad', text: error.message || 'Could not save your details.' });
@@ -335,7 +339,7 @@ export default function AccountSettingsPage() {
         password: passwordForm.currentPassword,
       });
       if (signInResult.error) {
-        setPasswordErrors({ currentPassword: 'That is not your current password.' });
+        setPasswordErrors({ currentPassword: t('set.wrongCurrent') });
         return;
       }
 
@@ -361,7 +365,7 @@ export default function AccountSettingsPage() {
     // Through the shared module, not straight to localStorage: this is what
     // notifies the sidebar badge and an open Notifications page.
     setSavedPrefs(saveNotificationPreferences(notificationPrefs));
-    setStatus('notifications', { tone: 'ok', text: 'Saved a moment ago.' });
+    setStatus('notifications', { tone: 'ok', text: t('set.savedMoment') });
   }
 
   /**
@@ -417,14 +421,14 @@ export default function AccountSettingsPage() {
   return (
     <main className="ink-settings tv-reveal-group">
       <header className="set-head">
-        <h1>Account settings</h1>
-        <p>Your notifications, your details, and your password.</p>
+        <h1>{t('set.title')}</h1>
+        <p>{t('set.sub')}</p>
       </header>
 
       <section className="set-section">
         <div className="set-rail">
-          <h2>Your details</h2>
-          <p>Your name and email are how Trevora identifies you on every record.</p>
+          <h2>{t('settings.details.heading')}</h2>
+          <p>{t('set.detailsHelp')}</p>
         </div>
 
         <form className="set-body" onSubmit={saveProfile}>
@@ -433,14 +437,14 @@ export default function AccountSettingsPage() {
               {form.avatar ? <img alt="" src={form.avatar} /> : initials(form.firstName, form.lastName)}
             </span>
             <div className="set-avatar-meta">
-              <span className="set-avatar-name">{displayName || 'Vehicle Owner'}</span>
+              <span className="set-avatar-name">{displayName || t('set.vehicleOwner')}</span>
               <button
                 className="set-textbutton"
                 type="button"
                 disabled={uploadingPhoto}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {uploadingPhoto ? 'Uploading...' : 'Change photo'}
+                {uploadingPhoto ? 'Uploading...' : t('set.changePhoto')}
               </button>
               <span className="set-hint faint">{describeAvatarLimit()}</span>
               <input
@@ -460,17 +464,17 @@ export default function AccountSettingsPage() {
 
           <div className="set-grid">
             <label className={`set-field ${detailErrors.firstName ? 'invalid' : ''}`}>
-              First name
+              {t('auth.firstName')}
               <input name="firstName" value={form.firstName} onChange={updateField} />
               {detailErrors.firstName && <span className="set-error">{detailErrors.firstName}</span>}
             </label>
             <label className={`set-field ${detailErrors.lastName ? 'invalid' : ''}`}>
-              Last name
+              {t('auth.lastName')}
               <input name="lastName" value={form.lastName} onChange={updateField} />
               {detailErrors.lastName && <span className="set-error">{detailErrors.lastName}</span>}
             </label>
             <label className={`set-field ${detailErrors.email ? 'invalid' : ''}`}>
-              Email
+              {t('auth.email')}
               <input name="email" type="email" value={form.email} onChange={updateField} />
               {detailErrors.email && <span className="set-error">{detailErrors.email}</span>}
             </label>
@@ -483,7 +487,7 @@ export default function AccountSettingsPage() {
 
           <div className="set-submit">
             <button className="set-button" type="submit" disabled={savingSection === 'details'}>
-              {savingSection === 'details' ? 'Saving...' : 'Save details'}
+              {savingSection === 'details' ? 'Saving...' : t('set.saveDetails')}
             </button>
             {renderStatus('details')}
           </div>
@@ -494,14 +498,14 @@ export default function AccountSettingsPage() {
 
       <section className="set-section">
         <div className="set-rail">
-          <h2>Password</h2>
-          <p>We ask for your current password first, to make sure it is you.</p>
+          <h2>{t('settings.password.heading')}</h2>
+          <p>{t('set.passwordHelp')}</p>
         </div>
 
         <form className="set-body narrow" onSubmit={updatePassword}>
-          {passwordFields.map(([key, label]) => (
+          {passwordFields.map(([key, labelKey]) => (
             <label className={`set-field ${passwordErrors[key] ? 'invalid' : ''}`} key={key}>
-              {label}
+              {t(labelKey)}
               <span className="set-reveal-wrap">
                 <input
                   name={key}
@@ -524,7 +528,7 @@ export default function AccountSettingsPage() {
 
           <div className="set-submit">
             <button className="set-button" type="submit" disabled={savingSection === 'password'}>
-              {savingSection === 'password' ? 'Changing...' : 'Change password'}
+              {savingSection === 'password' ? 'Changing...' : t('set.changePassword')}
             </button>
             {renderStatus('password')}
           </div>
@@ -533,10 +537,46 @@ export default function AccountSettingsPage() {
 
       <div className="set-rule" />
 
+      {/* Above Notifications, because both are "how Trevora behaves for me on
+          this device" and this one frames every word below it. */}
       <section className="set-section">
         <div className="set-rail">
-          <h2>Notifications</h2>
-          <p>Which of these you want to see while you are using Trevora.</p>
+          <h2>{t('settings.language.heading')}</h2>
+          <p>{t('settings.language.rail')}</p>
+        </div>
+
+        <div className="set-body">
+          <p className="set-note">{t('settings.language.note')}</p>
+
+          <div className="set-card lang-choices" role="radiogroup" aria-label={t('settings.language.heading')}>
+            {LANGUAGES.map((option) => (
+              <button
+                aria-checked={language === option.code}
+                className="set-row"
+                key={option.code}
+                role="radio"
+                type="button"
+                onClick={() => setLanguage(option.code)}
+              >
+                <span className="set-row-text">
+                  {/* The name of the language in that language: somebody
+                      looking for Bisaya is looking for the word "Bisaya". */}
+                  <strong>{option.endonym}</strong>
+                  {option.endonym !== option.label && <span>{option.label}</span>}
+                </span>
+                <span className={`lang-tick${language === option.code ? ' is-on' : ''}`} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+
+          <p className="set-note">{t('settings.language.saved')}</p>
+        </div>
+      </section>
+
+      <section className="set-section">
+        <div className="set-rail">
+          <h2>{t('settings.notifications.heading')}</h2>
+          <p>{t('settings.notifications.rail')}</p>
         </div>
 
         <div className="set-body">
@@ -546,9 +586,9 @@ export default function AccountSettingsPage() {
           </p>
 
           <div className="set-group">
-            <span className="set-group-label">Your records</span>
+            <span className="set-group-label">{t('settings.notifications.yourRecords')}</span>
             <div className="set-card">
-              {recordNotifications.map(([key, title, description]) => (
+              {recordNotifications.map(([key, titleKey, descriptionKey]) => (
                 <button
                   aria-checked={notificationPrefs[key] ? 'true' : 'false'}
                   className="set-row"
@@ -558,8 +598,8 @@ export default function AccountSettingsPage() {
                   onClick={() => togglePreference(key)}
                 >
                   <span className="set-row-text">
-                    <span className="set-row-title">{title}</span>
-                    <span className="set-row-sub">{description}</span>
+                    <span className="set-row-title">{t(titleKey)}</span>
+                    <span className="set-row-sub">{t(descriptionKey)}</span>
                   </span>
                   <span className="set-row-state">
                     <span className="set-row-word">{notificationPrefs[key] ? 'On' : 'Off'}</span>
@@ -572,11 +612,11 @@ export default function AccountSettingsPage() {
 
           <div className="set-group">
             <div className="set-group-head">
-              <span className="set-group-label">Mechanic access</span>
-              <span className="set-group-note">These are about who can see your records.</span>
+              <span className="set-group-label">{t('set.mechanicAccess')}</span>
+              <span className="set-group-note">{t('set.whoCanSee')}</span>
             </div>
             <div className="set-card">
-              {accessNotifications.map(([key, title, description]) => (
+              {accessNotifications.map(([key, titleKey, descriptionKey]) => (
                 <button
                   aria-checked={notificationPrefs[key] ? 'true' : 'false'}
                   className="set-row"
@@ -586,8 +626,8 @@ export default function AccountSettingsPage() {
                   onClick={() => togglePreference(key)}
                 >
                   <span className="set-row-text">
-                    <span className="set-row-title">{title}</span>
-                    <span className="set-row-sub">{description}</span>
+                    <span className="set-row-title">{t(titleKey)}</span>
+                    <span className="set-row-sub">{t(descriptionKey)}</span>
                   </span>
                   <span className="set-row-state">
                     <span className="set-row-word">{notificationPrefs[key] ? 'On' : 'Off'}</span>
@@ -600,7 +640,7 @@ export default function AccountSettingsPage() {
 
           <div className="set-submit">
             <button className="set-button" type="button" disabled={unsavedPrefCount === 0} onClick={saveNotifications}>
-              Save notifications
+              {t('set.saveNotifications')}
             </button>
             {unsavedPrefCount > 0
               ? <span className="set-status pending">{changeCountLabel(unsavedPrefCount)}</span>
@@ -614,22 +654,22 @@ export default function AccountSettingsPage() {
       <section className="set-signout">
         <div className="set-signout-text">
           <span className="set-signout-title">
-            {signOutConfirming ? 'Sign out of Trevora?' : 'Sign out of Trevora'}
+            {signOutConfirming ? t('set.signOutAsk') : t('set.signOutOf')}
           </span>
-          <span className="set-signout-sub">On this device. Your records stay where they are.</span>
+          <span className="set-signout-sub">{t('set.thisDevice')}</span>
         </div>
         {signOutConfirming ? (
           <div className="set-confirm">
             <button className="set-button danger" type="button" disabled={signingOut} onClick={handleSignOut}>
-              {signingOut ? 'Signing out…' : 'Sign out'}
+              {signingOut ? 'Signing out…' : t('set.signOut')}
             </button>
             <button className="set-button quiet" type="button" onClick={() => setSignOutConfirming(false)}>
-              Stay signed in
+              {t('set.staySignedIn')}
             </button>
           </div>
         ) : (
           <button className="set-button danger" type="button" onClick={() => setSignOutConfirming(true)}>
-            Sign out
+            {t('set.signOut')}
           </button>
         )}
       </section>
@@ -638,14 +678,14 @@ export default function AccountSettingsPage() {
 
       <section className="set-danger">
         <div className="set-signout-text">
-          <span className="set-signout-title">Delete this account</span>
+          <span className="set-signout-title">{t('set.deleteThis')}</span>
           <span className="set-signout-sub">
             Permanently removes your vehicles, service records, receipt images, share
             links and any mechanic access you have granted. This cannot be undone.
           </span>
         </div>
         <button className="set-button danger" type="button" onClick={openDeleteDialog}>
-          Delete account
+          {t('set.deleteAccount')}
         </button>
       </section>
 
@@ -653,8 +693,8 @@ export default function AccountSettingsPage() {
         open={deleteOpen}
         busy={deleting}
         error={deleteError}
-        title="Delete this account?"
-        confirmLabel="Delete permanently"
+        title={t('set.deleteAsk')}
+        confirmLabel={t('set.deletePermanently')}
         busyLabel="Deleting…"
         confirmDisabled={!deleteArmed}
         onCancel={() => { if (!deleting) { setDeleteOpen(false); setDeleteTyped(''); setDeleteError(''); } }}
@@ -664,18 +704,18 @@ export default function AccountSettingsPage() {
             <p>
               {deleteCounts
                 ? `This removes ${deleteCounts.vehicles} vehicle${deleteCounts.vehicles === 1 ? '' : 's'} and ${deleteCounts.records} service record${deleteCounts.records === 1 ? '' : 's'}, along with their receipt images.`
-                : 'This removes every vehicle and service record on this account, along with their receipt images.'}
+                : t('set.deleteWarn3')}
             </p>
             <p>
-              Any share link or mechanic access you have granted stops working immediately.
-              A mechanic reading this history right now will lose it.
+              {t('set.deleteWarn2')}
+              {t('set.deleteWarn1')}
             </p>
             <p>
               Your sign-in is deleted too, so signing in again creates a new, empty
               account rather than restoring this one. Nothing here can be recovered.
             </p>
             <label className="set-danger-field">
-              <span>Type DELETE to confirm</span>
+              <span>{t('set.typeDelete')}</span>
               <input
                 className="set-danger-input"
                 value={deleteTyped}
