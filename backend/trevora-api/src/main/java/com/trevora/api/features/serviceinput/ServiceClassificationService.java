@@ -12,6 +12,25 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ServiceClassificationService {
+    /**
+     * The classifier's admission that it could not tell, as distinct from a
+     * decision that nothing else fits.
+     *
+     * <p>Kept in shouting case on purpose. Every other value is a word an owner
+     * could have chosen, and is displayed as written; this one is only ever
+     * written by the system, and reading it in a column of title-case words is
+     * meant to be a small jolt rather than a category that blends in.
+     */
+    public static final String UNCATEGORIZED = "UNCATEGORIZED";
+
+    /**
+     * Every value {@code service_category} may hold.
+     *
+     * <p>The single definition. The extraction prompts interpolate
+     * {@link #CLASSIFIABLE_SERVICE_CATEGORIES} from this rather than restating
+     * it, and {@code ServiceItemResponse} defers to {@link #UNCATEGORIZED}
+     * rather than keeping a keyword table of its own.
+     */
     public static final List<String> ALLOWED_SERVICE_CATEGORIES = List.of(
             "Maintenance",
             "Repair",
@@ -19,8 +38,67 @@ public class ServiceClassificationService {
             "Replacement",
             "Warranty",
             "Emergency",
-            "Other"
+            "Other",
+            UNCATEGORIZED
     );
+
+    /**
+     * What a classifier - the model, or the keyword rules - may choose.
+     *
+     * <p>Two values are excluded, for opposite reasons. {@code Other} is the
+     * owner's to pick: it means "I looked, and none of these fit", which is a
+     * judgement no machine is in a position to make. {@link #UNCATEGORIZED}
+     * means "nobody has decided yet", which a classifier reaches by failing
+     * rather than by choosing, so it is assigned here and never offered.
+     *
+     * <p>The difference matters downstream: {@code Other} is a finished answer
+     * and {@code UNCATEGORIZED} is an open question, and a screen that wants to
+     * prompt the owner needs to tell them apart.
+     */
+    public static final List<String> CLASSIFIABLE_SERVICE_CATEGORIES =
+            ALLOWED_SERVICE_CATEGORIES.stream()
+                    .filter(category -> !"Other".equals(category) && !UNCATEGORIZED.equals(category))
+                    .toList();
+
+    /**
+     * What a person may choose. Everything except {@link #UNCATEGORIZED}.
+     *
+     * <p>"Other" is on this list and not on the classifier's: deciding that
+     * nothing fits is a judgement, and a person is entitled to make it.
+     * UNCATEGORIZED is on neither, because it means nobody has decided and
+     * selecting it would itself be a decision.
+     */
+    public static final List<String> HUMAN_CHOOSABLE_CATEGORIES =
+            ALLOWED_SERVICE_CATEGORIES.stream()
+                    .filter(category -> !UNCATEGORIZED.equals(category))
+                    .toList();
+
+    private static final Map<String, String> HUMAN_CHOOSABLE_LOOKUP = lookup(HUMAN_CHOOSABLE_CATEGORIES);
+
+    /**
+     * The canonical spelling of a category a person picked.
+     *
+     * @param value what the client sent; null or blank means they said nothing
+     * @return the canonical value, or null when nothing was said
+     * @throws IllegalArgumentException when the value is not one a person may
+     *     choose - including UNCATEGORIZED, which is the system's to write
+     */
+    public String requireHumanChoosableCategory(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = HUMAN_CHOOSABLE_LOOKUP.get(value.trim().toLowerCase(Locale.ROOT));
+        if (normalized != null) {
+            return normalized;
+        }
+        if (UNCATEGORIZED.equalsIgnoreCase(value.trim())) {
+            throw new IllegalArgumentException(
+                    "A service category cannot be set to " + UNCATEGORIZED
+                            + " - that is what the record says when nobody has chosen one.");
+        }
+        throw new IllegalArgumentException("\"" + value + "\" is not a service category. Choose one of: "
+                + String.join(", ", HUMAN_CHOOSABLE_CATEGORIES) + ".");
+    }
     /**
      * Components both vehicle classes have. An engine is an engine.
      */
@@ -85,7 +163,12 @@ public class ServiceClassificationService {
         return List.copyOf(combined);
     }
 
-    private static final Map<String, String> CATEGORY_LOOKUP = lookup(ALLOWED_SERVICE_CATEGORIES);
+    /**
+     * Built from the classifiable list, not the allowed one, so that a model
+     * answering "Other" is treated as having failed to choose rather than as
+     * having made the owner's choice for them.
+     */
+    private static final Map<String, String> CATEGORY_LOOKUP = lookup(CLASSIFIABLE_SERVICE_CATEGORIES);
     private static final Map<String, String> COMPONENT_LOOKUP = lookup(ALLOWED_RELATED_COMPONENTS);
     private static final List<KeywordRule> KEYWORD_RULES = List.of(
             new KeywordRule("\\b(oil|engine oil|oil filter)\\b", "Maintenance", List.of("Engine Oil", "Oil Filter", "Engine"), "Oil Change & Filter"),
@@ -200,8 +283,8 @@ public class ServiceClassificationService {
         boolean mixed = false;
 
         if (serviceCategory == null) {
-            serviceCategory = "Other";
-            notes.add("AI returned a category outside the controlled list; category was set to Other.");
+            serviceCategory = UNCATEGORIZED;
+            notes.add("AI returned a category outside the controlled list; it was left uncategorized.");
         }
         if (relatedComponents.isEmpty()) {
             relatedComponents = fallback.relatedComponents();
@@ -312,7 +395,9 @@ public class ServiceClassificationService {
         if (contains(haystack, "replace", "replacement", "install")) return "Replacement";
         if (contains(haystack, "repair", "fixed", "restore")) return "Repair";
         if (contains(haystack, "maintenance", "pms", "change", "alignment", "rotation")) return "Maintenance";
-        return "Other";
+        // Nothing matched, which is not the same as nothing fitting. Saying so
+        // leaves the question open for the owner instead of closing it wrongly.
+        return UNCATEGORIZED;
     }
 
     private static boolean contains(String haystack, String... needles) {
@@ -372,7 +457,10 @@ public class ServiceClassificationService {
                 sanitized.add(normalized);
             }
         }
-        if (category != null && !"Other".equals(category)) {
+        // Neither "Other" nor UNCATEGORIZED is worth carrying as a tag: one
+        // says nothing fits and the other says nobody looked, and a tag exists
+        // to be searched for.
+        if (category != null && !"Other".equals(category) && !UNCATEGORIZED.equals(category)) {
             sanitized.add(category);
         }
         sanitized.addAll(relatedComponents);

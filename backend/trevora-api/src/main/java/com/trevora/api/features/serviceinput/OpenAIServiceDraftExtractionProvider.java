@@ -126,7 +126,64 @@ public class OpenAIServiceDraftExtractionProvider {
                 ocr.warnings(),
                 ServiceDraftResponseSchema.forReceipt()
         );
-        return withResolvedOdometer(fields, ocr.text());
+        return withResolvedServiceDate(withResolvedOdometer(fields, ocr.text()), ocr.text());
+    }
+
+    /**
+     * Settles which of the two small numbers in a printed date is the month.
+     *
+     * <p>Applied after extraction for the same reason the odometer is. The
+     * prompt asks for {@code yyyy-MM-dd} and never says what order the receipt
+     * printed, so the model decides per call and decides differently on
+     * different calls: the JFTRUCK sales order came back 2026-08-11 on one run
+     * and 2026-11-08 on the next, from one image. Asking for month-first in the
+     * prompt was tried and dropped - it cannot be verified without a paid run
+     * that varies, and this settles it the same way every time regardless. See
+     * {@link ServiceDateResolver} for the four signals and their order.
+     *
+     * <p>An ambiguity the document never resolved is a note rather than a
+     * warning: nothing went wrong, the receipt simply did not say, and the
+     * owner is the one holding it.
+     */
+    private ReceiptDraftFields withResolvedServiceDate(ReceiptDraftFields fields, String ocrText) {
+        if (fields == null) {
+            return null;
+        }
+        ServiceDateResolver.Resolution resolution =
+                ServiceDateResolver.resolve(ocrText, fields.serviceDate(), LocalDate.now());
+        if (resolution.note() == null) {
+            return fields;
+        }
+
+        List<String> warnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
+        List<String> confidenceNotes =
+                new ArrayList<>(fields.confidenceNotes() == null ? List.of() : fields.confidenceNotes());
+        if (resolution.ambiguous()) {
+            confidenceNotes.add(resolution.note());
+        } else {
+            warnings.add(resolution.note());
+        }
+
+        return new ReceiptDraftFields(
+                fields.documentType(),
+                fields.documentNumber(),
+                fields.referenceNumbers(),
+                resolution.date(),
+                fields.services(),
+                fields.odometer(),
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.remarks(),
+                confidenceNotes,
+                fields.fieldSources(),
+                fields.fieldConfidence(),
+                fields.aiSuggestedFields(),
+                fields.classification(),
+                warnings,
+                fields.plateNumber(),
+                fields.vinChassisNumber()
+        );
     }
 
     /**
@@ -538,7 +595,8 @@ public class OpenAIServiceDraftExtractionProvider {
         };
     }
 
-    private String systemPrompt(VehicleContext vehicle) {
+    // Package-private so the prompt-vs-constant test can read what the model is actually sent.
+    String systemPrompt(VehicleContext vehicle) {
         return """
                 You are a vehicle service record extraction specialist for service center receipts, invoices, job orders, and official receipts.
                 Use only the OCR text and page/source metadata. Do not use outside knowledge.
@@ -792,7 +850,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 totalCost should be numeric when possible.
                 odometer should be numeric when possible.
                 Classification must use only these serviceCategory values:
-                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                %s.
                 Classification relatedComponents must use only these values, which are the
                 components a %s has:
                 %s.
@@ -826,11 +884,12 @@ public class OpenAIServiceDraftExtractionProvider {
                 warnings must be an array of short user-safe notes about conflicts or limitations.
                 """.formatted(
                 ServiceDraftResponseSchema.evidenceFieldList(),
+                String.join(", ", ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES),
                 vehicle.isMotorcycle() ? "motorcycle" : "car",
                 String.join(", ", vehicle.allowedComponents()));
     }
 
-    private String voiceSystemPrompt() {
+    String voiceSystemPrompt() {
         return """
                 You are a vehicle service record extraction specialist for spoken owner notes.
                 Use only the voice transcript. Do not invent missing values.
@@ -854,7 +913,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 laborPerformed should include only explicit work performed, attributed to the correct service entry.
                 remarks should include only explicit visit-level notes that do not fit another field.
                 Classification must use only these serviceCategory values:
-                Maintenance, Repair, Inspection, Replacement, Warranty, Emergency, Other.
+                %s.
                 Classification relatedComponents must use only these values:
                 Engine, Engine Oil, Oil Filter, Brakes, Tires, Battery, Air Filter,
                 Transmission, Cooling System, Suspension, Lights, AC System,
@@ -884,7 +943,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 aiSuggestedFields and warnings must be arrays.
                 A voice note has no printed lines, so every service's lineEntries is an empty
                 array and lineCost is null.
-                """.formatted(ServiceDraftResponseSchema.evidenceFieldList());
+                """.formatted(
+                String.join(", ", ServiceClassificationService.CLASSIFIABLE_SERVICE_CATEGORIES),
+                ServiceDraftResponseSchema.evidenceFieldList());
     }
 
     private LocalDate asDate(JsonNode node) {

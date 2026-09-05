@@ -1,10 +1,10 @@
 package com.trevora.api.shared.dto;
 
+import com.trevora.api.features.serviceinput.ServiceClassificationService;
 import com.trevora.api.features.serviceinput.ServiceDraftItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -54,22 +54,22 @@ public record ServiceItemResponse(
         );
     }
 
-    // Fallback keyword-based categorization for legacy rows backfilled by the
-    // 007_service_line_items migration, which do not have service_category set.
+    /**
+     * Legacy rows backfilled by 007_service_line_items have no
+     * {@code service_category}, and this used to guess one from keywords.
+     *
+     * <p>It no longer guesses. A fourth keyword table living in a DTO was one of
+     * the four disagreeing definitions of this field, and its answers were
+     * indistinguishable on screen from a category something had actually
+     * decided - an old row reading "Maintenance" looked exactly like a
+     * classified one. Saying UNCATEGORIZED is the honest answer for a row where
+     * nothing ever ran, and it is the only answer that lets a screen offer to
+     * fix it.
+     */
     private static String categoryOrFallback(String serviceCategory, String serviceType) {
         if (serviceCategory != null && !serviceCategory.isBlank()) {
             return serviceCategory;
         }
-        String value = serviceType == null ? "" : serviceType.toLowerCase(Locale.ROOT);
-        if (value.contains("oil") || value.contains("filter") || value.contains("tire") || value.contains("tyre")) {
-            return "Maintenance";
-        }
-        if (value.contains("brake") || value.contains("battery") || value.contains("repair") || value.contains("replace")) {
-            return "Repair";
-        }
-        if (value.contains("inspect") || value.contains("diagnostic") || value.contains("check")) {
-            return "Inspection";
-        }
-        return "Other";
+        return ServiceClassificationService.UNCATEGORIZED;
     }
 }

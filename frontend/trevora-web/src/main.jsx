@@ -5,6 +5,7 @@ import { LanguageProvider } from './i18n/index.jsx';
 import { LeaveGuardProvider } from './navigation/LeaveGuard.jsx';
 import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
+import { applyTheme, resolveTheme } from './theme.js';
 import './styles.css';
 // Must come after styles.css — this is the Ink override layer.
 import './styles/ink-app.css';
@@ -108,6 +109,15 @@ import './styles/receipt-scan.css';
 import './styles/tips.css';
 // The language chooser on the settings page.
 import './styles/language.css';
+// Status badges as labels rather than controls. Additive, shares no selector
+// with anything above it.
+import './styles/record-badges.css';
+// Last: it redefines the token values every sheet above draws from.
+import './styles/theme.css';
+
+/* Before the first paint. React mounting a moment later would mean a white
+   flash on every load for anyone using the dark theme. */
+applyTheme(resolveTheme());
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

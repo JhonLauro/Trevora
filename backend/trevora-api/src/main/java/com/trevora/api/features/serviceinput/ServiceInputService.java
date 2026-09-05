@@ -394,6 +394,18 @@ public class ServiceInputService {
                     remarksContext,
                     1
             );
+            /*
+             * An owner who chose a category outranks the keyword guess, and the
+             * choice is recorded as theirs. Provenance is not decoration here:
+             * "Other" only means "I looked and none of these fit" if a person
+             * said it, and the same value written by a classifier means nothing
+             * of the kind. Without the source beside it the two are the same
+             * string.
+             */
+            String chosen = classificationService.requireHumanChoosableCategory(itemRequest.serviceCategory());
+            if (chosen != null) {
+                classification = classification.withOwnerChosenCategory(chosen);
+            }
             item.setServiceCategory(classification.serviceCategory());
             item.setFieldMetadata(classification.toMetadata());
             ServiceDraftItem savedItem = serviceDraftItemRepository.save(item);

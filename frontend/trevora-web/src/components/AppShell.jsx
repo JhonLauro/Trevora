@@ -21,6 +21,7 @@ import AccessRequestToasts from './AccessRequestToasts.jsx';
 import { supabase } from '../api/supabaseClient.js';
 import ConfirmDialog from './ink/ConfirmDialog.jsx';
 import InkLockup from './InkLockup.jsx';
+import ThemeToggle from './ink/ThemeToggle.jsx';
 
 /**
  * Five destinations. "Add service record" is deliberately absent: it is an
@@ -326,6 +327,9 @@ export default function AppShell({ children }) {
         <div className="ink-sidebar__spacer" />
 
         <div className="ink-sidebar__account">
+          {/* Beside the account rather than in the nav: it changes how the
+              app looks, not where you are, so it belongs with the other
+              things about you and not among the destinations. */}
           <div className="ink-account-row">
             <span className="ink-account-row__avatar" aria-hidden="true">
               {showAvatar
@@ -333,6 +337,7 @@ export default function AppShell({ children }) {
                 : initialsFor(displayName)}
             </span>
             <span className="ink-account-row__name">{displayName}</span>
+            <ThemeToggle />
           </div>
           <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
             {t('set.signOut')}
@@ -349,6 +354,7 @@ export default function AppShell({ children }) {
           <InkLockup />
         </Link>
         <div className="ink-topbar__actions">
+          <ThemeToggle compact />
           <Link
             className="ink-topbar__button"
             to="/notifications"

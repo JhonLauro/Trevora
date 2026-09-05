@@ -66,7 +66,7 @@
    wider screens — held fixed it collapses to a thin stripe on a large laptop.
    Every clamp below resolves to its design value at exactly 1280px. */
 .ink-panel {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   display: flex;
   flex: 0 0 clamp(540px, 42%, 820px);
@@ -285,7 +285,7 @@
 }
 
 .ink-progress__bar[data-active='true'] {
-  background: var(--ink);
+  background: var(--ink-block);
 }
 
 .ink-progress__label {
@@ -457,7 +457,7 @@
 }
 
 .ink-meter__bar[data-filled='true'] {
-  background: var(--ink);
+  background: var(--ink-block);
 }
 
 .ink-meter__word {
@@ -495,7 +495,7 @@
 }
 
 .ink-check input:checked {
-  background: var(--ink);
+  background: var(--ink-block);
   border-color: var(--ink);
 }
 
@@ -557,7 +557,7 @@
 }
 
 .ink-button--primary {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
 }
 
@@ -755,7 +755,7 @@
 
   /* Sign in: ink header with the paper sheet pulled up over it. */
   .ink-auth--sheet .ink-auth__mobile-header {
-    background: var(--ink);
+    background: var(--ink-block);
     color: var(--on-ink);
     display: flex;
     flex-direction: column;
@@ -782,7 +782,7 @@
   }
 
   .ink-auth--sheet .ink-auth__main {
-    background: var(--ink);
+    background: var(--ink-block);
   }
 
   .ink-auth--sheet .ink-auth__sheet {

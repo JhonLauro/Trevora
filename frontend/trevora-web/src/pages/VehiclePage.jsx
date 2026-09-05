@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n/index.jsx';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import EditVehicleDetailsDialog from '../components/ink/EditVehicleDetailsDialog.jsx';
 import PartsView from '../components/ink/PartsView.jsx';
@@ -170,7 +170,61 @@ export default function VehiclePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('records');
-  const [view, setView] = useState('components');
+  /* The view lives in the URL rather than in state, so it is somewhere that
+     can be linked to. It was local state, which meant every route into this
+     page landed on `components` -- including the Garage's "Review" button,
+     whose whole job is to reach the timeline. `replace` because switching tab
+     is not a navigation: it should not stack Back entries between them.
+
+     `components` stays the default for a bare visit. That was a deliberate
+     choice (see VIEWS above) and this does not disturb it. */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const view = VIEWS.some((option) => option.id === requestedView) ? requestedView : 'components';
+
+  /* Arriving with `?view=` means somebody was sent here to do something --
+     today that is the Garage's "Review" button, aimed at the timeline. The
+     records block sits below the identity header, the completeness strip and
+     the stat row, so landing at the top of the page still left them scrolling
+     to find it. This carries them the rest of the way.
+
+     Only on arrival, and only once. Scrolling again when they switch tabs
+     themselves would move the page under someone already looking at it. */
+  const recordsRef = useRef(null);
+  const arrivedAtView = useRef(Boolean(requestedView));
+
+  useEffect(() => {
+    if (!arrivedAtView.current) return;
+    // The block renders once the records land; scrolling before that scrolls
+    // to where a loading skeleton happened to be.
+    if (loading || !recordsRef.current) return;
+
+    arrivedAtView.current = false;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    /* After the arrival animation, not during it. The block slides up on
+       `tv-reveal`, and a smooth scroll aims at wherever the target is when it
+       is called -- so scrolling mid-reveal stops short of where the block
+       settles. The tips guide learned the same thing the harder way. */
+    const timer = window.setTimeout(() => {
+      recordsRef.current?.scrollIntoView({
+        behavior: reduced ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    }, reduced ? 0 : 420);
+
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  function setView(next) {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'components') {
+      params.delete('view');
+    } else {
+      params.set('view', next);
+    }
+    setSearchParams(params, { replace: true });
+  }
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
   const [editingDetails, setEditingDetails] = useState(false);
@@ -406,7 +460,7 @@ export default function VehiclePage() {
 
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
         {tab === 'records' && (
-          <div className="vehicle-records tv-reveal" style={{ '--reveal-index': 3 }}>
+          <div className="vehicle-records tv-reveal" ref={recordsRef} style={{ '--reveal-index': 3 }}>
             <div className="vehicle-toolbar">
               {/* Components filters by part, not by text — the box would sit
                   there doing nothing, and it is the first control on the page

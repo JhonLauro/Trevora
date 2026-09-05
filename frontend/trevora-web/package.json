@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "check:i18n": "node scripts/check-i18n.mjs",
     "prebuild": "node scripts/check-i18n.mjs && python scripts/check_refs.py",
-    "check:refs": "python scripts/check_refs.py"
+    "check:refs": "python scripts/check_refs.py",
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
@@ -21,5 +22,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.6",
     "vite": "^5.4.11"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

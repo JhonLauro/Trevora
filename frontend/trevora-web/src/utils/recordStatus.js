@@ -1,12 +1,19 @@
 /**
  * Record validation status, and the words that go with it.
  *
- * The backend does not expose a validation status on confirmed records yet
- * (see planning/DEFERRED.md). Until it does, a record with no status is
- * "Needs review" — never "Validated". The previous dashboard hardcoded
+ * `validationStatus` is real now — migration 009 added the column and
+ * `ServiceRecordSummaryResponse` carries it. A record with no status is still
+ * "Needs review", never "Validated": the previous dashboard hardcoded
  * "Validated" on every row, which told owners their unverified records had
  * been verified.
+ *
+ * Two different claims live here and must not be confused. Validation is about
+ * whether a *human* has checked the record. Categorisation is about whether
+ * anything has decided what kind of service it was. A record can be validated
+ * and uncategorised, or categorised and unchecked.
  */
+
+import { recordCategories, UNCATEGORIZED } from './serviceCategory';
 
 export const STATUS_OK = 'ok';
 export const STATUS_WARN = 'warn';
@@ -33,6 +40,17 @@ export function recordStatusLabel(record) {
 
 export function needsReview(record) {
   return recordStatus(record) === STATUS_WARN;
+}
+
+/**
+ * True when any of a record's services has no category anything decided.
+ *
+ * Distinct from "Other", which means an owner looked and chose none of the
+ * above. That is a finished answer; this is an open question, and only the
+ * open one is worth putting in front of someone.
+ */
+export function hasUncategorizedItems(record) {
+  return recordCategories(record).includes(UNCATEGORIZED);
 }
 
 /**

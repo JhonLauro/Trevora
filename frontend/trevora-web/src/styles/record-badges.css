@@ -1,0 +1,37 @@
+/*
+ * Status badges: labels, not controls.
+ *
+ * The dashboard badges are pill-shaped, filled and set at weight 800, which is
+ * how the action buttons beside them are drawn too. A row therefore offered two
+ * things that looked equally pressable and only one that was, and "Validated"
+ * read as an invitation to validate. These rules keep the colour coding and take
+ * the affordance away: no pointer, no text selection, a flatter weight, and a
+ * hairline that reads as a chip rather than a filled button.
+ *
+ * Appended as its own stylesheet rather than edited into styles.css, per
+ * CLAUDE.md — that file is 11k lines and shared by four people.
+ */
+
+.dashboard-badge {
+  cursor: default;
+  user-select: none;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 6%);
+}
+
+/*
+ * Uncategorised is not a category — it is the absence of one, and the only
+ * status here that asks the owner for something. Drawn in the same amber as
+ * "Needs review" because it is the same kind of claim (nobody has decided yet),
+ * and deliberately not green: a record can be validated by a human and still
+ * have nothing that says what kind of service it was.
+ */
+.dashboard-badge-uncategorised {
+  background: #fbf0e0;
+  color: #b45309;
+}
+
+/* Two badges in one cell need air between them without becoming a list. */
+.dashboard-badge + .dashboard-badge {
+  margin-left: 0.35rem;
+}

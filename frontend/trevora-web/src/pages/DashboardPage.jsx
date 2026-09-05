@@ -23,6 +23,7 @@ import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js'
 import { getVehicleServiceHistory } from '../api/serviceHistory.js';
 import { getVehicles } from '../api/vehicles.js';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
+import { hasUncategorizedItems, recordStatusLabel } from '../utils/recordStatus';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -316,8 +317,18 @@ export default function DashboardPage() {
                         {formatSource(record.sourceInputMethod)}
                       </span>
                     </td>
+                    {/* Was a hardcoded "Validated" on every row — the same
+                        claim migration 009 exists to prevent, and the same one
+                        already removed from the record detail and mechanic
+                        views. It now says what the record actually holds, and
+                        says separately when nothing has categorised it. */}
                     <td>
-                      <span className={badgeClass('Validated')}>Validated</span>
+                      <span className={badgeClass(recordStatusLabel(record))}>
+                        {recordStatusLabel(record)}
+                      </span>
+                      {hasUncategorizedItems(record) && (
+                        <span className={badgeClass('Uncategorised')}>Uncategorised</span>
+                      )}
                     </td>
                     <td>
                       <Link className="inline-link" to={`/vehicles/${record.vehicleId}/history/${record.recordId}`}>

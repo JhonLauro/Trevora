@@ -137,7 +137,7 @@
   background: var(--border);
 }
 
-.flow-progress__seg.is-done { background: var(--ink); }
+.flow-progress__seg.is-done { background: var(--ink-block); }
 
 .flow-progress__labels {
   display: flex;
@@ -204,7 +204,7 @@
   gap: 9px;
   cursor: pointer;
   border: 0;
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   text-decoration: none;
 }
@@ -348,7 +348,7 @@
 }
 
 .is-selected .flow-pick__tick {
-  background: var(--ink);
+  background: var(--ink-block);
   border-color: var(--ink);
   color: var(--on-ink);
 }
@@ -576,7 +576,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--on-ink);
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 5px;
   padding: 3px 8px;
   white-space: nowrap;
@@ -689,7 +689,7 @@
   transition: transform 120ms ease;
 }
 
-.flow-switch input:checked + .flow-switch__track { background: var(--ink); }
+.flow-switch input:checked + .flow-switch__track { background: var(--ink-block); }
 .flow-switch input:checked + .flow-switch__track::after { transform: translateX(18px); }
 .flow-switch input:focus-visible + .flow-switch__track {
   box-shadow: 0 0 0 3px rgba(28, 27, 25, 0.18);
@@ -810,7 +810,7 @@
 }
 
 .flow-page.is-active .flow-page__n {
-  background: var(--ink);
+  background: var(--ink-block);
   border-color: var(--ink);
   color: var(--on-ink);
 }
@@ -846,7 +846,7 @@
 /* --- the rail --- */
 
 .flow-status {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   border-radius: var(--radius-card);
   padding: 22px 24px;
@@ -1290,7 +1290,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   display: flex;
   align-items: center;
@@ -1418,7 +1418,7 @@
   width: 26px;
   height: 26px;
   border-radius: 6px;
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   display: flex;
   align-items: center;
@@ -1468,7 +1468,7 @@
 /* --- the camera, which is a dark surface by necessity --- */
 
 .flow-camera {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   border-radius: var(--radius-card);
   overflow: hidden;
@@ -1679,7 +1679,7 @@
 }
 
 .flow-reading__dot.is-done {
-  background: var(--ink);
+  background: var(--ink-block);
   border-color: var(--ink);
   color: var(--on-ink);
 }
@@ -1715,7 +1715,7 @@
 .flow-reading__bar i {
   display: block;
   height: 4px;
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 2px;
   transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -1784,7 +1784,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--ink-block);
   /* Stated rather than inherited from the bare `button` rule, which now only
      dresses buttons that carry no class of their own. */
   color: var(--on-ink);
@@ -1828,7 +1828,7 @@
   display: block;
 }
 
-.flow-wave i.is-live { background: var(--ink); }
+.flow-wave i.is-live { background: var(--ink-block); }
 
 /* Translation adds a panel; it never replaces the original. Overwriting the
    raw transcript would destroy the only copy of what the owner actually said. */

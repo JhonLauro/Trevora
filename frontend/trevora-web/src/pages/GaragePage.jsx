@@ -15,7 +15,7 @@ import {
 import { needsReview } from '../utils/recordStatus';
 import { listServiceDrafts } from '../api/serviceDrafts';
 import { spendTotals } from '../utils/spend';
-import { spendByCategory, UNCATEGORISED } from '../utils/serviceCategory';
+import { spendByCategory } from '../utils/serviceCategory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 
 /* Card width belongs to the stylesheet (496px desktop, 318px mobile), not to
@@ -425,7 +425,7 @@ function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
             aria-describedby={categoryTipId(category.name)}
           >
             <div className="garage-breakdown__line">
-              <span>{category.name}</span>
+              <span>{category.label}</span>
               <span className="garage-breakdown__amount">{formatAmount(category.total)}</span>
             </div>
             <div className="garage-breakdown__track">
@@ -548,7 +548,7 @@ function StartHere({ vehicles }) {
  * dashboard's four separate empty states are gone — an empty panel that is
  * permanently empty teaches people to stop looking at that part of the page.
  */
-function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId }) {
+function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId, reviewHref }) {
   const t = useT();
   const plural = usePlural();
   const items = [];
@@ -563,10 +563,16 @@ function AttentionStrip({ reviewCount, requestCount, draftCount, firstDraftId })
   if (!items.length) return null;
 
   const total = (draftCount > 0 ? 1 : 0) + (reviewCount > 0 ? 1 : 0) + (requestCount > 0 ? 1 : 0);
-  /* Straight back into the draft rather than to a list of one. */
+  /* Straight back into the draft rather than to a list of one.
+
+     Review used to point at `/records`, which lists records and cannot review
+     one -- `markServiceRecordReviewed` is called from the vehicle page and
+     nowhere else. So the button offered the action on a screen that does not
+     have it, and the owner had to find the vehicle, open it, and switch to the
+     timeline themselves. It now goes to that timeline. */
   const target = draftCount > 0
     ? `/service-drafts/${firstDraftId}`
-    : reviewCount > 0 ? '/records' : '/access/requests';
+    : reviewCount > 0 ? reviewHref : '/access/requests';
 
   return (
     <section className="garage-attention tv-reveal">
@@ -615,6 +621,20 @@ export default function GaragePage() {
     return () => { active = false; };
   }, []);
 
+  /* Where "Review" goes. The oldest record still waiting, because it is the
+     one that has been waiting longest -- and with one vehicle, which is most
+     owners, there is nothing to choose between anyway. `allRecords` is newest
+     first, so the last unreviewed one is the oldest.
+
+     Falls back to the records list only if a count says something needs review
+     and no record backs it up, which should not happen; a dead-end button
+     would be worse than a list. */
+  const reviewHref = useMemo(() => {
+    const waiting = allRecords.filter(needsReview);
+    const oldest = waiting[waiting.length - 1];
+    return oldest?.vehicleId ? `/vehicles/${oldest.vehicleId}?view=timeline` : '/records';
+  }, [allRecords]);
+
   const lastServiceRelative = useMemo(() => relativeDays(allRecords[0]?.serviceDate), [allRecords]);
   const summary = [
     plural('count.vehicle', garages.length),
@@ -647,6 +667,7 @@ export default function GaragePage() {
       {!loading && hasVehicles && (
         <AttentionStrip
           reviewCount={reviewCount}
+          reviewHref={reviewHref}
           requestCount={requestCount}
           draftCount={drafts.length}
           firstDraftId={drafts[0]?.draftId}

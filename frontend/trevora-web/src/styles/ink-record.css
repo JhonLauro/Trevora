@@ -357,3 +357,48 @@
     text-align: left;
   }
 }
+
+/* The unreviewed banner, once it carries the action it used to describe.
+
+   It was a paragraph telling the reader to go to another screen and press a
+   button there. The button is here now, so the banner is a row: the sentence
+   keeps its measure and the action sits at the end of it, where the eye
+   already is when the sentence finishes.
+
+   Wraps rather than shrinking the button, because on a phone the sentence
+   needs the full width and a squeezed control is worse than a second line. */
+.record-notice--action {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  justify-content: space-between;
+}
+
+.record-notice--action p {
+  flex: 1 1 22rem;
+  margin: 0;
+  min-width: 0;
+}
+
+/* The twin of `.garage-attention__action` in ink-garage.css, and deliberately
+   the same thing: an outlined button inside an amber banner, in the banner's
+   own colour rather than the brand's.
+
+   It was a solid green pill, which put the loudest control on the page inside
+   its calmest notice -- shouting an instruction that is only a suggestion, and
+   outweighing Delete a few centimetres above it. A banner that says nobody has
+   checked this yet should not also be the brightest thing on the screen. */
+.record-notice__action {
+  background: transparent;
+  border-color: var(--amber-button-border);
+  color: var(--status-warn-text);
+  flex: 0 0 auto;
+  height: 44px;
+}
+
+.record-notice__action:hover:not(:disabled) {
+  background: rgba(199, 154, 74, 0.12);
+  border-color: var(--amber-button-border);
+  color: var(--status-warn-text);
+}
