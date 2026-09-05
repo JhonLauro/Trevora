@@ -126,7 +126,64 @@ public class OpenAIServiceDraftExtractionProvider {
                 ocr.warnings(),
                 ServiceDraftResponseSchema.forReceipt()
         );
-        return withResolvedOdometer(fields, ocr.text());
+        return withResolvedServiceDate(withResolvedOdometer(fields, ocr.text()), ocr.text());
+    }
+
+    /**
+     * Settles which of the two small numbers in a printed date is the month.
+     *
+     * <p>Applied after extraction for the same reason the odometer is. The
+     * prompt asks for {@code yyyy-MM-dd} and never says what order the receipt
+     * printed, so the model decides per call and decides differently on
+     * different calls: the JFTRUCK sales order came back 2026-08-11 on one run
+     * and 2026-11-08 on the next, from one image. Asking for month-first in the
+     * prompt was tried and dropped - it cannot be verified without a paid run
+     * that varies, and this settles it the same way every time regardless. See
+     * {@link ServiceDateResolver} for the four signals and their order.
+     *
+     * <p>An ambiguity the document never resolved is a note rather than a
+     * warning: nothing went wrong, the receipt simply did not say, and the
+     * owner is the one holding it.
+     */
+    private ReceiptDraftFields withResolvedServiceDate(ReceiptDraftFields fields, String ocrText) {
+        if (fields == null) {
+            return null;
+        }
+        ServiceDateResolver.Resolution resolution =
+                ServiceDateResolver.resolve(ocrText, fields.serviceDate(), LocalDate.now());
+        if (resolution.note() == null) {
+            return fields;
+        }
+
+        List<String> warnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
+        List<String> confidenceNotes =
+                new ArrayList<>(fields.confidenceNotes() == null ? List.of() : fields.confidenceNotes());
+        if (resolution.ambiguous()) {
+            confidenceNotes.add(resolution.note());
+        } else {
+            warnings.add(resolution.note());
+        }
+
+        return new ReceiptDraftFields(
+                fields.documentType(),
+                fields.documentNumber(),
+                fields.referenceNumbers(),
+                resolution.date(),
+                fields.services(),
+                fields.odometer(),
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.remarks(),
+                confidenceNotes,
+                fields.fieldSources(),
+                fields.fieldConfidence(),
+                fields.aiSuggestedFields(),
+                fields.classification(),
+                warnings,
+                fields.plateNumber(),
+                fields.vinChassisNumber()
+        );
     }
 
     /**
