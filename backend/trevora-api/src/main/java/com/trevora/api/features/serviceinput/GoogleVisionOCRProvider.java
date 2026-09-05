@@ -9,6 +9,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class GoogleVisionOCRProvider {
+    private static final Logger log = LoggerFactory.getLogger(GoogleVisionOCRProvider.class);
     private static final String VISION_ANNOTATE_URL = "https://vision.googleapis.com/v1/images:annotate";
     // Vision classifies each text block; these types are never useful receipt content.
     private static final Set<String> NOISE_BLOCK_TYPES = Set.of("BARCODE", "PICTURE", "RULER");
@@ -175,6 +178,19 @@ public class GoogleVisionOCRProvider {
         double skew = estimateSkew(words);
         List<PositionedWord> straightened = words.stream().map(word -> word.deskewed(skew)).toList();
 
+        /*
+         * One line per page, so that the question "do owners actually photograph
+         * bent receipts?" can be answered from real uploads rather than guessed
+         * at. Tilt is corrected; spread is what the single-angle correction
+         * cannot describe. See angleSpread.
+         */
+        if (log.isInfoEnabled()) {
+            log.info("Receipt page geometry: tilt {} deg, angle spread {} deg, {} words",
+                    String.format(java.util.Locale.ROOT, "%.1f", Math.toDegrees(skew)),
+                    String.format(java.util.Locale.ROOT, "%.1f", Math.toDegrees(angleSpread(words))),
+                    words.size());
+        }
+
         double medianHeight = median(straightened.stream().map(PositionedWord::height).sorted().toList());
         if (medianHeight <= 0) {
             return "";
@@ -237,11 +253,24 @@ public class GoogleVisionOCRProvider {
      * far more destructive than not rotating at all.
      */
     double estimateSkew(List<PositionedWord> words) {
+        List<Double> angles = skewAngles(words);
+        if (angles.isEmpty()) {
+            return 0;
+        }
+        double skew = median(angles);
+        return Math.abs(skew) > MAX_SKEW_RADIANS ? 0 : skew;
+    }
+
+    /**
+     * The word angles the skew estimate is taken from, sorted. Empty when the
+     * page offers too little evidence to estimate anything.
+     */
+    private List<Double> skewAngles(List<PositionedWord> words) {
         List<PositionedWord> measurable = words.stream()
                 .filter(word -> word.width() > 0)
                 .toList();
         if (measurable.size() < MIN_WORDS_FOR_SKEW) {
-            return 0;
+            return List.of();
         }
 
         double medianWidth = median(measurable.stream().map(PositionedWord::width).sorted().toList());
@@ -258,9 +287,35 @@ public class GoogleVisionOCRProvider {
         if (angles.size() < MIN_ANGLE_SAMPLES) {
             angles = measurable.stream().map(PositionedWord::angle).sorted().toList();
         }
+        return angles;
+    }
 
-        double skew = median(angles);
-        return Math.abs(skew) > MAX_SKEW_RADIANS ? 0 : skew;
+    /**
+     * How much the word angles disagree with each other, as an interquartile
+     * range in radians.
+     *
+     * <p><b>What it is for.</b> {@link #estimateSkew} rotates the page by one
+     * angle, which is exactly right for a flat sheet held crooked and cannot
+     * describe a curled one. On a receipt that bends, the baseline angle varies
+     * down the page - a few degrees one way at the top, the other way at the
+     * bottom - and taking the median throws that variation away. The spread is
+     * the part thrown away, so a page that is merely tilted reports a tight
+     * number and a page that is bent reports a wide one.
+     *
+     * <p><b>It classifies nothing.</b> No threshold separates "flat" from
+     * "bent" here, because nobody has measured enough real receipts to know
+     * where one would go, and a number invented before the first measurement is
+     * a number someone made up. This reports; deciding what counts as too much
+     * waits on the evidence it gathers.
+     *
+     * <p>Zero when there are too few angles for quartiles to mean anything.
+     */
+    double angleSpread(List<PositionedWord> words) {
+        List<Double> angles = skewAngles(words);
+        if (angles.size() < 4) {
+            return 0;
+        }
+        return quartile(angles, 0.75) - quartile(angles, 0.25);
     }
 
     /**
@@ -395,6 +450,24 @@ public class GoogleVisionOCRProvider {
             return true;
         }
         return block.has("confidence") && block.path("confidence").asDouble(1.0) < MIN_BLOCK_CONFIDENCE;
+    }
+
+    /**
+     * Linear-interpolated quantile of an already-sorted list. Interpolated
+     * rather than nearest-rank so that a spread computed over eight words and
+     * one computed over eight hundred are the same measurement.
+     */
+    private static double quartile(List<Double> sorted, double fraction) {
+        if (sorted.isEmpty()) {
+            return 0;
+        }
+        double position = fraction * (sorted.size() - 1);
+        int lower = (int) Math.floor(position);
+        int upper = (int) Math.ceil(position);
+        if (lower == upper) {
+            return sorted.get(lower);
+        }
+        return sorted.get(lower) + (position - lower) * (sorted.get(upper) - sorted.get(lower));
     }
 
     private static double median(List<Double> sorted) {

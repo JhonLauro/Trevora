@@ -114,6 +114,58 @@ class LayoutRowPairingTest {
         assertThat(provider.estimateSkew(words)).isZero();
     }
 
+    @Test
+    void aPageTiltedAsAWholeHasAlmostNoAngleSpread() {
+        // Every word rotated by the same five degrees: a flat sheet held
+        // crooked. The tilt is real and the disagreement between words is not.
+        List<GoogleVisionOCRProvider.PositionedWord> words = words(Math.toRadians(5));
+
+        assertThat(provider.estimateSkew(words)).isCloseTo(Math.toRadians(5), within(0.01));
+        assertThat(provider.angleSpread(words)).isCloseTo(0, within(0.01));
+    }
+
+    @Test
+    void aCurledPageReportsTheSpreadTheSingleAngleCannotDescribe() {
+        /*
+         * The case the diagnostic exists for. Word angles run from -4 to +4
+         * degrees down the page, as they do on paper that bends away from the
+         * camera. The median is zero, so the page reports no tilt and gets no
+         * correction - it looks flat by every measure the pipeline had before
+         * this. The spread is what says otherwise.
+         */
+        List<GoogleVisionOCRProvider.PositionedWord> words = wordsAngled(-4, 4, 12);
+
+        assertThat(provider.estimateSkew(words)).isCloseTo(0, within(0.01));
+        assertThat(provider.angleSpread(words)).isCloseTo(Math.toRadians(4), within(0.01));
+    }
+
+    @Test
+    void tooFewWordsMeansNoSpread() {
+        // Same evidence bar as the estimate: below it, quartiles of a handful
+        // of angles describe the handful and not the page.
+        List<GoogleVisionOCRProvider.PositionedWord> words =
+                words(Math.toRadians(5)).subList(0, 4);
+
+        assertThat(provider.angleSpread(words)).isZero();
+    }
+
+    /**
+     * A page whose word angles fan evenly from {@code fromDegrees} to
+     * {@code toDegrees} - a curve, rather than a rotation. Equal widths, so the
+     * wider-half preference in the estimate keeps all of them and the sample is
+     * exactly what the test says it is.
+     */
+    private List<GoogleVisionOCRProvider.PositionedWord> wordsAngled(
+            double fromDegrees, double toDegrees, int count) {
+        List<GoogleVisionOCRProvider.PositionedWord> words = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            double degrees = fromDegrees + (toDegrees - fromDegrees) * i / (count - 1.0);
+            words.add(new GoogleVisionOCRProvider.PositionedWord(
+                    "word" + i, 100, 100 + i * 40.0, 80, 20, Math.toRadians(degrees)));
+        }
+        return words;
+    }
+
     /** Every word of the totals block, rotated, as the provider would hold it. */
     private List<GoogleVisionOCRProvider.PositionedWord> words(double radians) {
         List<GoogleVisionOCRProvider.PositionedWord> words = new ArrayList<>();
