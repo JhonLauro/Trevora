@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 class ExplanationCacheKeyTest {
     private Facts facts() {
         return new Facts(
+                "en",
                 "2019 Honda Beat",
                 "Preventive maintenance",
                 List.of("Oil filter", "Drain plug washer"),
@@ -45,26 +46,61 @@ class ExplanationCacheKeyTest {
         Facts f = facts();
 
         assertThat(AIExplanationService.fingerprintOf(new Facts(
-                f.vehicle(), "Brake service", f.partsFitted(), f.materialsUsed(), f.workPerformed(),
+                f.language(), f.vehicle(), "Brake service", f.partsFitted(), f.materialsUsed(), f.workPerformed(),
                 f.shop(), f.date(), f.odometer(), f.totalCost(), f.remarks())))
                 .isNotEqualTo(original);
 
         assertThat(AIExplanationService.fingerprintOf(new Facts(
-                f.vehicle(), f.serviceTypes(), List.of("Oil filter"), f.materialsUsed(), f.workPerformed(),
+                f.language(), f.vehicle(), f.serviceTypes(), List.of("Oil filter"), f.materialsUsed(), f.workPerformed(),
                 f.shop(), f.date(), f.odometer(), f.totalCost(), f.remarks())))
                 .isNotEqualTo(original);
 
         assertThat(AIExplanationService.fingerprintOf(new Facts(
-                f.vehicle(), f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
+                f.language(), f.vehicle(), f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
                 f.shop(), "25 August 2026", f.odometer(), f.totalCost(), f.remarks())))
                 .isNotEqualTo(original);
 
         /* Remarks are the owner's own note and they reach the model, so a
            record whose only change is a note must be explained again. */
         assertThat(AIExplanationService.fingerprintOf(new Facts(
-                f.vehicle(), f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
+                f.language(), f.vehicle(), f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
                 f.shop(), f.date(), f.odometer(), f.totalCost(), "Rattles over bumps")))
                 .isNotEqualTo(original);
+    }
+
+    @Test
+    @DisplayName("a different language does not reuse the stored explanation")
+    void separatesLanguages() {
+        /*
+         * The reason there is no `language` column and no second cache key. The
+         * fingerprint hashes the prompt, the prompt names the language, so a
+         * reader switching to Cebuano gets a fresh generation rather than the
+         * English one written for whoever looked first.
+         */
+        Facts english = facts();
+        Facts filipino = new Facts(
+                "tl", english.vehicle(), english.serviceTypes(), english.partsFitted(),
+                english.materialsUsed(), english.workPerformed(), english.shop(),
+                english.date(), english.odometer(), english.totalCost(), english.remarks());
+        Facts cebuano = new Facts(
+                "ceb", english.vehicle(), english.serviceTypes(), english.partsFitted(),
+                english.materialsUsed(), english.workPerformed(), english.shop(),
+                english.date(), english.odometer(), english.totalCost(), english.remarks());
+
+        String en = AIExplanationService.fingerprintOf(english);
+        String tl = AIExplanationService.fingerprintOf(filipino);
+        String ceb = AIExplanationService.fingerprintOf(cebuano);
+
+        assertThat(tl).isNotEqualTo(en);
+        assertThat(ceb).isNotEqualTo(en);
+        assertThat(ceb).isNotEqualTo(tl);
+    }
+
+    @Test
+    @DisplayName("the same language on the same facts still hits the cache")
+    void sameLanguageStillCaches() {
+        assertThat(AIExplanationService.fingerprintOf(facts()))
+                .isEqualTo(AIExplanationService.fingerprintOf(facts()));
     }
 
     @Test
@@ -72,7 +108,7 @@ class ExplanationCacheKeyTest {
     void separatesDifferentVehicles() {
         Facts f = facts();
         assertThat(AIExplanationService.fingerprintOf(new Facts(
-                "2015 Toyota Vios", f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
+                f.language(), "2015 Toyota Vios", f.serviceTypes(), f.partsFitted(), f.materialsUsed(), f.workPerformed(),
                 f.shop(), f.date(), f.odometer(), f.totalCost(), f.remarks())))
                 .isNotEqualTo(AIExplanationService.fingerprintOf(f));
     }

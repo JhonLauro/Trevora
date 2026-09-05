@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
+import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Camera, Plus, Sun, Upload } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
@@ -21,6 +23,7 @@ function prefersReducedMotion() {
 }
 
 export default function ReceiptUploadPage() {
+  const t = useT();
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const uploadInputRef = useRef(null);
@@ -362,7 +365,7 @@ export default function ReceiptUploadPage() {
   async function handleSubmit(event) {
     event.preventDefault();
     if (pages.length === 0) {
-      setError('Add at least one receipt page.');
+      setError(t('receipt.needOne'));
       return;
     }
 
@@ -424,9 +427,9 @@ export default function ReceiptUploadPage() {
       step={3}
       width="mid"
       vehicleName={vehicleName}
-      title="The receipt"
+      title={t('receipt.title')}
       subtitle={pages.length === 0
-        ? 'Add every page of one visit. Photograph them, upload them, or both.'
+        ? t('receipt.sub')
         : `${pages.length} page${pages.length === 1 ? '' : 's'}, in the order they print.`}
       onExit={() => { stopCamera(); navigate('/'); }}
     >
@@ -454,7 +457,7 @@ export default function ReceiptUploadPage() {
             submit sent only the active one, so photographing two pages and
             then adding a third from the gallery filed a one-page receipt and
             dropped the other two without saying so. */}
-        <div className="flow-tabs" role="tablist" aria-label="How to add pages" data-tip="receipt-capture">
+        <div className="flow-tabs" role="tablist" aria-label={t('receipt.howTo')} data-tip="receipt-capture">
           <button
             className={activeMode === 'UPLOAD' ? 'is-active' : ''}
             type="button"
@@ -668,19 +671,19 @@ export default function ReceiptUploadPage() {
               disabled={preparingUpload}
             >
               <Plus size={24} strokeWidth={1.6} aria-hidden="true" />
-              {preparingUpload ? 'Preparing…' : 'Add a page'}
+              {preparingUpload ? 'Preparing…' : t('receipt.addPage')}
             </button>
           </div>
         </div>
 
         {pages.length === 0 ? (
           <ul className="flow-note" style={{ margin: 0, paddingLeft: 20 }}>
-            <li>Flat surface, good lighting, no glare or shadows</li>
-            <li>All four corners of the page visible in frame</li>
+            <li>{t('receipt.tip1')}</li>
+            <li>{t('receipt.tip2')}</li>
             <li>Sharp focus — hold steady before taking the photo</li>
           </ul>
         ) : (
-          <p className="flow-note">The order here is the order we read them in.</p>
+          <p className="flow-note">{t('receipt.order')}</p>
         )}
 
         {cameraMessage && <p className="flow-note">{cameraMessage}</p>}
@@ -691,10 +694,10 @@ export default function ReceiptUploadPage() {
             type="button"
             onClick={() => { stopCamera(); navigate(`/service-input/${vehicleId}`); }}
           >
-            Back
+            {t('flow.back')}
           </button>
           <button className="flow-btn" type="submit" disabled={saving || loading || pages.length === 0}>
-            {pages.length > 1 ? `Read these ${pages.length} pages` : 'Read this receipt'}
+            {pages.length > 1 ? `Read these ${pages.length} pages` : t('receipt.read')}
           </button>
         </div>
       </form>
@@ -704,12 +707,12 @@ export default function ReceiptUploadPage() {
           className="image-preview-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label="Receipt page preview"
+          aria-label={t('receipt.preview')}
         >
           <button
             className="image-preview-close"
             type="button"
-            aria-label="Close receipt preview"
+            aria-label={t('receipt.closePreview')}
             onClick={() => setPreviewPage(null)}
           >
             ×
@@ -730,6 +733,7 @@ export default function ReceiptUploadPage() {
  * waiting. See ProcessingModal for why that distinction is load-bearing here.
  */
 function ReadingOverlay({ progress, preview }) {
+  const t = useT();
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
   const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
@@ -744,7 +748,7 @@ function ReadingOverlay({ progress, preview }) {
       sub="Two steps. This is the slow part — leave it running and it will finish."
       foot={storing
         ? 'Both counts are real. Neither is a timer.'
-        : 'A long receipt takes longer. Nothing is lost while this runs.'}
+        : t('receipt.longer')}
     >
       <ProcessingStep
         name="Saving the pages"
@@ -755,7 +759,7 @@ function ReadingOverlay({ progress, preview }) {
       <ProcessingStep
         name="Reading them"
         state={storing ? 'pending' : 'active'}
-        count={storing ? 'Waiting for the pages' : `${pageWord} · ${formatWait(readingSeconds)}`}
+        count={storing ? t('receipt.waiting') : `${pageWord} · ${formatWait(readingSeconds)}`}
         progress={storing ? null : 'waiting'}
       />
     </ProcessingModal>
@@ -790,10 +794,10 @@ function isSupportedReceiptFile(file) {
 function friendlyReceiptError(error) {
   const message = error?.message || '';
   if (message.toLowerCase().includes('storage')) {
-    return 'The pages could not be uploaded. Check your connection and try again.';
+    return t('receipt.uploadFail');
   }
   if (message.toLowerCase().includes('ocr') || message.toLowerCase().includes('openai')) {
     return 'We could not read the receipt this time. Try again, or add the details yourself on the next screen.';
   }
-  return message || 'The receipt could not be read. Try again.';
+  return message || t('receipt.readFail');
 }

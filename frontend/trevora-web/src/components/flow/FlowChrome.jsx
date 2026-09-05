@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../../i18n/index.jsx';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -22,7 +23,12 @@ import { useNavigate } from 'react-router-dom';
  * leaving loses nothing except unsaved edits on step 4, which prompt first.
  */
 
-const STEPS = ['Vehicle', 'How to add it', 'The details', 'Check', 'Confirm', 'Saved'];
+/* Keys, resolved at render. A t() call out here would run at module load with
+   nothing bound and take the whole flow down -- see RANGES in GaragePage. */
+const STEP_KEYS = [
+  'flow.step.vehicle', 'flow.step.howToAdd', 'flow.step.details',
+  'flow.step.check', 'flow.step.confirm', 'flow.step.saved',
+];
 
 export default function FlowChrome({
   step,
@@ -35,6 +41,7 @@ export default function FlowChrome({
   band = null,
   children,
 }) {
+  const t = useT();
   const navigate = useNavigate();
   const contentClass = {
     default: 'flow-content',
@@ -51,10 +58,10 @@ export default function FlowChrome({
   return (
     <div className="ink-page flow">
       <div className="flow-progress">
-        <ol className="flow-progress__track" aria-label={`Step ${step} of 6`}>
-          {STEPS.map((label, index) => (
+        <ol className="flow-progress__track" aria-label={t('flow.stepOf', { step })}>
+          {STEP_KEYS.map((key, index) => (
             <li
-              key={label}
+              key={key}
               /* `is-latest` marks the segment this step just completed, so only
                  that one animates. Every page in this flow is its own route, so
                  the bar remounts on each step -- without this every filled
@@ -70,21 +77,21 @@ export default function FlowChrome({
           ))}
         </ol>
         <ol className="flow-progress__labels">
-          {STEPS.map((label, index) => (
-            <li key={label} className={index + 1 === step ? 'is-current' : ''}>
-              {label}
+          {STEP_KEYS.map((key, index) => (
+            <li key={key} className={index + 1 === step ? 'is-current' : ''}>
+              {t(key)}
             </li>
           ))}
         </ol>
         <p className="flow-progress__compact">
-          Step {step} of 6 — {STEPS[step - 1]}
+          {t('flow.stepOfNamed', { step, label: t(STEP_KEYS[step - 1]) })}
         </p>
       </div>
 
       <header className="ink-page__header">
         <div>
           <p className="flow-eyebrow">
-            Add a service record{vehicleName ? ` · ${vehicleName}` : ''}
+            {t('flow.eyebrow')}{vehicleName ? ` · ${vehicleName}` : ''}
           </p>
           {title && <h1 className="ink-page__title">{title}</h1>}
           {subtitle && <p className="ink-page__summary">{subtitle}</p>}
@@ -96,7 +103,7 @@ export default function FlowChrome({
             </button>
           )}
           <button className="flow-btn flow-btn--ghost flow-btn--sm" type="button" onClick={handleExit}>
-            Leave
+            {t('flow.leave')}
           </button>
         </div>
       </header>

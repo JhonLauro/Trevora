@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import VehicleIdentityFields, { deriveVehicleIdentity } from '../components/ink/VehicleIdentityFields.jsx';
 import { createVehicle } from '../api/vehicles.js';
@@ -74,6 +75,7 @@ export function vehiclePayload(form, photo = null) {
 }
 
 export default function AddVehiclePage() {
+  const t = useT();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -144,13 +146,13 @@ export default function AddVehiclePage() {
   return (
     <main className="ink-page vehicle-form-page">
       <nav className="vehicle-crumbs" aria-label="Breadcrumb">
-        <Link to="/">Garage</Link>
+        <Link to="/">{t('nav.garage')}</Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page">Add a vehicle</span>
+        <span aria-current="page">{t('addVehicle.title')}</span>
       </nav>
 
       <header>
-        <h1 className="ink-page__title">Add a vehicle</h1>
+        <h1 className="ink-page__title">{t('addVehicle.title')}</h1>
         <p className="ink-page__summary">
           Records, reminders and anything you share with a mechanic all hang off a vehicle.
         </p>
@@ -187,8 +189,8 @@ export default function AddVehiclePage() {
         </div>
 
         <div className="ink-combo">
-          <label className="ink-combo__label" htmlFor="vehicle-plate">Plate number</label>
-          <p className="ink-combo__hint" id="vehicle-plate-hint">Optional. It is how most people recognise their own car in a list.</p>
+          <label className="ink-combo__label" htmlFor="vehicle-plate">{t('addVehicle.plate')}</label>
+          <p className="ink-combo__hint" id="vehicle-plate-hint">{t('addVehicle.nicknameHelp')}</p>
           <input
             id="vehicle-plate"
             name="plateNumber"
@@ -200,7 +202,7 @@ export default function AddVehiclePage() {
         </div>
 
         <div className="ink-combo">
-          <label className="ink-combo__label" htmlFor="vehicle-odometer">Odometer</label>
+          <label className="ink-combo__label" htmlFor="vehicle-odometer">{t('addVehicle.odometer')}</label>
           <p className="ink-combo__hint" id="vehicle-odometer-hint">
             Optional, in kilometres. With it, service reminders are based on distance rather than dates.
           </p>
@@ -224,7 +226,7 @@ export default function AddVehiclePage() {
           <button className="ink-button" type="submit" disabled={submitting}>
             {submitting ? 'Adding…' : 'Add vehicle'}
           </button>
-          <Link className="ink-button ink-button--outline" to="/">Cancel</Link>
+          <Link className="ink-button ink-button--outline" to="/">{t('action.cancel')}</Link>
         </div>
       </form>
     </main>

@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useT } from '../i18n/index.jsx';
 import React, { useRef, useState } from 'react';
 import { loginUser, signInWithGoogle } from '../api/auth.js';
 import InkAuthShell from '../components/InkAuthShell.jsx';
@@ -10,6 +11,7 @@ const EMAIL_ERROR = "That address doesn't look right — check the spelling.";
 const CREDENTIALS_ERROR = "That email and password don't match. Try again or reset your password.";
 
 export default function LoginPage() {
+  const t = useT();
   const navigate = useNavigate();
   const location = useLocation();
   const notice = location.state?.notice || '';
@@ -47,7 +49,7 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setFormError(err.message || 'Unable to start Google sign-in.');
+      setFormError(err.message || t('auth.googleFail'));
       setGoogleLoading(false);
     }
   }
@@ -81,7 +83,7 @@ export default function LoginPage() {
     <InkAuthShell
       hero="Every repair receipt, in one place."
       lead="Photograph the receipt, check the details, and it's filed against your vehicle for good."
-      mobileTitle="Welcome back."
+      mobileTitle={t('auth.welcomeBack')}
       variant="signin"
       aside={
         <ol className="ink-steps">
@@ -95,8 +97,8 @@ export default function LoginPage() {
       }
     >
       <div className="ink-heading ink-hide-mobile">
-        <h1>Sign in</h1>
-        <p>Welcome back.</p>
+        <h1>{t('auth.signIn')}</h1>
+        <p>{t('auth.welcomeBack')}</p>
       </div>
 
       {notice && (
@@ -113,7 +115,7 @@ export default function LoginPage() {
         <InkField
           className="ink-field--email"
           inputRef={emailRef}
-          label="Email address"
+          label={t('auth.email')}
           name="email"
           type="email"
           inputMode="email"
@@ -133,18 +135,18 @@ export default function LoginPage() {
         />
 
         <Link className="ink-link ink-inline-link" to="/forgot-password">
-          Forgot your password?
+          {t('auth.forgot')}
         </Link>
 
         <label className="ink-check ink-hide-mobile">
           <input
             type="checkbox"
             name="keepSignedIn"
-            aria-label="Keep me signed in"
+            aria-label={t('auth.keepSignedIn')}
             checked={form.keepSignedIn}
             onChange={updateField}
           />
-          <span className="ink-check__label">Keep me signed in</span>
+          <span className="ink-check__label">{t('auth.keepSignedIn')}</span>
         </label>
 
         <p className="ink-form-error" role="alert" aria-live="polite">
@@ -156,7 +158,7 @@ export default function LoginPage() {
           className={`ink-button ink-button--primary ${submitting ? 'ink-button--loading' : ''}`.trim()}
           disabled={submitting}
         >
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? 'Signing in…' : t('auth.signIn')}
         </button>
       </form>
 
@@ -165,7 +167,7 @@ export default function LoginPage() {
       <p className="ink-footer-note">
         No account yet?{' '}
         <Link className="ink-link" to="/register">
-          Create one
+          {t('auth.createOne')}
         </Link>
       </p>
     </InkAuthShell>

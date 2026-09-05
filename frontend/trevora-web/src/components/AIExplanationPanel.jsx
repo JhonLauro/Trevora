@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from '../i18n/index.jsx';
 import { Sparkles, TriangleAlert } from 'lucide-react';
 import { getServiceRecordAIExplanation } from '../api/aiExplanations';
 
@@ -39,7 +40,29 @@ function DetailValues({ values }) {
   );
 }
 
+/*
+ * The server labels its own facts.
+ *
+ * `detail.label` and `disclaimer` are built in AIExplanationService as English
+ * strings -- they are Trevora's words about the owner's own figures, not the
+ * model's prose -- so they arrive already written and cannot be looked up by a
+ * key that never crossed the wire. Matching on the English is a bridge, not
+ * the destination: the clean fix is for the server to send keys, or to be told
+ * which language to answer in. Anything unrecognised falls through unchanged,
+ * so a new label added server-side shows in English rather than vanishing.
+ */
+const SERVER_LABEL_KEYS = {
+  'Parts noted': 'ai.detail.parts',
+  'Materials used': 'ai.detail.materials',
+  'Work performed': 'ai.detail.labor',
+  'Total recorded cost': 'ai.detail.total',
+};
+
+const SERVER_DISCLAIMER =
+  'This explanation is for understanding only and does not replace professional mechanic judgment.';
+
 export default function AIExplanationPanel({ recordId }) {
+  const { language, t } = useLanguage();
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +75,7 @@ export default function AIExplanationPanel({ recordId }) {
     setLoading(true);
     setError('');
 
-    getServiceRecordAIExplanation(recordId)
+    getServiceRecordAIExplanation(recordId, language)
       .then((data) => {
         if (active) setExplanation(data);
       })
@@ -66,7 +89,10 @@ export default function AIExplanationPanel({ recordId }) {
       });
 
     return () => { active = false; };
-  }, [recordId, reloadKey]);
+    /* `language` belongs here: the prose is written per language on the server,
+       so switching it has to refetch. Without it the labels would change around
+       an explanation still written in the language before. */
+  }, [recordId, reloadKey, language]);
 
   const watchFor = explanation?.watchFor ?? [];
   const details = (explanation?.details ?? []).filter((d) => d?.values?.length);
@@ -76,22 +102,22 @@ export default function AIExplanationPanel({ recordId }) {
       <div className="aiex__head">
         <h2 className="ink-section-title">
           <Sparkles size={18} aria-hidden="true" />
-          In plain language
+          {t('ai.plainLanguage')}
         </h2>
       </div>
 
-      {loading && <p className="aiex__note">Putting this record into plain language…</p>}
+      {loading && <p className="aiex__note">{t('ai.loading')}</p>}
 
       {error && !loading && (
         <div className="aiex__unavailable">
-          <p className="aiex__unavailable-title">No explanation right now</p>
+          <p className="aiex__unavailable-title">{t('ai.unavailable')}</p>
           <p className="aiex__note">{error}</p>
           <button
             className="aiex__refresh aiex__refresh--inline"
             type="button"
             onClick={() => setReloadKey((value) => value + 1)}
           >
-            Try again
+            {t('ai.tryAgain')}
           </button>
         </div>
       )}
@@ -102,18 +128,18 @@ export default function AIExplanationPanel({ recordId }) {
               boxed warning that looked like something had gone wrong. */}
           {explanation.fallback && (
             <p className="aiex__fallback">
-              Written from the record itself rather than by the explanation service.
+              {t('ai.fromRecord')}
             </p>
           )}
 
           <section className="aiex__section">
-            <h3 className="aiex__section-title">What was done</h3>
+            <h3 className="aiex__section-title">{t('ai.whatWasDone')}</h3>
             <p className="aiex__prose">{explanation.whatWasDone}</p>
             {details.length > 0 && (
               <dl className="aiex__facts">
                 {details.map((detail) => (
                   <div key={detail.label}>
-                    <dt>{detail.label}</dt>
+                    <dt>{SERVER_LABEL_KEYS[detail.label] ? t(SERVER_LABEL_KEYS[detail.label]) : detail.label}</dt>
                     <dd><DetailValues values={detail.values} /></dd>
                   </div>
                 ))}
@@ -122,7 +148,7 @@ export default function AIExplanationPanel({ recordId }) {
           </section>
 
           <section className="aiex__section">
-            <h3 className="aiex__section-title">Why it matters</h3>
+            <h3 className="aiex__section-title">{t('ai.whyItMatters')}</h3>
             <p className="aiex__prose">{explanation.whyItMatters}</p>
           </section>
 
@@ -130,7 +156,7 @@ export default function AIExplanationPanel({ recordId }) {
             <section className="aiex__section">
               <h3 className="aiex__section-title">
                 <TriangleAlert size={15} aria-hidden="true" />
-                What to watch for
+                {t('ai.watchFor')}
               </h3>
               <ul className="aiex__watch">
                 {watchFor.map((item) => (
@@ -141,7 +167,11 @@ export default function AIExplanationPanel({ recordId }) {
           )}
 
           {explanation.disclaimer && (
-            <p className="aiex__disclaimer">{explanation.disclaimer}</p>
+            <p className="aiex__disclaimer">
+              {explanation.disclaimer === SERVER_DISCLAIMER
+                ? t('ai.disclaimer')
+                : explanation.disclaimer}
+            </p>
           )}
         </div>
       )}

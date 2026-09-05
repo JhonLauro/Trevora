@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useT } from '../i18n/index.jsx';
 import { Check, FileText, Mic, PenLine } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
 import useGarage from '../hooks/useGarage.js';
@@ -21,50 +22,38 @@ import { relativeDays } from '../utils/format';
  * coloured ribbon: chroma is not available for emphasis here.
  */
 
+/* Keys, not sentences. This array is built when the module loads, so a t()
+   call here would run with nothing bound and take the route down before it
+   renders -- the same shape that broke GaragePage's RANGES. */
 const methods = [
-  {
-    key: 'receipt',
-    title: 'Photo of the receipt',
-    icon: FileText,
-    recommended: true,
-    body: 'We read the details off it. Multi-page receipts are fine — keep them in printed order.',
-    foot: 'Every field will show where its value came from.',
-  },
-  {
-    key: 'voice',
-    title: 'Voice note',
-    icon: Mic,
-    body: 'Say what was done. We write it down, and you can edit every word of it.',
-    foot: 'Quickest when you have no paper.',
-  },
-  {
-    key: 'manual',
-    title: 'Type it in',
-    icon: PenLine,
-    body: 'Your own words. Nothing is read or guessed — what you type is what saves.',
-    foot: 'Best for an old record you already know.',
-  },
+  { key: 'receipt', icon: FileText, recommended: true,
+    titleKey: 'method.receipt.title', bodyKey: 'method.receipt.body', footKey: 'method.receipt.foot' },
+  { key: 'voice', icon: Mic,
+    titleKey: 'method.voice.title', bodyKey: 'method.voice.body', footKey: 'method.voice.foot' },
+  { key: 'manual', icon: PenLine,
+    titleKey: 'method.manual.title', bodyKey: 'method.manual.body', footKey: 'method.manual.foot' },
 ];
 
 /** Step 1 — the vehicle, with the numbers that tell them apart. */
 function PickVehicle({ navigate }) {
+  const t = useT();
   const { garages, loading, error } = useGarage();
 
 
   return (
     <FlowChrome
       step={1}
-      title="Which vehicle was serviced?"
-      subtitle="Step 1 of 6"
+      title={t('method.pickVehicle')}
+      subtitle={t('method.pickVehicleSub')}
       onExit={() => navigate('/')}
     >
       {error && <div className="flow-alert">{error}</div>}
 
       {loading ? (
-        <p className="flow-note">Loading your vehicles…</p>
+        <p className="flow-note">{t('method.loadingVehicles')}</p>
       ) : garages.length === 0 ? (
         <section className="flow-card" style={{ padding: 26 }}>
-          <h2 className="flow-done__title">No vehicles yet</h2>
+          <h2 className="flow-done__title">{t('method.noVehicles')}</h2>
           <p className="flow-note" style={{ margin: '8px 0 18px' }}>
             Add a vehicle before recording a service against it.
           </p>
@@ -97,11 +86,11 @@ function PickVehicle({ navigate }) {
                   </span>
                   <span className="flow-pick__stats">
                     <span className="flow-stat">
-                      <span className="flow-eyebrow">Records</span>
+                      <span className="flow-eyebrow">{t('garage.statRecords')}</span>
                       <span className="flow-stat__value">{records.length}</span>
                     </span>
                     <span className="flow-stat">
-                      <span className="flow-eyebrow">Last</span>
+                      <span className="flow-eyebrow">{t('method.last')}</span>
                       <span className="flow-stat__value">
                         {records[0]?.serviceDate ? relativeDays(records[0].serviceDate) : 'None yet'}
                       </span>
@@ -113,7 +102,7 @@ function PickVehicle({ navigate }) {
           </div>
 
           <div className="flow-actions">
-            <p className="flow-note">Entering from a vehicle page? This step is skipped.</p>
+            <p className="flow-note">{t('method.skipNote')}</p>
               {/* Same reasoning as the method step. This one had nothing
                   selected by default and Proceed was disabled until you
                   picked, so it cost everybody two clicks to answer one
@@ -127,6 +116,7 @@ function PickVehicle({ navigate }) {
 
 /** Step 2 — the method. */
 function PickMethod({ vehicleId, navigate }) {
+  const t = useT();
   const [vehicle, setVehicle] = useState(null);
   const [error, setError] = useState('');
 
@@ -143,8 +133,8 @@ function PickMethod({ vehicleId, navigate }) {
     <FlowChrome
       step={2}
       vehicleName={vehicle ? displayVehicleName(vehicle) : ''}
-      title="How do you want to add it?"
-      subtitle="Step 2 of 6 · you will check everything before it saves, whichever you pick"
+      title={t('method.title')}
+      subtitle={t('method.sub')}
       onExit={() => navigate('/')}
     >
       {error && <div className="flow-alert">{error}</div>}
@@ -166,15 +156,15 @@ function PickMethod({ vehicleId, navigate }) {
             >
               <span className="flow-method__top">
                 <Icon size={30} strokeWidth={1.5} aria-hidden="true" />
-                {method.recommended && <span className="flow-method__rec">Recommended</span>}
+                {method.recommended && <span className="flow-method__rec">{t('method.recommended')}</span>}
               </span>
               <span>
-                <span className="flow-method__title">{method.title}</span>
+                <span className="flow-method__title">{t(method.titleKey)}</span>
                 <br />
-                <span className="flow-method__body">{method.body}</span>
+                <span className="flow-method__body">{t(method.bodyKey)}</span>
               </span>
               <span className="flow-method__spacer" />
-              <span className="flow-method__foot">{method.foot}</span>
+              <span className="flow-method__foot">{t(method.footKey)}</span>
             </button>
           );
         })}

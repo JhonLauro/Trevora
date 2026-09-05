@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
+import { useT } from '../i18n/index.jsx';
 import { Bell, Car, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2, X } from 'lucide-react';
 import {
   clearLoggedInUser,
@@ -28,12 +29,15 @@ import InkLockup from './InkLockup.jsx';
  * globally selected vehicle made every number on every page ambiguous until
  * you checked a control somewhere else. Vehicle identity is now in the route.
  */
+/* Labels are catalogue keys, resolved at render. Holding the English here and
+   translating at the point of use would mean the sidebar and the page title
+   could disagree about what a screen is called. */
 const NAV_ITEMS = [
-  { to: '/', label: 'Garage', end: true, icon: Car },
-  { to: '/records', label: 'Records', icon: FileText },
-  { to: '/access/requests', label: 'Shared access', icon: Share2 },
-  { to: '/notifications', label: 'Notifications', badge: 'notifications', icon: Bell },
-  { to: '/account-settings', label: 'Settings', icon: Settings },
+  { to: '/', labelKey: 'nav.garage', end: true, icon: Car },
+  { to: '/records', labelKey: 'nav.records', icon: FileText },
+  { to: '/access/requests', labelKey: 'nav.sharedAccess', icon: Share2 },
+  { to: '/notifications', labelKey: 'nav.notifications', badge: 'notifications', icon: Bell },
+  { to: '/account-settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 /* The rail's collapsed state is a per-browser preference, not account data:
@@ -79,6 +83,7 @@ function navClass({ isActive }) {
  * for every selected or actionable thing — and the rule is gone.
  */
 function ShellNav({ pendingCount, onNavigate }) {
+  const t = useT();
   return (
     <nav className="ink-nav" aria-label="Primary">
       {NAV_ITEMS.map((item) => (
@@ -87,7 +92,7 @@ function ShellNav({ pendingCount, onNavigate }) {
           to={item.to}
           end={item.end}
           className={navClass}
-          title={item.label}
+          title={t(item.labelKey)}
           onClick={onNavigate}
         >
           {/* Decorative: the label beside it is the accessible name, so an
@@ -96,7 +101,7 @@ function ShellNav({ pendingCount, onNavigate }) {
           {/* Collapsed, this is clipped rather than removed — it is the row's
               accessible name, and an icon-only link with no name is a link
               screen readers announce as nothing. */}
-          <span className="ink-nav__label">{item.label}</span>
+          <span className="ink-nav__label">{t(item.labelKey)}</span>
           {item.badge === 'notifications' && pendingCount > 0 && (
             <span className="ink-nav__count">{pendingCount}</span>
           )}
@@ -107,6 +112,7 @@ function ShellNav({ pendingCount, onNavigate }) {
 }
 
 export default function AppShell({ children }) {
+  const t = useT();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
@@ -125,7 +131,7 @@ export default function AppShell({ children }) {
   const menuButtonRef = useRef(null);
   const closeTimerRef = useRef(null);
 
-  const displayName = authenticated ? getUserDisplayName(currentUser) : 'Signed out';
+  const displayName = authenticated ? getUserDisplayName(currentUser) : t('shell.signedOut');
   const avatarUrl = authenticated ? currentUser?.avatar || '' : '';
   // A photo that 404s -- deleted from the bucket, or a stale Google URL --
   // would otherwise show as a broken-image glyph. Falling back to the initials
@@ -279,7 +285,7 @@ export default function AppShell({ children }) {
     <div className="ink-app" data-rail={railCollapsed ? 'collapsed' : 'expanded'}>
       <aside className="ink-sidebar">
         <div className="ink-sidebar__brand">
-          <Link to="/" aria-label="Trevora, go to Garage">
+          <Link to="/" aria-label={t('shell.goToGarage')}>
             <InkLockup />
           </Link>
           {/* A toggle, not a disclosure: the nav is still there and still
@@ -289,8 +295,8 @@ export default function AppShell({ children }) {
             className="ink-rail-toggle"
             type="button"
             aria-pressed={railCollapsed}
-            aria-label={railCollapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
-            title={railCollapsed ? 'Widen the sidebar' : 'Narrow the sidebar'}
+            aria-label={railCollapsed ? t('shell.widen') : t('shell.narrow')}
+            title={railCollapsed ? t('shell.widen') : t('shell.narrow')}
             onClick={toggleRail}
           >
             {railCollapsed
@@ -313,18 +319,18 @@ export default function AppShell({ children }) {
             <span className="ink-account-row__name">{displayName}</span>
           </div>
           <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
-            Sign out
+            {t('set.signOut')}
           </button>
         </div>
       </aside>
 
       <header className="ink-topbar">
-        <Link to="/" aria-label="Trevora, go to Garage">
+        <Link to="/" aria-label={t('shell.goToGarage')}>
           <InkLockup />
         </Link>
         <div className="ink-topbar__actions">
           <Link className="ink-topbar__button" to="/notifications">
-            <span>Alerts</span>
+            <span>{t('nav.alerts')}</span>
             {pendingCount > 0 && <span className="ink-topbar__count">{pendingCount}</span>}
           </Link>
           <button
@@ -336,7 +342,7 @@ export default function AppShell({ children }) {
             onClick={openMenu}
           >
             <Menu size={18} aria-hidden="true" />
-            <span>Menu</span>
+            <span>{t('nav.menu')}</span>
           </button>
         </div>
       </header>
@@ -362,7 +368,7 @@ export default function AppShell({ children }) {
                 onClick={() => { closeMenu(); menuButtonRef.current?.focus(); }}
               >
                 <X size={18} aria-hidden="true" />
-                <span>Close</span>
+                <span>{t('nav.close')}</span>
               </button>
             </div>
             <ShellNav pendingCount={pendingCount} onNavigate={closeMenu} />
@@ -376,7 +382,7 @@ export default function AppShell({ children }) {
                 <span className="ink-account-row__name">{displayName}</span>
               </div>
               <button className="ink-signout-row" type="button" onClick={() => setConfirmSignOut(true)}>
-                Sign out
+                {t('set.signOut')}
               </button>
             </div>
           </div>
@@ -395,16 +401,16 @@ export default function AppShell({ children }) {
       <ConfirmDialog
         open={confirmSignOut}
         busy={signingOut}
-        title="Sign out of Trevora?"
-        confirmLabel="Sign out"
+        title={t('shell.signOutAsk')}
+        confirmLabel={t('set.signOut')}
         busyLabel="Signing out…"
         tone="outline"
         onCancel={() => { if (!signingOut) setConfirmSignOut(false); }}
         onConfirm={handleSignOut}
         body={(
           <>
-            <p>Anything you are part-way through adding is not saved yet and will be lost.</p>
-            <p>Your records stay where they are. You will need to sign in again to reach them.</p>
+            <p>{t('shell.unsavedWarn')}</p>
+            <p>{t('shell.signOutBody')}</p>
           </>
         )}
       />

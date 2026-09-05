@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "prebuild": "node scripts/check-i18n.mjs && python scripts/check_refs.py",
+    "check:refs": "python scripts/check_refs.py",
     "test": "vitest run"
   },
   "dependencies": {

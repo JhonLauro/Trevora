@@ -1,4 +1,6 @@
 import React from 'react';
+import { useT } from '../../i18n/index.jsx';
+import { translate as t } from '../../i18n/index.jsx';
 import { X } from 'lucide-react';
 import {
   DEFAULT_LINE_KIND,
@@ -61,6 +63,7 @@ function emptyService(sortOrder = 0) {
  * kept claiming a mismatch that was already resolved.
  */
 export function Balance({ services, totalCost }) {
+  const t = useT();
   const balance = reconciliation(services, totalCost);
   if (balance.state === 'no-lines') return null;
 
@@ -76,12 +79,12 @@ export function Balance({ services, totalCost }) {
     <>
       <div className="flow-balance">
         <div className="flow-balance__cell">
-          <span className="flow-eyebrow">Lines add up to</span>
+          <span className="flow-eyebrow">{t('manual.linesAddUp')}</span>
           <span className="flow-balance__value">{lineSum}</span>
         </div>
         <div className="flow-balance__cell">
-          <span className="flow-eyebrow">Receipt total says</span>
-          <span className="flow-balance__value">{printed ?? 'Not filled in'}</span>
+          <span className="flow-eyebrow">{t('lines.receiptTotalSays')}</span>
+          <span className="flow-balance__value">{printed ?? t('lines.notFilled')}</span>
         </div>
         {balance.state === 'gap' && (
           <div className="flow-balance__cell">
@@ -102,16 +105,16 @@ function messageFor(balance) {
         balance.unpricedCount === 1 ? ' has' : 's have'
       } no amount yet.`;
     }
-    return 'The lines add up to the receipt total. Nothing is missing.';
+    return t('lines.matches');
   }
   if (balance.state === 'gap') {
     return 'We do not know which figure is right — you have the paper. Change either side, or leave the gap.';
   }
   if (balance.state === 'no-total') {
-    return 'Fill in the total cost and this will check it against the lines.';
+    return t('lines.fillTotal');
   }
   if (balance.state === 'no-prices') {
-    return 'None of the lines have an amount, so they cannot be checked against the total.'
+    return t('lines.noneHaveAmount')
       + ' Add the amounts from the receipt to make this check work.';
   }
   return '';
@@ -126,6 +129,7 @@ export function balanceWarning(services, totalCost) {
 }
 
 export default function ServiceLinesEditor({ value, onChange, id }) {
+  const t = useT();
   const services = Array.isArray(value) && value.length > 0 ? value : [emptyService(0)];
 
   function updateService(index, patch) {
@@ -183,7 +187,7 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                 step="0.01"
                 value={service.lineCost ?? ''}
                 onChange={(event) => updateService(serviceIndex, { lineCost: event.target.value })}
-                placeholder="Subtotal"
+                placeholder={t('lines.subtotal')}
                 aria-label={`Subtotal for service ${serviceIndex + 1}`}
               />
               {services.length > 1 && (
@@ -203,7 +207,7 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                 rather than discovering later on the history screen. */}
             {lines.length === 0 && (
               <div className="flow-lines-empty">
-                <strong>No itemised lines for this service.</strong>
+                <strong>{t('lines.noItemised')}</strong>
                 <span>
                   Add them to record what each charge was for. Without them, this record
                   shows a total and nothing about what it bought.
@@ -213,9 +217,9 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
 
             {lines.length > 0 && (
               <div className="flow-lines">
-                <span className="flow-lines__h">Line on the receipt</span>
-                <span className="flow-lines__h">Kind</span>
-                <span className="flow-lines__h flow-lines__h--right">Amount</span>
+                <span className="flow-lines__h">{t('lines.onReceipt')}</span>
+                <span className="flow-lines__h">{t('lines.kind')}</span>
+                <span className="flow-lines__h flow-lines__h--right">{t('lines.amount')}</span>
                 {/* The header cell above the delete column. It carries the
                     header class despite having no text so that it hides with
                     the other three on a narrow screen — bare, it stayed behind
@@ -228,7 +232,7 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                       <input
                         value={line.description ?? ''}
                         onChange={(event) => updateLine(serviceIndex, lineIndex, { description: event.target.value })}
-                        placeholder="As printed on the receipt"
+                        placeholder={t('lines.asPrinted')}
                         aria-label={`Line ${lineIndex + 1} description`}
                       />
                       {/* Read off the receipt, not editable: it is evidence,
@@ -269,7 +273,7 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
             )}
 
             <button className="flow-link" type="button" onClick={() => addLine(serviceIndex)}>
-              Add a line
+              {t('lines.addLine')}
             </button>
           </div>
         );
@@ -277,10 +281,10 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
 
       <div className="flow-done__foot">
         <button className="flow-link" type="button" onClick={addService}>
-          Add a service
+          {t('lines.addService')}
         </button>
         <span className="flow-note">
-          Lines stay in the order they print, so you can read down the paper.
+          {t('lines.inOrder')}
         </span>
       </div>
 
@@ -293,7 +297,7 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
           is stated once here instead — collapsed, because most receipts are
           kinded correctly on the first read and only the unsure need it. */}
       <details className="flow-kinds">
-        <summary>What these kinds mean</summary>
+        <summary>{t('lines.whatKindsMean')}</summary>
         <dl>
           {LINE_KINDS.map((kind) => (
             <div key={kind.value}>

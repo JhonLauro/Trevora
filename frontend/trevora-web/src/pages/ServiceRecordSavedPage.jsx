@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
+import { translate as t } from '../i18n/index.jsx';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
@@ -29,12 +31,13 @@ function whatWasDone(draft) {
   const names = serviceItemsArray(draft?.services)
     .map((item) => String(item.serviceType ?? '').trim())
     .filter(Boolean);
-  if (names.length === 0) return 'Service recorded';
+  if (names.length === 0) return t('saved.recorded');
   if (names.length === 1) return names[0];
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 export default function ServiceRecordSavedPage() {
+  const t = useT();
   const { draftId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -96,26 +99,26 @@ export default function ServiceRecordSavedPage() {
           <Check size={22} strokeWidth={2.2} />
         </span>
         <div>
-          <h1 className="flow-saved__title">Saved to your records</h1>
+          <h1 className="flow-saved__title">{t('saved.title')}</h1>
           <p className="flow-saved__sub">{subtitle}</p>
         </div>
       </div>
 
       <section className="flow-card flow-saved__stats">
         <div className="flow-saved__stat">
-          <span className="flow-eyebrow">Records for this car</span>
+          <span className="flow-eyebrow">{t('saved.recordsForCar')}</span>
           <span className="flow-saved__stat-value">
             {recordCount === null ? '—' : recordCount}
           </span>
         </div>
         <div className="flow-saved__stat">
-          <span className="flow-eyebrow">What was charged</span>
+          <span className="flow-eyebrow">{t('saved.whatCharged')}</span>
           <span className="flow-saved__stat-value">
-            {lineCount > 0 ? `${lineCount} line${lineCount === 1 ? '' : 's'} kept` : 'Total only'}
+            {lineCount > 0 ? `${lineCount} line${lineCount === 1 ? '' : 's'} kept` : t('saved.totalOnly')}
           </span>
         </div>
         <div className="flow-saved__stat">
-          <span className="flow-eyebrow">Receipt</span>
+          <span className="flow-eyebrow">{t('confirm.receipt')}</span>
           <span className="flow-saved__stat-value">
             {pageCount > 0
               ? `${pageCount} page${pageCount === 1 ? '' : 's'} kept`
@@ -138,21 +141,21 @@ export default function ServiceRecordSavedPage() {
           disabled={!recordId || !draft?.vehicleId}
           onClick={() => navigate(`/vehicles/${draft.vehicleId}/history/${recordId}`)}
         >
-          View this record
+          {t('saved.viewRecord')}
         </button>
         <button
           className="flow-btn flow-btn--ghost"
           type="button"
           onClick={() => navigate(draft?.vehicleId ? `/service-input/${draft.vehicleId}` : '/service-input')}
         >
-          Add another
+          {t('saved.addAnother')}
         </button>
         <button
           className="flow-btn flow-btn--ghost"
           type="button"
           onClick={() => navigate(draft?.vehicleId ? `/vehicles/${draft.vehicleId}` : '/')}
         >
-          Back to the car
+          {t('saved.backToCar')}
         </button>
       </div>
     </FlowChrome>

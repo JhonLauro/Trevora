@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n/index.jsx';
 import {
   Activity,
   ArrowDown,
@@ -51,11 +52,12 @@ const COMPONENT_META = {
   trunk: { label: 'Trunk / Body', icon: Package },
 };
 
+/* labelKey, resolved at render: this object is built at module load. */
 const STATUS_CONFIG = {
-  good: { label: 'Recently serviced', color: '#047857', bg: '#ecfdf5', border: '#86efac', dot: '#10b981' },
-  soon: { label: 'Needs review soon', color: '#b45309', bg: '#fffbeb', border: '#fcd34d', dot: '#f59e0b' },
-  overdue: { label: 'Overdue / issue', color: '#b91c1c', bg: '#fef2f2', border: '#fca5a5', dot: '#ef4444' },
-  none: { label: 'No record found', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', dot: '#94a3b8' },
+  good: { labelKey: 'parts.recentlyServiced', color: '#047857', bg: '#ecfdf5', border: '#86efac', dot: '#10b981' },
+  soon: { labelKey: 'parts.needsSoon', color: '#b45309', bg: '#fffbeb', border: '#fcd34d', dot: '#f59e0b' },
+  overdue: { labelKey: 'parts.overdue', color: '#b91c1c', bg: '#fef2f2', border: '#fca5a5', dot: '#ef4444' },
+  none: { labelKey: 'parts.noRecord', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', dot: '#94a3b8' },
 };
 
 const SOURCE_CONFIG = {
@@ -281,6 +283,7 @@ function sortRecords(records) {
 }
 
 export default function PartsMap({ records, odometer, onSelectRecord, onOpenRecord, onShare }) {
+  const t = useT();
   const [view, setView] = useState('side');
   const [selected, setSelected] = useState('brakes');
 
@@ -345,7 +348,7 @@ export default function PartsMap({ records, odometer, onSelectRecord, onOpenReco
 
         <div className="figma-components-strip">
           <div className="figma-components-title">
-            <span>Components in this view</span>
+            <span>{t('parts.inThisView')}</span>
             <small>{activeView.hotspots.length} shown</small>
           </div>
           <div className="figma-components-grid">
@@ -365,7 +368,7 @@ export default function PartsMap({ records, odometer, onSelectRecord, onOpenReco
                   <span style={{ background: statusMeta.bg, color: statusMeta.color }}><Icon size={16} aria-hidden="true" /></span>
                   <div>
                     <strong>{meta.label}</strong>
-                    <small style={{ color: statusMeta.color }}>{last ? `Last: ${formatDate(last.serviceDate)}` : 'No record found'}</small>
+                    <small style={{ color: statusMeta.color }}>{last ? `Last: ${formatDate(last.serviceDate)}` : t('parts.noRecord')}</small>
                   </div>
                   <i style={{ background: statusMeta.dot }} />
                 </button>
@@ -437,12 +440,13 @@ function Hotspot({ hotspot, status, selected, onClick }) {
 }
 
 function Legend() {
+  const t = useT();
   return (
     <div className="figma-parts-legend">
       {Object.entries(STATUS_CONFIG).map(([key, status]) => (
         <span key={key} style={{ background: status.bg, color: status.color }}>
           <i style={{ background: status.dot }} />
-          {status.label}
+          {t(status.labelKey)}
         </span>
       ))}
     </div>
@@ -450,6 +454,7 @@ function Legend() {
 }
 
 function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectRecord, onOpenRecord, onShare }) {
+  const t = useT();
   const cfg = STATUS_CONFIG[status];
   const Icon = meta.icon;
   const last = records[0];
@@ -466,24 +471,24 @@ function ComponentDetail({ meta, status, records, odometer, viewLabel, onSelectR
           <span style={{ color: cfg.color }}>{viewLabel} · {meta.label}</span>
           <h2>{meta.label} Service History</h2>
           <em style={{ color: cfg.color, borderColor: cfg.border }}>
-            <i style={{ background: cfg.dot }} /> Status: {cfg.label}
+            <i style={{ background: cfg.dot }} /> Status: {t(cfg.labelKey)}
           </em>
         </section>
       </div>
 
       <div className="figma-component-panel-body">
         <div className="figma-component-facts">
-          <div><span>Last service</span><strong>{last ? formatDate(last.serviceDate) : 'No record'}</strong></div>
-          <div><span>Latest odometer</span><strong>{last?.odometer != null ? `${Number(last.odometer).toLocaleString()} km` : `${Number(odometer || 0).toLocaleString()} km`}</strong></div>
-          <div><span>Related records</span><strong>{records.length}</strong></div>
-          <div><span>Total cost</span><strong>{formatMoney(totalCost)}</strong></div>
+          <div><span>{t('parts.lastService')}</span><strong>{last ? formatDate(last.serviceDate) : t('parts.noRecord')}</strong></div>
+          <div><span>{t('parts.atOdometer')}</span><strong>{last?.odometer != null ? `${Number(last.odometer).toLocaleString()} km` : `${Number(odometer || 0).toLocaleString()} km`}</strong></div>
+          <div><span>{t('parts.recordsFor')}</span><strong>{records.length}</strong></div>
+          <div><span>{t('parts.totalCost')}</span><strong>{formatMoney(totalCost)}</strong></div>
         </div>
 
         {!records.length ? (
           <div className="figma-component-empty">
             <CircleHelp size={34} aria-hidden="true" />
-            <h3>No record found</h3>
-            <p>Add a service record so Trevora can start tracking this component.</p>
+            <h3>{t('parts.noRecord')}</h3>
+            <p>{t('parts.aboutPart')}</p>
           </div>
         ) : (
           <>

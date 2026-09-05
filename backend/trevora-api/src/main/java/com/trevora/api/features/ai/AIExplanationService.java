@@ -69,7 +69,13 @@ public class AIExplanationService {
         this.explanationRepository = explanationRepository;
     }
 
-    public AIExplanationResponse getExplanationForRecord(UUID recordId) {
+    /**
+     * @param language the two- or three-letter code the explanation should be
+     *     written in. Unknown or absent falls through to English in
+     *     {@code Facts.languageName()}, so a caller that never learned about
+     *     languages keeps working unchanged.
+     */
+    public AIExplanationResponse getExplanationForRecord(UUID recordId, String language) {
         currentUserService.requireVehicleOwner();
         ServiceRecord record = serviceRecordRepository
                 .findByRecordIdAndOwnerId(recordId, currentUserService.getCurrentUserId())
@@ -86,7 +92,7 @@ public class AIExplanationService {
                is not a lesser copy kept for tidiness -- it is what an owner
                reads when the key is unset, the provider is down or the response
                comes back unusable, and it has to stand on its own. */
-            AIExplanationResponse generated = generateModelExplanation(record, items);
+            AIExplanationResponse generated = generateModelExplanation(record, items, language);
             if (generated != null) {
                 return generated;
             }
@@ -171,7 +177,8 @@ public class AIExplanationService {
      *
      * @return the model's explanation, or null to fall through to the template.
      */
-    private AIExplanationResponse generateModelExplanation(ServiceRecord record, List<ServiceRecordItem> items) {
+    private AIExplanationResponse generateModelExplanation(
+            ServiceRecord record, List<ServiceRecordItem> items, String language) {
         boolean tagged = hasLineEntries(items);
         List<String> parts = tagged
                 ? lineEntriesOfKind(items, ServiceLineKind.PART)
@@ -182,6 +189,7 @@ public class AIExplanationService {
                 : itemFieldValues(items, ServiceRecordItem::getLaborPerformed);
 
         OpenAIExplanationProvider.Facts facts = new OpenAIExplanationProvider.Facts(
+                language,
                 vehicleLabelFor(record),
                 serviceSummaryFor(items),
                 parts,

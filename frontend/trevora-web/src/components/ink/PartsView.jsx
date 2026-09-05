@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useT } from '../../i18n/index.jsx';
 import { Link } from 'react-router-dom';
 import { formatAmount, formatDate, formatOdometer } from '../../utils/format';
 import { recordStatus, recordStatusLabel, sourceLabel } from '../../utils/recordStatus';
@@ -41,6 +42,7 @@ import { hasVehicleShape, vehicleViews } from './vehicleShapes';
 const LEGEND = ['ok', 'none'];
 
 function Rail({ entry, recordHref }) {
+  const t = useT();
   if (!entry) return null;
 
   const records = entry.records;
@@ -49,7 +51,7 @@ function Rail({ entry, recordHref }) {
     <aside className="parts-rail">
       <section className="ink-card parts-rail__card">
         <div className="parts-rail__head">
-          <span className="ink-eyebrow">Selected component</span>
+          <span className="ink-eyebrow">{t('parts.selected')}</span>
           <div className="parts-rail__title">
             <h3>{entry.label}</h3>
             <span className={`ink-badge ink-badge--${entry.status}`}>{entry.statusText}</span>
@@ -57,19 +59,19 @@ function Rail({ entry, recordHref }) {
         </div>
         <div className="parts-rail__stats">
           <div>
-            <span className="ink-eyebrow">Last service</span>
+            <span className="ink-eyebrow">{t('parts.lastService')}</span>
             <strong>{entry.lastService ? formatDate(entry.lastService) : 'None'}</strong>
           </div>
           <div>
-            <span className="ink-eyebrow">At odometer</span>
-            <strong>{formatOdometer(entry.lastOdometer, 'Not recorded')}</strong>
+            <span className="ink-eyebrow">{t('parts.atOdometer')}</span>
+            <strong>{formatOdometer(entry.lastOdometer, t('parts.notRecorded'))}</strong>
           </div>
           <div>
             <span className="ink-eyebrow">Records</span>
             <strong>{records.length}</strong>
           </div>
           <div>
-            <span className="ink-eyebrow">Total cost</span>
+            <span className="ink-eyebrow">{t('parts.totalCost')}</span>
             <strong>PHP {formatAmount(entry.totalCost)}</strong>
           </div>
         </div>
@@ -78,7 +80,7 @@ function Rail({ entry, recordHref }) {
       {records.length > 0 && (
         <section className="ink-card parts-rail__card">
           <div className="parts-rail__head parts-rail__head--row">
-            <span className="ink-eyebrow">Records for this component</span>
+            <span className="ink-eyebrow">{t('parts.recordsFor')}</span>
             <span className="ink-muted-note">All {records.length}</span>
           </div>
           <div className="parts-rail__records">
@@ -107,7 +109,7 @@ function Rail({ entry, recordHref }) {
       )}
 
       <section className="ink-card parts-rail__card">
-        <span className="ink-eyebrow">About this part</span>
+        <span className="ink-eyebrow">{t('parts.aboutPart')}</span>
         {/* Deliberately not a due date. Predicting the next service needs a
             real interval per vehicle class, which does not exist yet, and
             guessing one from car conventions told riders their engine was
@@ -141,6 +143,7 @@ export default function PartsView({
   bodyType = null,
   recordHref = (record) => `/vehicles/${vehicleId}/history/${record.recordId}`,
 }) {
+  const t = useT();
   const views = useMemo(() => vehicleViews(bodyType), [bodyType]);
   const [viewId, setViewId] = useState('side');
   const [selectedKey, setSelectedKey] = useState(null);
@@ -180,15 +183,15 @@ export default function PartsView({
       <section className="ink-card parts-panel">
         <div className="parts-panel__head">
           <div>
-            <h2 className="ink-section-title">Where work has been done</h2>
-            <p className="parts-panel__sub">Pick a part to see its full service history.</p>
+            <h2 className="ink-section-title">{t('parts.whereWork')}</h2>
+            <p className="parts-panel__sub">{t('parts.pickPart')}</p>
           </div>
         </div>
 
         {views.length > 1 && (
           /* Real buttons, unlike the markers: this is the one control on the
              map that has no equivalent in the list below it. */
-          <div className="parts-views" role="group" aria-label="Vehicle view">
+          <div className="parts-views" role="group" aria-label={t('parts.vehicleView')}>
             {views.map((view) => (
               <button
                 key={view.id}
@@ -232,7 +235,7 @@ export default function PartsView({
         )}
 
         <div className="parts-panel__count">
-          <span className="ink-eyebrow">{activeView ? 'Components in this view' : 'Components'}</span>
+          <span className="ink-eyebrow">{activeView ? t('parts.inThisView') : 'Components'}</span>
           <span className="ink-eyebrow">{visible.length} shown</span>
         </div>
 

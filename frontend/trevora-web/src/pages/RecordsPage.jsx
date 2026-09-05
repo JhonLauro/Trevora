@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useT } from '../i18n/index.jsx';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import FilterMenu from '../components/ink/FilterMenu.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
@@ -24,6 +25,7 @@ const ALL_VEHICLES = 'all';
  * would only be thrown away.
  */
 export default function RecordsPage() {
+  const t = useT();
   const { garages, allRecords, loading, error, removeRecord, refresh } = useGarage();
   const [query, setQuery] = useState('');
   const [vehicleId, setVehicleId] = useState(ALL_VEHICLES);
@@ -215,10 +217,10 @@ export default function RecordsPage() {
     <main className="ink-page records-page">
       <header className="ink-page__header">
         <div>
-          <h1 className="ink-page__title">Records</h1>
+          <h1 className="ink-page__title">{t('records.title')}</h1>
           <p className="ink-page__summary">{summaryText()}</p>
         </div>
-        <Link className="ink-button" to="/service-input">Add service record</Link>
+        <Link className="ink-button" to="/service-input">{t('action.addRecord')}</Link>
       </header>
 
       {error && <div className="ink-alert">{error}</div>}
@@ -230,8 +232,8 @@ export default function RecordsPage() {
         <input
           type="search"
           value={query}
-          aria-label="Search records"
-          placeholder="Search service, part, shop, or notes"
+          aria-label={t('records.searchPlaceholder')}
+          placeholder={t('records.searchPlaceholder')}
           onChange={(event) => setQuery(event.target.value)}
         />
         {/* One vehicle means nothing to choose between, and a dropdown whose
@@ -284,7 +286,7 @@ export default function RecordsPage() {
           <div className="draft-strip__head">
             <div className="draft-strip__heading">
               <h2 className="draft-strip__title">
-                Not finished yet <span className="draft-strip__count">{visibleDrafts.length}</span>
+                {t('drafts.heading')} <span className="draft-strip__count">{visibleDrafts.length}</span>
               </h2>
               <button
                 className="draft-strip__toggle"
@@ -293,7 +295,7 @@ export default function RecordsPage() {
                 aria-controls="draft-strip-list"
                 onClick={toggleDrafts}
               >
-                {draftsOpen ? 'Hide' : 'Show'}
+                {draftsOpen ? t('action.hide') : t('action.show')}
               </button>
             </div>
             {draftError && (
@@ -301,7 +303,7 @@ export default function RecordsPage() {
             )}
             {draftsOpen && (
               <p className="draft-strip__note">
-                Saved, but not added to your history until you finish and confirm.
+                {t('drafts.note')}
               </p>
             )}
           </div>
@@ -326,7 +328,7 @@ export default function RecordsPage() {
                     type="button"
                     onClick={() => askDiscardDraft(draft)}
                   >
-                    Discard
+                    {t('action.discard')}
                   </button>
                   {/* Only where the word is true.
                       ServiceRecordService.validationStatusFor grants VALIDATED
@@ -344,11 +346,11 @@ export default function RecordsPage() {
                       disabled={confirmingId === draft.draftId}
                       onClick={() => markValidated(draft)}
                     >
-                      {confirmingId === draft.draftId ? 'Saving…' : 'Mark as validated'}
+                      {confirmingId === draft.draftId ? 'Saving…' : t('drafts.markValidated')}
                     </button>
                   )}
                   <Link className="ink-button ink-button--outline" to={`/service-drafts/${draft.draftId}`}>
-                    Finish
+                    {t('action.finish')}
                   </Link>
                 </div>
               </li>
@@ -385,8 +387,8 @@ export default function RecordsPage() {
         open={draftDelete.open}
         busy={draftDelete.busy}
         error={draftDelete.error}
-        title="Discard this draft?"
-        confirmLabel="Discard draft"
+        title={t('drafts.discardAsk')}
+        confirmLabel={t('drafts.discardConfirm')}
         body="It has not been added to your history, so nothing there changes. The draft itself cannot be recovered."
         onCancel={() => { draftDelete.cancel(); setPendingDraft(null); }}
         onConfirm={draftDelete.confirm}
@@ -396,8 +398,8 @@ export default function RecordsPage() {
         open={recordDelete.open}
         busy={recordDelete.busy}
         error={recordDelete.error}
-        title="Delete this record?"
-        confirmLabel="Delete record"
+        title={t('records.deleteRecordAsk')}
+        confirmLabel={t('records.deleteRecord')}
         onCancel={() => { recordDelete.cancel(); setPendingRecord(null); }}
         onConfirm={recordDelete.confirm}
         body={pendingRecord && (
