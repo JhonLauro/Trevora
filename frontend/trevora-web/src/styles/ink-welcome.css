@@ -387,6 +387,42 @@
   display: block;
 }
 
+/* The QR and the four numbered stages sit side by side while there is room for
+   both. There is not, on a phone: the code shrank to a strip and each stage
+   became a column about one word wide. They stack instead, and the code takes
+   its natural size rather than whatever is left over. */
+.wt-preview--share {
+  flex-wrap: wrap;
+}
+
+.wt-preview--share > .wt-screen {
+  flex: 1 1 260px;
+}
+
+.wt-preview--share > .wt-stages {
+  flex: 1 1 300px;
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .wt-preview--share {
+    display: block;
+  }
+
+  .wt-preview--share > .wt-stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 14px;
+  }
+}
+
+@media (max-width: 460px) {
+  /* Two stage cards still fit at 390px; one per row wastes the height a
+     walkthrough step does not have. Below this they finally stack. */
+  .wt-preview--share > .wt-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .wt-screen {
   border: 1px solid var(--rule);
   border-radius: 18px;
@@ -865,10 +901,12 @@
     display: none;
   }
 
-  /* Both tables carry more columns than a tablet can hold. They scroll inside
-     their own screen rather than the page scrolling sideways. Below 600 they
-     stop being tables at all — see the block underneath. */
-  .wt-screen {
+  /* Both tables carry more columns than a tablet can hold. The table scrolls
+     inside its own box rather than the whole screen doing it: when the screen
+     scrolled, the head went with it, so reaching the Flag column slid "Step 4
+     of 6" off the left edge. Below 600 they stop being tables at all — see the
+     block underneath. */
+  .wt-screen__scroll {
     overflow-x: auto;
   }
 

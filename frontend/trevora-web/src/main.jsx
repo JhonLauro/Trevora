@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { LanguageProvider } from './i18n/index.jsx';
+import { LeaveGuardProvider } from './navigation/LeaveGuard.jsx';
 import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import { applyTheme, resolveTheme } from './theme.js';
@@ -126,7 +127,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AppErrorBoundary>
       <BrowserRouter>
         <LanguageProvider>
-          <App />
+          <LeaveGuardProvider>
+            <App />
+          </LeaveGuardProvider>
         </LanguageProvider>
       </BrowserRouter>
     </AppErrorBoundary>

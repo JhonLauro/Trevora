@@ -254,3 +254,140 @@
   .rcpt-full__step--prev { left: 25%; }
   .rcpt-full__step--next { right: 25%; }
 }
+
+/* ------------------------------------------- the full-size preview's close
+
+   `.image-preview-close` is declared in styles.css as a white disc with a dark
+   glyph. Inside the add-record flow it rendered as neither: `.flow :where(button)`
+   in service-flow.css strips background and colour from any button that is not
+   an .ink-button, and that sheet loads later, so the disc was removed and the
+   glyph inherited the page's ink -- near-black, on a scrim that is near-black.
+   The control was still there and still worked; it simply could not be seen.
+
+   Restated here rather than by widening the reset's exclusion list: this sheet
+   loads after both, and the button that closes a full-screen image is worth
+   pinning down where the image lives. */
+
+.image-preview-close,
+.flow .image-preview-close {
+  align-items: center;
+  background: #ffffff;
+  border: 0;
+  /* The reset sets border-radius: 0 as well as stripping the fill, so restating
+     the fill alone left a white square. Every property that reset touches has
+     to be named here, not just the ones that were obviously missing. */
+  border-radius: 999px;
+  /* A white disc on a dark scrim needs no ring of its own, but a scrim is not
+     always what sits behind it -- a pale receipt can reach the corner. */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  color: #1c1b19;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.6rem;
+  font-weight: 700;
+  /* 48 rather than 42: this sits over a photograph the owner is reading, so it
+     has to be findable at a glance without covering the page beneath it. */
+  height: 48px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  position: fixed;
+  right: 1.25rem;
+  top: 1.25rem;
+  width: 48px;
+  z-index: 81;
+}
+
+.flow .image-preview-close:hover:not(:disabled),
+.image-preview-close:hover:not(:disabled) {
+  background: #efede8;
+  color: #1c1b19;
+}
+
+.image-preview-close:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------- how large the paper reads
+
+   The frame is `width: 100%` at a fixed 3:4, which is right in a narrow column
+   and wrong in a wide one: in the record page's left column it resolved to
+   roughly 680x900, so the receipt card ran far past the explanation beside it
+   and the two columns stopped looking like a pair.
+
+   Capping the width caps the height with it, the ratio being fixed. 360px is
+   chosen against the panel it sits next to rather than against the paper: it
+   makes the receipt card about as tall as "In plain language", which is what
+   makes the row read as one row. The frame is still the button that opens the
+   full-size view, so nothing is lost by showing it smaller here — this is a
+   thumbnail of the source, not the reading copy. */
+
+.rcpt .rcpt__frame {
+  margin-inline: auto;
+  max-width: 360px;
+}
+
+/* Below the two-column breakpoint the column is already narrow, so the cap
+   would only leave the card padded with empty space on both sides. */
+@media (max-width: 900px) {
+  .rcpt .rcpt__frame {
+    max-width: 320px;
+  }
+}
+
+/* ------------------------------------------------------------------ zoom
+
+   A fixed window with the image moving inside it. Panning a magnified receipt
+   would otherwise drag the picture out over the toolbar and the page arrows,
+   which are the controls needed to get back. */
+
+.rcpt-full__stage {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  overflow: hidden;
+  /* The browser's own pan and pinch are turned off so the page behind the
+     overlay does not scroll while the receipt is being examined. */
+  touch-action: none;
+  width: 100%;
+}
+
+.rcpt-full__stage .rcpt-full__image {
+  /* No transition: a transform that eases fights a drag, arriving where the
+     finger was rather than where it is. Zoom buttons are the only stepped
+     change and they are quick enough to read without one. */
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.rcpt-full__zoomers {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Tabular, so stepping through 100 / 140 / 196% does not shift the buttons
+   either side of it. */
+.rcpt-full__level {
+  color: #ffffff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5ch;
+  text-align: center;
+}
+
+.rcpt-full .rcpt-full__close:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+@media (max-width: 600px) {
+  /* Pinch is the gesture here, so the buttons matter less than the room. The
+     percentage goes; the controls stay for anyone who prefers tapping. */
+  .rcpt-full__level {
+    display: none;
+  }
+}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { issueText, useT } from '../../i18n/index.jsx';
 import { Link } from 'react-router-dom';
 
 /**
@@ -21,13 +22,14 @@ import { Link } from 'react-router-dom';
  * come back on reload.
  */
 export default function RecordIssueBand({ issue, vehicleId, onDismiss }) {
+  const t = useT();
   if (!issue) return null;
 
   return (
     <section className="flow-band">
       <div>
-        <p className="flow-band__title">This may already be in your records</p>
-        <p className="flow-band__body">{issue.message}</p>
+        <p className="flow-band__title">{t('dup.title')}</p>
+        <p className="flow-band__body">{issueText(issue, t)}</p>
       </div>
       <div className="flow-band__actions">
         {vehicleId && (
@@ -36,7 +38,7 @@ export default function RecordIssueBand({ issue, vehicleId, onDismiss }) {
           </Link>
         )}
         <button className="flow-btn flow-btn--ghost" type="button" onClick={onDismiss}>
-          It is a different service
+          {t('dup.different')}
         </button>
       </div>
     </section>

@@ -97,9 +97,16 @@ export default function FlowChrome({
           {subtitle && <p className="ink-page__summary">{subtitle}</p>}
         </div>
         <div className="flow-header__actions">
+          {/* A button, not an underlined link. Saving a draft is a real
+              outcome of this screen -- the same weight as leaving -- and a
+              link beside a button read as a footnote to it. */}
           {onSaveLater && (
-            <button className="flow-link" type="button" onClick={onSaveLater}>
-              Save and finish later
+            <button
+              className="flow-btn flow-btn--ghost flow-btn--sm"
+              type="button"
+              onClick={onSaveLater}
+            >
+              {t('action.saveDraft')}
             </button>
           )}
           <button className="flow-btn flow-btn--ghost flow-btn--sm" type="button" onClick={handleExit}>
