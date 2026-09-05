@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { LanguageProvider } from './i18n/index.jsx';
 import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
+import { applyTheme, resolveTheme } from './theme.js';
 import './styles.css';
 // Must come after styles.css — this is the Ink override layer.
 import './styles/ink-app.css';
@@ -113,6 +114,12 @@ import './styles/record-badges.css';
 // Owner concerns, and their quotation in the shared mechanic view. Additive,
 // own `.concern*` namespace.
 import './styles/concerns.css';
+// Last: it redefines the token values every sheet above draws from.
+import './styles/theme.css';
+
+/* Before the first paint. React mounting a moment later would mean a white
+   flash on every load for anyone using the dark theme. */
+applyTheme(resolveTheme());
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

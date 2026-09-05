@@ -274,7 +274,7 @@
 /* -------------------------------------------------------------- buttons */
 
 .ink-settings .set-button {
-  background: var(--ink);
+  background: var(--ink-block);
   border: 0;
   border-radius: var(--radius);
   color: var(--on-ink);
@@ -515,7 +515,7 @@
 }
 
 .set-row[aria-checked='true'] .set-toggle {
-  background: var(--ink);
+  background: var(--ink-block);
   border-color: var(--ink);
 }
 

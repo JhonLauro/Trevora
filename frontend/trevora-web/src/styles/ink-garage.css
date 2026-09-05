@@ -52,7 +52,7 @@
    and ghost variants have to state their own background. */
 .ink-button {
   align-items: center;
-  background: var(--ink);
+  background: var(--ink-block);
   border: 1.5px solid var(--ink);
   border-radius: var(--radius);
   color: var(--on-ink);
@@ -145,7 +145,7 @@
 }
 
 .ink-sidebar {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
   display: flex;
   flex: 0 0 264px;
@@ -484,7 +484,7 @@
 }
 
 .garage-dots button.is-active {
-  background: var(--ink);
+  background: var(--ink-block);
 }
 
 /* ---------------------------------------------------------- vehicle card */
@@ -685,7 +685,7 @@
 }
 
 .ink-bars__bar.is-peak {
-  background: var(--ink);
+  background: var(--ink-block);
 }
 
 /* A month with no service is a visible tick, not an empty slot. The gaps are
@@ -786,7 +786,7 @@
   height: 100%;
 }
 
-.garage-breakdown__row:nth-child(1) .garage-breakdown__fill { background: var(--ink); }
+.garage-breakdown__row:nth-child(1) .garage-breakdown__fill { background: var(--ink-block); }
 .garage-breakdown__row:nth-child(2) .garage-breakdown__fill { background: var(--ink-muted); }
 .garage-breakdown__row:nth-child(3) .garage-breakdown__fill { background: var(--ink-faint); }
 .garage-breakdown__row:nth-child(4) .garage-breakdown__fill { background: var(--border); }
@@ -1226,7 +1226,7 @@
 
   .ink-topbar {
     align-items: center;
-    background: var(--ink);
+    background: var(--ink-block);
     color: var(--on-ink);
     display: flex;
     justify-content: space-between;
@@ -1292,7 +1292,7 @@
   }
 
   .ink-sheet {
-    background: var(--ink);
+    background: var(--ink-block);
     color: var(--on-ink);
     display: flex;
     flex-direction: column;

@@ -1,0 +1,300 @@
+/* ----------------------------------------------------------------------
+   Dark mode.
+
+   Loaded last, and it only redefines tokens — no layout, no component rules
+   beyond the toggle itself. Everything in the product already draws its
+   colour from the Ink family in trevora-brand.css, so flipping those values
+   flips the app.
+
+   The one thing that could not simply flip was `--ink`. It was doing two
+   jobs: the colour of text, and the colour of a deliberately dark block —
+   the sidebar, a primary button, a filled bar. Those go opposite ways here,
+   so the block uses are now `--ink-block`. In the light theme that is
+   defined as `var(--ink)`, so it is a second name rather than a second
+   value; only the dark theme gives it one of its own.
+   ---------------------------------------------------------------------- */
+
+:root {
+  /* Not a copy of the near-black — a reference to it, so the light theme
+     still has exactly one definition of that colour. */
+  --ink-block: var(--ink);
+  --ink-block-hover: var(--ink-hover);
+
+  /* The wash under a hovered row. It was a hardcoded pale mint, which on the
+     dark sidebar drew a near-white pill under the cursor -- the light theme
+     leaking through one declaration. */
+  --hover-tint: #e7efea;
+}
+
+/* ------------------------------------------------------------------ dark */
+
+/* `data-theme` on <html>, set before first paint by `theme.js`. An attribute
+   rather than a class so it cannot collide with the class names the app
+   already uses, and on the root so nothing can render outside it. */
+:root[data-theme='dark'] {
+  /* Greens, lifted. #0e7a52 on a dark ground is a hole rather than a colour:
+     it carries about 2:1 against #121714 and fails as text, as a border and
+     as a button fill. These are the same hue with the lightness a dark
+     ground needs. */
+  --brand: #35b183;
+  --brand-hover: #4cc79a;
+  --brand-tint: #16271f;
+  --brand-wash: #121b17;
+  --brand-glow-a: #1d5c43;
+  --brand-glow-b: #17513a;
+  --brand-glow-c: #143d2d;
+
+  /* Grounds. Not pure black: a page at #000 makes every card edge a hard
+     line and every shadow invisible, and the product is built out of cards.
+     These keep the brand's green cast so the dark theme reads as the same
+     product rather than as a generic grey one. */
+  --paper: #101613;
+  --surface: #171f1b;
+  --sunken: #0c120f;
+  --surface-sunken: #0c120f;
+  --surface-head: #1c2521;
+
+  /* Text. Not pure white either — #fff on a dark ground buzzes at body
+     size. This is the paper tone inverted, which keeps the warmth. */
+  --ink: #e6ede9;
+  --ink-hover: #f2f7f4;
+  --ink-active: #ffffff;
+  --ink-muted: #a3b1aa;
+  --ink-faint: #7a8880;
+
+  /* The dark block stays dark. It is now slightly *deeper* than the page so
+     the sidebar still reads as a distinct surface rather than dissolving
+     into it — the light theme gets that separation for free by being the
+     only dark thing on the screen. */
+  --ink-block: #080c0a;
+  --ink-block-hover: #121a16;
+
+  /* Lines. Everything here is a lightening of the ground rather than a
+     darkening, because on a dark surface a border is light. */
+  --border: #33403a;
+  --rule: #26312c;
+  --rule-faint: #1e2723;
+  --rule-hairline: #192019;
+
+  /* Text and hairlines on the dark block. Unchanged in spirit from the light
+     theme — that block was always dark, so what sits on it was always light. */
+  --on-ink: #f2f7f4;
+  --on-ink-muted: #a9c6b8;
+  --on-ink-faint: #7d8f86;
+  --on-ink-rule: #1e2b25;
+
+  /* Status. Fills become deep and desaturated, text becomes the bright end
+     of the same hue. Every pair below clears 4.5:1 on its own fill, which is
+     the whole reason these are not simply the light values darkened. */
+  --ok-text: #6fd3a5;
+  --ok-fill: #14271e;
+  --ok-border: #275e45;
+  --warn-text: #e4b869;
+  --warn-fill: #2a2113;
+  --warn-border: #5e4a22;
+  --bad-text: #f0938a;
+  --bad-fill: #2c1817;
+  --bad-border: #6b332c;
+  --error: #f0938a;
+
+  --status-ok-bg: #14271e;
+  --status-ok-border: #275e45;
+  --status-ok-text: #6fd3a5;
+  --status-warn-bg: #2a2113;
+  --status-warn-border: #5e4a22;
+  --status-warn-text: #e4b869;
+  --status-bad-bg: #2c1817;
+  --status-bad-border: #6b332c;
+  --status-bad-text: #f0938a;
+  --status-none-bg: #1a221e;
+  --status-none-border: #2b352f;
+  --status-none-text: #a3b1aa;
+
+  --amber-button-border: #7a5f2c;
+
+  /* White at 6%%, not a fixed colour: a hover on a dark ground is a lift, and
+     a lift reads correctly over the sidebar, a card and the page alike
+     without one value per surface. */
+  --hover-tint: rgba(255, 255, 255, 0.07);
+
+  /* Tells the browser to draw its own furniture dark too — scrollbars, the
+     date picker, form controls we never styled. Without it a native date
+     input opens as a white sheet in the middle of a dark page. */
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* Shadows are tuned for ink on paper; at full strength on a dark ground they
+   read as smudges rather than lift. */
+:root[data-theme='dark'] .ink-card,
+:root[data-theme='dark'] .flow-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Photographs and the QR code keep their own colours — a receipt is a
+   document and inverting it would be a lie about what was photographed —
+   but full-brightness white paper on a dark page is a lamp. */
+:root[data-theme='dark'] .flow-page img,
+:root[data-theme='dark'] .aiex img,
+:root[data-theme='dark'] .stored-receipt img {
+  filter: brightness(0.88);
+}
+
+/* -------------------------------------------------------------- toggle */
+
+.theme-toggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 34px;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Both icons are always in the DOM, stacked. Swapping them by rendering one
+   or the other would give the browser nothing to animate between — the old
+   icon would have to be gone before the new one existed. */
+.theme-toggle__icon {
+  grid-area: 1 / 1;
+  inset: 0;
+  margin: auto;
+  position: absolute;
+  transition: opacity 260ms ease, transform 320ms cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+/* The one on its way out turns and shrinks away; the one arriving turns into
+   place. Opposite directions, so it reads as one object rotating rather than
+   two fading. */
+.theme-toggle__icon.is-hidden {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.4);
+}
+
+.theme-toggle__icon.is-shown {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle__icon {
+    transition: opacity 120ms linear;
+  }
+
+  .theme-toggle__icon.is-hidden {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------- scoped palettes, dark
+
+   Two blocks in the app declare their own copy of the Ink tokens on a
+   container rather than on the root: `.ink-auth`, twice — once in
+   ink-auth.css and again, greener, in trevora-brand.css. Both exist to give
+   the signed-out screens their own warmer ground, and both win over anything
+   set on `:root`, because a custom property is resolved from the nearest
+   ancestor that declares it. So the sign-in page stayed on white while the
+   rest of the app went dark.
+
+   `inherit` is the whole fix: it tells those tokens to take the value they
+   would have had if the container had never declared them, which is the dark
+   root value. No second palette to write, and none to keep in step — if a
+   dark colour changes above, this follows it. */
+:root[data-theme='dark'] .ink-auth {
+  --paper: inherit;
+  --surface: inherit;
+  --ink: inherit;
+  --ink-hover: inherit;
+  --ink-active: inherit;
+  --ink-muted: inherit;
+  --ink-faint: inherit;
+  --border: inherit;
+  --rule: inherit;
+  --surface-sunken: inherit;
+  --on-ink: inherit;
+  --on-ink-muted: inherit;
+  --on-ink-faint: inherit;
+  --on-ink-rule: inherit;
+  --error: inherit;
+}
+
+/* The auth panel is the mint block beside the form. Its own `--on-ink*`
+   overrides make its type dark, which is right on mint and unreadable on the
+   dark tint, so they go back to inheriting too. */
+:root[data-theme='dark'] .ink-auth .ink-panel {
+  --on-ink: inherit;
+  --on-ink-muted: inherit;
+  --on-ink-faint: inherit;
+  --on-ink-rule: inherit;
+  color: var(--ink);
+}
+
+/* The Google button is a white plate with a hardcoded `#ffffff` ground and
+   `var(--ink)` type. Once the ink token went light, that was pale grey on
+   white — the least readable thing on the page, and the first control a new
+   owner reaches for.
+
+   Given a dark surface instead of dark type: Google's own guidance offers a
+   dark variant precisely for this, and a white plate is a lamp on a dark
+   sign-in page anyway. The mark inside it is an inline SVG in its own
+   colours, which stay as they are — those are Google's, not ours to invert. */
+:root[data-theme='dark'] .ink-button--oauth,
+:root[data-theme='dark'] .ink-button--oauth:disabled {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme='dark'] .ink-button--oauth:hover:not(:disabled),
+:root[data-theme='dark'] .ink-button--oauth:active:not(:disabled) {
+  background: var(--surface-head);
+}
+
+/* ------------------------------------------------ the toggle when narrow
+
+   The collapsed rail is 68px wide and the account row is one horizontal
+   line: a 30px avatar beside a 34px button does not fit in it, so the
+   toggle was pushed out of the row and out of sight — present in the DOM,
+   invisible on screen, which is the worst of both.
+
+   Stacked instead, and `order: -1` puts it above the avatar rather than
+   below: the avatar is the anchor of that corner and the thing an eye
+   returns to, so it keeps the bottom. */
+.ink-app[data-rail='collapsed'] .ink-account-row {
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  height: auto;
+  padding: 12px 0;
+}
+
+.ink-app[data-rail='collapsed'] .ink-account-row .theme-toggle {
+  order: -1;
+  /* The sidebar sizes its own controls, and the button was picking up the
+     account row's 52px height -- a round hover wash stretched into an oval. */
+  flex: 0 0 auto;
+  height: 34px;
+  width: 34px;
+}
+
+/* On the light theme the sidebar is a pale surface, so a white hover wash on
+   the toggle would be invisible. It takes the same token as the nav rows. */
+.theme-toggle:hover {
+  background: var(--hover-tint);
+}

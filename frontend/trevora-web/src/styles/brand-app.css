@@ -120,7 +120,7 @@
 }
 
 .ink-nav__item:hover {
-  background: #e7efea;
+  background: var(--hover-tint);
   color: var(--ink);
 }
 
@@ -496,7 +496,7 @@
 }
 
 .garage-page .garage-breakdown__pop {
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 12px;
   bottom: calc(100% + 8px);
   color: var(--on-ink);
@@ -564,7 +564,7 @@
 }
 
 .ink-bars__tip {
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 12px;
   bottom: calc(100% + 8px);
   color: var(--on-ink);
@@ -1341,7 +1341,7 @@
 }
 
 .flow .flow-recorder__btn span {
-  background: #ffffff;
+  background: var(--on-ink);
 }
 
 /* Recording is the exception to the green: red is what a recording control

@@ -8,13 +8,18 @@
  * because on that page it is the only thing nobody inferred.
  *
  * Its own stylesheet rather than an edit to styles.css, per CLAUDE.md.
+ *
+ * Every colour is a token, none is a literal: theme.css redefines these for the
+ * dark theme, and a hardcoded ground here would be a white card on a dark page.
+ * The two exceptions are the resolve and delete hover tints and the amber rule
+ * on the mechanic's quotation, which are semantic accents rather than surfaces.
  */
 
 /* ---- owner: the add form ---------------------------------------------- */
 
 .concerns-add {
-  background: var(--ink-surface, #fff);
-  border: 1px solid var(--ink-line, #e4e1da);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -32,7 +37,7 @@
 /* Two rows tall on purpose. Tall enough not to feel like a search box, short
    enough that it reads as a note rather than a form to fill in. */
 .concerns-add__field {
-  border: 1px solid var(--ink-line, #e4e1da);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font: inherit;
   padding: 0.55rem 0.65rem;
@@ -48,7 +53,7 @@
 }
 
 .concerns-add__hint {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 
@@ -65,8 +70,8 @@
 
 .concern {
   align-items: flex-start;
-  background: var(--ink-surface, #fff);
-  border: 1px solid var(--ink-line, #e4e1da);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   display: flex;
   gap: 0.75rem;
@@ -90,7 +95,7 @@
 }
 
 .concern__age {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   font-size: 0.76rem;
 }
 
@@ -105,7 +110,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 7px;
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   cursor: pointer;
   display: inline-flex;
   height: 28px;
@@ -114,8 +119,8 @@
 }
 
 .concern__action:hover {
-  background: var(--ink-hover, #f4f2ed);
-  color: var(--ink-ink, #2a2721);
+  background: var(--ink-hover);
+  color: var(--ink);
 }
 
 .concern__action--ok:hover {
@@ -140,7 +145,7 @@
 }
 
 .concerns-empty {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   margin: 0;
 }
 
@@ -153,7 +158,7 @@
 .concerns-resolved__toggle {
   background: none;
   border: none;
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   cursor: pointer;
   font: inherit;
   font-size: 0.82rem;
@@ -169,7 +174,7 @@
 /* Resolved is quieter, not struck through: it still has to be readable when
    the same symptom comes back. */
 .concern--resolved .concern__note {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
 }
 
 /* ---- the confirmation prompt ------------------------------------------ */
@@ -180,7 +185,7 @@
 }
 
 .concern-prompt__note {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   font-size: 0.82rem;
   margin: 0 0 0.7rem;
 }
@@ -228,6 +233,6 @@
 }
 
 .mechanic-concern__age {
-  color: var(--ink-muted, #6b665e);
+  color: var(--ink-muted);
   font-size: 0.78rem;
 }
