@@ -255,7 +255,7 @@ body {
 /* Numbered steps: white chip, green numeral. Was paper-on-ink, which is now
    the panel's own background. */
 .ink-steps__number {
-  background: #ffffff;
+  background: var(--surface);
   color: var(--brand);
   font-weight: 600;
 }
@@ -326,7 +326,7 @@ body {
   transform: translateY(1px);
 }
 
-/* `button:hover:not(:disabled) { background: var(--ink) }` in ink-app.css
+/* `button:hover:not(:disabled) { background: var(--ink-block) }` in ink-app.css
    out-specifies any single-class rule, so every button whose own hover state
    only touched a border fell through to near-black — the Google button most
    visibly. Each variant states its own hover background here rather than the
