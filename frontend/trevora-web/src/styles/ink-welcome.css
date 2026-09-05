@@ -376,8 +376,14 @@
 
 /* --------------------------------------------------- screen-shaped previews */
 
+/* Blocks, not flex rows. `.wt-preview` above sets `display: flex`, which for
+   the share step laid its two halves side by side: the four stages became a
+   column beside the QR, 41px wide on a phone, with the words spilling out of
+   the frame. Both halves are full-width stacked things — the `margin-top` on
+   `.wt-stages` was always written for a row that sat underneath. */
 .wt-preview--review,
-.wt-preview--history {
+.wt-preview--history,
+.wt-preview--share {
   display: block;
 }
 
@@ -1004,6 +1010,128 @@
   .wt-records td:nth-child(5) {
     grid-area: status;
     justify-self: end;
+  }
+
+  /* ------------------------------------------------ reaching the buttons
+
+     Every step from Capture on is taller than a phone — Capture came to
+     1236px against an 812px viewport — so the nav sat a screen and a half
+     below the fold. Read the step, scroll past a mockup, then go looking for
+     Next. Pinning the bar to the bottom of the viewport keeps Back, Next and
+     the progress bar in reach of a thumb wherever the reader has got to.
+
+     Fixed rather than sticky, which is the obvious way to write this and does
+     not work here: styles.css sets `overflow-x: hidden` on html and body, so
+     body is a scroll container that never itself scrolls, and a sticky child
+     of it has nothing to pin against. Out of flow means the page has to
+     reserve the height back — hence the padding below, which also carries the
+     clearance for an iPhone's home indicator. `.wt-page` is border-box, so
+     `100dvh` still measures the whole screen and short steps do not scroll. */
+  .wt-page {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .wt-foot {
+    background: var(--brand-wash);
+    border-top: 1px solid var(--rule-hairline);
+    bottom: 0;
+    left: 0;
+    margin: 0;
+    max-width: none;
+    padding: 10px var(--wt-gutter) calc(12px + env(safe-area-inset-bottom, 0px));
+    position: fixed;
+    right: 0;
+    width: auto;
+    z-index: 20;
+  }
+
+  /* `flex: 1` on the stepper sets a zero basis, so the `width: 100%` this
+     block used to declare never won and the six segments stayed on the button
+     row as specks about 12px wide. A full-width basis is what actually puts
+     the progress bar on its own line. */
+  .wt-stepper {
+    flex: 0 0 100%;
+  }
+
+  /* Back asks for the width "Back" needs and Next takes the rest. Split down
+     the middle, the last step's "Add your first vehicle" wrapped to two lines
+     inside its own pill. */
+  .wt-page .wt-foot__back {
+    flex: 0 1 auto;
+  }
+
+  .wt-page .wt-foot__next {
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+
+  /* -------------------------------------------------- room for the mockups
+
+     22px of frame padding inside a 20px gutter left the previews about 290px
+     of a 375px screen. The frame keeps its label; it gives back the margins. */
+  .wt-frame {
+    border-radius: 20px;
+    padding: 34px 14px 16px;
+  }
+
+  .wt-frame__tag {
+    left: 14px;
+  }
+
+  /* Label over value. Side by side there is no room for both, and "Service
+     type" and "Oil change + brake service" each wrapped to two ragged lines
+     pulling away from each other across the gap. */
+  .wt-filled dl > div {
+    flex-direction: column;
+    gap: 2px;
+    justify-content: flex-start;
+  }
+
+  .wt-filled dd {
+    text-align: left;
+  }
+
+  /* The photo is a stand-in for a receipt, not the subject of the step. At
+     168px it was the tallest thing on the screen. */
+  .wt-shot {
+    min-height: 128px;
+  }
+
+  /* "3 records" was breaking across two lines beside a search pill that had
+     already taken two of its own. The pill gives up its tail instead. */
+  .wt-search {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wt-count {
+    white-space: nowrap;
+  }
+
+  /* The last step's button, twice, a hand's width apart: the bar is pinned
+     now, so its copy is always on screen and the one in the stage is only a
+     second thing to choose between. The bar keeps it — that is where the
+     reader's thumb has been for five steps. */
+  .wt-cta {
+    display: none;
+  }
+}
+
+/* Small phones. The headline is the tallest block on the two steps that carry
+   no preview and the first thing pushing the rest down on the four that do. */
+@media (max-width: 400px) {
+  .wt-title {
+    font-size: 27px;
+  }
+
+  .wt-body {
+    font-size: 16px;
+  }
+
+  .wt-page .wt-foot__back,
+  .wt-page .wt-foot__next {
+    padding: 0 18px;
   }
 }
 
