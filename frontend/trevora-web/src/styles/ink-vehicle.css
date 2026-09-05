@@ -116,7 +116,7 @@
 }
 
 .vehicle-years__block {
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 4px;
   height: 30px;
 }
@@ -376,7 +376,7 @@
 }
 
 .ink-tabs__tab.is-active .ink-tabs__count {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
 }
 
@@ -435,7 +435,7 @@
 }
 
 .ink-segmented button.is-active {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--on-ink);
 }
 
@@ -517,7 +517,7 @@
 }
 
 .vehicle-timeline__dot {
-  background: var(--ink);
+  background: var(--ink-block);
   border-radius: 999px;
   height: 11px;
   margin-top: 6px;
@@ -698,7 +698,7 @@
 }
 
 .parts-views__tab.is-active {
-  background: var(--ink);
+  background: var(--ink-block);
   color: var(--paper);
 }
 
