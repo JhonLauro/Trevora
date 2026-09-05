@@ -37,6 +37,7 @@ import {
   serviceItemsSummaryLabel,
   uniqueServiceTypes,
 } from '../utils/serviceText';
+import { categoryLabel, recordCategories, recordHasCategory } from '../utils/serviceCategory';
 
 const COMPONENT_RULES = [
   ['brakes', /\bbrake|rotor|pad|caliper|fluid flush/i],
@@ -655,7 +656,12 @@ export default function VehicleServiceHistoryPage() {
       const matchesSource = sourceFilter === 'all'
         || String(record.sourceInputMethod || '').toLowerCase() === sourceFilter;
       const matchesServiceType = serviceTypeFilter === 'all' || recordHasServiceType(record, serviceTypeFilter);
-      const matchesCategory = categoryFilter === 'all' || record.category === categoryFilter;
+      /* Multi-bucket on purpose, and different from how spend attributes. A
+         visit that replaced brake pads and changed the oil carries both
+         categories, and a filter asking "show me records involving X" should
+         return it for either. Spend needs one answer per record so the chart
+         sums to what was actually paid; a filter does not. */
+      const matchesCategory = categoryFilter === 'all' || recordHasCategory(record, categoryFilter);
       const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
       const matchesShop = shopFilter === 'all' || record.shopName === shopFilter;
       const matchesDateFrom = !dateFromFilter || String(record.serviceDate || '') >= dateFromFilter;
@@ -718,7 +724,10 @@ export default function VehicleServiceHistoryPage() {
     ? history.serviceTypes
     : uniqueServiceTypes(records);
   const sources = [...new Set(records.map((record) => String(record.sourceInputMethod || '').toLowerCase()).filter(Boolean))];
-  const categories = [...new Set(records.map((record) => record.category).filter(Boolean))];
+  /* Every category any item carries, not one per record — the filter is
+     multi-bucket, so its options have to be too or a category present only as a
+     record's second item would be unselectable. */
+  const categories = [...new Set(records.flatMap(recordCategories).filter(Boolean))];
   const statuses = [...new Set(records.map((record) => record.status).filter(Boolean))];
   const shops = [...new Set(records.map((record) => record.shopName).filter(Boolean))];
   const groupedRecords = groupByMonth(filteredRecords);
@@ -879,7 +888,7 @@ export default function VehicleServiceHistoryPage() {
               <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                 <option value="all">All</option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category} value={category}>{categoryLabel(category)}</option>
                 ))}
               </select>
             </label>

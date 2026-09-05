@@ -104,6 +104,7 @@ import './styles/unfinished-drafts.css';
 import './styles/vehicle-identity.css';
 import './styles/receipt-scan.css';
 import './styles/tips.css';
+import './styles/record-badges.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

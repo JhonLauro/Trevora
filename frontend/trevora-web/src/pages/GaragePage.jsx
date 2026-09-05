@@ -13,7 +13,7 @@ import {
 import { needsReview } from '../utils/recordStatus';
 import { listServiceDrafts } from '../api/serviceDrafts';
 import { spendTotals } from '../utils/spend';
-import { spendByCategory, UNCATEGORISED } from '../utils/serviceCategory';
+import { spendByCategory } from '../utils/serviceCategory';
 import { displayVehicleName, displayVehicleSubtitle } from '../utils/vehicleText';
 
 /* Card width belongs to the stylesheet (496px desktop, 318px mobile), not to
@@ -408,7 +408,7 @@ function WhereItWentPanel({ records, vehicles, scopeId, onScopeChange }) {
             aria-describedby={categoryTipId(category.name)}
           >
             <div className="garage-breakdown__line">
-              <span>{category.name}</span>
+              <span>{category.label}</span>
               <span className="garage-breakdown__amount">{formatAmount(category.total)}</span>
             </div>
             <div className="garage-breakdown__track">
