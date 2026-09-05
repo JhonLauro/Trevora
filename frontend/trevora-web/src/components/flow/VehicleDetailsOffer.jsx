@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useT } from '../../i18n/index.jsx';
 import { updateVehicle } from '../../api/vehicles.js';
 import { readVehicleDetails, vehicleWithField } from './VehicleDetailsDialog.jsx';
 
@@ -21,6 +22,7 @@ import { readVehicleDetails, vehicleWithField } from './VehicleDetailsDialog.jsx
  * filed rather than after.
  */
 export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }) {
+  const t = useT();
   const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState(false);
@@ -37,7 +39,7 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
   if (added) {
     return (
       <section className="flow-card vehicle-offer">
-        <p className="vehicle-offer__done">Added to your {vehicleName}.</p>
+        <p className="vehicle-offer__done">{t('veh.addedTo', { vehicle: vehicleName })}</p>
       </section>
     );
   }
@@ -70,16 +72,21 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
 
   return (
     <section className="flow-card vehicle-offer">
-      <span className="flow-eyebrow">From the receipt</span>
+      <span className="flow-eyebrow">{t('veh.fromReceipt')}</span>
+        {/* One whole sentence per case, not English grammar spliced in three
+            places. "a detail"/"details" and "it"/"them" are agreements neither
+            Tagalog nor Cebuano makes, so a template stitched from fragments can
+            only come out as English wearing another language's words. */}
       <p className="vehicle-offer__lead">
-        This receipt prints {offers.length > 1 ? 'details' : 'a detail'} your {vehicleName} has
-        no record of. Add {offers.length > 1 ? 'them' : 'it'}?
+          {offers.length > 1
+            ? t('veh.offerLeadMany', { vehicle: vehicleName })
+            : t('veh.offerLeadOne', { vehicle: vehicleName })}
       </p>
 
       <dl className="vehicle-offer__facts">
         {offers.map((item) => (
           <div className="vehicle-offer__fact" key={item.field}>
-            <dt>{item.label}</dt>
+            <dt>{t(item.labelKey)}</dt>
             <dd><b className="vehicle-offer__value">{item.value}</b></dd>
           </div>
         ))}
@@ -94,10 +101,10 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
           disabled={saving}
           onClick={() => setDismissed(true)}
         >
-          Not now
+          {t('action.notNow')}
         </button>
         <button className="flow-btn" type="button" disabled={saving} onClick={addAll}>
-          {saving ? 'Adding…' : offers.length > 1 ? 'Add both' : 'Add it'}
+          {saving ? t('veh.adding') : offers.length > 1 ? t('veh.addBoth') : t('veh.addIt')}
         </button>
       </div>
     </section>

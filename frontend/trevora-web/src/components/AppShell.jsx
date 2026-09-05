@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useT } from '../i18n/index.jsx';
+import { useMayLeave } from '../navigation/LeaveGuard.jsx';
 import { Bell, Car, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2, X } from 'lucide-react';
 import {
   clearLoggedInUser,
@@ -83,6 +84,7 @@ function navClass({ isActive }) {
  * for every selected or actionable thing — and the rule is gone.
  */
 function ShellNav({ pendingCount, onNavigate }) {
+  const mayLeave = useMayLeave();
   const t = useT();
   return (
     <nav className="ink-nav" aria-label="Primary">
@@ -93,7 +95,16 @@ function ShellNav({ pendingCount, onNavigate }) {
           end={item.end}
           className={navClass}
           title={t(item.labelKey)}
-          onClick={onNavigate}
+          onClick={(event) => {
+            /* A screen with something unsaved gets to ask first. mayLeave is
+               true whenever nothing is guarding, so this costs the other
+               twenty-odd screens nothing. */
+            if (!mayLeave(item.to)) {
+              event.preventDefault();
+              return;
+            }
+            onNavigate?.();
+          }}
         >
           {/* Decorative: the label beside it is the accessible name, so an
               icon with its own would have every row announced twice. */}
@@ -112,6 +123,7 @@ function ShellNav({ pendingCount, onNavigate }) {
 }
 
 export default function AppShell({ children }) {
+  const mayLeave = useMayLeave();
   const t = useT();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
@@ -285,7 +297,11 @@ export default function AppShell({ children }) {
     <div className="ink-app" data-rail={railCollapsed ? 'collapsed' : 'expanded'}>
       <aside className="ink-sidebar">
         <div className="ink-sidebar__brand">
-          <Link to="/" aria-label={t('shell.goToGarage')}>
+          <Link
+          to="/"
+          aria-label={t('shell.goToGarage')}
+          onClick={(event) => { if (!mayLeave('/')) event.preventDefault(); }}
+        >
             <InkLockup />
           </Link>
           {/* A toggle, not a disclosure: the nav is still there and still
@@ -325,11 +341,19 @@ export default function AppShell({ children }) {
       </aside>
 
       <header className="ink-topbar">
-        <Link to="/" aria-label={t('shell.goToGarage')}>
+        <Link
+          to="/"
+          aria-label={t('shell.goToGarage')}
+          onClick={(event) => { if (!mayLeave('/')) event.preventDefault(); }}
+        >
           <InkLockup />
         </Link>
         <div className="ink-topbar__actions">
-          <Link className="ink-topbar__button" to="/notifications">
+          <Link
+            className="ink-topbar__button"
+            to="/notifications"
+            onClick={(event) => { if (!mayLeave('/notifications')) event.preventDefault(); }}
+          >
             <span>{t('nav.alerts')}</span>
             {pendingCount > 0 && <span className="ink-topbar__count">{pendingCount}</span>}
           </Link>

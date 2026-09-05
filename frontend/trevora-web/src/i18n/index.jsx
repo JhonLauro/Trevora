@@ -148,6 +148,34 @@ export function useLanguage() {
   return value;
 }
 
+/**
+ * One validation issue's message, in the reader's language.
+ *
+ * <p>The server sends both: `message`, English prose that a log or a test can
+ * read, and `messageKey` with the values the sentence names. Preferring the key
+ * lets each language put the date and the total where its own grammar wants
+ * them, rather than in the order English happened to concatenate them.
+ *
+ * <p>An argument may itself be a key. "for the same total" and "at the same
+ * odometer reading" are phrases, not data, so the server names which one
+ * matched and the catalogue holds the wording.
+ *
+ * <p>Falls back to the English prose when no key is given, so an issue the
+ * server has not keyed yet still reads rather than showing a blank.
+ */
+export function issueText(issue, t) {
+  if (!issue) return '';
+  if (!issue.messageKey) return issue.message ?? '';
+
+  const args = { ...(issue.messageArgs ?? {}) };
+  for (const [name, value] of Object.entries(args)) {
+    if (typeof value === 'string' && value.startsWith('issue.')) {
+      args[name] = t(value);
+    }
+  }
+  return t(issue.messageKey, args);
+}
+
 /** The common case: only the lookup function. */
 export function useT() {
   return useLanguage().t;

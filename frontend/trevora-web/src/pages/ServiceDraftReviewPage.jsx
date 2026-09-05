@@ -10,10 +10,16 @@ import DuplicateDraftDialog from '../components/flow/DuplicateDraftDialog.jsx';
 import StatusRail from '../components/flow/StatusRail';
 import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/ServiceLinesEditor';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
+import LeaveDraftDialog from '../components/flow/LeaveDraftDialog.jsx';
+import { useLeaveGuard } from '../navigation/LeaveGuard.jsx';
 import { serializeLineEntries } from '../utils/serviceLines';
 import { issuesByField } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
-import { getServiceDraftReview, updateServiceDraftCorrections } from '../api/serviceDrafts';
+import {
+  deleteServiceDraft,
+  getServiceDraftReview,
+  updateServiceDraftCorrections,
+} from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import VehicleDetailsDialog from '../components/flow/VehicleDetailsDialog.jsx';
 
@@ -155,6 +161,9 @@ export default function ServiceDraftReviewPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
   const [leavePrompt, setLeavePrompt] = useState(false);
+  /* Where the reader was going when they were stopped, so the dialog can
+     finish the journey instead of always dumping them in the Garage. */
+  const [leavingTo, setLeavingTo] = useState('/');
   const [draft, setDraft] = useState(null);
   const [validation, setValidation] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -286,12 +295,59 @@ export default function ServiceDraftReviewPage() {
     navigate('/');
   }
 
+  /*
+   * Leaving asks, dirty or not.
+   *
+   * <p>It used to walk straight out when the form matched what was loaded --
+   * but "no unsaved edits" is not "nothing to decide". The draft row exists
+   * from the moment the receipt was read, so leaving silently left a half-read
+   * draft behind either way. The question is what to do with that draft, and
+   * it is worth asking even when nothing has been typed.
+   */
   function leaveFlow() {
+    setLeavingTo('/');
+    setLeavePrompt(true);
+  }
+
+  /*
+   * The same question, asked of the sidebar.
+   *
+   * <p>Leaving by the Leave button was always guarded; leaving by clicking
+   * Garage or Records was not, and that is the likelier way out -- the nav is
+   * on screen the whole time. Both now reach the same dialog.
+   *
+   * <p>Returning false stops the click. This screen then owns the journey: the
+   * destination is remembered, and the dialog travels there once the reader has
+   * decided what happens to the draft.
+   */
+  useLeaveGuard((to) => {
+    setLeavingTo(to ?? '/');
+    setLeavePrompt(true);
+    return false;
+  });
+
+  /* Keep it: save whatever has been corrected, then go. A failed save keeps
+     the dialog open with the error rather than leaving on a false promise. */
+  async function keepAsDraft() {
     if (dirty) {
-      setLeavePrompt(true);
-      return;
+      const validation = await saveDraft();
+      if (!validation) return;
     }
-    navigate('/');
+    setLeavePrompt(false);
+    navigate(leavingTo);
+  }
+
+  /* Throw it away: the draft and its receipt pages, not merely the edits.
+     Navigation happens even if the delete fails -- being stuck in a dialog is
+     worse than one stray draft, and it stays deletable from the Records page. */
+  async function discardDraft() {
+    try {
+      await deleteServiceDraft(draftId);
+    } catch {
+      // Deliberately swallowed; see above.
+    }
+    setLeavePrompt(false);
+    navigate(leavingTo);
   }
 
   function updateField(event) {
@@ -508,12 +564,11 @@ export default function ServiceDraftReviewPage() {
         />
       )}
 
-      <ConfirmDialog
+      <LeaveDraftDialog
         open={leavePrompt}
-        title={t('review.leaveWithout')}
-        body="Your changes to this draft have not been saved. Leaving now discards them and the draft keeps the values it was created with."
-        confirmLabel={t('review.discardChanges')}
-        onConfirm={() => navigate('/')}
+        saving={saving}
+        onSave={keepAsDraft}
+        onDiscard={discardDraft}
         onCancel={() => setLeavePrompt(false)}
       />
     </FlowChrome>

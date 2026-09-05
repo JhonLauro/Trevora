@@ -254,3 +254,57 @@
   .rcpt-full__step--prev { left: 25%; }
   .rcpt-full__step--next { right: 25%; }
 }
+
+/* ------------------------------------------- the full-size preview's close
+
+   `.image-preview-close` is declared in styles.css as a white disc with a dark
+   glyph. Inside the add-record flow it rendered as neither: `.flow :where(button)`
+   in service-flow.css strips background and colour from any button that is not
+   an .ink-button, and that sheet loads later, so the disc was removed and the
+   glyph inherited the page's ink -- near-black, on a scrim that is near-black.
+   The control was still there and still worked; it simply could not be seen.
+
+   Restated here rather than by widening the reset's exclusion list: this sheet
+   loads after both, and the button that closes a full-screen image is worth
+   pinning down where the image lives. */
+
+.image-preview-close,
+.flow .image-preview-close {
+  align-items: center;
+  background: #ffffff;
+  border: 0;
+  /* The reset sets border-radius: 0 as well as stripping the fill, so restating
+     the fill alone left a white square. Every property that reset touches has
+     to be named here, not just the ones that were obviously missing. */
+  border-radius: 999px;
+  /* A white disc on a dark scrim needs no ring of its own, but a scrim is not
+     always what sits behind it -- a pale receipt can reach the corner. */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  color: #1c1b19;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.6rem;
+  font-weight: 700;
+  /* 48 rather than 42: this sits over a photograph the owner is reading, so it
+     has to be findable at a glance without covering the page beneath it. */
+  height: 48px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  position: fixed;
+  right: 1.25rem;
+  top: 1.25rem;
+  width: 48px;
+  z-index: 81;
+}
+
+.flow .image-preview-close:hover:not(:disabled),
+.image-preview-close:hover:not(:disabled) {
+  background: #efede8;
+  color: #1c1b19;
+}
+
+.image-preview-close:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
