@@ -99,6 +99,16 @@ export const TIPS = [
     title: 'What the money bought',
     body: 'Add a line for each charge — parts, labour, materials. Without them the record keeps the total and forgets what it was for.',
   },
+  /* Off by default and easy to scroll past, which is right for the common
+     record and wrong for the one it exists for. The field's own note says what
+     to type in it; this says why the switch is there at all. */
+  {
+    key: 'draft-coverage',
+    match: (path) => path.startsWith('/service-drafts'),
+    anchor: 'draft-coverage',
+    title: 'If someone else paid part',
+    body: 'Switch this on when insurance or a warranty covered some of the bill. Total spent for the vehicle then shows what came out of your pocket, not what the invoice said.',
+  },
   {
     key: 'draft-review-confirm',
     match: (path) => path.startsWith('/service-drafts'),
