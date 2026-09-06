@@ -564,3 +564,19 @@
 :root[data-theme='dark'] .tvl img {
   filter: brightness(0.88);
 }
+
+/* ------------------------------------------------ the tip spotlight, dark
+
+   Dimming is not enough on a dark page. The overlay in TipGuide goes blacker
+   and heavier there, which separates the cutout from its surroundings — but
+   the cutout is still only "the part that was not dimmed", and on a dark card
+   that reads as barely anything.
+
+   So the element is marked rather than merely left alone: a brand ring around
+   what the tip is talking about. Only on the dark theme, because on paper the
+   dimming already does the whole job and a ring would be decoration. */
+:root[data-theme='dark'] .driver-active-element {
+  border-radius: 10px;
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}

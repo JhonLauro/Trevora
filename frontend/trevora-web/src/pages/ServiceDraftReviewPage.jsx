@@ -483,7 +483,7 @@ export default function ServiceDraftReviewPage() {
               {/* Off by default and collapsed, because most records have no
                   coverage at all. A permanent amount field on every entry
                   would tax the common path to serve the rare one. */}
-              <div className="flow-coverage">
+              <div className="flow-coverage" data-tip="draft-coverage">
                 <label className="flow-switch">
                   <input
                     type="checkbox"
