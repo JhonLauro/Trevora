@@ -3358,3 +3358,165 @@ Three things deliberately left:
   `owner_entered`, which is none of them. It reads as MANUAL to a human and as
   unrecognised to the code. Same class of bug as the category vocabulary this
   work unified — one value, two spellings, nothing comparing them.
+
+
+### Manufacturer warranty, added 2026-09-06 — and what it did not answer
+
+**The Warranty & coverage tab is no longer empty**, which supersedes the
+display half of section f above. Section f is left standing because its
+reasoning is the reason this was built the way it was: coverage that lives in
+one browser and vanishes on a new device is worse than an empty tab that says
+so. Migration `024` gives `vehicle_profiles` three real columns —
+`warranty_start_date`, `warranty_months`, `warranty_km_limit` — which is the
+answer that objection was waiting for. The tab now reads from the database and
+survives a new device, so the empty state that admitted it could not is gone.
+
+**Scope is the manufacturer warranty and nothing else.** No insurance policies,
+no insurer, premium or lapse date. The "still open" note at the end of the
+`amount_covered` section above is therefore still open: per-record coverage says
+what a policy paid, and nothing in the app says what the policy is. That figure
+is kept on the tab as a secondary block under its own heading, so an insurance
+total is not read as manufacturer cover — they are different arrangements with
+different people and only one of them decides whether a shop should open the car.
+
+**Everything derived is computed on read**, by `WarrantyStatusResolver`. No
+expiry date and no status is stored, for the reason `010` gives about
+out-of-pocket cost: a stored derivation is free to contradict what it came from
+the moment either input is corrected.
+
+**Partial states are first-class**, and that is the substance of the feature
+rather than a nicety. Warranty terms arrive in pieces — a booklet stating "3
+years or 100,000 km" against a delivery date on paperwork the owner no longer
+has — so the status enum carries `MILEAGE_ONLY` and `TIME_ONLY`, and every
+screen naming one of them also names the limit it could not check.
+
+Two decisions inside that are worth keeping on the record, because both were
+got wrong first:
+
+- **`EXPIRING_SOON` is not a status.** It was, briefly. As an enum value it has
+  to be ordered against the others, and whatever order is chosen, one covered
+  state outranks it — which meant a vehicle with 3,000 km of cover left and no
+  purchase date on file was shown `MILEAGE_ONLY` and no warning at all. It is a
+  boolean that composes with every covered state instead.
+- **`INCOMPLETE` exists and was not in the original design.** Terms entered
+  with nothing evaluable — a mileage limit on a vehicle with no odometer
+  reading anywhere, or a purchase date with no period — is neither covered nor
+  `NOT_SET`. Reporting it as `NOT_SET` tells an owner who just typed 100,000 km
+  that they have recorded nothing, and puts an "Add warranty info" button under
+  information the app is already holding.
+
+**Mechanics see it.** The `amount_covered` precedent does not transfer: that is
+the owner's financial arrangement with an insurer and stays withheld, whereas
+work done outside the dealer network can void cover the owner is still relying
+on, which makes this operational. `MechanicWarrantyResponse` carries the status,
+the limits and the current reading only — no purchase date, no raw coverage
+period. The shared view renders it above the history and says in full-size text
+that Trevora has confirmed none of it with a dealer.
+
+**Current distance is now derived in one place** and both surfaces read it:
+`max(vehicle_profiles.odometer, max(service_records.odometer))`. The vehicle
+page's Odometer tile previously read the typed column alone, which is null on
+most vehicles — so it said "Not recorded" on cars with a dozen receipts filed
+against them. The highest reading rather than the latest, for the reason
+`OdometerResolver` already gives within a single document: receipts get filed
+out of order, and taking the newest reports a vehicle travelling backwards.
+
+#### Left alone deliberately, and worth someone's attention
+
+- **`utils/componentStatus.js` still uses the most recent reading**
+  (`componentRecords[0].odometer`) rather than the highest. It answers a
+  different question — the odometer at the time that part was serviced — so it
+  is not obviously the same bug, but it has the same out-of-order-receipts
+  exposure and nobody has checked which behaviour it actually wants. Not
+  touched here; it is not this change's to decide.
+- **`components/PartsMap.jsx` reads `vehicle.odometer` as a fallback.** Same
+  question as componentStatus, left for the same reason.
+- **There are two `017_` migrations** — `017_mechanic_search_ai_budget.sql` and
+  `017_rls_reproducible.sql`. Harmless now, but it is the collision the
+  claim-your-number rule exists to prevent, and the numbering no longer tells
+  you what ran in what order. Renumbering after the fact is its own small
+  hazard; worth a decision rather than continued silence. `CLAUDE.md` said `012`
+  was the highest until this change corrected it to `024`, which is how the
+  pair got there.
+- **No golden-set implications.** Nothing here touches extraction, the receipt
+  prompt or `OdometerResolver`. `WarrantyStatusResolver` borrows that class's
+  highest-wins reasoning; it does not call it.
+
+**Where the warranty fields live — settled 2026-09-06, after two wrong
+answers.** They were first put on the in-app Add vehicle form and in
+`EditVehicleDetailsDialog` alongside the four registration fields. Both were
+wrong for the same reason: a plate, VIN, year and odometer are read off the
+vehicle or its OR/CR by somebody standing at the car, and warranty terms come
+out of a booklet in a drawer. A field you have to leave the screen to answer
+does not belong in a form somebody is trying to finish, and seven fields from
+two different pieces of paper behind one "Vehicle details" button turns a thing
+you correct into a form you get through.
+
+They now live in `EditWarrantyDialog`, reached only from the Warranty tab's own
+button. The add form does not ask at all — nothing is gated on warranty, and a
+vehicle added today can have its terms recorded whenever the owner finds them.
+
+That split created a hazard worth naming, because it is silent: `PUT
+/api/vehicles/{id}` replaces the vehicle rather than patching it, so there are
+now **two partial editors that can each null out what the other owns**. The
+details dialog does not render the warranty; the warranty dialog does not
+render the plate. `utils/vehicleUpdate.js` is the single builder both use, and
+`vehicleUpdate.test.js` asserts the round trip in both directions. Anyone
+adding a column to `vehicle_profiles` has to add it there too — a column that
+exists on the entity but not in that builder is a column that gets wiped by any
+save from either dialog, with nothing on screen to show it happened. The honest
+fix is a PATCH endpoint; that is a larger change to the controller, the DTO and
+every caller, and is not attempted here.
+
+**The PATCH endpoint exists now — correcting the paragraph above.** That note
+ended "the honest fix is a PATCH endpoint; that is a larger change to the
+controller, the DTO and every caller, and is not attempted here." It was
+attempted immediately afterwards and it is done. `PATCH /api/vehicles/{id}`
+applies only the fields the body names; `PUT` remains for a caller that
+genuinely means to replace a row, and nothing in the app uses it any more.
+
+**Absent and null had to stay distinguishable, and the two obvious designs
+cannot do it.** Clearing a warranty term is a real edit, so `{}` and
+`{"warrantyMonths": null}` must mean different things. A record maps a missing
+component to null, which is exactly what an explicit null produces. And
+`Optional<T>` — the fix everyone reaches for second — collapses *both* cases to
+`Optional.empty()`. That was measured against this project's own ObjectMapper
+before anything was built on it, not assumed; had it been assumed, the endpoint
+would have shipped able to set a warranty term and never able to remove one,
+returning 200 either way. `PatchVehicleRequest` is therefore a mutable class
+whose setters record that they ran — Jackson calls a setter only for a key that
+is present, including one whose value is null. `PatchVehicleRequestTest` is the
+thing that fails if someone tidies it back into a record.
+
+**A third copy of the same hazard was found while doing this, and it was
+already live.** `VehicleDetailsOffer` — the "we found a plate number on your
+receipt, add it?" card on the saved-record screen — called PUT with a
+hand-maintained list of columns copied out of the entity. That list went stale
+the moment migration `024` added three columns to it, so accepting an offered
+plate number silently wiped an owner's warranty terms. It had a comment
+explaining why the whole vehicle had to be sent, which is how a workaround
+outlives the thing it worked around. It is now a one-key patch body.
+
+That makes three surfaces that had independently reinvented "echo every column
+back so the PUT does not eat them", each with its own list, none of which knew
+about the others. The count is the argument: this was never a discipline
+problem that better review would have caught.
+
+`VehicleProfileSelectionPage` was the fourth and is **not routed in
+`App.jsx`** — dead code, reachable by nobody. Its update call was switched to
+PATCH anyway rather than left as a landmine for whoever revives the page.
+Whether that page should exist at all is a separate question nobody has asked.
+
+**PUT is gone entirely — 2026-09-06.** The paragraph above said it would remain
+"for a caller that genuinely means to replace a row". Nobody does. Keeping it
+meant keeping the loaded gun in the drawer: any future partial editor could
+reach for the endpoint that replaces the whole row, and the three surfaces that
+already got that wrong did not do it out of carelessness — they did it because
+the endpoint was there and looked like the way to save a vehicle.
+
+`PUT /api/vehicles/{id}` now returns 405. `UpdateVehicleRequest`,
+`VehicleService.updateVehicleForCurrentUser` and the frontend's `updateVehicle`
+helper are deleted, and the endpoint registry in `EndpointProtectionTest` is
+updated to match. A teammate holding an unpushed branch that calls it gets a
+compile error, which is the loud version of the failure — the version this
+whole thread has been about was the silent one.
