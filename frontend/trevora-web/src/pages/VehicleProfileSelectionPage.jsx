@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, Eye, Pencil, Plus } from 'lucide-react';
-import { createVehicle, getVehicles, updateVehicle } from '../api/vehicles';
+import { createVehicle, getVehicles, patchVehicle } from '../api/vehicles';
 import { getActiveCurrentUser, isVehicleOwnerUser } from '../api/currentUser.js';
 import {
   clearActiveVehicleSelection,
@@ -129,7 +129,12 @@ export default function VehicleProfileSelectionPage() {
     setError('');
 
     try {
-      const updated = await updateVehicle(editingVehicle.vehicleId, vehiclePayload(form));
+      /* PATCH, not PUT: this form does not carry the warranty terms, and
+         under a replacing PUT it would clear them every time somebody
+         corrected a plate here. The page is not currently routed -- see
+         planning/DEFERRED.md -- but a dead page that silently destroys data
+         is a worse thing to leave lying around than a dead page. */
+      const updated = await patchVehicle(editingVehicle.vehicleId, vehiclePayload(form));
       setVehicles((current) => current.map((vehicle) => (
         vehicle.vehicleId === updated.vehicleId ? updated : vehicle
       )));

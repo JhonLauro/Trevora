@@ -43,6 +43,16 @@ export function formatMoney(value) {
   return `PHP ${formatAmount(value)}`;
 }
 
+/**
+ * A bare grouped distance, for a sentence that carries "km" itself.
+ *
+ * `formatOdometer` puts the unit on every number, which reads as
+ * "42,300 km of 100,000 km" once two of them appear in one line.
+ */
+export function formatKilometres(value) {
+  return numberFormatter.format(Number(value || 0));
+}
+
 export function formatOdometer(value, fallback = 'No odometer') {
   if (value === null || value === undefined || value === '') return fallback;
   return `${numberFormatter.format(Number(value))} km`;

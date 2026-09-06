@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useT } from '../../i18n/index.jsx';
-import { updateVehicle } from '../../api/vehicles.js';
+import { patchVehicle } from '../../api/vehicles.js';
 import { readVehicleDetails, vehicleWithField } from './VehicleDetailsDialog.jsx';
 
 /**
@@ -56,7 +56,7 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
       // first genuinely saved rather than rolling both back invisibly.
       for (const offer of offers) {
         // eslint-disable-next-line no-await-in-loop
-        current = await updateVehicle(
+        current = await patchVehicle(
           current.vehicleId,
           vehicleWithField(current, offer.field, offer.value),
         );

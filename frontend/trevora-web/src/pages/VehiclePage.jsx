@@ -3,11 +3,12 @@ import { useT } from '../i18n/index.jsx';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import EditVehicleDetailsDialog from '../components/ink/EditVehicleDetailsDialog.jsx';
+import EditWarrantyDialog from '../components/ink/EditWarrantyDialog.jsx';
 import PartsView from '../components/ink/PartsView.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import Timeline from '../components/ink/Timeline.jsx';
-import { deleteVehicle, getVehicle, updateVehicle } from '../api/vehicles';
+import { deleteVehicle, getVehicle, patchVehicle } from '../api/vehicles';
 import { createVehiclePhotoSignedUrl } from '../api/vehiclePhoto.js';
 import { deleteVehicleServiceRecord, getVehicleServiceHistory, markServiceRecordReviewed } from '../api/serviceHistory';
 import { componentStatuses } from '../utils/componentStatus';
@@ -26,6 +27,16 @@ import {
 import { recordSearchText } from '../utils/serviceComponents';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
 import { spendTotals } from '../utils/spend';
+import {
+  hasWarrantyTerms,
+  isWarrantyUnset,
+  warrantyDistanceLine,
+  warrantyEndedReasons,
+  warrantyGapLines,
+  warrantyLimitLine,
+  warrantyTitleKey,
+  warrantyTone,
+} from '../utils/warranty';
 import { displayVehicleName } from '../utils/vehicleText';
 import { bodyTypeLabel, vehicleClassFor } from '../data/vehicleCatalog';
 
@@ -147,20 +158,107 @@ function Completeness({ summary }) {
   );
 }
 
-function WarrantyPanel({ spend }) {
+/**
+ * What per-record coverage has paid, underneath the manufacturer warranty.
+ *
+ * Kept when the tab stopped being about insurance policies, because it is real
+ * information and this is the only place it is totalled. Secondary, and headed
+ * so nobody reads an insurance figure as a manufacturer warranty: they are
+ * different arrangements with different people, and only one of them decides
+ * whether a shop should open the car up.
+ */
+function CoveredSpend({ spend }) {
+  const t = useT();
+  if (!spend?.hasCoverage) return null;
+
   return (
-    <section className="ink-empty">
-      <h2 className="ink-empty__title">Policies are not tracked yet</h2>
-      <p className="ink-empty__body">
-        {spend?.hasCoverage
-          ? `Individual records already record what was covered — PHP ${formatAmount(spend.covered)} so far on this vehicle. What is still missing is the policies themselves: insurer, cover, premium, and when each one lapses.`
-          : 'What a policy paid can be recorded on each service record, in the review step. What is still missing is the policies themselves: insurer, cover, premium, and when each one lapses.'}
-      </p>
-      <p className="ink-empty__body">
-        None of that is stored yet, so nothing is shown rather than showing a form that saves to
-        this browser only.
+    <section className="ink-card warranty-spend">
+      <h2 className="ink-section-title">{t('warranty.spend.title')}</h2>
+      <p className="warranty-spend__body">
+        {t('warranty.spend.body', { amount: formatAmount(spend.covered) })}
       </p>
     </section>
+  );
+}
+
+/**
+ * Manufacturer warranty, and only that.
+ *
+ * <p>The tab used to say policies were not tracked, which was honest and is no
+ * longer true. Insurance policies still are not tracked — this is the
+ * manufacturer's cover, which is the one that decides whether taking a car to
+ * a local shop costs the owner the rest of their warranty.
+ *
+ * <p><b>Nothing here has been verified with a dealer</b>, and the line saying so
+ * appears under every populated state. It is rendered at full size in ordinary
+ * ink rather than as fine print: it is the difference between "we checked" and
+ * "you told us", the reader is deciding where to spend real money on the
+ * strength of it, and it also sits under the Ink rule that no grey text goes
+ * below 17px. Fine print would be the wrong size and the wrong claim.
+ *
+ * <p>Partial answers are rendered as partial. A vehicle whose purchase date is
+ * missing gets its distance figures and a line saying the time limit could not
+ * be checked — never a confident badge standing on half the evidence.
+ */
+function WarrantyPanel({ warranty, spend, onEdit }) {
+  const t = useT();
+
+  if (isWarrantyUnset(warranty)) {
+    return (
+      <>
+        <section className="ink-empty">
+          <h2 className="ink-empty__title">{t('warranty.empty.title')}</h2>
+          <p className="ink-empty__body">{t('warranty.empty.body')}</p>
+          <div className="ink-empty__actions">
+            <button className="ink-button" type="button" onClick={onEdit}>
+              {t('warranty.empty.action')}
+            </button>
+          </div>
+        </section>
+        <CoveredSpend spend={spend} />
+      </>
+    );
+  }
+
+  const tone = warrantyTone(warranty);
+  const limits = warrantyLimitLine(warranty);
+  const distance = warrantyDistanceLine(warranty);
+  const gaps = warrantyGapLines(warranty);
+  const ended = warrantyEndedReasons(warranty);
+
+  return (
+    <>
+      <section className={`ink-card warranty-card warranty-card--${tone}`}>
+        <div className="warranty-card__head">
+          <h2 className="ink-section-title">{t(warrantyTitleKey(warranty))}</h2>
+          <button
+            className="ink-button ink-button--outline ink-button--sm"
+            type="button"
+            onClick={onEdit}
+          >
+            {hasWarrantyTerms(warranty) ? t('warranty.edit') : t('warranty.empty.action')}
+          </button>
+        </div>
+
+        {limits && <p className="warranty-card__limits">{t(limits.key, limits.vars)}</p>}
+        {distance && <p className="warranty-card__distance">{t(distance.key, distance.vars)}</p>}
+
+        {ended.map((reason) => (
+          <p className="warranty-card__reason" key={reason.key}>{t(reason.key, reason.vars)}</p>
+        ))}
+
+        {/* What could not be checked, and why. Without these a partial state
+            renders as an ordinary verdict and quietly claims a limit was
+            verified that nothing was available to verify it against. */}
+        {gaps.map((gap) => (
+          <p className="warranty-card__gap" key={gap.key}>{t(gap.key, gap.vars)}</p>
+        ))}
+
+        <p className="warranty-card__source">{t('warranty.source')}</p>
+      </section>
+
+      <CoveredSpend spend={spend} />
+    </>
   );
 }
 
@@ -237,6 +335,11 @@ export default function VehiclePage() {
   const [query, setQuery] = useState('');
   const [pendingRecord, setPendingRecord] = useState(null);
   const [editingDetails, setEditingDetails] = useState(false);
+  /* Its own dialog and its own flag. Warranty terms come off a booklet rather
+     than off the vehicle, so they are not four more rows behind "Edit
+     details" — that dialog is for what somebody can read while standing at
+     the car. */
+  const [editingWarranty, setEditingWarranty] = useState(false);
   const [concerns, setConcerns] = useState([]);
 
   /* Re-signed whenever the pointer changes, which covers the first load and a
@@ -256,11 +359,25 @@ export default function VehiclePage() {
 
   /* The response is the saved row, so it becomes the new state directly rather
      than re-fetching. The Garage listens for this event to pick up a changed
-     plate without a reload. */
+     plate without a reload.
+
+     A PATCH, and each dialog sends only the fields it renders — which is what
+     stops the details dialog blanking a warranty it never showed. */
   async function saveVehicleDetails(payload) {
-    const updated = await updateVehicle(vehicleId, payload);
+    const updated = await patchVehicle(vehicleId, payload);
     setVehicle(updated);
     setEditingDetails(false);
+    window.dispatchEvent(new Event('trevora:vehicles-changed'));
+  }
+
+  /* The same endpoint — there is one vehicle. What differs is the three keys
+     this one sends and which dialog closes afterwards. The response is the
+     saved row, warranty block and all, so the tab re-renders without a
+     re-fetch. */
+  async function saveVehicleWarranty(payload) {
+    const updated = await patchVehicle(vehicleId, payload);
+    setVehicle(updated);
+    setEditingWarranty(false);
     window.dispatchEvent(new Event('trevora:vehicles-changed'));
   }
 
@@ -450,7 +567,12 @@ export default function VehiclePage() {
             <Detail label={t('vehicle.plateNumber')} value={vehicle?.plateNumber} />
             <Detail label={t('vehicle.vin')} value={vehicle?.vinChassisNumber} />
             <Detail label={t('vehicle.modelYear')} value={vehicle?.year} />
-            <Detail label={t('vehicle.odometer')} value={vehicle?.odometer == null ? null : formatOdometer(vehicle.odometer)} />
+            {/* "as entered", because the stat tile above now shows the highest
+                reading known and these two are legitimately different numbers.
+                One label on both would have been the same contradiction this
+                change removed, moved down the page: this row mirrors the box in
+                the edit dialog, the tile answers how far the vehicle has gone. */}
+            <Detail label={t('vehicle.odometerEntered')} value={vehicle?.odometer == null ? null : formatOdometer(vehicle.odometer)} />
           </dl>
         ) : (
           /* Said once, plainly, with the button beside it as the way in. No
@@ -468,7 +590,13 @@ export default function VehiclePage() {
       <section className="ink-card vehicle-stats tv-reveal" style={{ '--reveal-index': 2 }}>
         <Stat label="Records" value={String(records.length)} />
         <Stat label={t('garage.lastService')} value={records[0]?.serviceDate ? formatDate(records[0].serviceDate) : t('garage.noneYet')} />
-        <Stat label={t('vehicle.odometer')} value={formatOdometer(vehicle?.odometer, t('vehicle.notRecorded'))} />
+        {/* The highest reading known, across the typed value and every service
+            record — the same figure the warranty block counts kilometres
+            against, arrived at on the backend so the two cannot disagree. It
+            read the typed column alone until now, which is null on most
+            vehicles: the tile said "Not recorded" on cars with a dozen
+            receipts filed against them. */}
+        <Stat label={t('vehicle.odometer')} value={formatOdometer(vehicle?.currentOdometer, t('vehicle.notRecorded'))} />
         <Stat
           label={t('vehicle.totalSpent')}
           value={`PHP ${formatAmount(spend.ownerPaid)}`}
@@ -589,8 +717,23 @@ export default function VehiclePage() {
           </div>
         )}
 
-        {tab === 'warranty' && <WarrantyPanel spend={spend} />}
+        {tab === 'warranty' && (
+          <div className="vehicle-warranty tv-reveal" style={{ '--reveal-index': 3 }}>
+            <WarrantyPanel
+              warranty={vehicle?.warranty}
+              spend={spend}
+              onEdit={() => setEditingWarranty(true)}
+            />
+          </div>
+        )}
       </div>
+
+      <EditWarrantyDialog
+        open={editingWarranty}
+        vehicle={vehicle}
+        onSave={saveVehicleWarranty}
+        onCancel={() => setEditingWarranty(false)}
+      />
 
       <EditVehicleDetailsDialog
         open={editingDetails}

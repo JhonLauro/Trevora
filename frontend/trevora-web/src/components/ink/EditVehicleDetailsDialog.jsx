@@ -6,6 +6,15 @@ import { validateVehicleField } from '../../pages/AddVehiclePage.jsx';
 /**
  * Edits the four registration fields, and only those four.
  *
+ * Warranty terms are deliberately not here. They were, briefly, on the
+ * reasoning that this was the only place a saved vehicle could be corrected —
+ * but they answer a different question from a different piece of paper. The
+ * plate, VIN, year and odometer are read off the vehicle or its OR/CR by
+ * somebody who has it in front of them; warranty terms come out of a booklet
+ * in a drawer. Putting seven fields from two sources behind one "Vehicle
+ * details" button makes the dialog a form to get through rather than a thing
+ * to correct. They have their own dialog, opened from the Warranty tab.
+ *
  * Make, model and body type are deliberately absent. They decide which parts
  * map a vehicle gets and are answered once, under a picker that keeps them
  * agreeing with each other; a free-text box here could put "Toyota Xpander"
@@ -13,9 +22,8 @@ import { validateVehicleField } from '../../pages/AddVehiclePage.jsx';
  * ones an owner genuinely fills in later — the plate and VIN are on paperwork
  * they may not have to hand at signup, and the odometer changes every week.
  *
- * The API takes a whole vehicle, not a patch, so the unedited fields are sent
- * back exactly as they arrived. Dropping them would blank make and model on
- * every save.
+ * The API takes a patch, so this sends its four fields and the photo pointer
+ * and nothing else. Anything it does not name, the server does not touch.
  */
 const FIELDS = [
   {
@@ -65,7 +73,39 @@ function formValues(vehicle) {
     plateNumber: vehicle?.plateNumber ?? '',
     vinChassisNumber: vehicle?.vinChassisNumber ?? '',
     year: vehicle?.year == null ? '' : String(vehicle.year),
+    /* The typed column, not the derived `currentOdometer`. Seeding this box
+       with a figure read off a service record would mean saving that record's
+       reading onto the vehicle the next time somebody corrected a plate. */
     odometer: vehicle?.odometer == null ? '' : String(vehicle.odometer),
+  };
+}
+
+/**
+ * The four fields this dialog owns, and the photo pointer.
+ *
+ * <p>Only those. The endpoint is a PATCH — a field not named here is left
+ * alone by the server, so this dialog cannot touch the warranty terms it does
+ * not render. It used to have to hand them back by hand, through a shared
+ * builder that listed every column, and forgetting one was silent: the save
+ * succeeded, the screen looked right, and a column was null.
+ *
+ * <p>`null` is still a real instruction — it clears the field, which is how a
+ * plate typed by mistake gets taken back out. Absent and null mean different
+ * things all the way down to the column.
+ *
+ * @param photo `{ bucket, path }` — already resolved by the caller to a new
+ *     upload, a removal, or the existing pointer
+ */
+export function vehicleDetailsPayload(form, photo) {
+  return {
+    plateNumber: form.plateNumber.trim() || null,
+    vinChassisNumber: form.vinChassisNumber.trim() || null,
+    year: form.year.trim() ? Number(form.year.trim()) : null,
+    odometer: form.odometer.trim() ? Number(form.odometer.replace(/[\s,]/g, '')) : null,
+    // Both halves or neither: the server refuses half a pointer rather than
+    // guessing which one the caller meant to keep.
+    photoBucket: photo.bucket,
+    photoPath: photo.path,
   };
 }
 
@@ -163,21 +203,7 @@ export default function EditVehicleDetailsDialog({ open, vehicle, photoUrl = nul
         photo = { bucket: null, path: null };
       }
 
-      await onSave({
-        // Untouched, and required by the API — see the note above.
-        make: vehicle.make,
-        model: vehicle.model,
-        bodyType: vehicle.bodyType || null,
-        nickname: vehicle.nickname || null,
-        photoBucket: photo.bucket,
-        photoPath: photo.path,
-        // Empty clears the field rather than saving "", so a plate typed by
-        // mistake can be taken back out.
-        plateNumber: form.plateNumber.trim() || null,
-        vinChassisNumber: form.vinChassisNumber.trim() || null,
-        year: form.year.trim() ? Number(form.year.trim()) : null,
-        odometer: form.odometer.trim() ? Number(form.odometer.replace(/[\s,]/g, '')) : null,
-      });
+      await onSave(vehicleDetailsPayload(form, photo));
 
       /* The save stuck, so the file the vehicle no longer points at is litter.
          Best effort, and after the save rather than before -- a delete that

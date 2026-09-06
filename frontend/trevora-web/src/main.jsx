@@ -115,6 +115,9 @@ import './styles/record-badges.css';
 // Owner concerns, and their quotation in the shared mechanic view. Additive,
 // own `.concern*` namespace.
 import './styles/concerns.css';
+// Manufacturer warranty: the vehicle page's Warranty tab and the three
+// optional form fields. Additive, own `.warranty*` namespace.
+import './styles/warranty.css';
 // Last: it redefines the token values every sheet above draws from.
 import './styles/theme.css';
 

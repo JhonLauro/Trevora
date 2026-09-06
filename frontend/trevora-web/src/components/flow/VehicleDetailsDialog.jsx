@@ -67,23 +67,21 @@ export function readVehicleDetails(draft, vehicle) {
   }, empty);
 }
 
-/* The vehicle endpoint is a PUT that replaces the record — it calls setMake,
-   setModel and the rest unconditionally — so the whole vehicle goes back with
-   exactly one key changed. Sending only the new field would blank the others. */
+/*
+ * One field, as a patch body.
+ *
+ * This used to hand back the whole vehicle with one key changed, because the
+ * endpoint was a PUT that replaced the record — and that list of keys was a
+ * copy of the columns, maintained by hand. It went stale the moment warranty
+ * terms were added: they were not in the list, so accepting a plate number
+ * offered by a receipt silently wiped an owner's coverage. Nothing failed, and
+ * nothing on screen said so.
+ *
+ * The endpoint is a PATCH now. A field not named is not touched, so the body is
+ * the field — and there is no list to keep in step with the schema.
+ */
 export function vehicleWithField(vehicle, field, value) {
-  return {
-    make: vehicle.make,
-    model: vehicle.model,
-    bodyType: vehicle.bodyType,
-    year: vehicle.year,
-    nickname: vehicle.nickname,
-    plateNumber: vehicle.plateNumber,
-    vinChassisNumber: vehicle.vinChassisNumber,
-    odometer: vehicle.odometer,
-    photoBucket: vehicle.photoBucket,
-    photoPath: vehicle.photoPath,
-    [field]: value,
-  };
+  return { [field]: value };
 }
 
 export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated }) {

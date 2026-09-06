@@ -15,10 +15,23 @@ export function getVehicle(vehicleId) {
   return apiRequest(`/vehicles/${vehicleId}`);
 }
 
-export function updateVehicle(vehicleId, vehicle) {
+/**
+ * Edits a vehicle, applying only the fields in `changes`.
+ *
+ * A field left out is untouched; a field sent as `null` is cleared. That
+ * distinction is the point — clearing a warranty term is a real edit, so
+ * "absent" and "null" cannot mean the same thing.
+ *
+ * Send exactly what the editor owns and nothing else. Padding the object out
+ * with unchanged values still reaches the server, but it puts back the hazard
+ * this replaced: a stale copy of a field the user changed somewhere else would
+ * overwrite it. There is no longer a PUT to fall back on, deliberately — the
+ * whole-row endpoint is what three separate editors kept getting wrong.
+ */
+export function patchVehicle(vehicleId, changes) {
   return apiRequest(`/vehicles/${encodeURIComponent(vehicleId)}`, {
-    method: 'PUT',
-    body: JSON.stringify(vehicle),
+    method: 'PATCH',
+    body: JSON.stringify(changes),
   });
 }
 

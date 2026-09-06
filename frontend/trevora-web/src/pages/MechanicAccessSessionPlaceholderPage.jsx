@@ -105,7 +105,95 @@ function groupByYear(records) {
 }
 
 /** One line stating what this history is, in place of four counters. */
-function Summary({ records, trust, odometer }) {
+/**
+ * Manufacturer warranty, at the top of the page.
+ *
+ * <p><b>Why a mechanic is shown this when they are shown no other owner
+ * finances.</b> What an insurer paid on a past visit is the owner's private
+ * arrangement and is deliberately withheld. This is not that. Work done outside
+ * the dealer network can void cover the owner is still relying on, so whether
+ * the vehicle is under warranty decides whether this shop should be opening it
+ * up at all — and a mechanic who cannot see it finds out afterwards.
+ *
+ * <p>Rendered even when nothing is recorded, which is the opposite of the rule
+ * the Briefing below follows. Absence of a warranty record is not evidence of
+ * an expired warranty, and a mechanic who sees no warranty block will read the
+ * silence as "out of cover, go ahead" — the one wrong conclusion this is here
+ * to prevent. It says the status is unknown instead.
+ *
+ * <p>The status, the remaining distance and the expiry date are all computed on
+ * the backend, by the same resolver that answers the owner's own page. Nothing
+ * is recalculated here: these two people must never be told different things
+ * about the same car.
+ */
+function WarrantyNotice({ warranty }) {
+  if (!warranty) return null;
+
+  const km = (value) => `${Number(value).toLocaleString()} km`;
+  const status = warranty.status;
+  const covered = status === 'ACTIVE' || status === 'MILEAGE_ONLY' || status === 'TIME_ONLY';
+
+  let heading;
+  if (covered) {
+    heading = warranty.expiringSoon
+      ? 'Manufacturer warranty — ending soon'
+      : 'Under manufacturer warranty';
+  } else if (status === 'EXPIRED') {
+    heading = 'Manufacturer warranty has ended';
+  } else {
+    heading = 'Warranty status unknown';
+  }
+
+  const lines = [];
+  if (warranty.expiryDate && warranty.kmLimit != null) {
+    lines.push(`Until ${formatDate(warranty.expiryDate)} or ${km(warranty.kmLimit)} — whichever comes first.`);
+  } else if (warranty.expiryDate) {
+    lines.push(`Until ${formatDate(warranty.expiryDate)}.`);
+  } else if (warranty.kmLimit != null) {
+    lines.push(`Up to ${km(warranty.kmLimit)}.`);
+  }
+
+  if (warranty.currentKm != null && warranty.kmRemaining != null) {
+    lines.push(warranty.kmRemaining > 0
+      ? `${km(warranty.currentKm)} recorded · ${km(warranty.kmRemaining)} remaining.`
+      : `${km(warranty.currentKm)} recorded · ${km(Math.abs(warranty.kmRemaining))} past the limit.`);
+  } else if (warranty.currentKm != null) {
+    lines.push(`${km(warranty.currentKm)} recorded.`);
+  }
+
+  /* The half that could not be checked, named. A vehicle with no purchase date
+     on file is not "under warranty" in the way a complete record is, and a
+     mechanic acting on the distance alone should know the clock was never
+     looked at. */
+  if (covered && !warranty.expiryDate) {
+    lines.push('No purchase date on file, so the time limit has not been checked.');
+  }
+  if (covered && warranty.kmLimit != null && warranty.currentKm == null) {
+    lines.push('No odometer reading on file, so the distance limit has not been checked.');
+  }
+  if (status === 'NOT_SET' || status === 'INCOMPLETE') {
+    lines.push('The owner has not recorded enough of their coverage terms to say either way. Ask before doing work that could affect a manufacturer warranty.');
+  }
+
+  return (
+    <section className="ink-card mechanic-warranty">
+      <span className="ink-eyebrow">Coverage</span>
+      <h2 className="ink-section-title">{heading}</h2>
+      {lines.map((line) => (
+        <p className="mechanic-warranty__line" key={line}>{line}</p>
+      ))}
+      {/* Full size and in ordinary ink, not fine print. Trevora has confirmed
+          none of this with a dealer, and a shop deciding whether to touch a
+          covered vehicle is entitled to know exactly how good the information
+          is. */}
+      <p className="mechanic-warranty__source">
+        Based on information provided by the owner. Trevora has not confirmed it with a dealer.
+      </p>
+    </section>
+  );
+}
+
+function Summary({ records, trust, odometer, warranty }) {
   if (records.length === 0) return null;
 
   const years = records
@@ -116,17 +204,20 @@ function Summary({ records, trust, odometer }) {
       ? String(Math.min(...years))
       : `${Math.min(...years)}–${Math.max(...years)}`)
     : null;
-  // records arrives newest-first, so the first reading present is the most
-  // recent one — not necessarily on the newest record, since odometer is
-  // optional and the last visit may not have recorded it.
-  const latest = records.find((record) => record.odometer != null);
+  /* The highest reading known for the vehicle, as the backend computed it for
+     the warranty block above — not the most recent one. Two numbers under the
+     same word on one page is the disagreement this replaced: receipts get filed
+     out of order, so "the newest record carrying a reading" can be lower than
+     one filed before it. Falls back to the old scan only if the payload
+     predates the warranty block. */
+  const highest = warranty?.currentKm ?? records.find((record) => record.odometer != null)?.odometer ?? null;
 
   /* Each cell is dropped rather than shown empty: an odometer nobody wrote
      down is not "0 km", and a single-year history has no span to state. */
   const cells = [
     ['Records', pluralize(records.length, 'record'), null],
     span ? ['Covering', span, null] : null,
-    latest ? ['Odometer', formatOdometer(latest.odometer), null] : null,
+    highest != null ? ['Odometer', formatOdometer(highest), null] : null,
     odometer.kmPerYear ? ['Yearly use', `about ${formatAmount(odometer.kmPerYear)} km`, null] : null,
     /* The one cell that can carry a warning. It says what is unverified rather
        than asserting the rest is sound -- the same restraint the record badges
@@ -371,7 +462,11 @@ export default function MechanicAccessSessionPlaceholderPage() {
         </span>
       </header>
 
-      <Summary records={records} trust={trust} odometer={odometer} />
+      {/* Above the summary and the history: it is the one fact on this page
+          that can change whether the work happens here at all. */}
+      <WarrantyNotice warranty={history.warranty} />
+
+      <Summary records={records} trust={trust} odometer={odometer} warranty={history.warranty} />
 
       {/* Above the empty-history branch as well as the populated one: a vehicle
           with nothing filed can still have an owner saying the AC is dead, and

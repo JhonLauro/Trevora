@@ -1,0 +1,171 @@
+/*
+ * Manufacturer warranty — the vehicle page's Warranty & coverage tab, and the
+ * three optional fields on the add and edit forms.
+ *
+ * Its own stylesheet rather than an edit to styles.css, per CLAUDE.md. Own
+ * `.warranty*` namespace; shares no selector with anything above it.
+ *
+ * Every colour is a token, none is a literal: theme.css redefines these for the
+ * dark theme, and a hardcoded ground here would be a white card on a dark page.
+ *
+ * ---- the one rule in here that is not decoration -----------------------
+ *
+ * `.warranty-card__source` carries "Based on information provided by the
+ * owner." It is set at full body size in ordinary ink, and it must stay that
+ * way. Two reasons, and the second is the load-bearing one:
+ *
+ *   - Ink allows no text below 16px and no grey text below 17px, so the fine
+ *     print this line naturally wants to be is not available.
+ *   - The line is the difference between "we checked with the dealer" and "you
+ *     typed this". A reader is deciding where to spend real money on the
+ *     strength of what this card says, and the app has verified none of it. A
+ *     disclaimer sized to be skipped is a disclaimer written to be skipped.
+ */
+
+/* ---- the status card --------------------------------------------------- */
+
+.warranty-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.warranty-card__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+/* Status is never colour-only — the heading always says the state in words, so
+   this rule only reinforces what is already written. */
+.warranty-card--ok .ink-section-title {
+  color: var(--status-ok-text);
+}
+
+.warranty-card--warn .ink-section-title {
+  color: var(--status-warn-text);
+}
+
+.warranty-card--ended .ink-section-title,
+.warranty-card--unknown .ink-section-title {
+  color: var(--ink);
+}
+
+/* The limits, and the distance against them. The largest thing on the card
+   after its heading: this is the sentence somebody opened the tab to read. */
+.warranty-card__limits {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.warranty-card__distance {
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Why cover ended, and what could not be checked. Secondary to the figures
+   above but not fine print — a partial answer's caveat is the part that stops
+   it being read as a whole one. 17px is the floor for grey text in Ink. */
+.warranty-card__reason,
+.warranty-card__gap {
+  color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* See the header. Full size, ordinary ink, its own space above it. */
+.warranty-card__source {
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0.35rem 0 0;
+  padding-top: 0.75rem;
+}
+
+/* ---- per-record coverage, underneath ----------------------------------- */
+
+.warranty-spend {
+  margin-top: 1rem;
+}
+
+.warranty-spend__body {
+  color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0.4rem 0 0;
+}
+
+/* ---- the form fields --------------------------------------------------- */
+
+/* A fieldset purely for the grouping it gives a screen reader, with the
+   browser's default border and padding taken off — the dialog's heading names
+   the group, so there is nothing to draw a box around. min-inline-size stops
+   a fieldset's default min-content width from refusing to shrink on a phone. */
+.warranty-fields {
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+/* The booklet line. It answers "what do I put here" for all three fields, so it
+   sits under the group rather than on one of them, and every input points at it
+   through aria-describedby. Not styled as a hint: it is the only thing on the
+   form that tells an owner where to go and look. */
+.warranty-fields__help {
+  color: var(--ink-muted);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* The native date control renders at whatever size the UA feels like and
+   ignores the field height everything else on these forms shares. */
+.warranty-fields input[type='date'] {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* ---- the mechanic's copy ----------------------------------------------- */
+
+/*
+ * Same information, a different reader. The owner is deciding where to book a
+ * service; the mechanic is deciding whether to open the car at all, with the
+ * owner standing in front of them. So this sits above the history rather than
+ * behind a tab, and its disclaimer names Trevora explicitly — a shop acting on
+ * a warranty claim is entitled to know exactly whose word it rests on.
+ */
+.mechanic-warranty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mechanic-warranty__line {
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Full size, ordinary ink, above a rule. See the note at the top of this file:
+   the size is the claim. */
+.mechanic-warranty__source {
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0.35rem 0 0;
+  padding-top: 0.75rem;
+}

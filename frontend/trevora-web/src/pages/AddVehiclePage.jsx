@@ -53,6 +53,46 @@ export function validateVehicleField(name, value) {
       if (!/^\d+$/.test(trimmed.replace(/[\s,]/g, ''))) return 'Enter the reading in numbers only.';
       return '';
     }
+    /* The warranty terms are not on this form — they are entered from the
+       vehicle page's Warranty tab, in their own dialog. Their rules live here
+       because this is where every vehicle field is validated and
+       EditWarrantyDialog imports the same function; splitting them out would
+       mean two places to look for "what makes a vehicle field valid".
+
+       All three are optional and independently so. An owner whose booklet says
+       "3 years or 100,000 km" but who cannot find the delivery date must be
+       able to save the half they have — the vehicle page reports a partial
+       answer as partial rather than refusing it. */
+    case 'warrantyStartDate': {
+      if (!trimmed) return '';
+      const date = new Date(`${trimmed}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return 'Enter the date the vehicle was delivered to you.';
+      // Same rule as the API's @PastOrPresent. A delivery date in the future is
+      // a typo, and one that reaches the server comes back as a 400 with
+      // nothing attached to this field.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (date > today) return 'A purchase or delivery date cannot be in the future.';
+      return '';
+    }
+    case 'warrantyMonths': {
+      if (!trimmed) return '';
+      if (!/^\d+$/.test(trimmed.replace(/[\s,]/g, ''))) return 'Enter the coverage period in whole months.';
+      const months = Number(trimmed.replace(/[\s,]/g, ''));
+      if (months < 1) return 'Enter the coverage period in whole months, or leave it blank.';
+      // 600 months is fifty years. The bound catches a period typed in days,
+      // not a manufacturer being generous.
+      if (months > 600) return 'That looks like days rather than months — enter the period in months.';
+      return '';
+    }
+    case 'warrantyKmLimit': {
+      if (!trimmed) return '';
+      if (!/^\d+$/.test(trimmed.replace(/[\s,]/g, ''))) return 'Enter the mileage limit in numbers only.';
+      const limit = Number(trimmed.replace(/[\s,]/g, ''));
+      if (limit < 1) return 'Enter the mileage limit in kilometres, or leave it blank.';
+      if (limit > 2000000) return 'That mileage limit looks like a typo. Enter it in kilometres.';
+      return '';
+    }
     default:
       return '';
   }
