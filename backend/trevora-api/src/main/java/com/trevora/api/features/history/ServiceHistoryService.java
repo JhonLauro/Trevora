@@ -4,6 +4,7 @@ package com.trevora.api.features.history;
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.vehicle.VehicleResponse;
+import com.trevora.api.features.vehicle.WarrantyStatusResolver;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.history.ServiceHistoryResponse;
 import com.trevora.api.features.history.ServiceRecordDetailResponse;
@@ -83,8 +84,26 @@ public class ServiceHistoryService {
                     record, itemsByRecord.getOrDefault(record.getRecordId(), List.of())));
         }
 
+        /* Current distance and warranty are derived per vehicle from the same
+           records this method already loaded — no second query, and no second
+           rule. The garage, the vehicle page and a mechanic's shared view all
+           reach the figure the same way; the odometer tile disagreeing with
+           everything else is exactly what this replaced. */
+        Map<UUID, List<Integer>> odometersByVehicle = new LinkedHashMap<>();
+        for (ServiceRecord record : records) {
+            odometersByVehicle
+                    .computeIfAbsent(record.getVehicleId(), key -> new java.util.ArrayList<>())
+                    .add(record.getOdometer());
+        }
+
         return new GarageSummaryResponse(
-                vehicles.stream().map(VehicleResponse::from).toList(),
+                vehicles.stream()
+                        .map(vehicle -> VehicleResponse.from(
+                                vehicle,
+                                WarrantyStatusResolver.currentKilometres(
+                                        vehicle.getOdometer(),
+                                        odometersByVehicle.getOrDefault(vehicle.getVehicleId(), List.of()))))
+                        .toList(),
                 byVehicle.entrySet().stream()
                         .map(entry -> new GarageSummaryResponse.VehicleRecords(entry.getKey(), entry.getValue()))
                         .toList()

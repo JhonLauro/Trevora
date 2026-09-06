@@ -19,6 +19,13 @@ public record MechanicSharedHistoryResponse(
         // The parts map needs the silhouette. Without it the mechanic view drew
         // a sedan for every vehicle, including motorcycles.
         String vehicleBodyType,
+        /* Whether the vehicle is still under manufacturer warranty, which
+           decides whether this shop should be opening it up at all. Owner-
+           supplied and unverified — see MechanicWarrantyResponse for what is
+           deliberately not in it, and note this is not the same disclosure as
+           per-record amount_covered, which mechanics still do not get. Never
+           null: a vehicle with no terms recorded carries a NOT_SET block. */
+        MechanicWarrantyResponse warranty,
         String permission,
         String status,
         Instant approvedAt,

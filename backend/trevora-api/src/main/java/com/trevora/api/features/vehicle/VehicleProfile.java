@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -61,6 +62,35 @@ public class VehicleProfile {
 
     @Column(name = "photo_path")
     private String photoPath;
+
+    /**
+     * Manufacturer warranty terms, as the owner read them off their own
+     * paperwork. See migration 024.
+     *
+     * <p><b>All three are independently nullable, and that is the feature.</b>
+     * The common case is an owner holding half the answer: the booklet says
+     * "3 years or 100,000 km" while the delivery date is on paperwork they no
+     * longer have. Demanding all three to record any would throw away the half
+     * they know, so the read side reports a partial answer as partial rather
+     * than as a confident yes or no.
+     *
+     * <p>Nothing derived is stored beside them — no expiry date, no status. A
+     * stored expiry could contradict the start date and period it came from
+     * the moment either was corrected, which is the rule 010 already applied
+     * to out-of-pocket cost. {@code WarrantyStatusResolver} computes all of it
+     * on read.
+     *
+     * <p>None of this has been checked with a dealer. It is what the owner
+     * typed, and every screen that shows it has to say so.
+     */
+    @Column(name = "warranty_start_date")
+    private LocalDate warrantyStartDate;
+
+    @Column(name = "warranty_months")
+    private Integer warrantyMonths;
+
+    @Column(name = "warranty_km_limit")
+    private Integer warrantyKmLimit;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -132,6 +162,30 @@ public class VehicleProfile {
 
     public Integer getOdometer() {
         return odometer;
+    }
+
+    public LocalDate getWarrantyStartDate() {
+        return warrantyStartDate;
+    }
+
+    public void setWarrantyStartDate(LocalDate warrantyStartDate) {
+        this.warrantyStartDate = warrantyStartDate;
+    }
+
+    public Integer getWarrantyMonths() {
+        return warrantyMonths;
+    }
+
+    public void setWarrantyMonths(Integer warrantyMonths) {
+        this.warrantyMonths = warrantyMonths;
+    }
+
+    public Integer getWarrantyKmLimit() {
+        return warrantyKmLimit;
+    }
+
+    public void setWarrantyKmLimit(Integer warrantyKmLimit) {
+        this.warrantyKmLimit = warrantyKmLimit;
     }
 
     public String getBodyType() {

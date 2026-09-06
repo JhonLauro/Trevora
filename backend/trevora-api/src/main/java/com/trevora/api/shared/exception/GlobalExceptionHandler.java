@@ -33,6 +33,12 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
     }
 
+    @ExceptionHandler(InvalidVehicleUpdateException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidVehicleUpdate(InvalidVehicleUpdateException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<ApiErrorResponse> handleAuth(AuthException exception) {
         return ResponseEntity.badRequest()

@@ -106,7 +106,7 @@ class EndpointProtectionTest {
         registry.put("GET /api/vehicles", Guard.OWNER);
         registry.put("POST /api/vehicles", Guard.OWNER);
         registry.put("GET /api/vehicles/{vehicleId}", Guard.OWNER);
-        registry.put("PUT /api/vehicles/{vehicleId}", Guard.OWNER);
+        registry.put("PATCH /api/vehicles/{vehicleId}", Guard.OWNER);
         registry.put("DELETE /api/vehicles/{vehicleId}", Guard.OWNER);
         registry.put("GET /api/vehicles/{vehicleId}/history", Guard.OWNER);
         registry.put("GET /api/vehicles/{vehicleId}/history/{recordId}", Guard.OWNER);

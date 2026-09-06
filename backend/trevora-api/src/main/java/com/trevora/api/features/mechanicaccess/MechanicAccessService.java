@@ -21,6 +21,7 @@ import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import com.trevora.api.features.vehicle.VehicleRepository;
+import com.trevora.api.features.vehicle.WarrantyStatusResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
@@ -105,6 +106,7 @@ public class MechanicAccessService {
                 vehicleLabel(session.getVehicleId()),
                 vehiclePlateNumber(session.getVehicleId()),
                 vehicleBodyType(session.getVehicleId()),
+                vehicleWarranty(session.getVehicleId(), records),
                 session.getPermission(),
                 session.getStatus(),
                 session.getApprovedAt(),
@@ -277,6 +279,28 @@ public class MechanicAccessService {
         return vehicleRepository.findById(vehicleId)
                 .map(VehicleProfile::getPlateNumber)
                 .orElse(null);
+    }
+
+    /**
+     * Warranty cover for the shared vehicle, worked out from the records this
+     * session is already holding.
+     *
+     * <p>No extra query: the highest reading comes from the same list the page
+     * is about to render, so the mechanic's current-distance figure and the
+     * one on the owner's own page are the same number arrived at the same way.
+     * They are the two people who must never be told different things about
+     * the same car.
+     *
+     * <p>Returns a NOT_SET block rather than null for a vehicle that has been
+     * deleted or has no terms recorded, so the shared view never has to
+     * interpret a missing key.
+     */
+    private MechanicWarrantyResponse vehicleWarranty(UUID vehicleId, List<ServiceRecord> records) {
+        VehicleProfile vehicle = vehicleRepository.findById(vehicleId).orElse(null);
+        Integer currentKm = WarrantyStatusResolver.currentKilometres(
+                vehicle == null ? null : vehicle.getOdometer(),
+                records.stream().map(ServiceRecord::getOdometer).toList());
+        return MechanicWarrantyResponse.from(WarrantyStatusResolver.resolve(vehicle, currentKm));
     }
 
     /** Null when the vehicle predates the body-type picker — the map then
