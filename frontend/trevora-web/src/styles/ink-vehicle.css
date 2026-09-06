@@ -1159,6 +1159,21 @@
     display: none;
   }
 
+  /* And the tabs have to keep their own width for that scroll to mean
+     anything. As flex items they defaulted to `flex-shrink: 1`, so instead of
+     overflowing a scrollable strip they were squeezed narrower than their
+     labels: "Warranty & coverage" got 100px of the 174 it needs, wrapped onto
+     a second line, and was then cut off by the 48px row. The strip was
+     scrollable the whole time and had almost nothing to scroll. */
+  .ink-tabs__tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .ink-tabs__count {
+    flex: 0 0 auto;
+  }
+
   .vehicle-toolbar {
     flex-direction: column;
   }
