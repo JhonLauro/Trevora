@@ -169,3 +169,37 @@
   margin: 0.35rem 0 0;
   padding-top: 0.75rem;
 }
+
+/* ---- the dialog's own proportions -------------------------------------- */
+
+/*
+ * `.ink-modal--form` is sized for the vehicle details dialog: 720px wide with
+ * its fields in two columns, which suits four registration fields and a photo
+ * block. This dialog has three fields and no photo, so it inherited a layout
+ * built for twice its content -- the fieldset is a single grid item, so it sat
+ * in the left column at about half the dialog's width while the right column
+ * stayed empty, and the booklet line wrapped after four words with 300px of
+ * clear space beside it.
+ *
+ * Narrower and single-column rather than spanning the fieldset across both:
+ * three short fields laid side by side would put the date's hint under one of
+ * them and nothing under the other two, so their inputs would stop lining up.
+ * A 520px dialog is what the details form asked for before it grew a photo.
+ *
+ * Both rules match the specificity of the `--form` ones they override and this
+ * sheet loads after brand-app.css, so import order settles it -- no !important
+ * and nothing edited in the shared file.
+ */
+.ink-modal.ink-modal--warranty {
+  max-width: 520px;
+}
+
+@media (min-width: 760px) {
+  .ink-modal.ink-modal--warranty {
+    max-width: 520px;
+  }
+
+  .ink-modal--warranty .ink-modal__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

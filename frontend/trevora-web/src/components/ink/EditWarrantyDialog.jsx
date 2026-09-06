@@ -120,7 +120,7 @@ export default function EditWarrantyDialog({ open, vehicle, onSave, onCancel }) 
   return (
     <div className="ink-modal__backdrop" onClick={() => { if (!saving) onCancel(); }}>
       <form
-        className="ink-modal ink-modal--form"
+        className="ink-modal ink-modal--form ink-modal--warranty"
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
