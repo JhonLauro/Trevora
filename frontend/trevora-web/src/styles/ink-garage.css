@@ -1312,23 +1312,34 @@
     padding: 0 20px 18px;
   }
 
+  /* `--on-ink-muted` is the muted tone for text sitting on the dark block,
+     and this sheet was a dark block when that was written. brand-app.css
+     later repainted it to `--brand-wash` with `color: var(--ink)` — a pale
+     surface in the light theme — but left this control on the old token, so
+     the close button was a washed-out light grey on a near-white sheet.
+     `--ink-muted` is the sheet's own muted tone and is correct in both
+     themes, the way every other row in here already is.
+
+     Square, because it is a lone glyph now: the label padding and the gap
+     were both there to sit next to the word "Close". */
   .ink-sheet__close {
     align-items: center;
     background: none;
     border: 0;
-    color: var(--on-ink-muted);
+    border-radius: 999px;
+    color: var(--ink-muted);
     cursor: pointer;
     display: flex;
-    font-size: 16px;
-    gap: 7px;
     height: 44px;
+    justify-content: center;
     min-height: 0;
-    padding: 0 8px;
+    padding: 0;
+    width: 44px;
   }
 
   .ink-sheet__close:hover:not(:disabled) {
-    background: none;
-    color: var(--on-ink);
+    background: var(--hover-tint);
+    color: var(--ink);
   }
 
   .ink-sheet__account {
@@ -1421,4 +1432,16 @@
 .garage-carousel__add {
   height: 44px;
   padding: 0 16px;
+}
+
+/* The alerts control in the mobile header carries a bell instead of the word
+   "Alerts". Without a label it should not keep a label's side padding: square
+   when it stands alone, widening only when a count sits beside the icon.
+   Unscoped by a media query on purpose — `.ink-topbar` is `display: none`
+   above 900px, so this rule has nothing to act on there. */
+.ink-topbar__button--icon {
+  gap: 6px;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0 8px;
 }

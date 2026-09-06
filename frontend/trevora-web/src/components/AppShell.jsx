@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useT } from '../i18n/index.jsx';
 import { useMayLeave } from '../navigation/LeaveGuard.jsx';
-import { Bell, Car, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2, X } from 'lucide-react';
+import { Bell, Car, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Menu, Settings, Share2 } from 'lucide-react';
 import {
   clearLoggedInUser,
   AUTH_USER_CHANGED_EVENT,
@@ -355,24 +355,35 @@ export default function AppShell({ children }) {
         </Link>
         <div className="ink-topbar__actions">
           <ThemeToggle compact />
+          {/* A bell rather than the word. This bar only exists below 900px —
+              it is the mobile header — and "Alerts" next to "Menu" spent most
+              of a narrow row on two labels. The icon carries the meaning; the
+              count keeps its place beside it, and the label moves to
+              `aria-label` so nothing is lost to a screen reader. */}
           <Link
-            className="ink-topbar__button"
+            className="ink-topbar__button ink-topbar__button--icon"
             to="/notifications"
+            aria-label={t('nav.alerts')}
+            title={t('nav.alerts')}
             onClick={(event) => { if (!mayLeave('/notifications')) event.preventDefault(); }}
           >
-            <span>{t('nav.alerts')}</span>
+            <Bell size={20} aria-hidden="true" />
             {pendingCount > 0 && <span className="ink-topbar__count">{pendingCount}</span>}
           </Link>
+          {/* Icon only, like the bell beside it. The label lives in
+              `aria-label` — dropping the word from the DOM must not drop it
+              from the accessibility tree. */}
           <button
-            className="ink-topbar__button"
+            className="ink-topbar__button ink-topbar__button--icon"
             type="button"
             ref={menuButtonRef}
             aria-expanded={menuOpen}
             aria-haspopup="dialog"
+            aria-label={t('nav.menu')}
+            title={t('nav.menu')}
             onClick={openMenu}
           >
-            <Menu size={18} aria-hidden="true" />
-            <span>{t('nav.menu')}</span>
+            <Menu size={20} aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -392,13 +403,19 @@ export default function AppShell({ children }) {
           >
             <div className="ink-sheet__head">
               <InkLockup />
+              {/* A chevron pointing the way the sheet leaves. This drawer
+                  comes in from the right (`margin-left: auto`), so `>` reads
+                  as pushing it back rather than as a generic dismiss — and it
+                  keeps the head to a lockup and one quiet glyph. The word is
+                  still the accessible name. */}
               <button
                 className="ink-sheet__close"
                 type="button"
+                aria-label={t('nav.close')}
+                title={t('nav.close')}
                 onClick={() => { closeMenu(); menuButtonRef.current?.focus(); }}
               >
-                <X size={18} aria-hidden="true" />
-                <span>{t('nav.close')}</span>
+                <ChevronRight size={22} aria-hidden="true" />
               </button>
             </div>
             <ShellNav pendingCount={pendingCount} onNavigate={closeMenu} />
