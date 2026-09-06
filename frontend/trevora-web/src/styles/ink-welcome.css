@@ -585,7 +585,9 @@
 }
 
 .wt-request__what {
-  color: #3b4a43;
+  /* Was #3b4a43 — the one hard-coded colour in a file whose header promises
+     tokens only, and in dark mode it was near-black text on a dark tint. */
+  color: var(--ink-muted);
   font-size: 15px;
   line-height: 1.5;
   margin: 0 0 14px;
