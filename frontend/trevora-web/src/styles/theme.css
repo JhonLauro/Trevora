@@ -331,3 +331,229 @@
 .tvl-nav__links .theme-toggle:hover {
   background: var(--hover-tint);
 }
+
+/* ------------------------------------------------------- the landing page
+
+   The one screen in the product that had no dark theme. Everything signed-in
+   draws its colour from the token family above and flipped for free; the
+   landing page was built ahead of that family, in its own `.tvl-` namespace,
+   with about fifty literal hex values. On a dark device it stayed a white
+   page — and after the toggle went into its nav, a switch that visibly did
+   nothing.
+
+   Written as an override block rather than by editing landing-v2.css in
+   place, for two reasons. The light rendering is then untouched by
+   construction, which matters for a page nobody reviews as often as they
+   ship to it; and landing-v2.css belongs to whoever is still working on that
+   page, so this adds a layer instead of rewriting theirs. `.ink-auth` above
+   is handled the same way, for the same reason.
+
+   Only the hard-coded values are restated. Anything on the landing page that
+   already reads a token — the brand fills, the body text, the muted greys —
+   is deliberately absent, because it flipped correctly on its own. */
+
+:root[data-theme='dark'] .tvl {
+  background: var(--paper);
+}
+
+/* --- the nav pill -------------------------------------------------- */
+
+:root[data-theme='dark'] .tvl-nav__bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme='dark'] .tvl-btn--quiet {
+  background: var(--surface-sunken);
+}
+
+:root[data-theme='dark'] .tvl-btn--quiet:hover {
+  background: var(--surface-head);
+}
+
+/* --- the hero glows ------------------------------------------------- */
+
+/* Three pale mint radials that were invisible over a dark ground. Same hues
+   as the dark brand tokens, at a fraction of the alpha: a glow on a dark page
+   has far less room before it stops reading as light and starts reading as a
+   grey smear. */
+:root[data-theme='dark'] .tvl-glow--a {
+  background: radial-gradient(circle at 35% 35%, rgba(53, 177, 131, 0.17), rgba(53, 177, 131, 0) 70%);
+}
+
+:root[data-theme='dark'] .tvl-glow--b {
+  background: radial-gradient(circle at 60% 40%, rgba(76, 199, 154, 0.13), rgba(76, 199, 154, 0) 70%);
+}
+
+:root[data-theme='dark'] .tvl-glow--c {
+  background: radial-gradient(circle at 50% 50%, rgba(29, 92, 67, 0.26), rgba(29, 92, 67, 0) 70%);
+}
+
+/* --- the showcase frames -------------------------------------------- */
+
+:root[data-theme='dark'] .tvl-shot,
+:root[data-theme='dark'] .tvl-shot-card,
+:root[data-theme='dark'] .tvl-view__frame {
+  background: var(--surface-sunken);
+}
+
+:root[data-theme='dark'] .tvl-shot-card__frame {
+  background: var(--surface);
+}
+
+/* The scan sweep, in the lifted green the dark theme uses for the same
+   effect on the walkthrough and the vehicle page. */
+:root[data-theme='dark'] .tvl-scan__line {
+  background: linear-gradient(180deg, rgba(53, 177, 131, 0) 0%, rgba(53, 177, 131, 0.16) 70%, rgba(53, 177, 131, 0) 100%);
+  border-bottom-color: rgba(53, 177, 131, 0.7);
+}
+
+/* The "saved" card floats over a photograph, so it stays a solid sheet — it
+   is just no longer a white one. */
+:root[data-theme='dark'] .tvl-saved {
+  background: rgba(23, 31, 27, 0.94);
+}
+
+/* Empty art slots, and the labels inside them. */
+:root[data-theme='dark'] .tvl-slot,
+:root[data-theme='dark'] .tvl-view__frame .tvl-slot:has(.tvl-slot__label) {
+  background: linear-gradient(140deg, var(--brand-tint), var(--surface));
+}
+
+:root[data-theme='dark'] .tvl-slot__label,
+:root[data-theme='dark'] .tvl-slot__label svg {
+  color: var(--ink-faint);
+}
+
+/* --- the three ways in ---------------------------------------------- */
+
+:root[data-theme='dark'] .tvl-way {
+  background: var(--surface);
+}
+
+:root[data-theme='dark'] .tvl-way__icon {
+  background: var(--surface-head);
+}
+
+/* --- the confidence tiers ------------------------------------------- */
+
+/* These were three pale washes carrying meaning — stop, look, source. The
+   status tokens carry the same three meanings and are already tuned to clear
+   4.5:1 against their own fills on a dark ground, so the tiers take those
+   rather than a darkened version of the washes. */
+:root[data-theme='dark'] .tvl-tier--stop {
+  background: var(--status-bad-bg);
+}
+
+:root[data-theme='dark'] .tvl-tier--look {
+  background: var(--surface-sunken);
+}
+
+:root[data-theme='dark'] .tvl-tier--source {
+  background: var(--surface);
+}
+
+:root[data-theme='dark'] .tvl-tier--stop .tvl-tier__label {
+  color: var(--status-bad-text);
+}
+
+:root[data-theme='dark'] .tvl-tier--look .tvl-tier__label {
+  color: var(--ink-muted);
+}
+
+:root[data-theme='dark'] .tvl-tier--source .tvl-tier__label {
+  color: var(--ink-faint);
+}
+
+:root[data-theme='dark'] .tvl-chip--stop {
+  background: var(--surface);
+  color: var(--status-bad-text);
+}
+
+/* A deliberately dark pill. `--ink-block` is the token that exists for
+   exactly this — a block that was dark in the light theme and has to stay
+   dark, rather than a colour that inverts. */
+:root[data-theme='dark'] .tvl-chip--look,
+:root[data-theme='dark'] .tvl-row__flag {
+  background: var(--ink-block);
+  color: var(--on-ink);
+}
+
+/* --- the review mock ------------------------------------------------ */
+
+:root[data-theme='dark'] .tvl-review {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+:root[data-theme='dark'] .tvl-review__head {
+  background: var(--surface-head);
+}
+
+:root[data-theme='dark'] .tvl-row {
+  border-bottom-color: var(--rule-hairline);
+}
+
+:root[data-theme='dark'] .tvl-row--flagged {
+  background: var(--surface-sunken);
+}
+
+:root[data-theme='dark'] .tvl-mismatch {
+  background: var(--status-warn-bg);
+  color: var(--status-warn-text);
+}
+
+:root[data-theme='dark'] .tvl-mismatch__note {
+  border-top-color: var(--status-warn-border);
+}
+
+/* --- the handoff ---------------------------------------------------- */
+
+:root[data-theme='dark'] .tvl-handoff__lede,
+:root[data-theme='dark'] .tvl-step__note,
+:root[data-theme='dark'] .tvl-faq__a {
+  color: var(--ink-muted);
+}
+
+/* `:not()` rather than a plain `.tvl-step`, which would out-specify the
+   `.tvl-step--you` fill below it — a theme override that silently repaints a
+   modifier is the failure mode this whole block is built to avoid. */
+:root[data-theme='dark'] .tvl-step:not(.tvl-step--you),
+:root[data-theme='dark'] .tvl-handoff__shot {
+  background: var(--surface);
+}
+
+/* The one step drawn on a brand fill. Its title stays white, the way every
+   primary button in the product does; the note under it only needs lifting
+   off the lighter green the dark theme uses. */
+:root[data-theme='dark'] .tvl-step--you .tvl-step__note {
+  color: #eafaf3;
+}
+
+/* --- the tail ------------------------------------------------------- */
+
+:root[data-theme='dark'] .tvl-nopredict {
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+:root[data-theme='dark'] .tvl-faq__item {
+  background: var(--surface);
+}
+
+:root[data-theme='dark'] .tvl .tvl-faq__q:focus {
+  background: var(--brand-tint);
+}
+
+:root[data-theme='dark'] .tvl-footer__inner {
+  border-top-color: var(--border);
+}
+
+/* The photographs and the three drawn view illustrations. The SVGs were
+   generated from the light tokens, so they are white cards on a dark page;
+   the photographs are simply bright. Same treatment the receipt images get
+   above — dimmed, never inverted, because a photograph of a receipt has to
+   stay a photograph of that receipt. */
+:root[data-theme='dark'] .tvl img {
+  filter: brightness(0.88);
+}
