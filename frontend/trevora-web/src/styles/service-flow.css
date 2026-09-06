@@ -1113,6 +1113,19 @@
   min-width: 0;
 }
 
+/* Named by the column header everywhere there is room for one. */
+.flow-lines__label {
+  display: none;
+}
+
+/* A long printed line runs past the end of the box. An input cannot wrap, so
+   the least it can do is say so rather than ending mid-word as though the
+   receipt said that. Applies while the field is not focused; typing scrolls
+   normally. */
+.flow-lines__desc input {
+  text-overflow: ellipsis;
+}
+
 .flow-lines__code {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -2003,14 +2016,29 @@
      three short controls share the row beneath it, in the order the desktop
      header names them. A rule above every entry but the first makes each one
      read as a unit. */
+  /* The kind had the flexible column and the amount a fixed 104px, which is
+     backwards: "Part" is one word from a list of three and explains itself at
+     any width, while the amount is the number being checked against the
+     receipt and has to be read. So the fixed column goes to the kind -- wide
+     enough for "Material", the longest of them -- and the amount takes what
+     is left. */
   .flow-lines {
-    grid-template-columns: minmax(0, 1fr) 104px 44px;
+    grid-template-columns: 116px minmax(0, 1fr) 38px;
     gap: 8px;
     align-items: center;
   }
 
   .flow-lines__desc {
     grid-column: 1 / -1;
+  }
+
+  .flow-lines__label {
+    color: var(--ink-muted);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 
   /* The description is the only `div` among these cells, so "every one after
@@ -2053,3 +2081,67 @@
    for a reason: it is what a photo gets judged against. It does not invert.
    The reading modal used to be dark too, on no better grounds than "a wait
    feels heavy" -- it is an ordinary Ink modal now. */
+
+/* ------------------------------------------- service name suggestions ---
+
+   A plain field that offers help, not a picker. There is deliberately no
+   chevron: the list is a convenience over free text, and a control shaped
+   like a dropdown would promise a closed set of answers to a field that has
+   to accept whatever the shop printed. */
+
+.flow-service__name-field {
+  /* Takes the flex share the input used to hold, and gives the list something
+     to be positioned against. */
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.flow-suggest {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  left: 0;
+  list-style: none;
+  margin: 6px 0 0;
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  /* Above the lines table below it, and above the sticky rail beside it. */
+  z-index: 20;
+}
+
+.flow-suggest__item {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  /* The 44px target the rest of the product holds to: this list is read and
+     tapped on a phone, in the middle of a form. */
+  min-height: 44px;
+  padding: 11px 12px;
+}
+
+.flow-suggest__item.is-highlighted {
+  background: var(--hover-tint);
+}
+
+/* ---------------------------------------------------- the quieter link */
+
+/* "Add a service" beside "Add a line". Both are the same control, and this
+   one steps back by exactly one thing: its colour.
+
+   It briefly also dropped the underline and the bold, which took it too far --
+   `.flow-note` sitting next to it is muted ink at the same 15px, so a quiet
+   link with no underline was the note. The underline is the affordance, not
+   the emphasis; only the colour should carry the difference. */
+.flow-link--quiet {
+  color: var(--ink-muted);
+}
+
+.flow-link--quiet:hover:not(:disabled) {
+  color: var(--ink);
+}
