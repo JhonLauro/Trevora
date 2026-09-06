@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Camera, ChevronDown, ImageIcon, Keyboard, Mic } from 'lucide-react';
 import { isLoggedIn } from '../api/currentUser.js';
 import TrevoraMark from '../components/TrevoraMark.jsx';
+import ThemeToggle from '../components/ink/ThemeToggle.jsx';
 
 /* Trevora landing — v2.
  *
@@ -134,6 +135,9 @@ export default function LandingPage() {
             <span className="tvl-nav__word">Trevora</span>
           </Link>
           <nav className="tvl-nav__links" aria-label="Account">
+            {/* Ahead of the links: it is a setting for the page you are on,
+                not another way off it. */}
+            <ThemeToggle compact />
             {!signedIn && (
               <Link className="tvl-nav__link" to="/login">
                 Sign in

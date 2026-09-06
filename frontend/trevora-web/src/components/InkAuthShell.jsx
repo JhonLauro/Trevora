@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import InkLockup from './InkLockup.jsx';
+import ThemeToggle from './ink/ThemeToggle.jsx';
 
 /* The lockup is the way back out of the auth screens. Someone who lands on
    /login from a shared link and wants to know what Trevora is has no other
@@ -37,6 +38,14 @@ export default function InkAuthShell({ hero, lead, aside, mobileTitle, variant =
       </aside>
 
       <div className="ink-auth__main">
+        {/* Pinned to the top of the form column rather than dropped into one
+            of the three brand rows below, which appear and disappear with the
+            breakpoint — the switch has to be in the same place at every width,
+            including the one where none of those rows is rendered. */}
+        <div className="ink-auth__theme">
+          <ThemeToggle compact />
+        </div>
+
         <div className="ink-auth__tablet-brand">
           <HomeLockup tone="dark" />
         </div>

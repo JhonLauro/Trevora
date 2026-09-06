@@ -298,3 +298,36 @@
 .theme-toggle:hover {
   background: var(--hover-tint);
 }
+
+/* ------------------------------------------------- the signed-out screens
+
+   The switch reaches the three pages you can be on without an account. Every
+   other surface gets it from the app shell, which none of these render. */
+
+/* Auth (sign in, register, and the two password screens). The form column is
+   the positioning context so the button clears the dark panel at the widths
+   where that panel is on screen, and sits in the corner of the sheet at the
+   widths where it is not. */
+.ink-auth__main {
+  position: relative;
+}
+
+.ink-auth__theme {
+  position: absolute;
+  right: clamp(16px, 4vw, 28px);
+  top: clamp(14px, 3vw, 22px);
+  z-index: 3;
+}
+
+/* Nothing behind it on these screens is dark, so the toggle takes the same
+   wash the rest of the light theme uses rather than the white one it shows
+   against the sidebar. */
+.ink-auth__theme .theme-toggle:hover {
+  background: var(--hover-tint);
+}
+
+/* Landing. It sits inside the nav pill with the sign-in link, so it needs no
+   placement of its own — only the hover wash, for the same reason. */
+.tvl-nav__links .theme-toggle:hover {
+  background: var(--hover-tint);
+}
