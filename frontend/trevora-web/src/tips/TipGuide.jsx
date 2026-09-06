@@ -150,10 +150,21 @@ export default function TipGuide() {
          gives it back. */
       const scrollBefore = window.scrollY;
 
+      /* Read now rather than at module load: the owner may have toggled since.
+         A theme change mid-tour is not followed -- the tour is built once --
+         which is a moment nobody will meet in practice. */
+      const dark = document.documentElement.dataset.theme === 'dark';
+
       tour = driver({
         animate: !prefersReducedMotion(),
-        overlayColor: '#1c1b19',
-        overlayOpacity: 0.55,
+        /* A spotlight works by dimming everything else, which needs the page
+           to be lighter than the dimming. On the dark theme it is not: a
+           near-black veil over a near-black page left the highlighted element
+           looking exactly like its surroundings, and the tip pointed at
+           nothing anybody could see. Black, and more of it, so the cutout
+           keeps the card colour while the rest goes further down. */
+        overlayColor: dark ? '#000000' : '#1c1b19',
+        overlayOpacity: dark ? 0.74 : 0.55,
         /* We do the scrolling, in `onHighlightStarted` below. Driver's own
            smooth scroll animates while it is drawing the cutout, so the hole
            is cut where the element used to be. */
