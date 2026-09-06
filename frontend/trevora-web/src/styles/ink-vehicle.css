@@ -160,9 +160,15 @@
 
 /* ------------------------------------------------------------ stat strip */
 
+/* One column per stat, so the row is full and nothing is orphaned. There are
+   six: records, last service, odometer, total spent, needs review, open
+   concerns. This said five, and had done since open concerns was added -- so
+   the sixth sat alone on a second row beside four empty cells. If a seventh
+   is ever added, this number moves with it, and the two breakpoints below
+   (three across, then two) both already divide six exactly. */
 .vehicle-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .vehicle-stat {
