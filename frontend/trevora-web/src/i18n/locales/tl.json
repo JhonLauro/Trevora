@@ -178,6 +178,7 @@
   "auth.lastName": "Apelyido",
   "auth.confirmPassword": "Kumpirmahin ang password",
   "auth.backToSignIn": "Bumalik sa pag-sign in",
+  "auth.backToTrevora": "Bumalik sa Trevora",
   "auth.terms": "Mga Tuntunin ng Serbisyo",
   "auth.privacy": "Patakaran sa Privacy",
   "auth.wholeOfIt": "Pangalan, email, password — iyon lang ang kailangan.",
