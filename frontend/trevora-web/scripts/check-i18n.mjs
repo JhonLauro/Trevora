@@ -67,18 +67,28 @@ const DECLARES = /const\s+t\s*=\s*useT\(\)|const\s*\{[^}]*\bt\b[^}]*\}\s*=\s*use
 const CALLS = /(?<![\w.])t\(/;
 for (const file of sources) {
   const lines = readFileSync(file, 'utf8').split('\n');
+  /* Every top-level function ends the previous one, whatever its name. Only
+     PascalCase ones are *reported* — a camelCase function is a plain helper,
+     which cannot hold a hook and takes `translate as t` from the module import.
+     Keeping those two ideas apart matters: treating only PascalCase as a
+     boundary let a helper's t() calls bleed into the component declared above
+     it, and blamed that component for calls it never made. */
   const starts = [];
   lines.forEach((line, i) => {
-    // PascalCase only: a camelCase function is a plain helper, which cannot
-    // hold a hook and takes `translate as t` from the module import instead.
-    if (/^(export default |export )?function [A-Z]/.test(line)) starts.push(i);
+    if (/^(export default |export )?function [A-Za-z_]/.test(line)) starts.push(i);
   });
   if (!starts.length) continue;
   starts.push(lines.length);
   for (let i = 0; i < starts.length - 1; i += 1) {
+    const header = lines[starts[i]];
+    /* Strip the keywords whether or not the function is exported. Matching only
+       the exported form left "function ShellNav" as the name, which fails the
+       PascalCase test below and silently skipped every unexported component. */
+    const name = header.trim().split('(')[0]
+      .replace(/^export\s+/, '').replace(/^default\s+/, '').replace(/^function\s+/, '').trim();
+    if (!/^[A-Z]/.test(name)) continue;
     const body = lines.slice(starts[i], starts[i + 1]).join('\n');
     if (!CALLS.test(body) || DECLARES.test(body)) continue;
-    const name = lines[starts[i]].trim().split('(')[0].replace(/^export (default )?/, '');
     problems.push(`calls t() without useT(): ${name} in ${file.replace(SRC, 'src')}`);
   }
 }

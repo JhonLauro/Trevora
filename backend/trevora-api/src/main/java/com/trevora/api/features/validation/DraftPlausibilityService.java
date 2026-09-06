@@ -1,5 +1,6 @@
 package com.trevora.api.features.validation;
 
+import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecord;
@@ -11,6 +12,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
@@ -257,6 +259,20 @@ public class DraftPlausibilityService {
                 .findByVehicleIdAndOwnerId(draft.getVehicleId(), draft.getOwnerId())
                 .stream()
                 .filter(other -> other.getDraftId() != null && !other.getDraftId().equals(draft.getDraftId()))
+                /*
+                 * Unconfirmed drafts only.
+                 *
+                 * <p>A confirmed draft is not a draft any more -- it is a
+                 * service record, and the check above already compares against
+                 * those. Without this filter the same receipt was reported
+                 * twice over, and worse: confirming a draft leaves its row
+                 * behind, so deleting the record it produced left a CONFIRMED
+                 * draft nothing points at. Scanning that receipt again matched
+                 * the orphan and announced "you have another draft ... it has
+                 * not been confirmed yet" about a draft that had been confirmed
+                 * and whose record the owner had just deleted.
+                 */
+                .filter(other -> other.getStatus() != DraftStatus.CONFIRMED)
                 .filter(other -> looksLikeOneReceipt(
                         draft, other.getServiceDate(), other.getOdometer(), other.getTotalCost()))
                 .filter(other -> shopDoesNotContradict(draft.getShopName(), other.getShopName()))
@@ -278,7 +294,10 @@ public class DraftPlausibilityService {
                         + "twice, throw one away rather than confirming both.",
                 draft.getTotalCost(),
                 draft,
-                false
+                false,
+                "issue.duplicateDraft",
+                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getOdometer()),
+                        "date", String.valueOf(match.getServiceDate()))
         ));
     }
 
@@ -314,7 +333,10 @@ public class DraftPlausibilityService {
                         + "— a second copy would inflate the spend total and the years covered.",
                 draft.getTotalCost(),
                 draft,
-                false
+                false,
+                "issue.duplicateRecord",
+                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getOdometer()),
+                        "date", String.valueOf(match.getServiceDate()))
         ));
     }
 
@@ -386,6 +408,18 @@ public class DraftPlausibilityService {
         return date == null ? "" : ", dated " + date;
     }
 
+
+    /** Which signal matched, as a key the reader's own language can phrase. */
+    private String agreementKeyWith(ServiceDraft draft, BigDecimal otherTotal, Integer otherOdometer) {
+        if (sameMoney(draft.getTotalCost(), otherTotal)) {
+            return "issue.agreement.total";
+        }
+        if (sameOdometer(draft.getOdometer(), otherOdometer)) {
+            return "issue.agreement.odometer";
+        }
+        return "issue.agreement.similar";
+    }
+
     /** Within a month either way. See DUPLICATE_DATE_WINDOW_DAYS. */
     private boolean nearlySameDate(LocalDate first, LocalDate second) {
         if (first == null || second == null) {
@@ -443,6 +477,23 @@ public class DraftPlausibilityService {
             ServiceDraft draft,
             boolean blocksConfirmation
     ) {
+        return issue(fieldName, label, category, severity, message, currentValue, draft,
+                blocksConfirmation, null, null);
+    }
+
+    /** The same, with the message also addressable by key. See FieldValidationIssue. */
+    private FieldValidationIssue issue(
+            String fieldName,
+            String label,
+            String category,
+            String severity,
+            String message,
+            Object currentValue,
+            ServiceDraft draft,
+            boolean blocksConfirmation,
+            String messageKey,
+            Map<String, Object> messageArgs
+    ) {
         return new FieldValidationIssue(
                 fieldName,
                 label,
@@ -452,7 +503,9 @@ public class DraftPlausibilityService {
                 currentValue,
                 draft.getInputMethod() == null ? null : draft.getInputMethod().name(),
                 blocksConfirmation,
-                true
+                true,
+                messageKey,
+                messageArgs
         );
     }
 }

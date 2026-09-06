@@ -126,6 +126,10 @@ function ReviewPreview() {
           <span className="wt-screen__title">Check the details</span>
           <span className="wt-screen__step">Step 4 of 6</span>
         </div>
+        {/* Only the table scrolls. The head used to scroll with it, so
+            reaching the Flag column carried "Step 4 of 6" off the left
+            edge -- the label that says where you are, leaving. */}
+        <div className="wt-screen__scroll">
         <table className="wt-fields">
           <thead>
             <tr>
@@ -144,6 +148,7 @@ function ReviewPreview() {
             ))}
           </tbody>
         </table>
+        </div>
         <p className="wt-screen__foot">Nothing is saved until you confirm it.</p>
       </div>
     </div>
@@ -173,6 +178,10 @@ function HistoryPreview() {
           <span className="wt-search">Search service, part, shop, or notes</span>
           <span className="wt-count">3 records</span>
         </div>
+        {/* Only the table scrolls. The head used to scroll with it, so
+            reaching the Flag column carried "Step 4 of 6" off the left
+            edge -- the label that says where you are, leaving. */}
+        <div className="wt-screen__scroll">
         <table className="wt-records">
           <thead>
             <tr>
@@ -198,6 +207,7 @@ function HistoryPreview() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

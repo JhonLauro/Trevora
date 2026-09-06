@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useT } from '../../i18n/index.jsx';
 import { useNavigate } from 'react-router-dom';
 import { discardDraftAndRescan } from '../../utils/rescanDraft.js';
 import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
@@ -25,9 +26,11 @@ import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
  * cannot be noticed later.
  */
 
+/* labelKey, not label: this array is built at module load, where no language
+   is bound yet. Both dialogs resolve it where they render. */
 const FIELDS = [
-  { field: 'plateNumber', metadataKey: 'receiptPlateNumber', label: 'plate number' },
-  { field: 'vinChassisNumber', metadataKey: 'receiptVinChassisNumber', label: 'VIN or chassis number' },
+  { field: 'plateNumber', metadataKey: 'receiptPlateNumber', labelKey: 'veh.plateNumber' },
+  { field: 'vinChassisNumber', metadataKey: 'receiptVinChassisNumber', labelKey: 'veh.vinNumber' },
 ];
 
 /** Loose comparison: spaces, dashes and case are not disagreements. */
@@ -84,6 +87,7 @@ export function vehicleWithField(vehicle, field, value) {
 }
 
 export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated }) {
+  const t = useT();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -176,11 +180,11 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="vehicle-dialog-title">This may be the wrong vehicle</h2>
+        <h2 id="vehicle-dialog-title">{t('veh.wrongVehicle')}</h2>
 
         <div className="ink-modal__body">
           <p className="vehicle-dialog__lead">
-            What this receipt prints does not match {vehicleName}.
+            {t('veh.doesNotMatch', { vehicle: vehicleName })}
           </p>
 
           {/* A comparison, not a sentence. Two prose paragraphs saying "the
@@ -192,14 +196,14 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
           <dl className="vehicle-dialog__facts">
             {conflicts.map((item) => (
               <div className="vehicle-dialog__fact is-conflict" key={item.field}>
-                <dt>{item.label}</dt>
+                <dt>{t(item.labelKey)}</dt>
                 <dd>
                   <span className="vehicle-dialog__side">
-                    <span>On the receipt</span>
+                    <span>{t('veh.onReceipt')}</span>
                     <b className="vehicle-dialog__value">{item.value}</b>
                   </span>
                   <span className="vehicle-dialog__side">
-                    <span>On {vehicleName}</span>
+                    <span>{t('veh.onVehicle', { vehicle: vehicleName })}</span>
                     <b className="vehicle-dialog__value">{item.recorded}</b>
                   </span>
                 </dd>
@@ -208,9 +212,7 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
           </dl>
 
           <p className="vehicle-dialog__advice">
-            Either this receipt belongs to another vehicle, or to one you have not added
-            yet. Scanning again throws this draft away and starts over — nothing has been
-            saved to your history.
+            {t('veh.eitherOr')}
           </p>
         </div>
 
@@ -230,7 +232,7 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
             disabled={saving}
             onClick={() => setDismissed(true)}
           >
-            Use it anyway
+            {t('veh.useAnyway')}
           </button>
           <button
             className="ink-button ink-button--primary"
@@ -238,7 +240,7 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
             disabled={saving}
             onClick={scanAgain}
           >
-            {saving ? 'Starting over…' : 'Scan the right receipt'}
+            {saving ? t('dup.startingOver') : t('veh.scanRight')}
           </button>
         </div>
       </div>

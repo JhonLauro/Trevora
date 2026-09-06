@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.InputMethod;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
@@ -333,6 +334,52 @@ class DraftPlausibilityServiceTest {
 
         assertThat(service.check(mine, new VehicleProfile()))
                 .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    // ---- a draft that has already become a record ------------------------
+
+    @Test
+    @DisplayName("a confirmed draft is not a duplicate, even after its record is deleted")
+    void ignoresConfirmedDrafts() {
+        /*
+         * Reported: every service record deleted, then a previously scanned
+         * receipt scanned again -- and the warning still fired.
+         *
+         * Confirming leaves the draft row behind with status CONFIRMED, and
+         * deleting the record it produced does not remove it. That orphan
+         * matched the new scan, and the message it printed was the opposite of
+         * true: "you have another draft ... it has not been confirmed yet",
+         * about a draft that had been confirmed and whose record was gone.
+         */
+        ServiceDraft alreadyFiled = draft(LocalDate.of(2026, 3, 18), 68_542, "389.98", "MIKE'S AUTO REPAIR");
+        setField(alreadyFiled, "draftId", UUID.randomUUID());
+        alreadyFiled.setStatus(DraftStatus.CONFIRMED);
+        siblings(alreadyFiled);
+
+        ServiceDraft scanningAgain = draft(LocalDate.of(2026, 3, 18), 68_542, "389.98", "MIKE'S AUTO REPAIR");
+        setField(scanningAgain, "draftId", UUID.randomUUID());
+
+        // history() is empty: the record was deleted, so there is nothing to duplicate.
+        assertThat(service.check(scanningAgain, new VehicleProfile()))
+                .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
+    @Test
+    @DisplayName("an unconfirmed sibling draft is still caught")
+    void stillCatchesUnconfirmedSiblings() {
+        /* The guard on the filter above: excluding CONFIRMED must not silence
+           the case the check exists for -- one receipt photographed twice, with
+           neither copy confirmed. */
+        ServiceDraft justScanned = draft(LocalDate.of(2026, 3, 18), 68_542, "389.98", "MIKE'S AUTO REPAIR");
+        setField(justScanned, "draftId", UUID.randomUUID());
+        justScanned.setStatus(DraftStatus.DRAFT);
+        siblings(justScanned);
+
+        ServiceDraft scanningAgain = draft(LocalDate.of(2026, 3, 18), 68_542, "389.98", "MIKE'S AUTO REPAIR");
+        setField(scanningAgain, "draftId", UUID.randomUUID());
+
+        assertThat(service.check(scanningAgain, new VehicleProfile()))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
     }
 
     // ---- fixtures --------------------------------------------------------

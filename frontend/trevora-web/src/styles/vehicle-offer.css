@@ -228,3 +228,30 @@
 .vehicle-dialog:focus {
   outline: none;
 }
+
+/* ----------------------------------------- "Keep this as a draft?" on exit
+
+   Three answers, and they are not three equals. Keep and stay sit together in
+   the usual action row; deleting the draft sits below a rule, on its own,
+   because it is the one answer that cannot be undone and the one nobody should
+   reach for by aiming at the pair above. */
+
+.leave-draft__destructive {
+  border-top: 1px solid var(--rule-hairline, #efebe3);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.leave-draft__destructive .ink-link-button {
+  font-size: 15px;
+}
+
+@media (max-width: 560px) {
+  /* The shared action row stacks here; the destructive link follows it rather
+     than sitting beside a full-width button and reading as its equal. */
+  .leave-draft__destructive {
+    justify-content: center;
+  }
+}

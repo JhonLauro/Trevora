@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { issueText, useT } from '../../i18n/index.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { discardDraftAndRescan } from '../../utils/rescanDraft.js';
 import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
@@ -24,6 +25,7 @@ import { insistOnAnswer } from '../../utils/insistOnAnswer.js';
  * by a second surface reads as not having been listened to.
  */
 export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismiss }) {
+  const t = useT();
   const navigate = useNavigate();
   const [working, setWorking] = useState(false);
 
@@ -107,14 +109,14 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="duplicate-dialog-title">This may already be in your records</h2>
+        <h2 id="duplicate-dialog-title">{t('dup.title')}</h2>
 
         <div className="ink-modal__body">
-          <p className="vehicle-dialog__lead">{issue.message}</p>
+          <p className="vehicle-dialog__lead">{issueText(issue, t)}</p>
 
           {vehicleId && (
             <p className="vehicle-dialog__advice">
-              <Link to={`/vehicles/${vehicleId}`}>Check this car&apos;s records</Link>{' '}
+              <Link to={`/vehicles/${vehicleId}`}>{t('dup.checkRecords')}</Link>{' '}
               if you are not sure. Nothing has been saved to your history yet.
             </p>
           )}
@@ -132,7 +134,7 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
             disabled={working}
             onClick={() => setDismissed()}
           >
-            It is a different service
+            {t('dup.different')}
           </button>
           <button
             className="ink-button ink-button--primary"
@@ -140,7 +142,7 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
             disabled={working}
             onClick={rescan}
           >
-            {working ? 'Starting over…' : 'Scan a different receipt'}
+            {working ? t('dup.startingOver') : t('dup.rescan')}
           </button>
         </div>
       </div>
