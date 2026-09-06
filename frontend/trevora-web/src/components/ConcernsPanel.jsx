@@ -177,6 +177,20 @@ export default function ConcernsPanel({
                     >
                       <RotateCcw size={15} aria-hidden="true" />
                     </button>
+                    {/* Resolving is not deleting, and until now the two were
+                        the same door: once a note was closed the only way out
+                        of the list was to reopen it first. A note written by
+                        mistake, or about a car that has since been sold, has
+                        nowhere else to go. */}
+                    <button
+                      className="concern__action concern__action--danger"
+                      type="button"
+                      title={t('concerns.delete')}
+                      aria-label={t('concerns.delete')}
+                      onClick={() => onDelete(concern.concernId)}
+                    >
+                      <Trash2 size={15} aria-hidden="true" />
+                    </button>
                   </div>
                 </li>
               ))}

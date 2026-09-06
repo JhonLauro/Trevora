@@ -105,6 +105,15 @@
   gap: 0.25rem;
 }
 
+/* Why `min-height` and `padding` are restated: `button` in ink-app.css sets
+   `min-height: var(--field-h)` (52px) and `padding: 0 20px` on every button in
+   the app. A `height`/`width` of 28px loses to that min-height, and 40px of
+   horizontal padding inside a 28px box leaves nothing for the contents — so
+   the icon, a flex item free to shrink, was squeezed to exactly 0px wide.
+
+   The buttons were rendering the whole time. They were 42x52 rectangles of
+   empty space: edit, resolve and delete all present, all invisible, and the
+   delete one reported as missing. */
 .concern__action {
   align-items: center;
   background: transparent;
@@ -113,22 +122,36 @@
   color: var(--ink-muted);
   cursor: pointer;
   display: inline-flex;
+  flex: 0 0 auto;
   height: 28px;
   justify-content: center;
+  min-height: 0;
+  padding: 0;
   width: 28px;
 }
 
+/* And the icon itself does not give up its width when the row is tight. */
+.concern__action svg {
+  flex: 0 0 auto;
+}
+
+/* `--ink-hover` is the colour text goes on hover, not a surface: as a
+   background it put a near-black wash behind a near-black icon, so the one
+   state that was meant to confirm the button exists hid it again. The wash
+   token is `--hover-tint`, and it is defined for both themes. */
 .concern__action:hover {
-  background: var(--ink-hover);
+  background: var(--hover-tint);
   color: var(--ink);
 }
 
+/* Tokens rather than the literal green and red these carried: those were
+   fixed light-theme values that fell to roughly 2:1 on the dark surface. */
 .concern__action--ok:hover {
-  color: #15803d;
+  color: var(--ok-text);
 }
 
 .concern__action--danger:hover {
-  color: #b91c1c;
+  color: var(--bad-text);
 }
 
 .concern__edit {
