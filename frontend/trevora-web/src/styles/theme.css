@@ -155,6 +155,13 @@
   display: inline-flex;
   height: 34px;
   justify-content: center;
+  /* `button` in ink-app.css carries `min-height: var(--field-h)` — 52px, the
+     height of a form field. `height: 34px` does not beat a min-height, so this
+     button was 34 wide and 52 tall everywhere it appeared: a circle stretched
+     into an oval, sitting taller than the controls beside it. Stated here
+     rather than patched per-surface, which is what the collapsed-rail rule
+     below was already doing for the one place somebody noticed it. */
+  min-height: 0;
   padding: 0;
   position: relative;
   width: 34px;
