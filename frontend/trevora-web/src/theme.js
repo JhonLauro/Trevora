@@ -1,10 +1,17 @@
 /**
  * Light or dark, and who decides.
  *
- * <p>Three states, not two. An owner who has never touched the toggle follows
- * their device, and follows it live — someone whose phone turns dark at sunset
- * should not have to come back and tell Trevora as well. An owner who *has*
- * chosen keeps their choice, on that device, until they change it.
+ * <p>Two states. Trevora opens light for everybody, on every device, and stays
+ * light until the owner presses the toggle; from then on their choice holds on
+ * that device until they change it again.
+ *
+ * <p>It used to follow `prefers-color-scheme` for anyone who had never chosen.
+ * That was the better-behaved design in the abstract and it is deliberately
+ * gone: light is the theme the product is drawn in and the one every screen is
+ * checked against, and a device-dark owner was landing in a theme neither they
+ * nor we had asked for. Anyone who wants dark can still have it in one press —
+ * the difference is that it is now something you choose rather than something
+ * your phone chooses for you.
  *
  * <p>localStorage, deliberately, where the walkthrough flag and the tips are
  * server-side. Those are facts about a person: whether they have been shown
@@ -14,10 +21,8 @@
  */
 const STORAGE_KEY = 'trevora.theme';
 
-/** What the device asks for. */
-function systemTheme() {
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
+/** What everyone gets until they say otherwise. */
+const DEFAULT_THEME = 'light';
 
 /** The stored choice, or null when the owner has never made one. */
 export function storedTheme() {
@@ -31,7 +36,7 @@ export function storedTheme() {
 }
 
 export function resolveTheme() {
-  return storedTheme() ?? systemTheme();
+  return storedTheme() ?? DEFAULT_THEME;
 }
 
 /**
@@ -57,21 +62,14 @@ export function setTheme(theme) {
 }
 
 /**
- * Follows the device for as long as the owner has not overridden it.
+ * Kept as a no-op so callers need not care that the device no longer votes.
  *
- * <p>Checked at the moment the device changes rather than at startup, because
- * a choice made after this was wired up still has to win.
+ * <p>This used to subscribe to `prefers-color-scheme` and repaint anyone who
+ * had not chosen for themselves. Light is now the default for everyone, so
+ * there is nothing to follow: a phone going dark at sunset must not move an
+ * owner off the theme the product opened in. Returns the same unsubscribe
+ * shape it always did.
  */
 export function watchSystemTheme() {
-  const query = window.matchMedia?.('(prefers-color-scheme: dark)');
-  if (!query) return () => {};
-
-  const onChange = (event) => {
-    if (storedTheme()) return;
-    applyTheme(event.matches ? 'dark' : 'light');
-    window.dispatchEvent(new CustomEvent('trevora:theme-changed', { detail: resolveTheme() }));
-  };
-
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
+  return () => {};
 }
