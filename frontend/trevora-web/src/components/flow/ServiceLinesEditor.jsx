@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/index.jsx';
 import { translate as t } from '../../i18n/index.jsx';
 import { X } from 'lucide-react';
+import { serviceNameSuggestions } from '../../data/serviceNames';
 import {
   DEFAULT_LINE_KIND,
   LINE_KINDS,
@@ -27,6 +28,99 @@ import {
  * read them — they are simply no longer surfaced. Nothing offers to create
  * new ones, and nothing drops the ones that exist.
  */
+
+/**
+ * The service name, with suggestions under it.
+ *
+ * <p>Not a closed list and not shaped like one: a plain field that offers
+ * help, rather than a picker with a chevron promising a set of answers. A
+ * receipt says whatever the shop chose to print, and this field has to take
+ * it. Typing something no suggestion matches is the ordinary case, not an
+ * error -- there is no warning and nothing changes colour.
+ *
+ * <p>It fills `serviceType` and nothing else. Mapping a name to a category
+ * here would be a second definition of category assignment competing with the
+ * backend classifier; see `data/serviceNames.js`.
+ */
+function ServiceNameField({ services, index, value, onChange, label }) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
+  const wrapperRef = useRef(null);
+
+  const matches = open ? serviceNameSuggestions(services, index, value) : [];
+
+  useEffect(() => {
+    function onPointerDown(event) {
+      if (!wrapperRef.current?.contains(event.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  function choose(name) {
+    onChange(name);
+    setOpen(false);
+    setHighlight(-1);
+  }
+
+  function onKeyDown(event) {
+    if (event.key === 'Escape' && open) {
+      event.preventDefault();
+      setOpen(false);
+      setHighlight(-1);
+      return;
+    }
+    if (matches.length === 0) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setHighlight((current) => {
+        const next = current + step;
+        if (next < 0) return matches.length - 1;
+        if (next >= matches.length) return 0;
+        return next;
+      });
+    } else if (event.key === 'Enter' && highlight >= 0) {
+      /* Only when a suggestion is highlighted. Enter on freely typed text must
+         submit the form the way it always did, not be swallowed by a list the
+         owner was ignoring. */
+      event.preventDefault();
+      choose(matches[highlight]);
+    }
+  }
+
+  return (
+    <div className="flow-service__name-field" ref={wrapperRef}>
+      <input
+        className="flow-input flow-service__name"
+        value={value ?? ''}
+        onChange={(event) => { onChange(event.target.value); setOpen(true); setHighlight(-1); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        placeholder="Oil change, brake repair, body and paint"
+        aria-label={label}
+        autoComplete="off"
+      />
+      {open && matches.length > 0 && (
+        <ul className="flow-suggest" role="listbox" aria-label="Common service names">
+          {matches.map((name, position) => (
+            <li
+              key={name}
+              role="option"
+              aria-selected={position === highlight}
+              className={`flow-suggest__item${position === highlight ? ' is-highlighted' : ''}`}
+              onMouseEnter={() => setHighlight(position)}
+              onMouseDown={(event) => { event.preventDefault(); choose(name); }}
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function emptyLine() {
   return {
@@ -173,12 +267,12 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
         return (
           <div className="flow-service" key={service.itemId ?? `new-service-${serviceIndex}`}>
             <div className="flow-service__row">
-              <input
-                className="flow-input flow-service__name"
-                value={service.serviceType ?? ''}
-                onChange={(event) => updateService(serviceIndex, { serviceType: event.target.value })}
-                placeholder="Oil change, brake repair, body and paint"
-                aria-label={`Service ${serviceIndex + 1}`}
+              <ServiceNameField
+                services={services}
+                index={serviceIndex}
+                value={service.serviceType}
+                onChange={(name) => updateService(serviceIndex, { serviceType: name })}
+                label={`Service ${serviceIndex + 1}`}
               />
               <input
                 className="flow-input flow-service__subtotal"
@@ -229,8 +323,17 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
                 {lines.map((line, lineIndex) => (
                   <React.Fragment key={line.entryId ?? `new-line-${lineIndex}`}>
                     <div className="flow-lines__desc">
+                      {/* The column headers are hidden on a phone -- three
+                          labels across the top cannot survive the stacked
+                          layout -- which left this field with nothing naming
+                          it. The select says "Part" and the amount carries a
+                          currency, so those two explain themselves; the
+                          description was the one that did not. Shown only
+                          where the header is gone. */}
+                      <span className="flow-lines__label">{t('lines.onReceipt')}</span>
                       <input
                         value={line.description ?? ''}
+                        title={line.description || undefined}
                         onChange={(event) => updateLine(serviceIndex, lineIndex, { description: event.target.value })}
                         placeholder={t('lines.asPrinted')}
                         aria-label={`Line ${lineIndex + 1} description`}
@@ -280,7 +383,11 @@ export default function ServiceLinesEditor({ value, onChange, id }) {
       })}
 
       <div className="flow-done__foot">
-        <button className="flow-link" type="button" onClick={addService}>
+        {/* Quieter than "Add a line" on purpose. In scan mode the OCR
+            proposes the services and the owner's work is correcting lines
+            within them; this is the fallback for a job the reading missed, not
+            something to reach for. */}
+        <button className="flow-link flow-link--quiet" type="button" onClick={addService}>
           {t('lines.addService')}
         </button>
         <span className="flow-note">
