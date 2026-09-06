@@ -25,6 +25,18 @@
       ],
       "port": 8080,
       "autoPort": true
+    },
+    {
+      "name": "trevora-api-local",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$e='.env'; if (Test-Path $e) { Get-Content $e | ForEach-Object { $l=$_.Trim(); if ($l -and -not $l.StartsWith('#') -and $l.Contains('=')) { $kv=$l.Split('=',2); [Environment]::SetEnvironmentVariable($kv[0].Trim(), $kv[1].Trim().Trim([char]34), 'Process') } } }; & .\\backend\\trevora-api\\mvnw.cmd -f backend\\trevora-api\\pom.xml spring-boot:run"
+      ],
+      "port": 8080
     }
   ]
 }
