@@ -3,6 +3,7 @@ import { useT } from '../i18n/index.jsx';
 import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import FlowChrome from '../components/flow/FlowChrome';
+import ReceiptStrip from '../components/flow/ReceiptStrip';
 import { confirmServiceDraft, getServiceDraftReview } from '../api/serviceDrafts';
 import { getConcerns, setConcernResolved } from '../api/concerns';
 import { hasOpenConcerns, openConcerns as onlyOpen } from '../utils/concerns';
@@ -210,6 +211,14 @@ export default function ServiceRecordConfirmationPage() {
               </dd>
             </dl>
           </section>
+
+          {/* The paper itself, not just a count of it. This is the last screen
+              before the record is filed, and "1 page, kept with the record"
+              asks the owner to take our word for which page. The same strip as
+              the checking screen, so what they confirm is what they were just
+              looking at -- and it opens full size on a tap, which is the only
+              way to actually read a receipt on a phone. */}
+          <ReceiptStrip draft={draft} />
 
           {/* Only when there is something to ask about. Mechanics get one short
               session and will not close anything, so the moment just after the
