@@ -60,6 +60,17 @@ export default function ReceiptStrip({ draft }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.draftId, draft?.receiptStoragePath]);
 
+  /* Escape closes the full-size view. Mounted only while it is open, so this
+     never competes with anything else on the page for the key. */
+  useEffect(() => {
+    if (!full) return undefined;
+    function onKeyDown(event) {
+      if (event.key === 'Escape') setFull(null);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [full]);
+
   const rawText = draft?.fieldMetadata?.rawOcrText;
   const hasRawText = typeof rawText === 'string' && rawText.trim().length > 0;
   const count = stored.length;
@@ -123,6 +134,12 @@ export default function ReceiptStrip({ draft }) {
           role="dialog"
           aria-modal="true"
           aria-label="Receipt page"
+          /* Clicking away closes it, the way every image viewer people already
+             use behaves. Guarded on the target so a click that lands on the
+             photograph itself does not dismiss the thing it was aimed at --
+             and a receipt is a document somebody is peering at, so a stray tap
+             while reading must not throw it away. */
+          onClick={(event) => { if (event.target === event.currentTarget) setFull(null); }}
         >
           <button
             className="image-preview-close"
