@@ -113,9 +113,11 @@ here because this file is loaded automatically and that one is not.
   whitespace pass on any of these conflicts with everybody.
 - **Prefer a new stylesheet** under `src/styles/<feature>.css`, imported at the
   end of `main.jsx`, over adding to `styles.css`.
-- **Migration numbers must be claimed out loud before use.** `012` is the
-  highest. Two people writing `013_` is not a merge conflict, it is two
-  migrations racing into one shared Supabase database.
+- **Migration numbers must be claimed out loud before use.** `024` is the
+  highest. Two people writing `025_` is not a merge conflict, it is two
+  migrations racing into one shared Supabase database. Check `ls
+  database/migrations` rather than trusting this line — it has gone stale
+  before, and there is already a duplicated `017_` pair from the last time.
 - **`shared/dto/ServiceItemResponse` and `ServiceLineEntryResponse` cross every
   module.** Grep for consumers before changing a field, and tell the user which
   other features you are about to affect.
