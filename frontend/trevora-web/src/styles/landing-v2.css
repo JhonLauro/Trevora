@@ -177,11 +177,24 @@
   color: var(--ink);
   font-size: 15px;
   font-weight: 500;
-  text-decoration: none;
+  /* Underlined, because undecorated text next to a solid green pill reads as a
+     label for the pill rather than a control of its own. The offset keeps the
+     rule off the descender in "Sign", and 1px keeps it a link and not a second
+     button competing with the one beside it. */
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  /* Or it breaks to "Sign" / "in" in a bar one line tall. Worse, a wrapped
+     link measures narrower than its text, so a width check on the bar reports
+     that everything fits while the phone shows it stacked. */
+  white-space: nowrap;
 }
 
 .tvl-nav__link:hover {
   color: var(--brand-hover);
+  /* Thickens rather than appearing, so the hover confirms the target instead
+     of announcing that it was a link all along. */
+  text-decoration-thickness: 2px;
 }
 
 /* ------------------------------------------------------------------ hero */
@@ -1001,12 +1014,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* The nav bar keeps the pill but drops the ghost link: at 360px the two
-     actions plus the wordmark do not fit, and the primary one is the one
-     worth keeping. Sign in is still in the hero and the footer. */
-  .tvl-nav__link {
-    display: none;
-  }
+  /* "Sign in" used to be hidden here, because the two actions plus the
+     wordmark did not fit at 360px. They do now — the bar below 460 tightened
+     its padding and gaps and the button took the short label, which between
+     them freed more room than the link needs. Measured at the worst case,
+     320px: the contents come to 256px in a bar with 278px to give.
+
+     So the phone nav is the desktop nav, which is what it should have been.
+     Hiding the way back in for anyone who already has an account was always
+     the cost of a layout problem, not a decision worth keeping. */
 
   .tvl-saved {
     left: 16px;
@@ -1156,4 +1172,97 @@
 .tvl-view__frame .tvl-slot:has(.tvl-slot__label) {
   background: linear-gradient(140deg, #eef6f1, #f7faf8);
   padding: 20px;
+}
+
+/* -------------------------------------------------------- the nav on phones
+
+   The bar is a pill with a wordmark on the left and the actions on the right,
+   and nothing in it could shrink: the button is `white-space: nowrap`, and a
+   flex item's default `min-width: auto` means it never gives ground. Measured,
+   the contents come to a fixed 372px, so the bar needed a 448px viewport to
+   hold them. Every phone is narrower than that, so the primary action hung off
+   the right edge on all of them -- by 2px at 412, by 94px at 320.
+
+   Widening the breakpoint is the fix, not nudging one number: the 640px block
+   above already drops the "Sign in" ghost link, which was not nearly enough.
+   Below 460 the bar also tightens its padding and gaps, the wordmark steps
+   down, and the button takes the short label. */
+
+@media (max-width: 460px) {
+  .tvl-nav__bar {
+    gap: 10px;
+    /* 22px of left inset bought nothing here; the pill still reads as a pill
+       at 14, and it is 20px given back to the contents. */
+    padding: 8px 8px 8px 14px;
+  }
+
+  .tvl-nav__brand {
+    gap: 8px;
+    /* The brand yields before the action does. It is the one item here that is
+       still legible at any size, and the button is what people came to press. */
+    min-width: 0;
+  }
+
+  /* A flex item may shrink past its own `width`, and this one did: at 320px
+     the mark was squeezed to a 4px dot next to the wordmark. A logo either
+     renders at its size or not at all. */
+  .tvl-nav__brand svg {
+    flex-shrink: 0;
+    height: 26px;
+    width: 26px;
+  }
+
+  .tvl-nav__word {
+    font-size: 17px;
+  }
+
+  .tvl-nav__links {
+    gap: 8px;
+  }
+
+  /* Steps down with the button beside it. Left at 15px against a 14px button
+     the ghost link reads as the larger of the two, which is backwards. */
+  .tvl-nav__link {
+    font-size: 14px;
+  }
+
+  .tvl-nav .tvl-btn {
+    font-size: 14px;
+    height: 38px;
+    padding: 0 16px;
+  }
+
+  .tvl-nav__cta-long {
+    display: none;
+  }
+}
+
+/* Long by default, so the desktop bar is untouched by any of the above. */
+.tvl-nav__cta-short {
+  display: none;
+}
+
+@media (max-width: 460px) {
+  .tvl-nav__cta-short {
+    display: inline;
+  }
+}
+
+/* ------------------------------------------------- below the common phone
+
+   With the mark no longer allowed to squash and "Sign in" back in the bar,
+   360px holds all five things with 40px to spare. 320 does not: the contents
+   come to exactly the 278px available, so the pill would be packed edge to
+   edge with nothing between the wordmark and the moon.
+
+   The word goes and the mark stays. Of the two it is the mark that survives
+   being small, the page is titled Trevora in the tab and names itself again in
+   the footer, and the alternative -- dropping "Sign in" again -- would take a
+   control away from people who already have an account, which is the thing
+   this change was made to stop doing. */
+
+@media (max-width: 359px) {
+  .tvl-nav__word {
+    display: none;
+  }
 }

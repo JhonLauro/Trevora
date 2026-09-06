@@ -875,3 +875,104 @@
     transition: none !important;
   }
 }
+
+/* ------------------------------------------------- the way back, on a phone
+
+   Desktop and tablet already have one: the lockup in the dark panel, on screen
+   the whole time. Below 768px that panel is gone, so signup carried a bare "←"
+   in a box -- which pointed at /login, not home -- and signin carried nothing.
+
+   A labelled pill instead of an icon. An arrow alone has to be guessed at, and
+   the guess here was wrong twice over: it looked like it stepped back through
+   the form, and it left the page it appeared to belong to. */
+
+/* One inset, shared by the back button and the theme toggle. The two are the
+   same height and sit at opposite ends of the same line, so a single value is
+   what keeps them level -- holding two separate ones had already let them
+   drift 16px apart on a wide screen. */
+.ink-auth {
+  --auth-top-gap: clamp(28px, 6vw, 34px);
+}
+
+.ink-auth__back-row {
+  align-items: center;
+  display: flex;
+  padding-top: var(--auth-top-gap);
+  position: relative;
+  z-index: 2;
+}
+
+/* Two class names, to out-specify the single-class rule in theme.css — that
+   sheet is imported last, so matching its specificity would lose on order. */
+.ink-auth .ink-auth__theme {
+  top: var(--auth-top-gap);
+}
+
+.ink-back-home {
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  color: var(--ink);
+  display: inline-flex;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  gap: 7px;
+  height: 40px;
+  /* Tighter on the arrow side: the glyph carries its own optical space, and an
+     even inset makes the pair look pushed to the right inside the pill. */
+  padding: 0 16px 0 13px;
+  text-decoration: none;
+  transition: border-color 120ms ease-out;
+  white-space: nowrap;
+}
+
+.ink-back-home:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.ink-back-home:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .ink-auth__back-row {
+    /* The right inset clears the theme toggle, which is absolutely positioned
+       into this same corner at these same offsets and would otherwise sit on
+       top of a long translation of the label. */
+    padding-bottom: clamp(4px, 1.5vw, 8px);
+    padding-left: clamp(16px, 4vw, 28px);
+    padding-right: 60px;
+  }
+}
+
+/* From 768px up the panel returns and the form sits in a centred column, so
+   the button stops hugging the screen edge and lines up with the form instead.
+
+   It matches the column's box rather than guessing an inset: measured at 900,
+   1280 and 1600, the column's left edge is exactly (main - column) / 2 every
+   time. Copying the width and centring the same way therefore holds the
+   alignment as the window changes, where a fixed left padding would drift. */
+@media (min-width: 768px) {
+  .ink-auth {
+    --auth-top-gap: clamp(30px, 3vw, 40px);
+  }
+
+  .ink-auth__back-row {
+    margin: 0 auto;
+    max-width: 440px;
+    padding-left: 0;
+    padding-right: 0;
+    width: 100%;
+  }
+}
+
+/* The column narrows to 420 above the tablet range; this follows it. */
+@media (min-width: 1024px) {
+  .ink-auth__back-row {
+    max-width: 420px;
+  }
+}
