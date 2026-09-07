@@ -3520,3 +3520,122 @@ helper are deleted, and the endpoint registry in `EndpointProtectionTest` is
 updated to match. A teammate holding an unpushed branch that calls it gets a
 compile error, which is the loud version of the failure — the version this
 whole thread has been about was the silent one.
+
+---
+
+## Receipt extraction: the token-limit bug, three prompt rules, and a model evaluation (2026-09-07)
+
+Started from an owner report that uploading three Toyota documents — an OR, a
+repair order and a service invoice — took about four minutes. Most of that turned
+out to be the Render free instance cold-starting, which is still unfixed and is
+the thing to fix first if anyone cares about the reported symptom. The rest of
+this is what the investigation found underneath it.
+
+**`talisay-service-invoice` had been failing every golden run, and the cap was
+not the reason.** It reported `completion 12000, cap 12000` and fell back to raw
+OCR text, so the obvious reading was "receipt too long, raise the cap" — the same
+reading that took the cap from 8000 to 12000 last time. It is wrong. That receipt
+is 3.6 KB of OCR whose correct answer is five line entries; a finished answer is
+under a thousand tokens. The model was spiralling, and the OCR shows why: the
+table comes through with prices orphaned onto their own lines, so pairing a
+description to an amount has no stable stopping point.
+
+**The fix was schema order, and the ordering is now load-bearing.** Structured
+Outputs generates properties in declaration order. `services` was fourth, ahead of
+`odometer`, `totalCost`, `shopName`, `location` and `classification` — so one
+runaway `lineEntries` array took *every* scalar down with it and the owner got raw
+text instead of a draft. `services` is now last. A spiral costs the line items and
+nothing else. Anyone reordering that map for tidiness will reintroduce a bug whose
+symptom is a token-limit error, which is not where they will look. The comment on
+the field says so; this is the second copy.
+
+That change alone made the case extract cleanly. The golden run went 810s → 272s,
+because it was no longer burning three retries × 12000 tokens on one document.
+
+**Truncation is now salvaged rather than discarded.** After the retries are spent,
+`closeTruncatedJson` repairs the half-generated answer — walks it tracking string
+state and nesting, cuts at the last point a complete element ended, closes the open
+containers — and reads it through the same field parser as a whole reply. Half-written
+values are dropped, never completed: a truncated `3106.4` is not `3106.49`, and a
+guessed total is worse than a missing one. The draft carries a warning saying the
+lines are incomplete. `TruncatedAnswerSalvageTest` covers it. With `services` last
+this is a backstop that rarely fires, which is the right relationship between the
+two fixes — the reorder prevents, the salvage contains.
+
+**Three prompt rules were added, and the golden set earned its keep on all three.**
+
+*Service date.* The prompt never said which date to take. A Toyota invoice prints
+five — invoice date, delivery date, promise date, warranty expiry, and the
+accreditation certificate's issue date — and the model was picking by proximity,
+which OCR column-scrambling makes meaningless. The reject list fixed the reported
+bug. It also, in its first form, **broke two cases that had been passing**:
+`powerstart` and `talisay-picking-slip` started returning no date at all, because
+"choose by label, never proximity" plus "a wrong date is worse than a missing one"
+told the model to refuse whenever OCR had eaten the label. An unreadable label is
+not a rejected label, and the rule now says so explicitly. Worth remembering as a
+shape: a confident prohibition with a weak fallback produces silence, and silence
+scores worse than the error it was written to prevent.
+
+*Shop name.* There was no rule at all, which is why models disagreed about the
+branch. Ground truth for `gta-toledo-cooling` now expects
+`GTA Auto Services Toledo City Branch`. **This is a changed expectation, not a bug
+fix** — anyone holding a branch with a `shopName` assertion should re-read it. The
+call: two branches of one chain are two shops, and a history filing both under one
+name is wrong about where the car was worked on. It also makes the set
+self-consistent; `JFTruck & Autocare Center-Toledo` and `Toyota Talisay, Cebu`
+already kept theirs. The prompt rule had to land in the same change — the scorer is
+Levenshtein at 0.85, and moving the expectation without telling the extractor what
+to produce would have scored `gpt-4o-mini`'s answer at 0.47 and merely moved the
+failure onto the incumbent.
+
+*A price the scanner mangled.* `gta-toledo-cooling` prints `REPLACE THERMOSTAT` as
+`350.¢`; read literally the lines sum to 2,975 against a printed 3,325. The rule
+permits filling that gap **only** when the shortfall matches exactly one unreadable
+line — then the document proves the number, since every other line and the total are
+printed. It explicitly forbids the tempting general version: no inventing lines, no
+adjusting a price already read, no splitting a gap across several unreadable ones.
+A balanced set of invented numbers hides a discrepancy the owner is entitled to see.
+
+**A fourth date rule was tried and reverted — do not retry it as written.** To fix
+`talisay-repair-order` (whose service date is printed *only* as a promised delivery
+time, so the reject list forbids the right answer) the prompt was given a
+history-block exclusion, a repair-orders-are-raised-on-arrival rule, and "an
+unlabelled date outranks a rejected label". It fixed nothing on `gpt-5.4-mini` —
+still `2025-03-31` — and regressed `gpt-4o-mini` hard: `serviceDate` 100→82,
+`lineKinds` 65→53, `reconciles` 50→29, gate failed. Reverted. The plausible read is
+that preferring a date whose label you cannot read is corrosive in combination with
+the rest, and it pushed the incumbent back into the silence failure mode above. If
+someone wants this case, it probably belongs in `ServiceDateResolver` as code that
+decides the same way every run, not as a prompt rule the model reweighs per call.
+
+**Model evaluation — `gpt-5.4-mini` is the recommendation, and the incumbent is now
+the less stable one.** `gpt-4o` was tried and rejected: it failed the `shopName`
+floor and dropped `serviceDate` to 73%. `gpt-5.4-mini` passed the gate on four
+consecutive post-fix runs with `location` 89-100%, `lineKinds` 85-87%, `linePrices`
+76% and `shopName` 90%, in about half the wall-clock time, and recovered the GTA
+`350.¢` on every run. `gpt-4o-mini` recovers it inconsistently and has failed
+`reconciles` on two of its last three runs. The switch is a Render `OPENAI_MODEL`
+env var; the code default is deliberately still `gpt-4o-mini` so nobody's local run
+changes without deciding to.
+
+`temperature: 0` is now conditional. The reasoning families reject a non-default
+temperature with a **non-retryable 400**, so pointing `OPENAI_MODEL` at a gpt-5
+model without this fails every extraction rather than degrading. `supportsTemperature`
+matches on name because the API offers nothing to ask, which makes it a list that
+goes stale — a model failing every call with a 400 mentioning temperature needs its
+prefix added there.
+
+**One caveat on the free tier that is not a technical one.** The daily allowance is
+billed as "traffic shared with OpenAI". The golden set is redacted; real uploads are
+not, and carry owner names, addresses, plate and chassis numbers. That is a decision
+about other people's data and should be made deliberately rather than inherited from
+whoever set the env var.
+
+**Two defects left open, both recorded in the golden set rather than hidden.**
+`talisay-repair-order` — `gpt-5.4-mini` returns the delivery date, consistently; see
+the reverted attempt above. `toyota-talisay-body-paint` — reconciles on no model ever
+tried; line totals across today's runs ranged 1,650 to 23,426 against a true 12,046.
+Its OCR separated every price from its description, which is why `lineEntries` sits
+in `pendingGroundTruth`. It needs someone reading prices off the original photograph;
+it cannot be derived from the committed text, and while it is pending it drags
+`reconciles` around on every run and makes the gate noisier than it should be.
