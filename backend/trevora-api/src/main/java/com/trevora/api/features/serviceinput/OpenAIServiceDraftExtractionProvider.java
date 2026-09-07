@@ -88,7 +88,7 @@ public class OpenAIServiceDraftExtractionProvider {
     public OpenAIServiceDraftExtractionProvider(
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.ai.openai.model:gpt-4o-mini}") String model
+            @Value("${trevora.ai.openai.model:gpt-5.4-mini}") String model
     ) {
         this(objectMapper, OutboundHttp.restClient(OutboundHttp.EXTRACTION_READ_TIMEOUT), apiKey, model);
     }
@@ -103,7 +103,7 @@ public class OpenAIServiceDraftExtractionProvider {
         this.objectMapper = objectMapper;
         this.restClient = restClient;
         this.apiKey = blankToNull(apiKey);
-        this.model = blankToDefault(model, "gpt-4o-mini");
+        this.model = blankToDefault(model, "gpt-5.4-mini");
     }
 
     public ReceiptDraftFields extractFields(String rawOcrText) {

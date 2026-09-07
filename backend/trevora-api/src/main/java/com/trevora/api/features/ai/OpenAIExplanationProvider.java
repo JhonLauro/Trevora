@@ -6,6 +6,7 @@ import com.trevora.api.shared.http.OutboundHttp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -41,7 +42,12 @@ public class OpenAIExplanationProvider {
     private static final Logger log = LoggerFactory.getLogger(OpenAIExplanationProvider.class);
 
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
-    private static final int MAX_COMPLETION_TOKENS = 700;
+    /* Headroom, not an expected length: the explanation itself is a few
+       sentences. A reasoning model spends this same budget thinking before it
+       writes anything, and at 700 it could spend all of it and return an empty
+       answer -- which reads as "the model refused" and falls back to the
+       template, silently, for every record. */
+    private static final int MAX_COMPLETION_TOKENS = 2000;
 
     private static final String SYSTEM_PROMPT = """
             You are Trevora, a service-history app. You are writing to the owner of a car
@@ -112,12 +118,36 @@ public class OpenAIExplanationProvider {
     public OpenAIExplanationProvider(
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.ai.explanation.model:${trevora.ai.openai.model:gpt-4o-mini}}") String model
+            @Value("${trevora.ai.explanation.model:${trevora.ai.openai.model:gpt-5.4-mini}}") String model
     ) {
         this.objectMapper = objectMapper;
         this.restClient = OutboundHttp.restClient(OutboundHttp.OPENAI_READ_TIMEOUT);
         this.apiKey = apiKey == null ? "" : apiKey.trim();
-        this.model = model == null || model.isBlank() ? "gpt-4o-mini" : model.trim();
+        this.model = model == null || model.isBlank() ? "gpt-5.4-mini" : model.trim();
+    }
+
+    /**
+     * Whether this model will accept a temperature of our choosing.
+     *
+     * <p>The reasoning families fix it at 1 and reject any other value with a
+     * 400. That is not a retryable failure, so without this the provider
+     * returns null on every call and every record quietly falls back to the
+     * template -- an explanation feature that has stopped working and reports
+     * nothing, because a template explanation is a legitimate answer.
+     *
+     * <p>Second copy of the rule in {@code OpenAIServiceDraftExtractionProvider},
+     * deliberately: that file belongs to another feature and this is three
+     * lines. Matched on the name because the API offers nothing to ask, so it
+     * is a list that goes stale -- if a new model fails every call with a 400
+     * mentioning temperature, add its prefix to both.
+     */
+    private static boolean supportsTemperature(String model) {
+        String name = model == null ? "" : model.toLowerCase(Locale.ROOT);
+        return !(name.startsWith("gpt-5")
+                || name.startsWith("o1")
+                || name.startsWith("o3")
+                || name.startsWith("o4")
+                || name.contains("codex"));
     }
 
     /** False when no key is configured, in which case the caller keeps the template. */
@@ -142,7 +172,9 @@ public class OpenAIExplanationProvider {
 
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("model", model);
-        request.put("temperature", 0.2);
+        if (supportsTemperature(model)) {
+            request.put("temperature", 0.2);
+        }
         request.put("max_completion_tokens", MAX_COMPLETION_TOKENS);
         request.put("response_format", responseSchema());
         request.put("messages", List.of(

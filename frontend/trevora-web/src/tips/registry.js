@@ -135,8 +135,3 @@ export const TIPS = [
     body: 'Share history creates a code a mechanic can scan to read this vehicle only, for a few hours, without an account.',
   },
 ];
-
-/** The tips for one screen, in registry order, minus the ones already seen. */
-export function tipsForPath(path, seenKeys) {
-  return TIPS.filter((tip) => tip.match(path) && !seenKeys.has(tip.key));
-}

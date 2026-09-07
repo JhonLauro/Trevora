@@ -576,7 +576,18 @@
    what the tip is talking about. Only on the dark theme, because on paper the
    dimming already does the whole job and a ring would be decoration. */
 :root[data-theme='dark'] .driver-active-element {
-  border-radius: 10px;
-  outline: 2px solid var(--brand);
-  outline-offset: 3px;
+  /* Two bars down the sides rather than a ring all the way round.
+
+     A ring was drawn with `outline` and an offset, which puts it outside the
+     element -- so any ancestor with `overflow: hidden` cut whichever edges
+     happened to reach it. The same tip showed a full box on one screen, three
+     sides on another and two on a third, which read as a rendering fault
+     rather than a highlight.
+
+     An inset shadow is painted inside the element, so nothing can clip it and
+     every screen gets the same mark. It also costs no layout: a border would
+     move the content it is marking. */
+  box-shadow:
+    inset 3px 0 0 0 var(--brand),
+    inset -3px 0 0 0 var(--brand);
 }

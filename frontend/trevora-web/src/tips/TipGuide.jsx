@@ -4,10 +4,13 @@ import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { isLoggedIn } from '../api/currentUser.js';
 import { loadSeenTips, markTipSeen } from '../api/tips.js';
-import { tipsForPath } from './registry.js';
+import { TIPS } from './registry.js';
 
 /** How long to wait for an anchor that has not rendered yet. */
 const ANCHOR_TIMEOUT_MS = 6000;
+
+/** Once some anchors exist, how long the rest get before we start without them. */
+const STRAGGLER_GRACE_MS = 400;
 
 function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -36,11 +39,13 @@ function waitForAnchors(tips, signal) {
     }
 
     let settled = false;
+    let grace = 0;
     const finish = (result) => {
       if (settled) return;
       settled = true;
       observer.disconnect();
       window.clearTimeout(timer);
+      window.clearTimeout(grace);
       signal.removeEventListener('abort', onAbort);
       resolve(result);
     };
@@ -51,7 +56,19 @@ function waitForAnchors(tips, signal) {
 
     const observer = new MutationObserver(() => {
       const ready = found();
-      if (ready.length === tips.length) finish(ready);
+      if (ready.length === tips.length) {
+        finish(ready);
+        return;
+      }
+      /* Some are here and some are not. Waiting the full timeout for the rest
+         is what made a tip arrive six seconds after the screen did: a page
+         whose last anchor is never coming -- an empty list with no row to
+         point at -- paid the whole deadline before showing the tips it
+         already had. Once anything is present, the stragglers get a moment
+         and then we go with what exists. */
+      if (ready.length > 0 && !grace) {
+        grace = window.setTimeout(() => finish(found()), STRAGGLER_GRACE_MS);
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
@@ -110,6 +127,7 @@ export default function TipGuide() {
 
     const controller = new AbortController();
     let tour = null;
+    let onKeyDown = null;
     let refreshedFor = -1;
     let lastMoveAt = 0;
 
@@ -126,16 +144,24 @@ export default function TipGuide() {
     }
 
     (async () => {
-      const seen = await loadSeenTips();
+      /* Both at once, not one after the other. These do not depend on each
+         other -- one is a round trip, the other is watching the DOM -- and
+         running them in series put the whole of the first in front of the
+         whole of the second. On a cold API that is most of the delay before a
+         tip appears, and it is paid on arriving at every screen. */
+      const candidates = TIPS.filter((tip) => tip.match(pathname));
+      if (candidates.length === 0) return;
+
+      const [seen, present] = await Promise.all([
+        loadSeenTips(),
+        waitForAnchors(candidates, controller.signal),
+      ]);
       // Null means the request failed. Showing the whole guide again to an
       // established owner is worse than showing nothing.
       if (!seen || controller.signal.aborted) return;
 
-      const candidates = tipsForPath(pathname, seen);
-      if (candidates.length === 0) return;
-
-      const ready = await waitForAnchors(candidates, controller.signal);
-      if (ready.length === 0 || controller.signal.aborted) return;
+      const ready = present.filter((tip) => !seen.has(tip.key));
+      if (ready.length === 0) return;
 
       /* Let the screen settle before measuring anything on it. */
       await waitForStillness(
@@ -169,7 +195,16 @@ export default function TipGuide() {
            smooth scroll animates while it is drawing the cutout, so the hole
            is cut where the element used to be. */
         smoothScroll: false,
-        allowClose: true,
+        /* A tap on the dark part of the screen used to destroy the guide.
+           That is a reasonable default for a tour somebody opted into, and
+           wrong for this: the tips sit over the controls they describe, the
+           dimmed area is most of the screen, and the reader is being asked to
+           look around it. Losing the rest of the guide to a stray tap is the
+           same silent loss the seen-marking rule below guards against.
+
+           Escape still closes, and so does the x -- see `onCloseClick` and the
+           key handler outside this config. Only the overlay stops acting. */
+        allowClose: false,
         popoverClass: 'tip-popover',
         stagePadding: 6,
         stageRadius: 10,
@@ -248,11 +283,20 @@ export default function TipGuide() {
           });
         },
       });
+      /* `allowClose: false` turns off Driver's own Escape handling along with
+         the overlay click. The overlay is what we wanted gone; a keyboard
+         reader still needs a way out that is not hunting for the x. */
+      onKeyDown = (event) => {
+        if (event.key === 'Escape') tour?.destroy();
+      };
+      window.addEventListener('keydown', onKeyDown);
+
       tour.drive();
     })();
 
     return () => {
       controller.abort();
+      if (onKeyDown) window.removeEventListener('keydown', onKeyDown);
       tour?.destroy();
     };
   }, [pathname]);
