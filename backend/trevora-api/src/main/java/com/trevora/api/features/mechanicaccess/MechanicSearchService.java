@@ -115,14 +115,14 @@ public class MechanicSearchService {
             ServiceRecordItemReader serviceRecordItemReader,
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.mechanic-search.openai.model:gpt-4o}") String model,
+            @Value("${trevora.mechanic-search.openai.model:gpt-5.4-mini}") String model,
             @Value("${trevora.mechanic-search.ai-budget-per-session:30}") int aiBudgetPerSession
     ) {
         this.mechanicAccessService = mechanicAccessService;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.objectMapper = objectMapper;
         this.apiKey = blankToNull(apiKey);
-        this.model = blankToDefault(model, "gpt-4o");
+        this.model = blankToDefault(model, "gpt-5.4-mini");
         this.aiBudgetPerSession = aiBudgetPerSession;
     }
 
@@ -204,14 +204,40 @@ public class MechanicSearchService {
         return apiKey != null && !records.isEmpty();
     }
 
+    /**
+     * Whether this model will accept a temperature of our choosing.
+     *
+     * <p>The reasoning families fix it at 1 and reject any other value with a
+     * 400. Every failure here is caught and turned into keyword matching, so
+     * sending one a temperature does not raise anything an operator would see
+     * -- AI search simply stops happening and looks like it got worse, which is
+     * the failure this file already warns about for a truncated answer.
+     *
+     * <p>Third copy of the rule, alongside {@code OpenAIServiceDraftExtractionProvider}
+     * and {@code OpenAIExplanationProvider}. Matched on the name because the API
+     * offers nothing to ask, so it is a list that goes stale -- if a new model
+     * fails every call with a 400 mentioning temperature, add its prefix to all
+     * three.
+     */
+    private static boolean supportsTemperature(String model) {
+        String name = model == null ? "" : model.toLowerCase(Locale.ROOT);
+        return !(name.startsWith("gpt-5")
+                || name.startsWith("o1")
+                || name.startsWith("o3")
+                || name.startsWith("o4")
+                || name.contains("codex"));
+    }
+
     private java.util.Optional<MechanicSearchDecision> aiDecision(
             String query, List<ServiceRecord> records, Map<UUID, List<ServiceRecordItem>> itemsByRecord) {
         try {
             Map<String, Object> request = new LinkedHashMap<>();
             request.put("model", model);
-            request.put("temperature", 0);
+            if (supportsTemperature(model)) {
+                request.put("temperature", 0);
+            }
             request.put("response_format", Map.of("type", "json_object"));
-            request.put("max_tokens", MAX_COMPLETION_TOKENS);
+            request.put("max_completion_tokens", MAX_COMPLETION_TOKENS);
             request.put("messages", List.of(
                     Map.of("role", "system", "content", mechanicSearchSystemPrompt()),
                     Map.of("role", "user", "content", mechanicSearchUserPrompt(query, records, itemsByRecord))
