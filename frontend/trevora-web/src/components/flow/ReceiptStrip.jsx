@@ -109,14 +109,18 @@ export default function ReceiptStrip({ draft }) {
             Tap a page to see it full size. A quote under a field says which page it came from.
           </p>
           {hasRawText && (
-            <button className="flow-link" type="button" onClick={() => setShowText((open) => !open)}>
+            <button
+              className="flow-link flow-link--disclosure"
+              type="button"
+              aria-expanded={showText}
+              onClick={() => setShowText((open) => !open)}
+            >
               <ChevronRight
                 size={16}
                 aria-hidden="true"
-                style={{ verticalAlign: '-2px', transform: showText ? 'rotate(90deg)' : 'none' }}
+                style={{ transform: showText ? 'rotate(90deg)' : 'none' }}
               />
-              {' '}
-              The words we read off it
+              <span>The words we read off it</span>
             </button>
           )}
         </div>

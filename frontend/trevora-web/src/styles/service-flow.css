@@ -2196,3 +2196,39 @@
     letter-spacing: 0.04em;
   }
 }
+
+/* The transcript disclosure on the receipt card.
+
+   It is a button carrying an icon and a whole sentence, and a button centres
+   its text by default -- so on a desktop the label sat centred under a
+   left-aligned paragraph, and on a 360px phone it wrapped to leave "it"
+   stranded on a second line beneath a vertically centred arrow.
+
+   Laid out explicitly instead: the arrow keeps to the first line, the words
+   start at the same left edge as the note above them, and the button is only
+   as wide as its label rather than stretching to the column. */
+.flow-link--disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.flow-link--disclosure > svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  /* The aside shares a row with a 104px thumbnail, which leaves it about
+     180px on the narrowest phone -- too little for either the note or the
+     disclosure to set on one line. Dropping it below the pages gives it the
+     full card width, and both fit. The pages already wrap, so this only
+     decides where the break falls. */
+  .flow-source__aside {
+    flex-basis: 100%;
+    min-width: 0;
+    padding-left: 0;
+  }
+}
