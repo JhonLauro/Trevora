@@ -7,7 +7,8 @@
     "It carries its own OCR error to catch: REPLACE THERMOSTAT prints as '350.¢' rather than 350.00. Read literally the lines sum to 2,975.00 against a printed 3,325.00, and the 350.00 gap is exactly the mangled line. This is what F4 exists to detect.",
     "Textbook PART versus OPERATION separation. The same three nouns appear twice, once as a part and once prefixed REPLACE as the labour. An extractor that cannot tell them apart will double-count the components or the money.",
     "Page 2 is not a receipt at all. It is a screenshot of a body-composition scale that the owner uploaded by mistake — 'STATE OF Health', 'BLD T laiararata', a percentage and a time. Nothing from it may reach any field. This is the strongest available test of the prompt's boilerplate and noise rejection.",
-    "Shop name OCRs as 'GTA Auio Services' rather than 'GTA Auto Services' in four runs out of five, which is why shopName is scored by similarity and not exact match."
+    "Shop name OCRs as 'GTA Auio Services' rather than 'GTA Auto Services' in four runs out of five, which is why shopName is scored by similarity and not exact match.",
+    "Shop name carries a branch designation printed on the same line, which is what makes this the case that settles whether a branch belongs in shopName. It does: the ground truth was corrected on 2026-09-07 after gpt-4o and gpt-5.4-mini both independently returned the branch and were scored wrong for it."
   ],
   "vehicle": {
     "make": "Toyota",

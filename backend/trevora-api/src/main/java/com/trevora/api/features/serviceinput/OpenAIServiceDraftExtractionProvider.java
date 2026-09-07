@@ -6,9 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import com.trevora.api.shared.http.OutboundHttp;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -265,7 +268,9 @@ public class OpenAIServiceDraftExtractionProvider {
     ) {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("model", model);
-        request.put("temperature", 0);
+        if (supportsTemperature(model)) {
+            request.put("temperature", 0);
+        }
         request.put("response_format", responseFormat);
         request.put("max_completion_tokens", MAX_COMPLETION_TOKENS);
         request.put("messages", List.of(
@@ -280,6 +285,9 @@ public class OpenAIServiceDraftExtractionProvider {
         ));
 
         ReceiptProcessingException lastFailure = null;
+        // Kept across attempts so a run that stops at the cap every time
+        // still has something to read at the end of it.
+        String truncatedAnswer = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             Long retryAfterMillis = null;
             try {
@@ -313,6 +321,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 // plate numbers - and application logs are not a place to put
                 // those. If the wording below ever proves too thin, add a
                 // bounded redacted snippet, not the whole body.
+                if (exception.partialContent != null) {
+                    truncatedAnswer = exception.partialContent;
+                }
                 lastFailure = new ReceiptProcessingException(
                         operationLabel + " returned a response that could not be read: "
                                 + describeCause(exception),
@@ -347,7 +358,149 @@ public class OpenAIServiceDraftExtractionProvider {
                 backOff(wait, lastFailure);
             }
         }
+        ReceiptDraftFields salvaged = salvage(truncatedAnswer, inputWarnings, operationLabel);
+        if (salvaged != null) {
+            return salvaged;
+        }
         throw lastFailure;
+    }
+
+    /**
+     * Reads what did arrive when every attempt stopped at the token cap.
+     *
+     * <p>A truncated answer used to be discarded whole and the owner was handed
+     * raw OCR text in place of a draft - every field lost over line items that
+     * would not stop generating. Since {@code services} is generated last, what
+     * survives a spiral is exactly the part a draft most needs: the date, total,
+     * shop, odometer and location are all on the wire before the array starts.
+     *
+     * <p>The owner is told, in a warning that survives into the draft. A draft
+     * quietly missing its line items is worse than one that says it is missing
+     * them, because only the second gets checked against the paper.
+     *
+     * @return the recovered draft, or null when nothing usable had been written
+     */
+    private ReceiptDraftFields salvage(String partialContent, List<String> inputWarnings, String operationLabel) {
+        if (partialContent == null || partialContent.isBlank()) {
+            return null;
+        }
+        String repaired = closeTruncatedJson(stripMarkdownFence(partialContent));
+        if (repaired == null) {
+            return null;
+        }
+        try {
+            List<String> warnings = new ArrayList<>(inputWarnings);
+            warnings.add("This receipt was too long for " + operationLabel
+                    + " to finish reading. The details below were recovered from a partial answer,"
+                    + " so the itemised lines are incomplete - check them against the receipt.");
+            ReceiptDraftFields fields = fieldsFromNode(objectMapper.readTree(repaired), warnings);
+            // A salvage that recovered no field worth showing is not a salvage:
+            // an empty draft and the raw-OCR fallback are the same outcome, and
+            // the fallback at least carries the text.
+            return hasSalvageableValue(fields) ? fields : null;
+        } catch (JsonProcessingException | RuntimeException exception) {
+            return null;
+        }
+    }
+
+    /** Whether a salvaged answer carries anything the owner could not get from raw text. */
+    private boolean hasSalvageableValue(ReceiptDraftFields fields) {
+        return fields != null && (fields.serviceDate() != null
+                || fields.totalCost() != null
+                || fields.odometer() != null
+                || fields.shopName() != null
+                || fields.location() != null
+                || !fields.services().isEmpty());
+    }
+
+    /**
+     * Closes a JSON object that stopped mid-generation.
+     *
+     * <p>Walks the text tracking string state and nesting depth, remembering the
+     * last offset at which the document could be validly closed - the end of a
+     * complete element, never the middle of one - then shuts the containers that
+     * were open at that point, innermost first. Whatever was half-written after
+     * it is dropped: a number cut in two and a string with no closing quote are
+     * not values, and guessing at their missing halves would put invented data
+     * into a draft.
+     *
+     * @return closeable JSON, or null when no complete element had been written
+     */
+    // Package-private so the truncation test can exercise the repair directly.
+    static String closeTruncatedJson(String partial) {
+        Deque<Character> open = new ArrayDeque<>();
+        Deque<Character> openAtSafePoint = null;
+        int safeEnd = -1;
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int index = 0; index < partial.length(); index++) {
+            char current = partial.charAt(index);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (current == '\\') {
+                    escaped = true;
+                } else if (current == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            switch (current) {
+                case '"' -> inString = true;
+                case '{' -> open.push('}');
+                case '[' -> open.push(']');
+                case '}', ']' -> {
+                    if (open.isEmpty()) {
+                        return null;
+                    }
+                    open.pop();
+                    safeEnd = index + 1;
+                    openAtSafePoint = new ArrayDeque<>(open);
+                }
+                // Cut before the comma: what precedes it is a finished element,
+                // what follows it may be half of one.
+                case ',' -> {
+                    safeEnd = index;
+                    openAtSafePoint = new ArrayDeque<>(open);
+                }
+                default -> {
+                }
+            }
+        }
+        if (safeEnd < 0 || openAtSafePoint == null) {
+            return null;
+        }
+        StringBuilder repaired = new StringBuilder(partial.substring(0, safeEnd));
+        // ArrayDeque used as a stack iterates innermost-first, which is the
+        // order the closers have to go in.
+        for (Character closer : openAtSafePoint) {
+            repaired.append(closer);
+        }
+        return repaired.toString();
+    }
+
+    /**
+     * Whether this model will accept {@code temperature: 0}.
+     *
+     * <p>The reasoning families fix temperature at 1 and reject any other value
+     * with a 400 - which is not retryable, so sending it to one of them fails
+     * every extraction rather than degrading. Extraction wants 0 and asks for it
+     * wherever asking is allowed; the reasoning models are left at their own
+     * default, which costs determinism we would rather have.
+     *
+     * <p>Matched on the name because the API offers nothing to ask. That makes
+     * this a list that goes stale: a model family released after this was
+     * written will be sent a temperature it may refuse. If a new model fails
+     * every call with a 400 mentioning temperature, add its prefix here.
+     */
+    private static boolean supportsTemperature(String model) {
+        String name = model == null ? "" : model.toLowerCase(Locale.ROOT);
+        return !(name.startsWith("gpt-5")
+                || name.startsWith("o1")
+                || name.startsWith("o3")
+                || name.startsWith("o4")
+                || name.contains("codex"));
     }
 
     /**
@@ -437,9 +590,11 @@ public class OpenAIServiceDraftExtractionProvider {
                 // either side, at temperature 0 with byte-identical input. It is
                 // the model occasionally spiralling on a repeated array entry,
                 // not the receipt being too long for the cap.
+                JsonNode partial = message.path("content");
                 throw new MalformedResponseException(
                         "OpenAI extraction hit the response token limit before finishing, so the"
-                                + " receipt was only partly read (" + usageSummary(root) + ").");
+                                + " receipt was only partly read (" + usageSummary(root) + ").",
+                        partial.isTextual() ? partial.asText() : null);
             }
             // Structured Outputs answers a declined request with `refusal`
             // instead of `content`. Reporting it as missing JSON would send the
@@ -453,7 +608,22 @@ public class OpenAIServiceDraftExtractionProvider {
                 throw new ReceiptProcessingException("OpenAI extraction returned no JSON content.");
             }
 
-            JsonNode fieldsNode = objectMapper.readTree(stripMarkdownFence(contentNode.asText()));
+            return fieldsFromNode(
+                    objectMapper.readTree(stripMarkdownFence(contentNode.asText())), inputWarnings);
+        } catch (JsonProcessingException exception) {
+            throw new MalformedResponseException(exception);
+        }
+    }
+
+
+    /**
+     * Builds the draft from a parsed answer object.
+     *
+     * <p>Split out of {@link #parseOpenAIResponse} so a salvaged half-answer
+     * is read by exactly the same code as a whole one. Every reader below
+     * already tolerates a missing key, which is what makes salvage possible.
+     */
+    private ReceiptDraftFields fieldsFromNode(JsonNode fieldsNode, List<String> inputWarnings) {
             List<ServiceItemFields> services = asServiceItems(fieldsNode.get("services"));
             Map<String, Object> fieldSources = asObjectMap(fieldsNode.get("fieldSources"));
             Map<String, String> fieldConfidence = fieldConfidence(fieldsNode.get("fieldConfidence"), fieldSources);
@@ -524,9 +694,6 @@ public class OpenAIServiceDraftExtractionProvider {
                     plateNumber,
                     vinChassisNumber
             );
-        } catch (JsonProcessingException exception) {
-            throw new MalformedResponseException(exception);
-        }
     }
 
     /** Token counts from the response, for errors that are about size. */
@@ -545,12 +712,25 @@ public class OpenAIServiceDraftExtractionProvider {
      * apart from "the reply said no", which will say no again.
      */
     private static final class MalformedResponseException extends RuntimeException {
+        /**
+         * The half-generated answer, when the reply stopped at the token cap.
+         * Null for a reply that failed some other way - there is nothing to
+         * salvage from a body that never parsed.
+         */
+        private final String partialContent;
+
         MalformedResponseException(Throwable cause) {
             super("OpenAI extraction returned invalid JSON.", cause);
+            this.partialContent = null;
         }
 
         MalformedResponseException(String message) {
+            this(message, null);
+        }
+
+        MalformedResponseException(String message, String partialContent) {
             super(message);
+            this.partialContent = partialContent;
         }
     }
 
@@ -716,6 +896,79 @@ public class OpenAIServiceDraftExtractionProvider {
                 on back" must not appear in remarks, partsReplaced, laborPerformed, or any other field.
                 When in doubt whether a line is transaction content or boilerplate, prefer leaving it out rather
                 than including it in a field or in confidenceNotes/warnings.
+
+                A PRICE THE SCANNER MANGLED - the one case where arithmetic may fill a gap.
+
+                Receipts print their line amounts and their total, so the lines must sum to the
+                total. When they do not, add up what you extracted and compare it with the printed
+                total before you answer.
+
+                If the shortfall is exactly the amount of ONE line whose printed price you could not
+                read - "350.¢", "1,647,16", a figure cut off at the edge of the page - then that
+                line's price is the shortfall, and you may fill it in. The document proves it: every
+                other line and the total are printed, so only one number fits. Add a warning naming
+                the line you recovered this way.
+
+                This is the ONLY circumstance in which a number not legible on the page may be
+                written into a price. Specifically, you must NOT:
+                  - invent a line, or a price, to make a total balance;
+                  - adjust a price you DID read so the sum comes out right;
+                  - split a shortfall across several lines, or across several unreadable ones. If two
+                    prices are unreadable, neither is determined and both stay null.
+                When the gap does not resolve to exactly one unreadable line, leave the prices as you
+                read them and say in warnings that the lines do not sum to the printed total. An
+                unexplained gap is a fact about the receipt and the owner is entitled to see it; a
+                balanced set of invented numbers hides it.
+
+                SHOP NAME - how much of it to take.
+
+                Take the trading name together with any branch designation printed as part of it:
+                "GTA Auto Services TOLEDO CITY BRANCH", "JFTruck & Autocare Center-Toledo", "Toyota
+                Talisay, Cebu". Two branches of one chain are two different shops, and a history that
+                files both under one name is wrong about where the car was worked on.
+
+                Take it from the letterhead as printed, and do not tidy it: keep the spelling you
+                read, even where it looks like an OCR error - a corrected guess is an invented value.
+                Leave out the surrounding apparatus that is not the name: "Owned and operated by ...",
+                TIN and VAT registration numbers, telephone and fax lines, "Business Style:", and the
+                street address, which belongs in location instead.
+
+                SERVICE DATE - which date, when the page prints several.
+
+                A dealership invoice prints five or more dates and exactly one of them is the
+                service date. Choose by what the date is LABELLED, never by what sits nearest the
+                odometer or the total: OCR moves columns around, so proximity on the page means
+                nothing about which label a date belongs to.
+
+                Take, in this order:
+                1. The date the work was carried out, or the date this document was raised - an
+                   unlabelled date in the header block beside the document number, or one labelled
+                   Date, Invoice Date, Service Date, Date Serviced, Job Date, Transaction Date.
+                2. Failing that, the date the vehicle was booked in: Date In, Received, Date Received.
+
+                NEVER take a date carrying one of these labels, even when it is the only date on the
+                page you are confident you read correctly:
+                  - Delivery Date, Promise Date, Date Promised, ETA, Ready By. These are a plan, not
+                    a record, and they are frequently printed ABOVE the service date on the page.
+                  - Warr Exp Date, Warranty Expiry, Warranty Until, Next Service Due, Next PMS. These
+                    are in the future, and a service date never is.
+                  - Ack. Cert. Date Issued, Permit Date, Accreditation Date, Valid Until. These
+                    belong to the printed stationery, not to this visit.
+                  - Statement, billing-period or payment-due dates.
+
+                An unreadable label is NOT a rejected label. OCR routinely garbles or drops the
+                words printed beside a date, and a date whose label did not survive is still very
+                probably the service date. When no date on the page carries a label you can
+                recognise, do not return null - choose from what is there, in this order:
+                  - a date printed more than once on the page, over one printed only once;
+                  - the earliest date that is not in the future, over a later one;
+                and add a warning saying the label could not be read.
+
+                Return null for serviceDate ONLY when every date you can find carries one of the
+                explicitly rejected labels above - a page whose only dates are a delivery date and a
+                warranty expiry, say. A page with unlabelled dates is not that case. Where you do
+                return null, say so in warnings: a wrong date files the visit under a day it did not
+                happen, and unlike a blank it gives the owner no reason to look.
 
                 Factual values must be directly supported by visible OCR text. Do not invent or infer factual values.
                 Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, and chassis number.

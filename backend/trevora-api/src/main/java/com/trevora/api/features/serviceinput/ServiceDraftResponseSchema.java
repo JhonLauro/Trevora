@@ -89,7 +89,6 @@ final class ServiceDraftResponseSchema {
             properties.put("referenceNumbers", array(Map.of("type", "string")));
         }
         properties.put("serviceDate", nullable("string"));
-        properties.put("services", array(serviceSchema()));
         properties.put("odometer", nullable("integer"));
         properties.put("totalCost", nullable("number"));
         properties.put("shopName", nullable("string"));
@@ -113,6 +112,28 @@ final class ServiceDraftResponseSchema {
         properties.put("fieldConfidence", fixedKeyMap(nullableEnum(CONFIDENCE_VALUES)));
         properties.put("aiSuggestedFields", array(Map.of("type", "string")));
         properties.put("warnings", array(Map.of("type", "string")));
+        /*
+         * Last on purpose, and the ordering is load-bearing.
+         *
+         * <p>Structured Outputs generates properties in declaration order, so
+         * everything after this array is lost when generation stops early. This
+         * used to sit fourth, ahead of odometer, totalCost, shopName, location
+         * and classification: one runaway lineEntries array took the whole
+         * extraction down with it and the owner got raw OCR text instead of a
+         * draft. The Toyota Talisay service invoice did exactly that - 3.6 KB of
+         * OCR whose right answer is five line entries, spending all 12000
+         * completion tokens pairing prices the OCR had orphaned onto their own
+         * lines.
+         *
+         * <p>Generated last, a spiral costs the line items and nothing else: the
+         * date, total, shop, odometer and location are already on the wire.
+         *
+         * <p>The cost is that classification is now decided before the lines are
+         * enumerated rather than after. That is a real trade and the golden set
+         * is what checks it -- if documentType or relatedComponents move, this
+         * is the change that moved them.
+         */
+        properties.put("services", array(serviceSchema()));
         return object(properties);
     }
 

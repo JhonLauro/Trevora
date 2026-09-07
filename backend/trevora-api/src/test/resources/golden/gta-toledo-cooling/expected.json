@@ -3,7 +3,7 @@
   "serviceDate": "2020-09-22",
   "odometer": null,
   "totalCost": 3325.00,
-  "shopName": "GTA Auto Services",
+  "shopName": "GTA Auto Services Toledo City Branch",
   "location": "Toledo City, Cebu",
   "relatedComponents": ["Electrical", "Cooling System"],
   "lineEntries": [
@@ -19,6 +19,7 @@
   "_comment": [
     "The seven lineTotals sum to 3325.00, matching the printed total exactly. This case should always reconcile once line entries are extracted at all.",
     "REPLACE THERMOSTAT is 350.00. The OCR renders it '350.¢' with the cents digits lost. Recovering it needs either the reconciliation gap or the pattern of the three identical labour charges above it — both are legitimate, and an extractor that returns null here has behaved correctly and should lose only the price point, not the line.",
-    "odometer is genuinely absent from this receipt. null is the correct answer and an extractor that invents one is wrong, not merely imprecise."
+    "odometer is genuinely absent from this receipt. null is the correct answer and an extractor that invents one is wrong, not merely imprecise.",
+    "shopName carries the branch because the receipt prints it on the same line as the name: 'GTA Auio Services TOLEDO CITY BRANCH'. Two shops of one chain are two shops, and a service history that files both under one name is wrong about where the car was worked on. This matches the rest of the set, which already keeps the branch in JFTruck & Autocare Center-Toledo and Toyota Talisay, Cebu."
   ]
 }
