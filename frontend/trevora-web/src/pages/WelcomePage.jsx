@@ -558,7 +558,6 @@ export default function WelcomePage() {
 
         {current.preview && (
           <figure className={`wt-frame${headingDone ? ' is-in' : ''}`}>
-            <figcaption className="wt-frame__tag">Mockup — not your records</figcaption>
             {current.preview}
           </figure>
         )}

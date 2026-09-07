@@ -178,6 +178,7 @@
   "auth.lastName": "Last name",
   "auth.confirmPassword": "Confirm password",
   "auth.backToSignIn": "Back to sign in",
+  "auth.backToTrevora": "Back to Trevora",
   "auth.terms": "Terms of Service",
   "auth.privacy": "Privacy Policy",
   "auth.wholeOfIt": "Name, email, a password — that is the whole of it.",

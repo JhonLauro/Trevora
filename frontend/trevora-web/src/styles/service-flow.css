@@ -2145,3 +2145,54 @@
 .flow-link--quiet:hover:not(:disabled) {
   color: var(--ink);
 }
+
+/* ------------------------------------- the review fields on a small phone
+
+   Three things went wrong together at 360px, and the first was structural.
+
+   The card pads 17px on both sides, and every field then adds 16px more on
+   the left alone — the gutter the tier rule lives in. So content sat 34px
+   from the left edge and 18px from the right, nearly two to one, and every
+   label, input and quote on the screen looked shoved to one side. The gutter
+   has to stay (a tier-1 field draws its rule in it) so it is mirrored
+   instead, and the card gives back the width that costs.
+
+   The badge was the second: "READ FROM RECEIPT" at 13px with letter-spacing
+   and `white-space: nowrap` measured 149px of a 284px row. Over half a label
+   line, on the narrowest screen, spent on a status word. It steps down here
+   rather than being shortened — the words are doing real work, they were
+   simply set for a desktop.
+
+   And the head may now wrap. When a long label meets the badge there is no
+   width left to squeeze either; dropping the badge to its own line is the one
+   outcome that keeps both readable. */
+@media (max-width: 767px) {
+  .flow-fields {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+
+  .flow-review-field {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* 3px of that gutter is the tier rule itself, so these keep the same
+     optical line as the field above them. */
+  .flow-review-field.is-blocking,
+  .flow-review-field.is-review {
+    padding-left: 9px;
+  }
+
+  .flow-review-field__head {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .flow-review-field__head .flow-badge--1,
+  .flow-review-field__head .flow-badge--2,
+  .flow-review-field__head .flow-badge--3 {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+}

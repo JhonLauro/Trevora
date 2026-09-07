@@ -126,6 +126,18 @@ export default function LandingPage() {
   const primaryHref = signedIn ? '/' : '/register';
   const primaryLabel = signedIn ? 'Open Trevora' : 'Create an account';
 
+  /* The nav pill gets its own label, deliberately not `primaryLabel`. That one
+     is also the hero's button, the mid-page call to action and the footer link,
+     where "Create an account" is the whole invitation and should stay. Up in
+     the bar it is a wayfinding control sitting six lines above the real thing,
+     so it says the short version at every width. */
+  const navLabel = signedIn ? 'Open Trevora' : 'Sign up';
+
+  /* Only the signed-in label still needs a phone form. Measured in the bar,
+     "Open Trevora" is 118px against "Sign up"'s 80, and at 320px there are
+     only 9px to give. "Sign up" fits everywhere, so it has no second form. */
+  const navShort = signedIn ? 'Open' : null;
+
   return (
     <main className="tvl">
       <header className="tvl-nav tvl-wrap">
@@ -143,8 +155,19 @@ export default function LandingPage() {
                 Sign in
               </Link>
             )}
-            <Link className="tvl-btn tvl-btn--primary" to={primaryHref}>
-              {primaryLabel}
+            {/* Two spans only when there are genuinely two labels: CSS picks
+                one, and `display: none` takes the other out of the
+                accessibility tree too, so a screen reader hears one. When the
+                label is short enough for every width it is simply the text. */}
+            <Link className="tvl-btn tvl-btn--primary tvl-nav__cta" to={primaryHref}>
+              {navShort ? (
+                <>
+                  <span className="tvl-nav__cta-long">{navLabel}</span>
+                  <span className="tvl-nav__cta-short">{navShort}</span>
+                </>
+              ) : (
+                navLabel
+              )}
             </Link>
           </nav>
         </div>

@@ -161,11 +161,10 @@ export default function RegisterPage() {
 
   return (
     <InkAuthShell hero={HERO} lead={LEAD} variant="signup">
-      <div className="ink-auth__mobile-top-row">
-        <Link className="ink-back-button" to="/login" aria-label={t('auth.backToSignIn')}>
-          ←
-        </Link>
-      </div>
+      {/* The lone "←" that used to sit here is now the shell's "Back to
+          Trevora", so signin gets the same control instead of none. Anyone
+          wanting sign in has the link at the foot of this form, which says so
+          in words. */}
 
       {/* One step, so no step meter: a progress bar reading "1 of 1" is
           noise, and the vehicle form it used to count towards is out of the
@@ -278,11 +277,14 @@ export default function RegisterPage() {
             {/* Router links, not bare anchors. As <a href> these did a full
                 page load into a route that did not exist, so the catch-all
                 bounced the reader to /login and lost the half-filled form. */}
-            <Link className="ink-link" to="/terms">
+            {/* `state` is what brings the reader back here. Without it the
+                footer of either document returns them to the landing page and
+                the form they were halfway through is gone. */}
+            <Link className="ink-link" to="/terms" state={{ from: '/register' }}>
               {t('auth.terms')}
             </Link>{' '}
             and{' '}
-            <Link className="ink-link" to="/privacy">
+            <Link className="ink-link" to="/privacy" state={{ from: '/register' }}>
               {t('auth.privacy')}
             </Link>
             .

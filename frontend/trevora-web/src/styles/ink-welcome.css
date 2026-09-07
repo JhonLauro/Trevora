@@ -167,29 +167,22 @@
   text-wrap: pretty;
 }
 
-/* The preview frame carries its own label. Nothing inside it is the owner's
-   data and the frame is what says so — do not remove the tag to tidy it up. */
+/* The frame carried a "Mockup — not your records" label until it was removed.
+   The disclosure it made is not lost: the first step says "Every screen ahead
+   is a mockup — nothing here is live yet", and nobody reaches a preview without
+   passing it. Repeated above every frame it stopped reading as a caveat and
+   started reading as a warning badge on a screen with nothing wrong with it. */
 .wt-frame {
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: 24px;
   margin: 8px 0 0;
-  padding: 40px 22px 22px;
+  /* Even all round. The old 40px top was clearance for the absolute tag, and
+     with the tag gone it left the preview sitting low in its own frame. */
+  padding: 22px;
+  /* Kept: `.wt-shot::after` is the only absolute child and establishes its own
+     context, but the frame is the natural anchor for anything a preview adds. */
   position: relative;
-}
-
-.wt-frame__tag {
-  background: var(--brand-tint);
-  border-radius: 100px;
-  color: var(--brand-hover);
-  font-size: 12px;
-  font-weight: 600;
-  left: 22px;
-  letter-spacing: 0.04em;
-  padding: 5px 12px;
-  position: absolute;
-  text-transform: uppercase;
-  top: 14px;
 }
 
 .wt-cta {
@@ -1108,14 +1101,10 @@
   /* -------------------------------------------------- room for the mockups
 
      22px of frame padding inside a 20px gutter left the previews about 290px
-     of a 375px screen. The frame keeps its label; it gives back the margins. */
+     of a 375px screen. The frame gives the margins back. */
   .wt-frame {
     border-radius: 20px;
-    padding: 34px 14px 16px;
-  }
-
-  .wt-frame__tag {
-    left: 14px;
+    padding: 16px 14px;
   }
 
   /* Label over value. Side by side there is no room for both, and "Service

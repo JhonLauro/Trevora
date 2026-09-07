@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LegalLayout from '../components/LegalLayout.jsx';
+import { useLegalReturn } from '../components/legalReturn.js';
 import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.js';
 
 /**
@@ -16,6 +17,10 @@ import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.j
  * a follow-up to it.
  */
 export default function PrivacyPage() {
+  /* Only for the cross-reference at the foot of the document; the
+     layout reads the same origin for its own links. */
+  const { carry } = useLegalReturn();
+
   return (
     <LegalLayout title="Privacy Policy" updated={LEGAL_UPDATED}>
       <p className="legal__lead">
@@ -184,7 +189,7 @@ export default function PrivacyPage() {
       </p>
 
       <p className="legal__tail">
-        See also the <Link to="/terms">Terms of Service</Link>.
+        See also the <Link to="/terms" state={carry}>Terms of Service</Link>.
       </p>
     </LegalLayout>
   );

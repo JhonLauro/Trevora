@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import InkLockup from './InkLockup.jsx';
+import { useLegalReturn } from './legalReturn.js';
 
 /**
  * The frame for the Terms and the Privacy Policy.
@@ -16,15 +17,21 @@ import InkLockup from './InkLockup.jsx';
  * described a product that does not exist.
  */
 export default function LegalLayout({ title, updated, children }) {
+  const { backTo, backLabel, carry } = useLegalReturn();
+
   return (
     <div className="legal">
       <header className="legal__bar">
         <Link className="ink-lockup-link" to="/" aria-label="Trevora, back to the home page">
           <InkLockup />
         </Link>
+        {/* These two carry the origin forward. Without it, reading the Terms
+            and then tapping Privacy would drop where you came from, and the
+            footer link would fall back to the landing page — the exact bug,
+            one page later. */}
         <nav className="legal__nav" aria-label="Legal documents">
-          <Link to="/terms">Terms</Link>
-          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms" state={carry}>Terms</Link>
+          <Link to="/privacy" state={carry}>Privacy</Link>
         </nav>
       </header>
 
@@ -37,7 +44,7 @@ export default function LegalLayout({ title, updated, children }) {
       </main>
 
       <footer className="legal__footer">
-        <Link to="/">Back to Trevora</Link>
+        <Link to={backTo}>{backLabel}</Link>
       </footer>
     </div>
   );
