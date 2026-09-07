@@ -6,6 +6,7 @@ import { LeaveGuardProvider } from './navigation/LeaveGuard.jsx';
 import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import { applyTheme, resolveTheme } from './theme.js';
+import { warmUpApi } from './api/warmup.js';
 import './styles.css';
 // Must come after styles.css — this is the Ink override layer.
 import './styles/ink-app.css';
@@ -138,3 +139,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AppErrorBoundary>
   </React.StrictMode>,
 );
+
+/*
+ * Started before anyone asks for anything. The API sleeps on Render's free
+ * instance and the first request in a while pays for the boot; beginning it at
+ * app load means the wait overlaps the sign-in and the tapping-around rather
+ * than an upload's progress bar. Fire and forget by design — it never rejects,
+ * and nothing here waits on it.
+ */
+warmUpApi();

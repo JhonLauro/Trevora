@@ -13,6 +13,7 @@ import ProcessingModal, {
 import { createReceiptPagesServiceDraft, primeServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
+import { warmUpApi, isApiWarm } from '../api/warmup.js';
 
 /** Length of the hand-off into the draft review screen. */
 const HANDOFF_MS = 2000;
@@ -57,6 +58,16 @@ export default function ReceiptUploadPage() {
   const [replacingPageId, setReplacingPageId] = useState(null);
   const [lightingHint, setLightingHint] = useState(null);
   const [error, setError] = useState('');
+
+  /*
+   * Started on arrival, not on submit. Choosing photographs takes the better
+   * part of a minute, and that is exactly the window a sleeping Render instance
+   * needs to boot — so the boot happens while the owner is busy instead of while
+   * they are watching a progress bar. Already-warm calls are a no-op.
+   */
+  useEffect(() => {
+    warmUpApi();
+  }, []);
 
   useEffect(() => {
     function preventBrowserFileOpen(event) {
@@ -734,6 +745,16 @@ export default function ReceiptUploadPage() {
  */
 function ReadingOverlay({ progress, preview }) {
   const t = useT();
+  /*
+   * Captured once, as the overlay appears, rather than read each render: what
+   * matters is whether the API was cold when this upload started, and that stops
+   * being true the moment the first request lands.
+   *
+   * Naming the cause changes what the wait means. The same ninety seconds reads
+   * as "the scanner is struggling with my receipt" or as "the server is starting
+   * up", and only one of those makes someone retake their photographs.
+   */
+  const [wokeCold] = useState(() => !isApiWarm());
   const { stage, storedPages = 0, totalPages = 0 } = progress ?? {};
   const storing = stage !== 'READING';
   const storedPct = totalPages > 0 ? Math.round((storedPages / totalPages) * 100) : 0;
@@ -746,9 +767,7 @@ function ReadingOverlay({ progress, preview }) {
       previewWaiting={storing}
       title={storing ? 'Saving your pages' : 'Reading your receipt'}
       sub="Two steps. This is the slow part — leave it running and it will finish."
-      foot={storing
-        ? 'Both counts are real. Neither is a timer.'
-        : t('receipt.longer')}
+      foot={coldFoot(storing, wokeCold, t)}
     >
       <ProcessingStep
         name="Saving the pages"
@@ -764,6 +783,25 @@ function ReadingOverlay({ progress, preview }) {
       />
     </ProcessingModal>
   );
+}
+
+/**
+ * The line under the two steps.
+ *
+ * <p>A cold start is the one cause of a long wait that is nobody's fault and
+ * nothing to act on, so it is worth saying out loud. Left unexplained it looks
+ * like the receipt is the problem, and the reasonable response to that is to
+ * cancel and photograph everything again — which throws away the upload that
+ * was about to succeed and starts a second cold wait.
+ */
+function coldFoot(storing, wokeCold, t) {
+  if (storing) {
+    return 'Both counts are real. Neither is a timer.';
+  }
+  if (wokeCold) {
+    return 'The server had gone to sleep and is starting up. The first upload after a quiet spell is the slow one — this is not your receipt.';
+  }
+  return t('receipt.longer');
 }
 
 function toPage(file, source, isBlurry = false) {
