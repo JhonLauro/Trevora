@@ -31,21 +31,84 @@ import ThemeToggle from '../components/ink/ThemeToggle.jsx';
    at 200px tall a screenshot of a full page is unreadable anyway — these say
    what each view is *for* at the size the page actually shows them.
 
-   The showcase slots at the top are deliberately not drawn. A traced phone
-   next to a real photograph of a receipt reads as a placeholder standing in
-   for the thing the section is promising; the empty frame is the more honest
-   of the two, and it says plainly that art is still to come. Those four want
-   a camera, and stock would read as stock. */
+   The two showcase slots at the top are images, not drawings: a traced phone
+   next to a picture of a receipt read as a placeholder standing in for the
+   thing the section promises. `receipt.jpg` is AI-generated, not a photograph
+   of a real receipt, and the small print on it is invented rather than real
+   text. `vehicle-page.jpg` is a screenshot of the real vehicle page
+   composited into a phone mockup. Both are JPEG, not PNG -- the composite
+   came out over six times larger as a PNG, and with no srcset every device
+   downloads the one file, on mobile data.
+
+   The three receipt pages are illustrative documents, not photographs and
+   not real receipts: each carries a document title over invented, unreadable
+   body text. They are drawn as strips 52-68px tall, and `object-fit: cover`
+   crops each one to a band of its page -- the title is cut off at every
+   desktop and tablet width, and too small to read where it survives on a
+   phone. That is accepted, not a bug to fix: at that size they only need to
+   read as three distinct sheets of paper, and no crop or re-export makes a
+   title legible in a box that small.
+
+   `mechanic.jpg` shows a vehicle owner and a mechanic, each holding a phone.
+   Nobody in it is scanning anything, so its label and alt text do not say
+   they are. */
 const SHOTS = {
-  receipt: { src: '/landing/receipt.jpg', label: 'Hand holding a shop receipt' },
-  vehiclePage: { src: '/landing/vehicle-page.png', label: 'The vehicle page on a phone' },
-  mechanic: { src: '/landing/mechanic.jpg', label: 'A mechanic scanning a phone' },
+  /* `width` and `height` are each file's own pixel size, not the size it is
+     drawn at -- CSS sets the box. They are there so the browser knows the
+     aspect ratio before the file arrives and holds the space, instead of the
+     page jumping when it lands. Re-export an image at a new size and these
+     change with it. */
+  receipt: {
+    src: '/landing/receipt.jpg',
+    label: 'Hand holding a shop receipt',
+    alt: 'A hand holding a printed service repair order',
+    width: 1200,
+    height: 1200,
+    loading: 'lazy',
+  },
+  vehiclePage: {
+    src: '/landing/vehicle-page.jpg',
+    label: 'The vehicle page on a phone',
+    alt: "The Trevora vehicle page on a phone, showing the map of the car's parts that service records are filed against",
+    width: 1760,
+    height: 1100,
+    loading: 'lazy',
+  },
+  mechanic: {
+    src: '/landing/mechanic.jpg',
+    label: 'A vehicle owner and a mechanic, each holding a phone',
+    alt: 'A vehicle owner and a mechanic, each holding a phone, in a service bay',
+    width: 1024,
+    height: 637,
+    loading: 'lazy',
+  },
   timeline: { src: '/landing/view-timeline.svg', label: 'Timeline view' },
   components: { src: '/landing/view-components.svg', label: 'Component map' },
   table: { src: '/landing/view-table.svg', label: 'Table view' },
-  page1: { src: '/landing/receipt-p1.jpg', label: 'Page 1' },
-  page2: { src: '/landing/receipt-p2.jpg', label: 'Page 2' },
-  page3: { src: '/landing/receipt-p3.jpg', label: 'Page 3' },
+  page1: {
+    src: '/landing/receipt-p1.jpg',
+    label: 'Page 1',
+    alt: 'A printed service repair order',
+    width: 765,
+    height: 1024,
+    loading: 'lazy',
+  },
+  page2: {
+    src: '/landing/receipt-p2.jpg',
+    label: 'Page 2',
+    alt: 'A printed service invoice listing parts and labour',
+    width: 765,
+    height: 1024,
+    loading: 'lazy',
+  },
+  page3: {
+    src: '/landing/receipt-p3.jpg',
+    label: 'Page 3',
+    alt: 'A handwritten official receipt',
+    width: 765,
+    height: 1024,
+    loading: 'lazy',
+  },
 };
 
 const WAYS_IN = [
@@ -97,7 +160,7 @@ const FAQS = [
  * swapping back to the frame if the file 404s. No code change when the art
  * lands — only a file in /public/landing.
  */
-function ImageSlot({ src, label }) {
+function ImageSlot({ src, label, alt = '', width, height, loading }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -113,7 +176,15 @@ function ImageSlot({ src, label }) {
 
   return (
     <div className="tvl-slot">
-      <img className="tvl-slot__img" src={src} alt="" onError={() => setFailed(true)} />
+      <img
+        className="tvl-slot__img"
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={loading}
+        onError={() => setFailed(true)}
+      />
     </div>
   );
 }
@@ -208,7 +279,7 @@ export default function LandingPage() {
           </div>
           <p className="tvl-saved">
             <span className="tvl-saved__dot" aria-hidden="true" />
-            <span className="tvl-saved__text">Record saved · 7 May 2026 · Toyota Otis, Manila</span>
+            <span className="tvl-saved__text">Record saved · 7 May 2026 · Toyota Corolla Lovelife, Cebu</span>
           </p>
         </div>
         <div className="tvl-shot-card">
@@ -314,7 +385,7 @@ export default function LandingPage() {
             <div className="tvl-row">
               <span className="tvl-row__field">
                 <span className="tvl-row__label">Shop</span>
-                <span className="tvl-row__value">Toyota Otis, Manila</span>
+                <span className="tvl-row__value">Toyota Corolla Lovelife, Cebu</span>
               </span>
               <span className="tvl-row__source">Read from receipt</span>
             </div>
