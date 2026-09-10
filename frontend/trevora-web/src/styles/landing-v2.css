@@ -331,9 +331,9 @@
   width: 26px;
 }
 
-.tvl-scan__tick--tl { border-radius: 8px 0 0 0; border-top-width: 2px; border-left-width: 2px; left: 20px; top: 20px; }
-.tvl-scan__tick--tr { border-radius: 0 8px 0 0; border-top-width: 2px; border-right-width: 2px; right: 20px; top: 20px; }
-.tvl-scan__tick--br { border-radius: 0 0 8px 0; border-bottom-width: 2px; border-right-width: 2px; right: 20px; bottom: 20px; }
+.tvl-scan__tick--tl { border-radius: 14px 0 0 0; border-top-width: 2px; border-left-width: 2px; left: 20px; top: 20px; }
+.tvl-scan__tick--tr { border-radius: 0 14px 0 0; border-top-width: 2px; border-right-width: 2px; right: 20px; top: 20px; }
+.tvl-scan__tick--br { border-radius: 0 0 14px 0; border-bottom-width: 2px; border-right-width: 2px; right: 20px; bottom: 20px; }
 
 .tvl-saved {
   align-items: center;
@@ -415,6 +415,24 @@
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+/* The slot's 20px padding sets the picture inside its card, and the card's
+   own radius only rounds the card -- so every image sat there with square
+   corners. The concentric value (card radius minus the padding) comes out at
+   0-8px, too small to read as rounded, so the pictures get their own.
+
+   Only the photo slots. The view illustrations draw their own rounded card
+   inside the SVG and carry no padding; a radius here would clip it. */
+.tvl-shot .tvl-slot__img,
+.tvl-shot-card__frame .tvl-slot__img,
+.tvl-handoff__shot .tvl-slot__img {
+  border-radius: 14px;
+}
+
+/* The page thumbnails are 52-68px tall; 14px would nearly make them pills. */
+.tvl-review__thumb .tvl-slot__img {
+  border-radius: 8px;
 }
 
 .tvl-slot__label {
@@ -1156,8 +1174,8 @@
    The three view slots hold SVGs that already carry their own card and their
    own white ground, so they are contained instead, and the slot's padding and
    gradient come off — the drawing is the card. Scoped to `.tvl-view__frame`
-   alone: the showcase slots above are still waiting on photographs, and a
-   photograph wants cover. */
+   alone: the showcase and handoff slots hold raster images, and those want
+   cover. */
 .tvl-view__frame .tvl-slot {
   background: transparent;
   padding: 0;
