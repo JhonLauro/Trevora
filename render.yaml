@@ -88,3 +88,63 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      # ------------------------------------------------ Content Security Policy
+      #
+      # Auth here is a bearer token in localStorage, not a cookie, so there is
+      # no CSRF to defend against -- but there is also no HttpOnly. Any script
+      # that runs on this origin can read the access AND refresh tokens, and the
+      # refresh token mints new access tokens indefinitely. Preventing a foreign
+      # script from running IS the token security; this is the control that does
+      # it.
+      #
+      # The app's own code cannot realistically produce an XSS -- no innerHTML,
+      # no dangerouslySetInnerHTML, React escapes by default -- so the realistic
+      # way a script gets here is a compromised npm package. `script-src 'self'`
+      # stops it running; `connect-src` stops it phoning the tokens home even if
+      # it did.
+      #
+      # Every value below was measured against the built output rather than
+      # assumed:
+      #   - dist/index.html has zero inline <script> and zero inline <style>,
+      #     so neither 'unsafe-inline' nor a nonce is needed.
+      #   - driver.js (the walkthrough) styles elements through the CSSOM
+      #     (el.style.x = ...), which CSP does not police, and injects no <style>
+      #     tag -- so style-src stays strict too.
+      #   - The only off-origin assets are the two Google Fonts stylesheets in
+      #     index.html and the font files they pull from fonts.gstatic.com.
+      #   - Receipt, avatar and vehicle images come from Supabase Storage, which
+      #     is the same host as VITE_SUPABASE_URL; blob: covers the ones read
+      #     from a file input before upload.
+      #
+      # REPORT-ONLY ON PURPOSE. In this mode the browser reports what it would
+      # have blocked and blocks nothing, so a wrong entry shows up in the
+      # console instead of as a blank page on somebody's phone. Watch it, then
+      # rename the header to `Content-Security-Policy` to enforce.
+      #
+      # Not applied in development: Vite's hot reload needs inline scripts and
+      # eval, which this forbids. It belongs to the deployed site only, which is
+      # also the only place that faces the internet.
+      #
+      # If the API ever moves off onrender.com, connect-src must be updated to
+      # match or every request from the browser will be refused.
+      - path: /*
+        name: Content-Security-Policy-Report-Only
+        value: "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://bqardmkvbrfpbfmvmbgf.supabase.co; connect-src 'self' https://bqardmkvbrfpbfmvmbgf.supabase.co https://trevora-api.onrender.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+      # A mechanic's session id travels in the URL, which is exactly what
+      # mechanicSessionToken.js warns about: URLs leak through history, logs and
+      # `Referer` headers to anything the page loads. This page loads Google
+      # Fonts, so without this the full share URL would be sent to Google on
+      # every visit. `strict-origin-when-cross-origin` sends only the origin
+      # off-site, which strips the session id while leaving same-origin
+      # navigation reporting intact.
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+      # Stops the browser second-guessing a Content-Type and executing something
+      # served as data.
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

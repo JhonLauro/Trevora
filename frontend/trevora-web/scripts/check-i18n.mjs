@@ -65,12 +65,27 @@ const DECLARES = /const\s+t\s*=\s*useT\(\)|const\s*\{[^}]*\bt\b[^}]*\}\s*=\s*use
    component that translates a key held in a variable looked hookless-free
    to this check while throwing at runtime. */
 const CALLS = /(?<![\w.])t\(/;
+/* A plain helper gets its `t` from the file's import, so that is a file-level
+   fact, not something visible inside the function.
+
+   Matched inside an actual import statement, not anywhere in the file. A bare
+   /translate as t/ is satisfied by a *comment* saying the words — which is
+   exactly how this check first passed against code that was still broken, the
+   comment above the import having been written in the same edit as the fix. */
+const IMPORT_STATEMENT = /import\s*\{[\s\S]*?\}\s*from[^\n]*/g;
+const TRANSLATE_AS_T = /\btranslate\s+as\s+t\b/;
+/* `t` among the parameters: (issue, t), ({ t }), (a, t = translate). */
+const TAKES_T = /(^|[,{\s])t(\s*[,=}]|\s*$)/;
+
 for (const file of sources) {
-  const lines = readFileSync(file, 'utf8').split('\n');
-  /* Every top-level function ends the previous one, whatever its name. Only
-     PascalCase ones are *reported* — a camelCase function is a plain helper,
-     which cannot hold a hook and takes `translate as t` from the module import.
-     Keeping those two ideas apart matters: treating only PascalCase as a
+  const source = readFileSync(file, 'utf8');
+  const lines = source.split('\n');
+  const importsTranslate = (source.match(IMPORT_STATEMENT) ?? [])
+    .some((statement) => TRANSLATE_AS_T.test(statement));
+  /* Every top-level function ends the previous one, whatever its name. Both
+     kinds are checked, but against different rules — a component holds the
+     hook, a plain function cannot and must be handed `t` some other way.
+     Keeping the two ideas apart matters: treating only PascalCase as a
      boundary let a helper's t() calls bleed into the component declared above
      it, and blamed that component for calls it never made. */
   const starts = [];
@@ -86,10 +101,34 @@ for (const file of sources) {
        PascalCase test below and silently skipped every unexported component. */
     const name = header.trim().split('(')[0]
       .replace(/^export\s+/, '').replace(/^default\s+/, '').replace(/^function\s+/, '').trim();
-    if (!/^[A-Z]/.test(name)) continue;
     const body = lines.slice(starts[i], starts[i + 1]).join('\n');
-    if (!CALLS.test(body) || DECLARES.test(body)) continue;
-    problems.push(`calls t() without useT(): ${name} in ${file.replace(SRC, 'src')}`);
+    if (!CALLS.test(body)) continue;
+    const where = `${file.replace(SRC, 'src')}:${starts[i] + 1}`;
+
+    if (/^[A-Z]/.test(name)) {
+      if (DECLARES.test(body)) continue;
+      problems.push(`calls t() without useT(): ${name} in ${where}`);
+      continue;
+    }
+
+    /* camelCase: a plain helper. This used to be skipped outright, on the
+       assumption that such a function "takes `translate as t` from the module
+       import" — an assumption nothing verified. AccountSettingsPage did not
+       have that import, so `changeCountLabel` called a `t` that existed only
+       inside the component below it, and every notification toggle threw
+       "t is not defined". The assumption is now the check.
+
+       Three ways to be legitimate: the file imports translate as t, the
+       function is handed t as a parameter, or it is a custom hook holding the
+       hook itself. */
+    if (importsTranslate || DECLARES.test(body)) continue;
+    let signature = header;
+    for (let k = starts[i]; !signature.includes(')') && k + 1 < lines.length; k += 1) {
+      signature += lines[k + 1];
+    }
+    const params = signature.slice(signature.indexOf('(') + 1, signature.lastIndexOf(')'));
+    if (TAKES_T.test(params)) continue;
+    problems.push(`calls t() with no t in scope: ${name}() in ${where}`);
   }
 }
 
