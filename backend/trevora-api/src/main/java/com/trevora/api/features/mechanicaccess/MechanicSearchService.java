@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.exception.AccessRequestException;
 import com.trevora.api.shared.http.OutboundHttp;
+import com.trevora.api.shared.aibudget.AiSpendGuard;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.servicerecord.ServiceRecordItem;
 import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -109,14 +111,17 @@ public class MechanicSearchService {
      * OpenAI account until the session expires.
      */
     private final int aiBudgetPerSession;
+    private final AiSpendGuard spendGuard;
 
+    @Autowired
     public MechanicSearchService(
             MechanicAccessService mechanicAccessService,
             ServiceRecordItemReader serviceRecordItemReader,
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
             @Value("${trevora.mechanic-search.openai.model:gpt-5.4-mini}") String model,
-            @Value("${trevora.mechanic-search.ai-budget-per-session:30}") int aiBudgetPerSession
+            @Value("${trevora.mechanic-search.ai-budget-per-session:30}") int aiBudgetPerSession,
+            AiSpendGuard spendGuard
     ) {
         this.mechanicAccessService = mechanicAccessService;
         this.serviceRecordItemReader = serviceRecordItemReader;
@@ -124,6 +129,20 @@ public class MechanicSearchService {
         this.apiKey = blankToNull(apiKey);
         this.model = blankToDefault(model, "gpt-5.4-mini");
         this.aiBudgetPerSession = aiBudgetPerSession;
+        this.spendGuard = spendGuard;
+    }
+
+    /** For tests, which build this outside Spring: no app-wide spending limit applies. */
+    MechanicSearchService(
+            MechanicAccessService mechanicAccessService,
+            ServiceRecordItemReader serviceRecordItemReader,
+            ObjectMapper objectMapper,
+            String apiKey,
+            String model,
+            int aiBudgetPerSession
+    ) {
+        this(mechanicAccessService, serviceRecordItemReader, objectMapper, apiKey, model, aiBudgetPerSession,
+                AiSpendGuard.unlimited());
     }
 
     @Transactional
@@ -153,7 +172,7 @@ public class MechanicSearchService {
          * out or errors still cost us the request upstream, and counting only
          * successes would let a caller loop on failures for free.
          */
-        MechanicSearchDecision decision = canCallAi(records) && mechanicAccessService.tryConsumeAiSearchBudget(session, aiBudgetPerSession)
+        MechanicSearchDecision decision = canCallAi(records) && spendGuard.canSpend() && mechanicAccessService.tryConsumeAiSearchBudget(session, aiBudgetPerSession)
                 ? aiDecision(normalizedQuery, records, itemsByRecord)
                         .orElseGet(() -> fallbackDecision(normalizedQuery, records, itemsByRecord))
                 : fallbackDecision(normalizedQuery, records, itemsByRecord);
@@ -251,6 +270,7 @@ public class MechanicSearchService {
                     .body(request)
                     .retrieve()
                     .body(String.class);
+            spendGuard.recordChatResponse("mechanic-search", responseBody);
 
             return parseAiDecision(responseBody, records);
         } catch (RestClientException | JsonProcessingException exception) {

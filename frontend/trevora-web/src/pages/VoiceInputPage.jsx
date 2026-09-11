@@ -16,6 +16,12 @@ import {
 } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 
+/* Transcription is billed by the minute of audio, and nothing stopped a
+   recording left running in a pocket. Three minutes is room for any service
+   visit told out loud; past it the note stops itself and is transcribed as if
+   the square had been tapped. The server refuses anything over 8 MB. */
+const MAX_RECORDING_SECONDS = 180;
+
 /**
  * Step 3b.
  *
@@ -173,6 +179,10 @@ export default function VoiceInputPage() {
     if (tickRef.current) window.clearInterval(tickRef.current);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (recording && elapsed >= MAX_RECORDING_SECONDS) stopRecording();
+  }, [recording, elapsed]);
 
   function stopStream() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -379,7 +389,7 @@ export default function VoiceInputPage() {
               <span className="flow-recorder__time">{clock(elapsed)}</span>
               <span className="flow-note">
                 {recording
-                  ? 'Recording — tap the square to stop'
+                  ? 'Recording — tap the square to stop. It stops by itself at 3:00.'
                   : transcribing
                     ? 'Writing down what you said…'
                     : audioBlob ? 'Recorded. Play it back or record again.' : 'Tap the circle to start'}

@@ -44,6 +44,11 @@ export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
  *     each real transition. There are two stages because there are two things
  *     happening, not because four reads better.
  */
+/** The owner's receipt pages used this hour and today, and when each resets. */
+export function getReceiptUsage() {
+  return apiRequest('/service-drafts/receipt/usage');
+}
+
 export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode, onProgress }) {
   onProgress?.({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
   const storedPages = await uploadReceiptPages({
@@ -69,10 +74,17 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
 
   try {
     onProgress?.({ stage: 'READING', storedPages: storedPages.length, totalPages: pages.length });
-    return await apiRequest('/service-drafts/receipt', {
+    const draft = await apiRequest('/service-drafts/receipt', {
       method: 'POST',
       body: formData,
     });
+    /* The server recognised these exact pages from an upload whose draft is
+       still open, and returned that draft instead of reading them again. The
+       copies stored a moment ago belong to nothing, so they go. */
+    if (draft?.reusedExistingDraft) {
+      await Promise.all(storedPages.map((page) => removeStoredReceipt(page))).catch(() => {});
+    }
+    return draft;
   } catch (error) {
     await Promise.all(storedPages.map((page) => removeStoredReceipt(page)));
     throw error;

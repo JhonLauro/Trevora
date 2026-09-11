@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import com.trevora.api.shared.http.OutboundHttp;
+import com.trevora.api.shared.aibudget.AiSpendGuard;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -36,6 +37,15 @@ public class OpenAIServiceDraftExtractionProvider {
      * someone is waiting on the response.
      */
     private static final int MAX_ATTEMPTS = 3;
+    /**
+     * Of those, how many may end with the answer cut off at the token cap. A
+     * cut-off answer is the dearest failure there is -- the whole output budget,
+     * spent -- and repeating the identical request pays it again. Two keeps the
+     * one retry that {@link #parseOpenAIResponse} explains has recovered real
+     * receipts, and stops a third full-length answer, which on a multi-page
+     * upload was paid once per page.
+     */
+    private static final int MAX_TRUNCATED_ATTEMPTS = 2;
     private static final long RETRY_BASE_BACKOFF_MILLIS = 500L;
     /**
      * Longest {@code Retry-After} we will sit through. When the provider asks
@@ -77,6 +87,7 @@ public class OpenAIServiceDraftExtractionProvider {
     private final RestClient restClient;
     private final String apiKey;
     private final String model;
+    private final AiSpendGuard spendGuard;
 
     /**
      * @implNote {@code @Autowired} is required, not decorative. There are two
@@ -88,9 +99,16 @@ public class OpenAIServiceDraftExtractionProvider {
     public OpenAIServiceDraftExtractionProvider(
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.ai.openai.model:gpt-5.4-mini}") String model
+            @Value("${trevora.ai.openai.model:gpt-5.4-mini}") String model,
+            AiSpendGuard spendGuard
     ) {
-        this(objectMapper, OutboundHttp.restClient(OutboundHttp.EXTRACTION_READ_TIMEOUT), apiKey, model);
+        this(objectMapper, OutboundHttp.restClient(OutboundHttp.EXTRACTION_READ_TIMEOUT), apiKey, model, spendGuard);
+    }
+
+    /** For tests and the golden-set harness, which build this outside Spring: no spending limit applies. */
+    public OpenAIServiceDraftExtractionProvider(ObjectMapper objectMapper, String apiKey, String model) {
+        this(objectMapper, OutboundHttp.restClient(OutboundHttp.EXTRACTION_READ_TIMEOUT), apiKey, model,
+                AiSpendGuard.unlimited());
     }
 
     /** Lets a test stand a server in front of the retry loop. */
@@ -100,10 +118,21 @@ public class OpenAIServiceDraftExtractionProvider {
             String apiKey,
             String model
     ) {
+        this(objectMapper, restClient, apiKey, model, AiSpendGuard.unlimited());
+    }
+
+    OpenAIServiceDraftExtractionProvider(
+            ObjectMapper objectMapper,
+            RestClient restClient,
+            String apiKey,
+            String model,
+            AiSpendGuard spendGuard
+    ) {
         this.objectMapper = objectMapper;
         this.restClient = restClient;
         this.apiKey = blankToNull(apiKey);
         this.model = blankToDefault(model, "gpt-5.4-mini");
+        this.spendGuard = spendGuard;
     }
 
     public ReceiptDraftFields extractFields(String rawOcrText) {
@@ -127,7 +156,8 @@ public class OpenAIServiceDraftExtractionProvider {
                 context.toPromptBlock() + "\nOCR text:\n" + ocr.text(),
                 "OpenAI extraction",
                 ocr.warnings(),
-                ServiceDraftResponseSchema.forReceipt()
+                ServiceDraftResponseSchema.forReceipt(),
+                "receipt-extraction"
         );
         return withResolvedServiceDate(withResolvedOdometer(fields, ocr.text()), ocr.text());
     }
@@ -255,7 +285,8 @@ public class OpenAIServiceDraftExtractionProvider {
                 "Voice transcript:\n" + spoken.text(),
                 "OpenAI voice extraction",
                 spoken.warnings(),
-                ServiceDraftResponseSchema.forVoice()
+                ServiceDraftResponseSchema.forVoice(),
+                "voice-extraction"
         );
     }
 
@@ -264,7 +295,8 @@ public class OpenAIServiceDraftExtractionProvider {
             String userContent,
             String operationLabel,
             List<String> inputWarnings,
-            Map<String, Object> responseFormat
+            Map<String, Object> responseFormat,
+            String feature
     ) {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("model", model);
@@ -288,8 +320,11 @@ public class OpenAIServiceDraftExtractionProvider {
         // Kept across attempts so a run that stops at the cap every time
         // still has something to read at the end of it.
         String truncatedAnswer = null;
+        int truncatedAttempts = 0;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             Long retryAfterMillis = null;
+            // Before every attempt, retries included: a retry is another paid call.
+            spendGuard.requireBudget(feature);
             try {
                 String responseBody = restClient.post()
                         .uri(OPENAI_CHAT_COMPLETIONS_URL)
@@ -299,6 +334,8 @@ public class OpenAIServiceDraftExtractionProvider {
                         .body(request)
                         .retrieve()
                         .body(String.class);
+                // Recorded before parsing: a cut-off or unreadable answer was paid for all the same.
+                spendGuard.recordChatResponse(feature, responseBody);
 
                 return parseOpenAIResponse(responseBody, inputWarnings);
             } catch (MalformedResponseException exception) {
@@ -323,11 +360,16 @@ public class OpenAIServiceDraftExtractionProvider {
                 // bounded redacted snippet, not the whole body.
                 if (exception.partialContent != null) {
                     truncatedAnswer = exception.partialContent;
+                    truncatedAttempts++;
                 }
                 lastFailure = new ReceiptProcessingException(
                         operationLabel + " returned a response that could not be read: "
                                 + describeCause(exception),
                         exception);
+                if (truncatedAttempts >= MAX_TRUNCATED_ATTEMPTS) {
+                    // Salvage what arrived rather than pay for another full-length answer.
+                    break;
+                }
             } catch (RestClientResponseException exception) {
                 int status = exception.getStatusCode().value();
                 lastFailure = new ReceiptProcessingException(

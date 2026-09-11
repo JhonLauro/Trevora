@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useT } from '../i18n/index.jsx';
 import React, { useRef, useState } from 'react';
 import { loginUser, signInWithGoogle } from '../api/auth.js';
+import { takeSuspensionNotice } from '../api/http.js';
 import InkAuthShell from '../components/InkAuthShell.jsx';
 import { InkDivider, InkField, InkGoogleButton, InkPasswordField } from '../components/InkFormControls.jsx';
 
@@ -19,7 +20,8 @@ export default function LoginPage() {
   const passwordRef = useRef(null);
   const [form, setForm] = useState({ email: '', password: '', keepSignedIn: true });
   const [fieldErrors, setFieldErrors] = useState({});
-  const [formError, setFormError] = useState('');
+  // Opens with the reason when a suspended account was just signed out.
+  const [formError, setFormError] = useState(takeSuspensionNotice);
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 

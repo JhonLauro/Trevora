@@ -19,6 +19,7 @@ import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Comparator;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ public class ServiceInputService {
     private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
     private final ServiceClassificationService classificationService;
+    private final ReceiptUploadFingerprints receiptUploadFingerprints;
 
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
@@ -47,8 +49,10 @@ public class ServiceInputService {
             VoiceProcessingService voiceProcessingService,
             CurrentUserService currentUserService,
             ObjectMapper objectMapper,
-            ServiceClassificationService classificationService
+            ServiceClassificationService classificationService,
+            ReceiptUploadFingerprints receiptUploadFingerprints
     ) {
+        this.receiptUploadFingerprints = receiptUploadFingerprints;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceDraftItemRepository = serviceDraftItemRepository;
         this.serviceDraftLineEntryRepository = serviceDraftLineEntryRepository;
@@ -117,16 +121,51 @@ public class ServiceInputService {
             String receiptContentType,
             String receiptPagesJson
     ) {
+        return createOrReuseReceiptDraft(vehicleId, receiptImages, receiptInputMode, receiptStorageBucket,
+                receiptStoragePath, receiptOriginalFilename, receiptContentType, receiptPagesJson).draft();
+    }
+
+    /** The draft a receipt upload produced, and whether it was one these pages had already made. */
+    public record ReceiptDraftOutcome(ServiceDraft draft, boolean reused) {
+    }
+
+    /**
+     * Reads a receipt into a new draft -- unless these exact pages already made a
+     * draft for this vehicle that is still unconfirmed, in which case that draft is
+     * returned and nothing is read or paid for. See {@link ReceiptUploadFingerprints}.
+     */
+    @Transactional
+    public ReceiptDraftOutcome createOrReuseReceiptDraft(
+            UUID vehicleId,
+            List<MultipartFile> receiptImages,
+            String receiptInputMode,
+            String receiptStorageBucket,
+            String receiptStoragePath,
+            String receiptOriginalFilename,
+            String receiptContentType,
+            String receiptPagesJson
+    ) {
         requireVehicleOwner();
         // The ownership check already loads the vehicle, and the extractor needs
         // it: a receipt only means something against the vehicle it belongs to.
         VehicleProfile vehicle = vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
+        UUID ownerId = currentUserService.getCurrentUserId();
+
+        /* Before anything is paid for: the same photos sent again -- a double tap,
+           a retry, a button being hammered -- open the draft they already made. */
+        String fingerprint = ReceiptUploadFingerprints.fingerprintOf(receiptImages);
+        Optional<ServiceDraft> alreadyMade = receiptUploadFingerprints.reusableDraft(ownerId, vehicleId, fingerprint)
+                .flatMap(draftId -> serviceDraftRepository.findByDraftIdAndOwnerId(draftId, ownerId));
+        if (alreadyMade.isPresent()) {
+            return new ReceiptDraftOutcome(alreadyMade.get(), true);
+        }
+
         ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(
                 receiptImages, receiptInputMode, VehicleContext.from(vehicle));
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(vehicleId);
-        draft.setOwnerId(currentUserService.getCurrentUserId());
+        draft.setOwnerId(ownerId);
         draft.setInputMethod(InputMethod.RECEIPT);
         // Which sheet of the stack this came off. The voice path leaves the
         // default: a spoken account is not a document and has no type to read.
@@ -150,7 +189,8 @@ public class ServiceInputService {
 
         ServiceDraft savedDraft = serviceDraftRepository.save(draft);
         saveExtractedItems(savedDraft.getDraftId(), extraction.services());
-        return savedDraft;
+        receiptUploadFingerprints.remember(fingerprint, ownerId, vehicleId, savedDraft.getDraftId());
+        return new ReceiptDraftOutcome(savedDraft, false);
     }
 
     private Map<String, Object> enrichReceiptMetadata(Map<String, Object> metadata, String receiptPagesJson) {

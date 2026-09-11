@@ -1,6 +1,19 @@
 import { clearLoggedInUser, getLoggedInUser, setLoggedInUser } from './currentUser.js';
 import { supabase } from './supabaseClient.js';
 
+const SUSPENSION_NOTICE_KEY = 'trevora.suspension-notice';
+
+/** The suspension reason left for the sign-in page by a refused request, read once. */
+export function takeSuspensionNotice() {
+  try {
+    const message = window.sessionStorage.getItem(SUSPENSION_NOTICE_KEY) || '';
+    window.sessionStorage.removeItem(SUSPENSION_NOTICE_KEY);
+    return message;
+  } catch {
+    return '';
+  }
+}
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
 export async function apiRequest(path, options = {}) {
@@ -29,17 +42,34 @@ export async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     let message = 'Request failed.';
+    let code = null;
     try {
       const body = await response.json();
       message = body.message ?? body.error ?? message;
+      code = body.code ?? null;
     } catch {
       message = response.statusText || message;
     }
-    if (!options.skipAuthHeaders && isExpiredSessionMessage(message)) {
+    if (!options.skipAuthHeaders && code === 'ACCOUNT_SUSPENDED') {
+      // Signed out everywhere, with the reason waiting on the sign-in page.
+      try {
+        window.sessionStorage.setItem(SUSPENSION_NOTICE_KEY, message);
+      } catch {
+        // Blocked storage: the sign-in page opens without the reason.
+      }
+      if (supabase) supabase.auth.signOut().catch(() => {});
+      clearLoggedInUser();
+      window.location.assign('/login');
+    } else if (!options.skipAuthHeaders && isExpiredSessionMessage(message)) {
       clearLoggedInUser();
       window.location.assign('/login');
     }
-    throw new Error(message);
+    // The status travels with the message so a page can tell a limit (429)
+    // from a failure without matching on wording.
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = code;
+    throw error;
   }
 
   if (response.status === 204) {

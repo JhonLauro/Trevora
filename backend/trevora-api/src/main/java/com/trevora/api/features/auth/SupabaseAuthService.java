@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +35,7 @@ public class SupabaseAuthService {
     private static final Logger log = LoggerFactory.getLogger(SupabaseAuthService.class);
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String REQUEST_ATTRIBUTE = SupabaseAuthService.class.getName() + ".user";
+    private static final String REQUEST_FAILURE_ATTRIBUTE = SupabaseAuthService.class.getName() + ".failure";
 
     /* Verifying a token costs an HTTP round trip to Supabase, and the API runs
        in a different region from the project -- roughly 100ms per call, paid by
@@ -80,14 +82,29 @@ public class SupabaseAuthService {
     private static final long CLOCK_SKEW_MS = 30_000L;
 
     private final SupabaseJwkProvider jwkProvider;
+    private final AccountStandingService accountStanding;
 
+    /** Without the suspension check: for tests of token verification alone. */
+    public SupabaseAuthService(
+            ObjectMapper objectMapper,
+            SupabaseJwkProvider jwkProvider,
+            String supabaseUrl,
+            String supabaseAnonKey,
+            String jwtSecret
+    ) {
+        this(objectMapper, jwkProvider, supabaseUrl, supabaseAnonKey, jwtSecret, null);
+    }
+
+    @Autowired
     public SupabaseAuthService(
             ObjectMapper objectMapper,
             SupabaseJwkProvider jwkProvider,
             @Value("${supabase.url:}") String supabaseUrl,
             @Value("${supabase.anon-key:}") String supabaseAnonKey,
-            @Value("${supabase.jwt-secret:}") String jwtSecret
+            @Value("${supabase.jwt-secret:}") String jwtSecret,
+            AccountStandingService accountStanding
     ) {
+        this.accountStanding = accountStanding;
         this.jwkProvider = jwkProvider;
         this.objectMapper = objectMapper;
         /* Without a connect timeout a slow Supabase holds a request thread for
@@ -120,8 +137,28 @@ public class SupabaseAuthService {
         if (cachedUser instanceof SupabaseAuthenticatedUser user) {
             return Optional.of(user);
         }
+        /* A failure is kept on the request too. AccountStandingFilter asks first,
+           and a token that failed there should not cost a second round trip to
+           Supabase when the endpoint asks again. Same request, same answer. */
+        if (request.getAttribute(REQUEST_FAILURE_ATTRIBUTE) instanceof RuntimeException failure) {
+            throw failure;
+        }
 
-        SupabaseAuthenticatedUser user = verify(token);
+        SupabaseAuthenticatedUser user;
+        try {
+            user = verify(token);
+            /* Here, where every signed-in request passes, so a suspended account
+               is refused everywhere -- sign-in sync included -- without each
+               service having to remember to ask. Checked before the user is
+               cached on the request, so nothing later can pick it up unchecked.
+               AccountStandingFilter makes this happen before any transaction. */
+            if (accountStanding != null) {
+                accountStanding.requireNotSuspended(user.userId());
+            }
+        } catch (RuntimeException failure) {
+            request.setAttribute(REQUEST_FAILURE_ATTRIBUTE, failure);
+            throw failure;
+        }
         request.setAttribute(REQUEST_ATTRIBUTE, user);
         return Optional.of(user);
     }

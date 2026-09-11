@@ -80,4 +80,78 @@ class AiRateLimiterTest {
         assertEquals(1, properties.getPerDay());
         assertEquals(100, properties.getMaxTrackedKeys());
     }
+
+    @Test
+    @DisplayName("a key used with its own limits is held to those, not the defaults")
+    void keysCanCarryTheirOwnLimits() {
+        AiRateLimiter limiter = limiter(true, 100, 100);
+
+        assertTrue(limiter.tryConsume("receipt:user:alice", 1, 30).allowed());
+        assertFalse(limiter.tryConsume("receipt:user:alice", 1, 30).allowed(), "the receipt key allows one a minute");
+        assertTrue(limiter.tryConsume("explanation:user:alice", 20, 200).allowed(), "another feature is untouched");
+    }
+
+    @Test
+    @DisplayName("a request spends its cost from every window, and a refusal names the window that refused")
+    void costsAndRefusingWindow() {
+        AiRateLimiter limiter = limiter(true, 100, 100);
+        java.util.List<AiRateLimiter.Window> nine = java.util.List.of(
+                new AiRateLimiter.Window("minute", 10, java.time.Duration.ofMinutes(1), 1),
+                new AiRateLimiter.Window("hour", 20, java.time.Duration.ofHours(1), 9));
+
+        assertTrue(limiter.tryConsume("receipt:user:alice", nine).allowed());
+        assertTrue(limiter.tryConsume("receipt:user:alice", nine).allowed());
+        AiRateLimiter.Decision third = limiter.tryConsume("receipt:user:alice", nine);
+
+        assertFalse(third.allowed(), "27 pages do not fit a 20-page hour");
+        assertEquals("hour", third.refusedBy());
+    }
+
+    @Test
+    @DisplayName("a refused request is not charged to the windows that would have allowed it")
+    void refusedRequestsAreNotCharged() {
+        AiRateLimiter limiter = limiter(true, 100, 100);
+        java.util.function.IntFunction<java.util.List<AiRateLimiter.Window>> pages = count -> java.util.List.of(
+                new AiRateLimiter.Window("minute", 2, java.time.Duration.ofMinutes(1), 1),
+                new AiRateLimiter.Window("hour", 10, java.time.Duration.ofHours(1), count));
+
+        assertTrue(limiter.tryConsume("k", pages.apply(5)).allowed());
+        assertFalse(limiter.tryConsume("k", pages.apply(10)).allowed(), "only five pages are left in the hour");
+        assertTrue(limiter.tryConsume("k", pages.apply(5)).allowed(), "the refused request did not use up the minute");
+    }
+
+    @Test
+    @DisplayName("peek reports what a fixed window has used and when it comes back whole, without spending")
+    void peekReportsUsageAndReset() {
+        AiRateLimiter limiter = limiter(true, 100, 100);
+        java.util.function.LongFunction<java.util.List<AiRateLimiter.Window>> pages = count -> java.util.List.of(
+                new AiRateLimiter.Window("hour", 30, java.time.Duration.ofHours(1), count, true));
+
+        AiRateLimiter.WindowState untouched = limiter.peek("receipt:user:alice", pages.apply(1)).get(0);
+        assertEquals(0, untouched.used());
+        assertEquals(null, untouched.resetsAt());
+
+        limiter.tryConsume("receipt:user:alice", pages.apply(9));
+        AiRateLimiter.WindowState afterNine = limiter.peek("receipt:user:alice", pages.apply(1)).get(0);
+        AiRateLimiter.WindowState again = limiter.peek("receipt:user:alice", pages.apply(1)).get(0);
+
+        assertEquals(9, afterNine.used());
+        assertEquals(9, again.used(), "peeking spends nothing");
+        long secondsToReset = java.time.Duration.between(java.time.Instant.now(), afterNine.resetsAt()).getSeconds();
+        assertTrue(secondsToReset > 3_500 && secondsToReset <= 3_600, "resets when the hour ends: " + secondsToReset);
+    }
+
+    @Test
+    @DisplayName("a refund gives back what a request was charged, and no more than the window holds")
+    void refundGivesPagesBack() {
+        AiRateLimiter limiter = limiter(true, 100, 100);
+        java.util.function.LongFunction<java.util.List<AiRateLimiter.Window>> pages = count -> java.util.List.of(
+                new AiRateLimiter.Window("hour", 30, java.time.Duration.ofHours(1), count, true));
+
+        limiter.tryConsume("k", pages.apply(9));
+        limiter.refund("k", pages.apply(9));
+        limiter.refund("k", pages.apply(9));
+
+        assertEquals(0, limiter.peek("k", pages.apply(1)).get(0).used());
+    }
 }

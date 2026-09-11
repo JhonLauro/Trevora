@@ -41,9 +41,17 @@ public record ServiceDraftResponse(
         String receiptStoragePath,
         String receiptOriginalFilename,
         String receiptContentType,
-        Instant createdAt
+        Instant createdAt,
+        /* True when a receipt upload matched pages that had already made this
+           draft, so nothing was read. The page that sent them uploaded fresh
+           copies to storage first, and deletes those when it sees this. */
+        boolean reusedExistingDraft
 ) {
     public static ServiceDraftResponse from(ServiceDraft draft, List<ServiceDraftItem> items) {
+        return from(draft, items, false);
+    }
+
+    public static ServiceDraftResponse from(ServiceDraft draft, List<ServiceDraftItem> items, boolean reusedExistingDraft) {
         boolean legacyMockVoiceDraft = isLegacyMockVoiceDraft(draft);
         Map<String, Object> fieldMetadata = legacyMockVoiceDraft
                 ? legacyVoiceMetadata(draft.getFieldMetadata())
@@ -74,7 +82,8 @@ public record ServiceDraftResponse(
                 draft.getReceiptStoragePath(),
                 draft.getReceiptOriginalFilename(),
                 draft.getReceiptContentType(),
-                draft.getCreatedAt()
+                draft.getCreatedAt(),
+                reusedExistingDraft
         );
     }
 

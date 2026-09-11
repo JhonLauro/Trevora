@@ -158,6 +158,12 @@ async function syncSupabaseProfile(payload, accessToken) {
       skipAuthHeaders: true,
     });
   } catch (error) {
+    if (error?.code === 'ACCOUNT_SUSPENDED') {
+      // Supabase has already signed this browser in. Leaving that session up
+      // would half-sign-in an account the API refuses.
+      await requireSupabaseClient().auth.signOut().catch(() => {});
+      throw error;
+    }
     const message = String(error?.message || '');
     if (message.includes('users_email_key') || message.toLowerCase().includes('duplicate key')) {
       throw new Error('An account with this email already exists. Please sign in instead.');

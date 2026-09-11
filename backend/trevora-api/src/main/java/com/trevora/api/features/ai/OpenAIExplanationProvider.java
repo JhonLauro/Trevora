@@ -3,6 +3,7 @@ package com.trevora.api.features.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.shared.http.OutboundHttp;
+import com.trevora.api.shared.aibudget.AiSpendGuard;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,12 +115,15 @@ public class OpenAIExplanationProvider {
     private final RestClient restClient;
     private final String apiKey;
     private final String model;
+    private final AiSpendGuard spendGuard;
 
     public OpenAIExplanationProvider(
             ObjectMapper objectMapper,
             @Value("${trevora.ai.openai.api-key:}") String apiKey,
-            @Value("${trevora.ai.explanation.model:${trevora.ai.openai.model:gpt-5.4-mini}}") String model
+            @Value("${trevora.ai.explanation.model:${trevora.ai.openai.model:gpt-5.4-mini}}") String model,
+            AiSpendGuard spendGuard
     ) {
+        this.spendGuard = spendGuard;
         this.objectMapper = objectMapper;
         this.restClient = OutboundHttp.restClient(OutboundHttp.OPENAI_READ_TIMEOUT);
         this.apiKey = apiKey == null ? "" : apiKey.trim();
@@ -167,6 +171,12 @@ public class OpenAIExplanationProvider {
      */
     public Explanation explain(Facts facts) {
         if (!available()) {
+            return null;
+        }
+        /* Past the day's or the month's AI budget the template answers instead.
+           It says the same things less well, which beats an error on a record
+           the owner can already read in full. */
+        if (!spendGuard.canSpend()) {
             return null;
         }
 
@@ -226,6 +236,7 @@ public class OpenAIExplanationProvider {
                 .body(request)
                 .retrieve()
                 .body(String.class);
+        spendGuard.recordChatResponse("record-explanation", body);
         return parse(body);
     }
 

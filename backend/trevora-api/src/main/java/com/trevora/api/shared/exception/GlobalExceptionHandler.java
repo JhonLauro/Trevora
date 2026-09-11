@@ -2,6 +2,7 @@ package com.trevora.api.shared.exception;
 
 import com.trevora.api.features.serviceinput.ReceiptUploadException;
 import com.trevora.api.features.serviceinput.VoiceTranscriptionException;
+import com.trevora.api.shared.aibudget.AiBudgetExceededException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -15,6 +16,22 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /* 503, not 429: nothing the caller does differently will make it succeed
+       sooner. The message is written for the owner and says what still works. */
+    @ExceptionHandler(AiBudgetExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleAiBudgetExceeded(AiBudgetExceededException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.SERVICE_UNAVAILABLE.value()));
+    }
+
+    /* 403 with a code, so the frontend signs the browser out and shows the reason. */
+    @ExceptionHandler(AccountSuspendedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountSuspended(AccountSuspendedException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiErrorResponse.of(
+                        exception.getMessage(), HttpStatus.FORBIDDEN.value(), AccountSuspendedException.CODE));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

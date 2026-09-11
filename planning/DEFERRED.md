@@ -3673,3 +3673,163 @@ Links used before 2026-09-11 still carry their original token until they lapse.
 **Open mechanic pages end at the deadline** (`useAccessDeadline`); the server already
 refused. An owner revoking early is still only seen by an open page on its next
 request -- closing that needs the server to tell the page.
+
+## App-wide AI spend ceiling, alerts, and the paid-call rules (2026-09-11) -- migration 025
+
+**The per-caller rate limits capped one account, not the total.** Every signup brought
+its own 100 AI requests a day, the buckets lived in memory (a Render restart reset
+them), and nothing added up what the app as a whole was spending. `shared/aibudget`
+is that sum: `AiSpendGuard` refuses paid calls once the estimated spend for the UTC
+day or month reaches `TREVORA_AI_BUDGET_DAILY_USD` / `TREVORA_AI_BUDGET_MONTHLY_USD`
+(defaults $2 / $25), persisted in `ai_usage_daily`.
+
+**Migration 025 must be applied before deploying this.** Without the table the app
+still boots (the ledger uses JdbcTemplate, not an entity, so `ddl-auto=validate` never
+sees it) but logs an error each minute and enforces the limits per instance only,
+which a restart resets -- the exact weakness this exists to close.
+
+**At the limit:** explanations fall back to the template, mechanic search to keyword
+matching; receipt OCR/extraction and voice transcription/translation return 503 with a
+sentence telling the owner to type the record in. Checked per Vision page and per
+extraction attempt, so an upload in flight stops at its next paid call.
+
+**Estimates, not invoices.** Cost is computed from the provider's reported token counts
+and `TREVORA_AI_PRICE_*`, which default to gpt-4o list prices so the estimate errs
+high. Set them to the real prices of the models in use.
+
+**Alerts:** error log lines, plus `TREVORA_AI_ALERT_WEBHOOK_URL` (Discord/Slack) at
+50/80/100% of either limit and when one hour spends a quarter of a day's limit.
+
+**Rules for any new paid call** (enforced by `PaidCallsAreGuardedTest`, which scans the
+source for the provider hosts): take `AiSpendGuard` through the `@Autowired`
+constructor, check before the call, record after it -- including responses that are
+cut off or unreadable, because those were paid for too.
+
+Also in this pass: a response cut off at the token cap is retried once, not twice (it
+is a full output budget each time); voice translation moved off gpt-4o to the extraction
+model with a temperature guard and a 4000-token cap; audio capped at 8 MB and the
+recorder at 3 minutes; mechanic search rate-limited per owner rather than per session,
+so self-approved sessions are not new allowances.
+
+**Not done, and not code:** the only hard guarantee against a surprise bill is on the
+provider side -- prepaid OpenAI credit with auto-recharge off, and a Cloud Vision
+requests-per-day quota. Both keys were visible in a screenshot during this work and
+should be rotated. `POST /api/auth/register` and `/login` are public, create users and
+hash passwords, and have no frontend callers; worth removing or throttling. The
+extraction system prompt (~27k characters, ~7k tokens per call) is the largest cost
+driver and was left untouched because changing it requires a golden-set run.
+
+## AI limits are per caller now; the app-wide budget is only a backstop (2026-09-12)
+
+Supersedes the defaults in the note above. A single app-wide daily budget meant one
+account spamming uploads could spend it and pause AI for every honest owner. Now:
+
+- **Per caller, per feature, in `AiRateLimitFilter`** (`AiFeatureLimits`): receipts
+  3/min and 30/day; each voice step 5/min and 40/day; explanations 20/min and
+  200/day; mechanic search 10/min and 100/day per owner. The 429 says which limit.
+- **Per caller, in money** (`TREVORA_AI_BUDGET_PER_USER_DAILY_USD`, default $1.50):
+  the filter puts the caller in `AiSpendContext`, the guard charges spend to them in
+  `ai_usage_daily.spender`, and a caller at their limit is paused alone -- with an
+  alert naming them.
+- **The same receipt photos are not read twice.** `ReceiptUploadFingerprints`
+  hashes the pages; the same owner sending the same pages for the same vehicle while
+  that draft is unconfirmed (30 days) gets the draft back and nothing is paid. The
+  response carries `reusedExistingDraft`, and the frontend deletes the copies it had
+  just stored.
+- **App-wide daily/monthly** defaults are now $5 / $30 and are a backstop only.
+
+Migration 025 was extended in place (it had not been applied anywhere): `spender`
+joined `ai_usage_daily`'s key, and `receipt_upload_fingerprints` was added. It still
+must be applied before deploying; without it the app boots, logs errors, enforces the
+money limits per instance, and simply stops deduplicating uploads.
+
+## Receipt limits count pages, not uploads (2026-09-12)
+
+Replaces the receipt numbers in the note above. 3 uploads a minute blocked an
+owner uploading several receipts back to back, while still letting a bot send
+ten-page uploads. A receipt upload now spends one upload from 10 a minute (only
+stops hammering) and its pages from 60 pages an hour (refilling gradually) and
+150 pages a day. Six nine-page casa documents in a row go through. Pages are
+counted from the multipart `receiptImages` parts in `AiRateLimitFilter`. The
+10-pages-per-upload cap and the $1.50 per-user daily spend limit are unchanged.
+
+## Receipt page limits are shown to the owner (2026-09-12)
+
+Replaces the numbers in the note above: **100 pages an hour, 350 a day** (10 uploads
+a minute unchanged). The hour and day are now fixed windows -- the whole allowance
+comes back at once -- so the notice can give a real reset time instead of a count
+that creeps back.
+
+- `GET /api/service-drafts/receipt/usage` (SELF) reads the same buckets the filter
+  charges, via `ReceiptUploadAllowance`, so the meter cannot disagree with the limit.
+- The limits are hidden -- they are there for bots, not to ration owners. The
+  receipt screen shows no meter; one small notice appears only when fewer pages
+  are left than one receipt can have ("you can read 4 more pages right now, resets
+  at 3:42 PM"), or when an upload would not fit or was refused (429, or the AI
+  spend pause, with "Type it in instead").
+- A re-upload answered with the existing draft is refunded, so a retry does not
+  eat pages.
+- `apiRequest` errors now carry `error.status`.
+
+Still in memory: a backend restart gives everyone a fresh hour and day. The spend
+limits in the database are what hold across restarts.
+
+## Receipt spam: warning, final warning, suspension (2026-09-12)
+
+**Detection** (`AbuseMonitor`, called from `AiRateLimitFilter`): only receipt
+uploads the rate limiter has already refused count. The receipt screen never sends
+an upload that would not fit, and waits 15 seconds after a refusal, so a person using
+the app does not produce these; a script ignoring the answer does. 5 refusals within
+10 minutes is a strike. One burst is one strike: another strike needs 30 minutes to
+have passed. Strikes count for 30 days. All `trevora.abuse.*`.
+
+**Escalation:** strike 1 answers 429 `ABUSE_WARNING`; strike 2 `ABUSE_FINAL_WARNING`
+("if it happens again, your account will be suspended"); strike 3 sets
+`users.suspended_at` and answers 403 `ACCOUNT_SUSPENDED`. The receipt screen shows
+the warnings (amber, then red) for 24 hours. Every strike raises an alert through
+the AI spend alert channel, naming the account.
+
+**Suspension** is enforced in `SupabaseAuthService.getCurrentUser`, so every
+signed-in request -- sign-in sync included -- is refused with the reason. The
+frontend signs the browser out and shows the reason on the sign-in page. The check
+is cached 30 seconds per account and fails open if the database cannot answer.
+
+**By hand** (migration 025 adds the columns and `account_strikes`):
+
+```sql
+-- ban
+update users set suspended_at = now(), suspension_reason = 'Automated uploads.' where email = '...';
+-- lift: clear both columns AND the strikes, or the next burst suspends again at once
+update users set suspended_at = null, suspension_reason = null where email = '...';
+delete from account_strikes where user_id = (select user_id from users where email = '...');
+```
+
+Also changed: the receipt screen no longer gives a heads-up when pages are running
+low. It speaks only when the chosen pages will not fit ("you can read 4 more pages
+this hour, so these 9 won't all fit -- come back at 3:42 PM"), never in terms of
+usage. Not covered: voice and explanations are rate limited but do not strike, and
+a banned person can still make a new account -- turn on CAPTCHA for sign-up in
+Supabase for that.
+
+## CORS moved to a filter; suspension checked before transactions (2026-09-12)
+
+Found in review before migration 025 was applied.
+
+- **CORS was Spring MVC mappings (`addCorsMappings`)**, which only apply to
+  requests that reach a controller. Every response the rate limiter writes itself
+  -- 429s, spam warnings, a suspension 403 -- went out without CORS headers, and
+  the frontend is on another origin, so the page could not read them and showed
+  "Could not reach the Trevora API". That was already true of the rate limiter's
+  429s on voice, explanations and mechanic search. `WebConfig` now registers a
+  `CorsFilter` first, for `/api/*`, with the same rules (`CorsOnRefusalsTest`).
+- **The suspension check ran inside service transactions** and needed a second
+  connection while the first was held. `AccountStandingFilter` now resolves the
+  user at the start of every signed-in request, before any transaction, and the
+  result (or failure) is kept on the request.
+- **Receipt screen:** a refusal is cleared when the chosen pages change, so
+  removing pages until they fit no longer leaves "too many uploads at once".
+
+Still open: a receipt upload keeps its database transaction open for the whole AI
+read, so the spend ledger and fingerprint writes inside it still borrow a second
+connection. Harmless at current traffic; moving the read out of the transaction is
+its own change.
