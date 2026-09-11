@@ -283,8 +283,9 @@ export default function QRSharingPage() {
 
               {current && (
                 <p className="share-make__note">
-                  A new link does not cancel the one beside it — old links stay valid until they
-                  expire. To end access someone already has, revoke it under Active sessions.
+                  Generating again replaces this link if nobody has used it yet, and each code
+                  works for one request only. To end access someone already has, revoke it under
+                  Active sessions.
                 </p>
               )}
             </section>
@@ -293,7 +294,7 @@ export default function QRSharingPage() {
               {current ? (
                 <>
                   <div className="share-result__head">
-                    <h2 className="ink-section-title">{t('share.readyToScan')}</h2>
+                    <h2 className="ink-section-title">{current.accessUrl ? t('share.readyToScan') : 'Latest link'}</h2>
                     <span className={`ink-badge ink-badge--${statusOf(current).tone}`}>
                       {statusOf(current).labelKey ? t(statusOf(current).labelKey) : statusOf(current).text}
                     </span>
@@ -304,12 +305,34 @@ export default function QRSharingPage() {
                       <QRCodeSVG value={current.accessUrl} size={196} bgColor="#ffffff" fgColor="#1c1b19" level="M" includeMargin />
                     ) : (
                       <div className="share-qr__missing">
-                        <strong>No share URL</strong>
-                        <p>The server did not return a link, so there is nothing to encode.</p>
+                        {/* The server withholds the code once it cannot be scanned. A used
+                            code's token belongs to the mechanic who used it now, so it is
+                            never drawn here for someone else to scan or photograph. */}
+                        {String(current.status).toUpperCase() === 'EXPIRED' ? (
+                          <>
+                            <strong>This code has expired</strong>
+                            <p>It no longer opens anything. Generate a new link to share again.</p>
+                          </>
+                        ) : String(current.status).toUpperCase() === 'ACTIVE' ? (
+                          <>
+                            <strong>No share URL</strong>
+                            <p>The server did not return a link, so there is nothing to encode.</p>
+                          </>
+                        ) : (
+                          <>
+                            <strong>This code has been used</strong>
+                            <p>
+                              A mechanic sent a request with it, so it no longer opens anything.
+                              Generate a new link to share with someone else.
+                            </p>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
 
+                  {current.accessUrl && (
+                    <>
                   <div className="ink-combo">
                     <label className="ink-combo__label" htmlFor="share-url">Share URL</label>
                     <input id="share-url" value={current.accessUrl || ''} placeholder="Unavailable" readOnly />
@@ -325,6 +348,8 @@ export default function QRSharingPage() {
                       {t('share.openAsMechanic')}
                     </Link>
                   </div>
+                    </>
+                  )}
 
                   <dl className="share-facts">
                     <div>
