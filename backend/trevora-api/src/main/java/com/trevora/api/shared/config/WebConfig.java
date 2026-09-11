@@ -6,12 +6,16 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.core.Ordered;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 @Configuration
-public class WebConfig implements WebMvcConfigurer {
+public class WebConfig {
 
     private static final Logger log = LoggerFactory.getLogger(WebConfig.class);
 
@@ -44,18 +48,44 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${trevora.cors.allow-localhost:}")
     private String allowLocalhostSetting;
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
+    /**
+     * CORS as the first servlet filter, rather than as Spring MVC mappings.
+     *
+     * <p>It used to be {@code addCorsMappings}, which only applies to requests
+     * that reach a controller. Responses written before that -- the rate
+     * limiter's 429s, spam warnings, a suspended account's 403 -- went out with
+     * no CORS headers, and the frontend runs on another origin, so the browser
+     * would not let the page read them. The owner saw "Could not reach the
+     * Trevora API" instead of the reason. As the first filter, every response
+     * under /api carries the headers, whichever part of the app wrote it, and
+     * preflights are answered here.
+     */
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilter() {
         List<String> origins = resolveOrigins();
         log.info("CORS allows {}", origins);
 
-        registry.addMapping("/api/**")
-                .allowedOriginPatterns(origins.toArray(String[]::new))
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*");
+        FilterRegistrationBean<CorsFilter> registration =
+                new FilterRegistrationBean<>(new CorsFilter(corsConfigurationSource(origins)));
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.addUrlPatterns("/api/*");
+        return registration;
     }
 
-    /** Split out from the registry call so the decision can be tested directly. */
+    /** The same rules {@code addCorsMappings} applied, for the filter. Public so the filter can be tested. */
+    public static UrlBasedCorsConfigurationSource corsConfigurationSource(List<String> origins) {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(origins);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setMaxAge(1800L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+
+    /** Split out from the filter so the decision can be tested directly. */
     List<String> resolveOrigins() {
         List<String> origins = new ArrayList<>();
         for (String origin : configuredOrigins.split(",")) {
