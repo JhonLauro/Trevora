@@ -21,7 +21,9 @@ public record QRAccessRequestResponse(
                 request.getQrAccessRequestId(),
                 request.getVehicleId(),
                 request.getOwnerId(),
-                request.getAccessToken(),
+                // The token travels only with the URL built from it: a link that is
+                // no longer scannable gets neither. See QRAccessService#toOwnerResponse.
+                accessUrl == null ? null : request.getAccessToken(),
                 accessUrl,
                 request.getStatus(),
                 request.getExpiresAt(),
