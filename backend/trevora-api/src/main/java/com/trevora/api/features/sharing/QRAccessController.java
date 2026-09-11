@@ -26,6 +26,11 @@ public class QRAccessController {
         this.qrAccessService = qrAccessService;
     }
 
+    @GetMapping("/policy")
+    public SharingPolicyResponse getSharingPolicy() {
+        return qrAccessService.getSharingPolicy();
+    }
+
     @PostMapping("/requests")
     public QRAccessRequestResponse createAccessRequest(@RequestBody CreateQRAccessRequest request) {
         return qrAccessService.createAccessRequest(request);
