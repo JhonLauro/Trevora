@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import {
   getPublicQRAccessRequest,
@@ -81,6 +81,7 @@ const EMPTY_FORM = {
 
 export default function MechanicAccessRequestPage() {
   const { token } = useParams();
+  const navigate = useNavigate();
   const nameRef = useRef(null);
   const [shareRequest, setShareRequest] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -173,13 +174,22 @@ export default function MechanicAccessRequestPage() {
     setError('');
 
     try {
-      const request = await submitMechanicAccessRequest(token, {
+      const result = await submitMechanicAccessRequest(token, {
         mechanicName: form.mechanicName.trim(),
         shopName: form.shopName.trim(),
         contactInfo: form.contactInfo.trim(),
         reason: form.reason.trim(),
       });
-      setSubmittedRequest(request);
+      setSubmittedRequest(result.request);
+      /* Sending used up the scanned code: the server replaced it with a token
+         only this device holds. Carry on under that one -- replacing the URL,
+         not adding to history -- so polling for the owner's answer and a reload
+         both keep working, while the code in the QR opens nothing for anyone
+         else. */
+      if (result.followToken) {
+        window.localStorage.setItem(LATEST_QR_TOKEN_KEY, result.followToken);
+        navigate(`/access/request/${encodeURIComponent(result.followToken)}`, { replace: true });
+      }
     } catch (err) {
       setError(err.message);
     } finally {

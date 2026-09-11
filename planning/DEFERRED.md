@@ -3639,3 +3639,37 @@ Its OCR separated every price from its description, which is why `lineEntries` s
 in `pendingGroundTruth`. It needs someone reading prices off the original photograph;
 it cannot be derived from the committed text, and while it is pending it drags
 `reconciles` around on every run and makes the gate noisier than it should be.
+
+## Shared access: one 4-hour window, overwrite instead of insert, single-use codes (2026-09-11)
+
+**Both sharing clocks are 4 hours and live in one place.** `SharingPolicy.LINK_LIFETIME`
+(how long a QR can be scanned; was 24 hours) and `SharingPolicy.SESSION_LIFETIME` (how
+long an approved mechanic can read; unchanged at 4). They are served from the public
+`GET /api/qr-access/policy`, and the share page, Terms, Privacy and the welcome
+walkthrough read them through `useSharingPolicy` -- no screen types a number any more.
+This supersedes the lines above that describe a 24-hour link and name
+`AccessApprovalService.SESSION_EXPIRATION`, which no longer exists. The SRS and SDD
+still say 24 hours and are being corrected separately.
+
+**Generating a link overwrites; it never inserts a pile and never deletes.** A live,
+unscanned link for the vehicle gets a new token and expiry in place. Rows are not
+deleted because `mechanic_access_requests -> qr_access_requests` and
+`mechanic_access_sessions -> mechanic_access_requests` are `ON DELETE CASCADE` (from
+016; confirmed against `pg_constraint`, not the migration files) -- deleting a link
+deletes its requests and any live session with it.
+
+**Do not trust `qr_access_requests.status` for liveness.** The owner's list computes
+expiry inside a read-only transaction, so the flip is never written: on the day of
+writing, 11 of 14 `ACTIVE` rows were past `expires_at`. Anything deciding whether a
+link still works must read `expires_at`.
+
+**A code works for one request.** Sending a request replaces the link's token with a
+`followToken` only that mechanic's device receives, and the owner's list withholds the
+token of any link that is no longer scannable. Before this, whoever held the code --
+a second person at the counter, a photo of the owner's screen -- could poll
+`.../mechanic-request/status` and collect the session token once the owner approved.
+Links used before 2026-09-11 still carry their original token until they lapse.
+
+**Open mechanic pages end at the deadline** (`useAccessDeadline`); the server already
+refused. An owner revoking early is still only seen by an open page on its next
+request -- closing that needs the server to tell the page.

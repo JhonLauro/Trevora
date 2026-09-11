@@ -43,13 +43,13 @@ Migration:
 ## Access Rules Implemented
 
 - Owner can only generate access for vehicles they own.
-- QR/share links expire after 24 hours.
+- QR/share links expire after 4 hours (`SharingPolicy.LINK_LIFETIME`; was 24 hours).
 - Expired links are blocked.
 - Mechanic request submission requires a valid non-expired token.
 - Owner can only approve/deny requests for owned vehicles.
 - Approval creates a temporary read-only access session.
 - Denial blocks mechanic access.
-- Approved sessions expire after 4 hours.
+- Approved sessions expire after 4 hours (`SharingPolicy.SESSION_LIFETIME`).
 - Access is scoped to the selected vehicle.
 
 ## Frontend

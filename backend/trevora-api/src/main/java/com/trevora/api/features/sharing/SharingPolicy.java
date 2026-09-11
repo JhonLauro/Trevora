@@ -22,7 +22,7 @@ import java.time.Duration;
  */
 public final class SharingPolicy {
     /** How long a generated share link can be scanned. */
-    public static final Duration LINK_LIFETIME = Duration.ofHours(3);
+    public static final Duration LINK_LIFETIME = Duration.ofHours(4);
 
     /** How long an approved mechanic's read-only access lasts. */
     public static final Duration SESSION_LIFETIME = Duration.ofHours(4);
