@@ -12,16 +12,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.trevora.api.shared.http.OutboundHttp;
+import com.trevora.api.shared.aibudget.AiSpendGuard;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class VoiceTranscriptionService {
-    private static final long MAX_AUDIO_BYTES = 25L * 1024L * 1024L;
+    /* Transcription is billed by the minute. The recorder stops itself at three
+       minutes, which is well under a megabyte for opus and about three for AAC;
+       8 MB leaves room for any browser's codec while refusing the hour-long file
+       a 25 MB ceiling used to accept. */
+    private static final long MAX_AUDIO_BYTES = 8L * 1024L * 1024L;
+    /* About as long as the transcript being translated, and that is capped at
+       8000 characters. The cap is what stops a looping answer being paid for
+       token by token up to the provider's own limit. */
+    private static final int MAX_TRANSLATION_TOKENS = 4000;
     private static final String OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions";
     private static final String OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
@@ -31,14 +41,17 @@ public class VoiceTranscriptionService {
     private final String openAiApiKey;
     private final String rawTranscriptionModel;
     private final String textTranslationModel;
+    private final AiSpendGuard spendGuard;
 
     public VoiceTranscriptionService(
             ObjectMapper objectMapper,
             VehicleService vehicleService,
             @Value("${trevora.ai.openai.api-key:}") String openAiApiKey,
             @Value("${trevora.voice.openai.raw-transcription-model:gpt-4o-mini-transcribe}") String rawTranscriptionModel,
-            @Value("${trevora.voice.openai.text-translation-model:gpt-4o}") String textTranslationModel
+            @Value("${trevora.voice.openai.text-translation-model:${trevora.ai.openai.model:gpt-5.4-mini}}") String textTranslationModel,
+            AiSpendGuard spendGuard
     ) {
+        this.spendGuard = spendGuard;
         this.objectMapper = objectMapper;
         this.vehicleService = vehicleService;
         this.httpClient = OutboundHttp.httpClient();
@@ -47,7 +60,7 @@ public class VoiceTranscriptionService {
                 ? "gpt-4o-mini-transcribe"
                 : rawTranscriptionModel.trim();
         this.textTranslationModel = textTranslationModel == null || textTranslationModel.isBlank()
-                ? "gpt-4o"
+                ? "gpt-5.4-mini"
                 : textTranslationModel.trim();
     }
 
@@ -59,6 +72,7 @@ public class VoiceTranscriptionService {
             throw new VoiceTranscriptionException("Speech transcription is not configured. Set OPENAI_API_KEY before starting the backend.");
         }
 
+        spendGuard.requireBudget("voice-transcription");
         String transcript = transcribeAudio(audioFile);
         if (transcript.isBlank()) {
             throw new VoiceTranscriptionException("OpenAI returned an empty transcript. Try recording a clearer voice note.");
@@ -78,6 +92,7 @@ public class VoiceTranscriptionService {
             throw new VoiceTranscriptionException("Speech translation is not configured. Set OPENAI_API_KEY before starting the backend.");
         }
 
+        spendGuard.requireBudget("voice-translation");
         String translatedTranscript = translateTranscriptToEnglish(sourceTranscript);
         if (translatedTranscript.isBlank()) {
             throw new VoiceTranscriptionException("OpenAI returned an empty translation. Try again or edit the transcript manually.");
@@ -97,7 +112,7 @@ public class VoiceTranscriptionService {
             throw new VoiceTranscriptionException("Audio recording is required.");
         }
         if (audioFile.getSize() > MAX_AUDIO_BYTES) {
-            throw new VoiceTranscriptionException("Audio recording is too large. Recordings must be 25 MB or smaller.");
+            throw new VoiceTranscriptionException("Audio recording is too large. Recordings must be 8 MB or smaller.");
         }
     }
 
@@ -117,6 +132,7 @@ public class VoiceTranscriptionService {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new VoiceTranscriptionException(errorMessage(response.body(), "transcription", rawTranscriptionModel));
             }
+            spendGuard.recordTranscription("voice-transcription", audioFile.getSize(), response.body());
 
             JsonNode body = objectMapper.readTree(response.body());
             return body.path("text").asText("").trim();
@@ -132,8 +148,11 @@ public class VoiceTranscriptionService {
         try {
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("model", textTranslationModel);
-            requestBody.put("temperature", 0);
+            if (supportsTemperature(textTranslationModel)) {
+                requestBody.put("temperature", 0);
+            }
             requestBody.put("response_format", Map.of("type", "json_object"));
+            requestBody.put("max_completion_tokens", MAX_TRANSLATION_TOKENS);
             requestBody.put("messages", List.of(
                     Map.of(
                             "role", "system",
@@ -157,6 +176,7 @@ public class VoiceTranscriptionService {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new VoiceTranscriptionException(errorMessage(response.body(), "translation", textTranslationModel));
             }
+            spendGuard.recordChatResponse("voice-translation", response.body());
 
             JsonNode body = objectMapper.readTree(response.body());
             String content = body.path("choices").path(0).path("message").path("content").asText("");
@@ -172,6 +192,21 @@ public class VoiceTranscriptionService {
             Thread.currentThread().interrupt();
             throw new VoiceTranscriptionException("Voice transcript translation was interrupted.", exception);
         }
+    }
+
+    /**
+     * Whether this model accepts a temperature of our choosing. The reasoning
+     * families reject any but the default with a 400. Same rule, and the same
+     * warning that the list goes stale, as the copies in
+     * {@code OpenAIServiceDraftExtractionProvider} and {@code MechanicSearchService}.
+     */
+    private static boolean supportsTemperature(String model) {
+        String name = model == null ? "" : model.toLowerCase(Locale.ROOT);
+        return !(name.startsWith("gpt-5")
+                || name.startsWith("o1")
+                || name.startsWith("o3")
+                || name.startsWith("o4")
+                || name.contains("codex"));
     }
 
     private List<byte[]> multipartBody(String boundary, MultipartFile audioFile) throws IOException {
