@@ -2,6 +2,10 @@ package com.trevora.api.shared.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.features.auth.SupabaseAuthService;
+import com.trevora.api.features.mechanicaccess.MechanicAccessSession;
+import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
+import java.util.Optional;
+import java.util.UUID;
 import com.trevora.api.shared.exception.ApiErrorResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,15 +52,18 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final AiRateLimiter rateLimiter;
     private final SupabaseAuthService supabaseAuthService;
+    private final MechanicAccessSessionRepository mechanicAccessSessionRepository;
     private final ObjectMapper objectMapper;
 
     public AiRateLimitFilter(
             AiRateLimiter rateLimiter,
             SupabaseAuthService supabaseAuthService,
+            MechanicAccessSessionRepository mechanicAccessSessionRepository,
             ObjectMapper objectMapper
     ) {
         this.rateLimiter = rateLimiter;
         this.supabaseAuthService = supabaseAuthService;
+        this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -122,7 +129,16 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
         if (pathMatcher.match(MECHANIC_SEARCH_PATTERN, path)) {
             String sessionId = pathMatcher.extractUriTemplateVariables(
                     "/api/mechanic-access/sessions/{sessionId}/history/search", path).get("sessionId");
-            return sessionId == null ? null : "session:" + sessionId;
+            if (sessionId == null) {
+                return null;
+            }
+            /* Keyed by the owner the session belongs to, not the session. Keyed by
+               session, every approval was a fresh bucket: an owner could approve
+               their own requests and search on as many sessions as they cared to
+               make. A session nobody owns -- a guessed id -- keeps its own key. */
+            return mechanicSessionOwner(sessionId)
+                    .map(ownerId -> "mechanic-search-owner:" + ownerId)
+                    .orElse("session:" + sessionId);
         }
 
         for (String pattern : OWNER_AI_PATTERNS) {
@@ -131,6 +147,16 @@ public class AiRateLimitFilter extends OncePerRequestFilter {
             }
         }
         return null;
+    }
+
+    private Optional<UUID> mechanicSessionOwner(String sessionId) {
+        try {
+            return mechanicAccessSessionRepository.findById(UUID.fromString(sessionId))
+                    .map(MechanicAccessSession::getOwnerId);
+        } catch (RuntimeException unresolvable) {
+            // Not a UUID, or the lookup failed: limit it under its own key rather than not at all.
+            return Optional.empty();
+        }
     }
 
     private String requestPath(HttpServletRequest request) {

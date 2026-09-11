@@ -2,10 +2,16 @@ package com.trevora.api.shared.ratelimit;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trevora.api.features.auth.SupabaseAuthService;
+import com.trevora.api.features.mechanicaccess.MechanicAccessSession;
+import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -20,10 +26,44 @@ import org.springframework.test.util.ReflectionTestUtils;
  */
 class AiRateLimitFilterTest {
 
+    private final MechanicAccessSessionRepository sessions = mock(MechanicAccessSessionRepository.class);
+
     private final AiRateLimitFilter filter = new AiRateLimitFilter(
             new AiRateLimiter(new AiRateLimitProperties(true, 10, 100, 10_000)),
             mock(SupabaseAuthService.class),
+            sessions,
             new ObjectMapper());
+
+    private String keyFor(String path) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        request.setServletPath(path);
+        return (String) ReflectionTestUtils.invokeMethod(filter, "rateLimitKey", request);
+    }
+
+    /* Keyed by session, every approval was a new allowance, and an owner can
+       approve their own requests as often as they like. */
+    @Test
+    @DisplayName("mechanic search is limited per owner, so new sessions are not new allowances")
+    void mechanicSearchIsKeyedByOwner() {
+        UUID ownerId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+        MechanicAccessSession session = new MechanicAccessSession();
+        session.setOwnerId(ownerId);
+        when(sessions.findById(sessionId)).thenReturn(Optional.of(session));
+
+        assertEquals("mechanic-search-owner:" + ownerId,
+                keyFor("/api/mechanic-access/sessions/" + sessionId + "/history/search"));
+    }
+
+    @Test
+    @DisplayName("a search on a session that does not exist is still limited, under its own key")
+    void unknownSessionKeepsItsOwnKey() {
+        UUID sessionId = UUID.randomUUID();
+        when(sessions.findById(sessionId)).thenReturn(Optional.empty());
+
+        assertEquals("session:" + sessionId, keyFor("/api/mechanic-access/sessions/" + sessionId + "/history/search"));
+        assertEquals("session:not-a-uuid", keyFor("/api/mechanic-access/sessions/not-a-uuid/history/search"));
+    }
 
     private boolean skipped(String method, String path) {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
