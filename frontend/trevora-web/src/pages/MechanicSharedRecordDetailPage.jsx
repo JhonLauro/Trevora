@@ -7,6 +7,8 @@ import {
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
 import { getMechanicSessionRecord } from '../api/mechanicAccess';
+import { forgetMechanicSessionToken } from '../api/mechanicSessionToken.js';
+import useAccessDeadline, { ACCESS_ENDED_MESSAGE } from '../hooks/useAccessDeadline.js';
 import { formatAmount, formatDate, formatOdometer } from '../utils/format';
 import { sourceLabel } from '../utils/recordStatus';
 import { serviceItemsSummaryLabel } from '../utils/serviceText';
@@ -93,6 +95,14 @@ export default function MechanicSharedRecordDetailPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  /* Same as the history page: at the session's expiry the record comes off
+     the screen, not just out of the server's reach. */
+  useAccessDeadline(detail?.expiresAt, () => {
+    forgetMechanicSessionToken(sessionId);
+    setDetail(null);
+    setError(ACCESS_ENDED_MESSAGE);
+  });
 
   useEffect(() => {
     let active = true;
