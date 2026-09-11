@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LegalLayout from '../components/LegalLayout.jsx';
 import { useLegalReturn } from '../components/legalReturn.js';
 import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.js';
+import useSharingPolicy from '../hooks/useSharingPolicy.js';
 
 /**
  * Privacy Policy.
@@ -17,6 +18,7 @@ import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.j
  * a follow-up to it.
  */
 export default function PrivacyPage() {
+  const { linkDuration, sessionDuration } = useSharingPolicy();
   /* Only for the cross-reference at the foot of the document; the
      layout reads the same origin for its own links. */
   const { carry } = useLegalReturn();
@@ -96,7 +98,7 @@ export default function PrivacyPage() {
       <h2>4. Who else sees it</h2>
       <p>
         <strong>Mechanics you approve.</strong> A mechanic who scans your code and whom you then
-        approve can read the confirmed records of that one vehicle, read-only, for four hours.
+        approve can read the confirmed records of that one vehicle, read-only, for {sessionDuration}.
         They see the vehicle label you chose, not your plate number, until access is approved. You
         can end it sooner. Nothing is visible before you approve.
       </p>
@@ -137,8 +139,8 @@ export default function PrivacyPage() {
         useful if it is not quietly thrown away. Deleting a record removes it from your history.
       </p>
       <p>
-        A mechanic&apos;s session expires four hours after you approve it; a share link expires 24
-        hours after you create it. The record that a request happened, and how you answered it,
+        A mechanic&apos;s session expires {sessionDuration} after you approve it; a share link
+        expires {linkDuration} after you create it. The record that a request happened, and how you answered it,
         stays with your account.
       </p>
       <p>
