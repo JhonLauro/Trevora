@@ -126,6 +126,23 @@ import './styles/theme.css';
    flash on every load for anyone using the dark theme. */
 applyTheme(resolveTheme());
 
+/* The service worker, and only in a built app.
+ *
+ * Vite's dev server hands back a different module on every save; a worker
+ * caching those means editing a file and watching the previous one render,
+ * which is a long afternoon before anybody suspects the cache.
+ *
+ * Registered after `load` so it competes with nothing for the first paint —
+ * this exists to help the *second* visit, and paying for it on the first would
+ * be the wrong trade. A failure is swallowed: no service worker means the app
+ * works exactly as it did before, which is not worth an error in the console.
+ */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
