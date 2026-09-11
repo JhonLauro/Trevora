@@ -10,11 +10,13 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The app-wide AI spend ceiling: that it refuses at the limit, that the arithmetic
+ * Limits on AI spend: that one caller is paused at their own limit while everyone
+ * else carries on, that the app-wide backstop still holds, that the arithmetic
  * behind "the limit" is right, and that the alarm rings once rather than never or
  * on every call.
  */
@@ -26,12 +28,21 @@ class AiSpendGuardTest {
     private final List<String> alerts = new ArrayList<>();
     private final AiSpendLedger ledger = new AiSpendLedger(null, null);
 
-    /** Daily $1, monthly $5; chat at $2.50 in / $10 out per million; transcription $0.006/min; Vision $1.50/1000. */
+    @AfterEach
+    void clearCaller() {
+        AiSpendContext.clear();
+    }
+
+    /**
+     * App-wide: $1 a day, $5 a month. Per caller: $0.50 a day. Chat at $2.50 in /
+     * $10 out per million; transcription $0.006/min; Vision $1.50/1000 pages.
+     */
     private AiSpendGuard guard(boolean enabled) {
         AiSpendProperties properties = new AiSpendProperties(
                 enabled,
                 new BigDecimal("1.00"),
                 new BigDecimal("5.00"),
+                new BigDecimal("0.50"),
                 new BigDecimal("2.50"),
                 new BigDecimal("10.00"),
                 new BigDecimal("0.006"),
@@ -45,26 +56,67 @@ class AiSpendGuardTest {
     }
 
     @Test
-    @DisplayName("paid calls are allowed until today's estimated spend reaches the daily limit, then refused")
-    void refusesAtTheDailyLimit() {
+    @DisplayName("one caller reaching their own daily limit is paused, and other callers are not")
+    void oneCallerIsPausedAlone() {
         AiSpendGuard guard = guard(true);
-        guard.recordChat("receipt-extraction", 0, 99_999); // $0.99999
 
-        assertThat(guard.canSpend()).isTrue();
-
-        guard.recordChat("receipt-extraction", 0, 1); // exactly $1.00
+        AiSpendContext.set("user:spammer");
+        guard.recordChat("receipt-extraction", 0, 50_000); // $0.50, the per-caller limit
         assertThat(guard.canSpend()).isFalse();
         assertThatThrownBy(() -> guard.requireBudget("receipt-ocr"))
                 .isInstanceOf(AiBudgetExceededException.class)
-                .hasMessageContaining("today")
+                .hasMessageContaining("your account")
                 .hasMessageContaining("typing it in");
+
+        AiSpendContext.set("user:everyone-else");
+        assertThat(guard.canSpend()).isTrue();
+        guard.requireBudget("receipt-ocr");
+    }
+
+    @Test
+    @DisplayName("a caller's spend on one feature counts towards their limit on every feature")
+    void callerLimitSpansFeatures() {
+        AiSpendGuard guard = guard(true);
+        AiSpendContext.set("user:owner");
+
+        guard.recordChat("receipt-extraction", 0, 30_000); // $0.30
+        assertThat(guard.canSpend()).isTrue();
+        guard.recordChat("record-explanation", 0, 20_000); // +$0.20 = $0.50
+
+        assertThat(guard.canSpend()).isFalse();
+    }
+
+    @Test
+    @DisplayName("spend with no known caller counts towards the app total but pauses no one in particular")
+    void unattributedSpendHasNoCallerLimit() {
+        AiSpendGuard guard = guard(true);
+
+        guard.recordChat("receipt-extraction", 0, 60_000); // $0.60, over a caller's limit, under the app's
+
+        assertThat(guard.canSpend()).isTrue();
+        assertThat(spentToday()).isEqualTo(600_000);
+    }
+
+    @Test
+    @DisplayName("the app-wide daily backstop still pauses everyone")
+    void refusesAtTheAppDailyLimit() {
+        AiSpendGuard guard = guard(true);
+        ledger.add(TODAY, "receipt-extraction", "user:a", 1, 0, 0, 0, 400_000);
+        ledger.add(TODAY, "receipt-extraction", "user:b", 1, 0, 0, 0, 400_000);
+        ledger.add(TODAY, "receipt-extraction", "user:c", 1, 0, 0, 0, 200_000); // $1.00 in total
+
+        AiSpendContext.set("user:d"); // a caller who has spent nothing
+        assertThat(guard.canSpend()).isFalse();
+        assertThatThrownBy(() -> guard.requireBudget("receipt-ocr"))
+                .isInstanceOf(AiBudgetExceededException.class)
+                .hasMessageContaining("today");
     }
 
     @Test
     @DisplayName("the monthly limit binds even on a day that has spent nothing")
     void refusesAtTheMonthlyLimit() {
         AiSpendGuard guard = guard(true);
-        ledger.add(TODAY.minusDays(3), "receipt-extraction", 1, 0, 0, 0, 5_000_000); // $5 earlier this month
+        ledger.add(TODAY.minusDays(3), "receipt-extraction", AiSpendContext.UNATTRIBUTED, 1, 0, 0, 0, 5_000_000);
 
         assertThat(spentToday()).isZero();
         assertThat(guard.canSpend()).isFalse();
@@ -77,8 +129,9 @@ class AiSpendGuardTest {
     @DisplayName("spend from last month does not count against this month")
     void lastMonthDoesNotCount() {
         AiSpendGuard guard = guard(true);
-        ledger.add(TODAY.withDayOfMonth(1).minusDays(1), "receipt-extraction", 1, 0, 0, 0, 50_000_000);
+        ledger.add(TODAY.withDayOfMonth(1).minusDays(1), "receipt-extraction", "user:a", 1, 0, 0, 0, 50_000_000);
 
+        AiSpendContext.set("user:a");
         assertThat(guard.canSpend()).isTrue();
     }
 
@@ -86,6 +139,7 @@ class AiSpendGuardTest {
     @DisplayName("a disabled budget never refuses")
     void disabledNeverRefuses() {
         AiSpendGuard guard = guard(false);
+        AiSpendContext.set("user:a");
         guard.recordChat("receipt-extraction", 10_000_000, 10_000_000);
 
         assertThat(guard.canSpend()).isTrue();
@@ -137,7 +191,7 @@ class AiSpendGuardTest {
     }
 
     @Test
-    @DisplayName("each threshold alerts once, not on every call after it")
+    @DisplayName("each app-wide threshold alerts once, not on every call after it")
     void alertsFireOncePerThreshold() {
         AiSpendGuard guard = guard(true);
 
@@ -155,6 +209,19 @@ class AiSpendGuardTest {
     }
 
     @Test
+    @DisplayName("a caller reaching their own limit raises one alert naming them")
+    void callerLimitAlert() {
+        AiSpendGuard guard = guard(true);
+        AiSpendContext.set("user:spammer");
+
+        guard.recordChat("receipt-extraction", 0, 50_000);
+        guard.recordChat("receipt-extraction", 0, 1);
+
+        assertThat(alerts).filteredOn(message -> message.startsWith("One caller"))
+                .singleElement().asString().contains("user:spammer");
+    }
+
+    @Test
     @DisplayName("a quarter of a day's limit inside one hour raises the unusual-spend alert")
     void spikeAlert() {
         AiSpendGuard guard = guard(true);
@@ -168,6 +235,7 @@ class AiSpendGuardTest {
     @DisplayName("the unlimited guard used outside Spring never refuses")
     void unlimitedNeverRefuses() {
         AiSpendGuard unlimited = AiSpendGuard.unlimited();
+        AiSpendContext.set("user:a");
         unlimited.recordChat("receipt-extraction", 100_000_000, 100_000_000);
 
         assertThat(unlimited.canSpend()).isTrue();
