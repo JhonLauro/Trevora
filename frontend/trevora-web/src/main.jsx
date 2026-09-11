@@ -119,6 +119,9 @@ import './styles/concerns.css';
 // Manufacturer warranty: the vehicle page's Warranty tab and the three
 // optional form fields. Additive, own `.warranty*` namespace.
 import './styles/warranty.css';
+// The receipt screen's small page-allowance notice. Additive, own
+// `.allowance-note*` namespace, tokens only.
+import './styles/receipt-allowance.css';
 // Last: it redefines the token values every sheet above draws from.
 import './styles/theme.css';
 

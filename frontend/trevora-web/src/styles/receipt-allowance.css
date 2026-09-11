@@ -1,0 +1,105 @@
+/* ----------------------------------------------------------------------
+   Receipt page allowance notice.
+
+   The limits are hidden; this is the one small line that appears on the
+   receipt screen when the owner is close to the limit, or when an upload would
+   not fit or was refused. Deliberately minor: one row, body-size text, no
+   buttons beyond a text link and a dismiss.
+
+   Own `.allowance-note*` namespace, colour from tokens only, so the dark theme
+   needs nothing here. Amber for a heads-up, red for a refusal.
+   ---------------------------------------------------------------------- */
+
+.allowance-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.allowance-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--warn-border);
+  border-radius: 12px;
+  background: var(--warn-fill);
+  color: var(--ink);
+  animation: allowance-note-in 0.22s ease-out;
+}
+
+.allowance-note--error {
+  border-color: var(--bad-border);
+  background: var(--bad-fill);
+}
+
+.allowance-note__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warn-text);
+}
+
+.allowance-note--error .allowance-note__icon {
+  color: var(--bad-text);
+}
+
+.allowance-note__text {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.flow .allowance-note__link {
+  display: inline;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.flow .allowance-note__close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  margin: -2px -4px -2px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.flow .allowance-note__close:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+@keyframes allowance-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .allowance-note {
+    animation: none;
+  }
+}

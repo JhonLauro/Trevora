@@ -14,9 +14,19 @@ import { createReceiptPagesServiceDraft, primeServiceDraftReview } from '../api/
 import { getVehicle } from '../api/vehicles';
 import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
 import { warmUpApi, isApiWarm } from '../api/warmup.js';
+import {
+  ReceiptAllowanceNotice,
+  refusalFor,
+  uploadBlock,
+  useReceiptAllowance,
+} from '../components/flow/ReceiptAllowance.jsx';
 
 /** Length of the hand-off into the draft review screen. */
 const HANDOFF_MS = 2000;
+
+/** How long Read waits after a refusal. Repeated taps would only earn more
+    refusals, and repeated refusals are what the server treats as a bot. */
+const REFUSAL_PAUSE_MS = 15_000;
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined'
@@ -58,6 +68,22 @@ export default function ReceiptUploadPage() {
   const [replacingPageId, setReplacingPageId] = useState(null);
   const [lightingHint, setLightingHint] = useState(null);
   const [error, setError] = useState('');
+  // Receipt pages left this hour and today. Never shown as counts -- the
+  // limits are there for bots -- only as a small notice when the chosen pages
+  // will not fit, or the account has been warned for spamming.
+  const { allowance, refresh: refreshAllowance } = useReceiptAllowance();
+  // Why the last upload was refused, if it was:
+  // 'limit' | 'warning' | 'finalWarning' | 'budget'.
+  const [refusal, setRefusal] = useState(null);
+  const refusedAtRef = useRef(0);
+
+  // A refusal is about the pages that were chosen, so it goes when they change:
+  // removing pages until they fit used to leave "too many uploads at once"
+  // behind. The AI pause is about the account and stays. So does a spam
+  // warning -- it comes back with the allowance, not from this state.
+  useEffect(() => {
+    setRefusal((current) => (current === 'budget' ? current : null));
+  }, [pages]);
 
   /*
    * Started on arrival, not on submit. Choosing photographs takes the better
@@ -379,9 +405,20 @@ export default function ReceiptUploadPage() {
       setError(t('receipt.needOne'));
       return;
     }
+    // Caught here rather than after the pages have been uploaded to storage
+    // and refused: the allowance already knows this upload would not fit.
+    const block = uploadBlock(allowance, pages.length);
+    if (block === 'usedUp' || block === 'over') {
+      setRefusal('limit');
+      return;
+    }
+    if (refusal && refusal !== 'budget' && Date.now() - refusedAtRef.current < REFUSAL_PAUSE_MS) {
+      return;
+    }
 
     setSaving(true);
     setError('');
+    setRefusal(null);
     setProgress({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
 
     // The review screen is a lazy route, so without this its chunk starts
@@ -411,9 +448,18 @@ export default function ReceiptUploadPage() {
       // to the draft, no car.
       if (prefersReducedMotion()) navigate(`/service-drafts/${draft.draftId}`);
       else setHandoffDraftId(draft.draftId);
+      refreshAllowance();
     } catch (err) {
-      setError(friendlyReceiptError(err));
       setProgress(null);
+      // Refetched before the notice renders, so it names the real reset time.
+      await refreshAllowance();
+      const refused = refusalFor(err);
+      if (refused) {
+        refusedAtRef.current = Date.now();
+        setRefusal(refused);
+      } else {
+        setError(friendlyReceiptError(err));
+      }
     } finally {
       setSaving(false);
     }
@@ -460,6 +506,13 @@ export default function ReceiptUploadPage() {
           hint={null}
         />
       )}
+
+      <ReceiptAllowanceNotice
+        allowance={allowance}
+        selectedPages={pages.length}
+        refusal={refusal}
+        onTypeInstead={() => { stopCamera(); navigate(`/service-input/${vehicleId}/manual`); }}
+      />
 
       {error && <div className="flow-alert">{error}</div>}
 
