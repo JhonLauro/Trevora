@@ -14,6 +14,18 @@
       "autoPort": true
     },
     {
+      "name": "trevora-web-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/trevora-web",
+        "run",
+        "preview"
+      ],
+      "port": 4173,
+      "autoPort": true
+    },
+    {
       "name": "trevora-api",
       "runtimeExecutable": "cmd",
       "runtimeArgs": [

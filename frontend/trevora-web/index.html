@@ -5,6 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/trevora-mark.svg" />
     <title>Trevora</title>
+
+    <!-- Installable. The manifest is what turns this from a bookmark into an
+         app: a home-screen icon, its own window with no browser chrome, and a
+         splash screen. It is also the precondition for web push later — a
+         browser will not deliver notifications to a site it cannot install. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Colours the phone's status bar and the task-switcher card. Two values,
+         because the app itself has two themes and a green bar over a near-black
+         page is the sort of seam people notice without being able to name. -->
+    <meta name="theme-color" content="#0e7a52" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101613" media="(prefers-color-scheme: dark)" />
+
+    <!-- iOS reads none of the manifest's icons for the home screen; it wants
+         this tag, and falls back to a screenshot of the page without it. It
+         also must be opaque — iOS composites no transparency, so a transparent
+         PNG arrives as a black square. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The standardised name first. `apple-mobile-web-app-capable` is the
+         original Safari-only spelling and Chrome now warns that it is
+         deprecated; both are kept because older iOS reads only the apple one,
+         and dropping it would cost the chrome-less window on exactly the
+         platform that needs this tag most. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Trevora" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
