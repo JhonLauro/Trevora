@@ -3673,3 +3673,48 @@ Links used before 2026-09-11 still carry their original token until they lapse.
 **Open mechanic pages end at the deadline** (`useAccessDeadline`); the server already
 refused. An owner revoking early is still only seen by an open page on its next
 request -- closing that needs the server to tell the page.
+
+## App-wide AI spend ceiling, alerts, and the paid-call rules (2026-09-11) -- migration 025
+
+**The per-caller rate limits capped one account, not the total.** Every signup brought
+its own 100 AI requests a day, the buckets lived in memory (a Render restart reset
+them), and nothing added up what the app as a whole was spending. `shared/aibudget`
+is that sum: `AiSpendGuard` refuses paid calls once the estimated spend for the UTC
+day or month reaches `TREVORA_AI_BUDGET_DAILY_USD` / `TREVORA_AI_BUDGET_MONTHLY_USD`
+(defaults $2 / $25), persisted in `ai_usage_daily`.
+
+**Migration 025 must be applied before deploying this.** Without the table the app
+still boots (the ledger uses JdbcTemplate, not an entity, so `ddl-auto=validate` never
+sees it) but logs an error each minute and enforces the limits per instance only,
+which a restart resets -- the exact weakness this exists to close.
+
+**At the limit:** explanations fall back to the template, mechanic search to keyword
+matching; receipt OCR/extraction and voice transcription/translation return 503 with a
+sentence telling the owner to type the record in. Checked per Vision page and per
+extraction attempt, so an upload in flight stops at its next paid call.
+
+**Estimates, not invoices.** Cost is computed from the provider's reported token counts
+and `TREVORA_AI_PRICE_*`, which default to gpt-4o list prices so the estimate errs
+high. Set them to the real prices of the models in use.
+
+**Alerts:** error log lines, plus `TREVORA_AI_ALERT_WEBHOOK_URL` (Discord/Slack) at
+50/80/100% of either limit and when one hour spends a quarter of a day's limit.
+
+**Rules for any new paid call** (enforced by `PaidCallsAreGuardedTest`, which scans the
+source for the provider hosts): take `AiSpendGuard` through the `@Autowired`
+constructor, check before the call, record after it -- including responses that are
+cut off or unreadable, because those were paid for too.
+
+Also in this pass: a response cut off at the token cap is retried once, not twice (it
+is a full output budget each time); voice translation moved off gpt-4o to the extraction
+model with a temperature guard and a 4000-token cap; audio capped at 8 MB and the
+recorder at 3 minutes; mechanic search rate-limited per owner rather than per session,
+so self-approved sessions are not new allowances.
+
+**Not done, and not code:** the only hard guarantee against a surprise bill is on the
+provider side -- prepaid OpenAI credit with auto-recharge off, and a Cloud Vision
+requests-per-day quota. Both keys were visible in a screenshot during this work and
+should be rotated. `POST /api/auth/register` and `/login` are public, create users and
+hash passwords, and have no frontend callers; worth removing or throttling. The
+extraction system prompt (~27k characters, ~7k tokens per call) is the largest cost
+driver and was left untouched because changing it requires a golden-set run.
