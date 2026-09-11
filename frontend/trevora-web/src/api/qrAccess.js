@@ -113,3 +113,16 @@ export function getMechanicSessionHistory(sessionId) {
     skipAuthHeaders: true,
   });
 }
+
+/* The sharing lifetimes, fetched once per page load. Public: the Terms and
+   Privacy pages state them before anyone signs in. A failure is kept as null
+   rather than retried on every render -- screens fall back to wording that
+   states no number. */
+let sharingPolicy = null;
+
+export function getSharingPolicy() {
+  if (!sharingPolicy) {
+    sharingPolicy = apiRequest('/qr-access/policy', { skipAuthHeaders: true }).catch(() => null);
+  }
+  return sharingPolicy;
+}
