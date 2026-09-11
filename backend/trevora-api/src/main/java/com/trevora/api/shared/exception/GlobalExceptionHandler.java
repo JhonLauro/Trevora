@@ -24,6 +24,14 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.SERVICE_UNAVAILABLE.value()));
     }
 
+    /* 403 with a code, so the frontend signs the browser out and shows the reason. */
+    @ExceptionHandler(AccountSuspendedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccountSuspended(AccountSuspendedException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiErrorResponse.of(
+                        exception.getMessage(), HttpStatus.FORBIDDEN.value(), AccountSuspendedException.CODE));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
