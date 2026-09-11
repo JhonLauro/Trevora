@@ -47,7 +47,7 @@ public class QRAccessController {
     }
 
     @PostMapping("/requests/{token}/mechanic-request")
-    public MechanicAccessRequestResponse createMechanicRequest(
+    public SubmittedMechanicRequestResponse createMechanicRequest(
             @PathVariable String token,
             @RequestBody CreateMechanicAccessRequest request
     ) {

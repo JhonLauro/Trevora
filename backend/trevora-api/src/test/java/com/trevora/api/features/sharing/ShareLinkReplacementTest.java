@@ -217,11 +217,11 @@ class ShareLinkReplacementTest {
     }
 
     @Test
-    @DisplayName("a mechanic holding a replaced code is told it expired or was replaced, not just 'not found'")
+    @DisplayName("a mechanic holding a replaced code is told it no longer works and why, not just 'not found'")
     void replacedCodeSaysSo() {
         assertThatThrownBy(() -> service.getPublicRequest("an-old-token"))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("expired or been replaced");
+                .hasMessageContaining("been replaced");
     }
 
     @Test

@@ -38,6 +38,12 @@ public class QRAccessService {
     public static final String STATUS_DENIED = "DENIED";
     public static final String STATUS_EXPIRED = "EXPIRED";
 
+    /* What a mechanic sees for a code that opens nothing: lapsed, overwritten by a
+       newer link, or already used to send a request. The three look the same from
+       the scanner, and the answer to all of them is the same -- ask for a new code. */
+    private static final String CODE_NO_LONGER_WORKS =
+            "This code has expired, been replaced, or already been used. Ask the owner for a new one.";
+
     private static final SecureRandom TOKEN_RANDOM = new SecureRandom();
 
     private final QRAccessRepository qrAccessRepository;
@@ -219,7 +225,7 @@ public class QRAccessService {
     }
 
     @Transactional
-    public MechanicAccessRequestResponse createMechanicRequest(String token, CreateMechanicAccessRequest request) {
+    public SubmittedMechanicRequestResponse createMechanicRequest(String token, CreateMechanicAccessRequest request) {
         QRAccessRequest qrRequest = getValidTokenRequest(token);
         if (mechanicAccessRepository.existsByQrAccessRequestIdAndStatus(qrRequest.getQrAccessRequestId(), AccessApprovalService.REQUEST_PENDING)) {
             throw new AccessRequestException("A mechanic access request is already waiting for owner approval.");
@@ -242,18 +248,28 @@ public class QRAccessService {
 
         qrRequest.setStatus(STATUS_REQUESTED);
         qrRequest.setUsedAt(Instant.now());
+        /* One request per code. The token the QR carries is replaced by one only
+           this mechanic's device receives, so the code on paper or on the owner's
+           screen stops working the moment it is used. Before this, anyone holding
+           the code could send another request, or poll the status endpoint and
+           collect the session this request was approved into. */
+        String followToken = uniqueToken();
+        qrRequest.setAccessToken(followToken);
         qrAccessRepository.save(qrRequest);
 
         MechanicAccessRequest saved = mechanicAccessRepository.save(accessRequest);
         VehicleProfile vehicle = vehicleRepository.findById(saved.getVehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shared vehicle was not found."));
-        return MechanicAccessRequestResponse.from(saved, vehicleLabel(vehicle));
+        return new SubmittedMechanicRequestResponse(
+                MechanicAccessRequestResponse.from(saved, vehicleLabel(vehicle)),
+                followToken
+        );
     }
 
     @Transactional
     public PublicMechanicRequestStatusResponse getMechanicRequestStatus(String token) {
         QRAccessRequest qrRequest = qrAccessRepository.findByAccessToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Access link was not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(CODE_NO_LONGER_WORKS));
         qrRequest = expireIfNeeded(qrRequest);
         PublicQRAccessRequestResponse publicRequest = toPublicResponse(qrRequest);
         MechanicAccessRequestResponse mechanicRequest = mechanicAccessRepository
@@ -297,8 +313,7 @@ public class QRAccessService {
 
     private QRAccessRequest getValidTokenRequest(String token) {
         QRAccessRequest request = qrAccessRepository.findByAccessToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "This access link has expired or been replaced by a newer one. Ask the owner for a new code."));
+                .orElseThrow(() -> new ResourceNotFoundException(CODE_NO_LONGER_WORKS));
         request = expireIfNeeded(request);
         if (STATUS_EXPIRED.equals(request.getStatus())) {
             throw new AccessRequestException("This access link has expired.");
@@ -321,7 +336,17 @@ public class QRAccessService {
 
     private QRAccessRequestResponse toOwnerResponse(QRAccessRequest request, long confirmedRecords) {
         QRAccessRequest current = expireIfNeeded(request);
-        return QRAccessRequestResponse.from(current, accessUrl(current.getAccessToken()), confirmedRecords);
+        /* Only a link that can still be scanned carries its code. Once a mechanic
+           has sent a request the token is theirs -- it is how their waiting screen
+           follows the answer, and after approval it returns their session -- so
+           showing it here would put that credential on the owner's screen for
+           anyone to photograph. An expired link has nothing worth showing. */
+        boolean scannable = STATUS_ACTIVE.equals(current.getStatus()) && current.getUsedAt() == null;
+        return QRAccessRequestResponse.from(
+                current,
+                scannable ? accessUrl(current.getAccessToken()) : null,
+                confirmedRecords
+        );
     }
 
     private PublicQRAccessRequestResponse toPublicResponse(QRAccessRequest request) {
