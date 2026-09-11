@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import LegalLayout from '../components/LegalLayout.jsx';
 import { useLegalReturn } from '../components/legalReturn.js';
 import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.js';
+import useSharingPolicy from '../hooks/useSharingPolicy.js';
 
 /**
  * Terms of Service.
  *
  * NOT LEGAL ADVICE, AND NOT REVIEWED BY A LAWYER. Every factual claim in here
- * was checked against the code — the four-hour session, the 24-hour link, the
+ * was checked against the code — the session and link lifetimes (now read from the API via useSharingPolicy), the
  * absence of self-service account deletion — so it describes this system
  * accurately rather than describing a generic SaaS. Accuracy is not the same
  * thing as legal sufficiency. Have someone qualified read it before this is
@@ -16,6 +17,7 @@ import { LEGAL_CONTACT, LEGAL_ENTITY, LEGAL_UPDATED } from '../legal/constants.j
  * src/legal/constants.js first.
  */
 export default function TermsPage() {
+  const { linkDuration, sessionDuration } = useSharingPolicy();
   /* Only for the cross-reference at the foot of the document; the
      layout reads the same origin for its own links. */
   const { carry } = useLegalReturn();
@@ -90,8 +92,8 @@ export default function TermsPage() {
       </p>
       <p>
         When you approve, that mechanic gets read-only access to the confirmed records of that one
-        vehicle for four hours, after which it ends by itself. You can end it sooner. The share
-        link a code is generated from expires 24 hours after you create it. A mechanic with access
+        vehicle for {sessionDuration}, after which it ends by itself. You can end it sooner. The share
+        link a code is generated from expires {linkDuration} after you create it. A mechanic with access
         cannot add, change or delete anything.
       </p>
       <p>

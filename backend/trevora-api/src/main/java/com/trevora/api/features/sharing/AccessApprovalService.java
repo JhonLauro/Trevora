@@ -17,7 +17,6 @@ import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
 import com.trevora.api.features.sharing.QRAccessRepository;
 import com.trevora.api.features.vehicle.VehicleRepository;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
@@ -33,7 +32,6 @@ public class AccessApprovalService {
     public static final String SESSION_APPROVED = "APPROVED";
     public static final String PERMISSION_READ_ONLY = "READ_ONLY";
 
-    private static final Duration SESSION_EXPIRATION = Duration.ofHours(4);
     private static final SecureRandom TOKEN_RANDOM = new SecureRandom();
 
     private final MechanicAccessRepository mechanicAccessRepository;
@@ -107,7 +105,7 @@ public class AccessApprovalService {
         session.setPermission(PERMISSION_READ_ONLY);
         session.setStatus(SESSION_APPROVED);
         session.setApprovedAt(now);
-        session.setExpiresAt(now.plus(SESSION_EXPIRATION));
+        session.setExpiresAt(now.plus(SharingPolicy.SESSION_LIFETIME));
 
         MechanicAccessSession savedSession = sessionRepository.save(session);
         return new AccessDecisionResponse(toRequestResponse(request), toSessionResponse(savedSession));

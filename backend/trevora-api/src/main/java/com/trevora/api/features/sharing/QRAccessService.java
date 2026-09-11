@@ -22,7 +22,6 @@ import com.trevora.api.features.sharing.QRAccessRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import com.trevora.api.features.vehicle.VehicleRepository;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
@@ -39,7 +38,6 @@ public class QRAccessService {
     public static final String STATUS_DENIED = "DENIED";
     public static final String STATUS_EXPIRED = "EXPIRED";
 
-    private static final Duration QR_EXPIRATION = Duration.ofHours(24);
     private static final SecureRandom TOKEN_RANDOM = new SecureRandom();
 
     private final QRAccessRepository qrAccessRepository;
@@ -115,6 +113,11 @@ public class QRAccessService {
         return "http://localhost:5173";
     }
 
+    /** The lifetimes screens state. Public: the Terms and Privacy pages state them before sign-in. */
+    public SharingPolicyResponse getSharingPolicy() {
+        return SharingPolicyResponse.current();
+    }
+
     @Transactional
     public QRAccessRequestResponse createAccessRequest(CreateQRAccessRequest request) {
         currentUserService.requireVehicleOwner();
@@ -123,25 +126,80 @@ public class QRAccessService {
         }
 
         VehicleProfile vehicle = vehicleService.verifyVehicleBelongsToCurrentUser(request.vehicleProfileId());
-        QRAccessRequest qrRequest = new QRAccessRequest();
-        qrRequest.setVehicleId(vehicle.getVehicleId());
-        qrRequest.setOwnerId(currentUserService.getCurrentUserId());
+        UUID ownerId = currentUserService.getCurrentUserId();
+        Instant now = Instant.now();
+
+        List<QRAccessRequest> live = liveUnscannedLinks(vehicle.getVehicleId(), ownerId, now);
+        QRAccessRequest qrRequest;
+        if (live.isEmpty()) {
+            qrRequest = new QRAccessRequest();
+            qrRequest.setVehicleId(vehicle.getVehicleId());
+            qrRequest.setOwnerId(ownerId);
+        } else {
+            qrRequest = live.get(0);
+            /* Only possible for links made before overwriting existed, when each
+               click added a row. They stop working now so one code is live, and
+               the rows stay: they are the record that access was offered. */
+            for (QRAccessRequest older : live.subList(1, live.size())) {
+                older.setStatus(STATUS_EXPIRED);
+                older.setExpiresAt(now);
+                qrAccessRepository.save(older);
+            }
+        }
         qrRequest.setAccessToken(uniqueToken());
         qrRequest.setStatus(STATUS_ACTIVE);
-        qrRequest.setExpiresAt(Instant.now().plus(QR_EXPIRATION));
+        qrRequest.setExpiresAt(now.plus(SharingPolicy.LINK_LIFETIME));
 
         QRAccessRequest saved = qrAccessRepository.save(qrRequest);
         return toOwnerResponse(saved);
+    }
+
+    /**
+     * The vehicle's links that a new one should overwrite, newest first.
+     *
+     * <p>Generating again used to insert a row every time, so tapping the
+     * button grew the list without limit. A link nobody has scanned yet is
+     * still just an offer, so generating again reuses that row -- new token,
+     * new expiry -- instead of adding one. Rows are never deleted: the request
+     * and session tables cascade from this one, and a link is the record that
+     * access was offered at a given time.
+     *
+     * <p>Live and unscanned means all of these:
+     * <ul>
+     *   <li>{@code ACTIVE}. Anything else has been scanned, decided or expired.</li>
+     *   <li>Not past its expiry. The status column is not trusted for this: the
+     *       owner's list computes expiry on a read-only transaction, so a lapsed
+     *       link can still say ACTIVE in the table.</li>
+     *   <li>Never used, and no mechanic request points at it. Either would
+     *       mean a mechanic scanned it, and that row is an access event that
+     *       stays exactly as it is -- as does any session approved from it,
+     *       whose lifetime is its own.</li>
+     * </ul>
+     */
+    private List<QRAccessRequest> liveUnscannedLinks(UUID vehicleId, UUID ownerId, Instant now) {
+        return qrAccessRepository
+                .findByVehicleIdAndOwnerIdOrderByCreatedAtDesc(vehicleId, ownerId)
+                .stream()
+                .filter(link -> STATUS_ACTIVE.equals(link.getStatus()))
+                .filter(link -> link.getExpiresAt() != null && link.getExpiresAt().isAfter(now))
+                .filter(link -> link.getUsedAt() == null)
+                .filter(link -> !mechanicAccessRepository.existsByQrAccessRequestId(link.getQrAccessRequestId()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<QRAccessRequestResponse> getVehicleAccessRequests(UUID vehicleId) {
         currentUserService.requireVehicleOwner();
         vehicleService.verifyVehicleBelongsToCurrentUser(vehicleId);
+        UUID ownerId = currentUserService.getCurrentUserId();
+        /* One count for the whole list. Every link here belongs to the same
+           vehicle, so the number is the same on every row; counting it per link
+           cost a query for each one. */
+        long confirmedRecords = serviceRecordRepository.countByVehicleIdAndOwnerId(vehicleId, ownerId);
         return qrAccessRepository
-                .findByVehicleIdAndOwnerIdOrderByCreatedAtDesc(vehicleId, currentUserService.getCurrentUserId())
+                .findByVehicleIdAndOwnerIdOrderByCreatedAtDesc(vehicleId, ownerId)
                 .stream()
-                .map(this::toOwnerResponse)
+                .map(link -> toOwnerResponse(link, confirmedRecords))
                 .toList();
     }
 
@@ -239,7 +297,8 @@ public class QRAccessService {
 
     private QRAccessRequest getValidTokenRequest(String token) {
         QRAccessRequest request = qrAccessRepository.findByAccessToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Access link was not found."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "This access link has expired or been replaced by a newer one. Ask the owner for a new code."));
         request = expireIfNeeded(request);
         if (STATUS_EXPIRED.equals(request.getStatus())) {
             throw new AccessRequestException("This access link has expired.");
@@ -254,11 +313,14 @@ public class QRAccessService {
     }
 
     private QRAccessRequestResponse toOwnerResponse(QRAccessRequest request) {
-        QRAccessRequest current = expireIfNeeded(request);
-        long confirmedRecords = serviceRecordRepository.countByVehicleIdAndOwnerId(
-                current.getVehicleId(),
-                current.getOwnerId()
+        return toOwnerResponse(
+                request,
+                serviceRecordRepository.countByVehicleIdAndOwnerId(request.getVehicleId(), request.getOwnerId())
         );
+    }
+
+    private QRAccessRequestResponse toOwnerResponse(QRAccessRequest request, long confirmedRecords) {
+        QRAccessRequest current = expireIfNeeded(request);
         return QRAccessRequestResponse.from(current, accessUrl(current.getAccessToken()), confirmedRecords);
     }
 

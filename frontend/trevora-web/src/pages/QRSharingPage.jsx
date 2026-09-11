@@ -13,6 +13,7 @@ import {
 import { getVehicle, getVehicles } from '../api/vehicles';
 import { displayVehicleName } from '../utils/vehicleText';
 import { pluralize } from '../utils/format';
+import useSharingPolicy from '../hooks/useSharingPolicy.js';
 
 /**
  * Make a share link for one vehicle, and manage who currently holds one.
@@ -71,6 +72,7 @@ function timeLeft(value) {
 
 export default function QRSharingPage() {
   const t = useT();
+  const { linkDuration, sessionDuration, sessionHours } = useSharingPolicy();
   const { vehicleId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,7 +129,22 @@ export default function QRSharingPage() {
     try {
       const created = await createQRAccessRequest(vehicleId);
       setCurrent(created);
-      setRequests((list) => [created, ...list]);
+      /* Generating again usually overwrites the link nobody has scanned, so
+         the server hands back a row this list already holds. Replace it by id
+         rather than adding it twice. */
+      setRequests((list) => [
+        created,
+        ...list.filter((request) => request.qrAccessRequestId !== created.qrAccessRequestId),
+      ]);
+      /* Then take the server's list as the truth. Nothing is flipped to expired
+         here first: a local guess can show an owner an old code as dead while
+         it still opens a request, which is the one thing this list must never
+         get wrong. The refresh also brings the `createdAt` the create response
+         has been arriving without ("Made Not recorded"). A failed refresh is
+         not worth an error -- the link was made. */
+      getVehicleQRAccessRequests(vehicleId)
+        .then((fresh) => { if (Array.isArray(fresh)) setRequests(fresh); })
+        .catch(() => {});
     } catch (err) {
       setError(err.message);
     } finally {
@@ -200,8 +217,8 @@ export default function QRSharingPage() {
           <p>
             Scanning it lets a mechanic <em>ask</em>. Until you approve, they see nothing. Once you
             do, they get read-only access to {name}'s confirmed records — no other vehicle, no
-            edits — and it ends by itself four hours after you approve. The link itself lasts a
-            day; the access it leads to lasts four hours.
+            edits — and it ends by itself {sessionDuration} after you approve. The link itself lasts
+            {linkDuration}; the access it leads to lasts {sessionDuration}.
           </p>
         </div>
       </section>
@@ -254,7 +271,9 @@ export default function QRSharingPage() {
                 </div>
                 <div>
                   <dt className="ink-eyebrow">For</dt>
-                  <dd>{t('share.fourHours')}</dd>
+                  <dd>{sessionHours == null
+                    ? t('share.sessionFromApprovalUnknown')
+                    : t('share.sessionFromApproval', { hours: sessionHours })}</dd>
                 </div>
               </dl>
 
@@ -345,8 +364,8 @@ export default function QRSharingPage() {
               <h2 className="ink-section-title">Links made for {name}</h2>
               {requests.length === 0 ? (
                 <p className="share-history__empty">
-                  None yet. Every link you generate is listed here with its expiry, so you can see
-                  what is still out there.
+                  None yet. Links you make show here with their expiry, so you can see what is
+                  still out there.
                 </p>
               ) : (
                 <ul className="share-history__list">

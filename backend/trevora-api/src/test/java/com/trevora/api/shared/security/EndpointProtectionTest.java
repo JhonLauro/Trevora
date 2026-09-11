@@ -84,6 +84,9 @@ class EndpointProtectionTest {
         registry.put("GET /api/qr-access/requests/{token}", Guard.PUBLIC);
         registry.put("POST /api/qr-access/requests/{token}/mechanic-request", Guard.PUBLIC);
         registry.put("GET /api/qr-access/requests/{token}/mechanic-request/status", Guard.PUBLIC);
+        // Lifetimes only -- no vehicle, owner or link data. Public because the
+        // Terms and Privacy pages that state them are read before signing in.
+        registry.put("GET /api/qr-access/policy", Guard.PUBLIC);
 
         // -- the caller's own account --------------------------------------
         registry.put("GET /api/auth/me", Guard.SELF);

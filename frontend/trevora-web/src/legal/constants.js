@@ -19,4 +19,4 @@ export const LEGAL_ENTITY = 'the Trevora team';
 export const LEGAL_CONTACT = 'privacy@trevora.example';
 
 /** Shown at the top of both documents. Update it whenever either changes. */
-export const LEGAL_UPDATED = '27 August 2026';
+export const LEGAL_UPDATED = '11 September 2026';
