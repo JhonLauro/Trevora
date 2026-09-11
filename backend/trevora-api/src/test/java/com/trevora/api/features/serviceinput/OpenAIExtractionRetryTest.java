@@ -126,7 +126,10 @@ class OpenAIExtractionRetryTest {
 
     @Test
     void reportsTheTokenCountsWhenEveryAttemptWasCutOff() {
-        server.expect(ExpectedCount.times(3), requestTo(URL)).andRespond(withSuccess(
+        // Two, not three: a cut-off answer is a full output budget each time, so
+        // it gets one retry and then the salvage path. server.verify() below
+        // fails if a third request is made.
+        server.expect(ExpectedCount.times(2), requestTo(URL)).andRespond(withSuccess(
                 "{\"usage\":{\"prompt_tokens\":900,\"completion_tokens\":8000},"
                         + "\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"{\"}}]}",
                 MediaType.APPLICATION_JSON));
