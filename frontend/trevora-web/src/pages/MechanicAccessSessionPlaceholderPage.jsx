@@ -4,6 +4,8 @@ import MechanicAISearchPanel from '../components/MechanicAISearchPanel';
 import PartsView from '../components/ink/PartsView.jsx';
 import Tabs from '../components/ink/Tabs.jsx';
 import { getMechanicSessionHistory } from '../api/mechanicAccess';
+import { forgetMechanicSessionToken } from '../api/mechanicSessionToken.js';
+import useAccessDeadline, { ACCESS_ENDED_MESSAGE } from '../hooks/useAccessDeadline.js';
 import { componentStatuses } from '../utils/componentStatus';
 import { formatAmount, formatDate, formatOdometer, pluralize } from '../utils/format';
 import { noticedAgo } from '../utils/noticedAgo';
@@ -417,6 +419,17 @@ export default function MechanicAccessSessionPlaceholderPage() {
   const grouped = useMemo(() => groupByYear(visible), [visible]);
 
   const recordHref = (id) => `/mechanic/access/${sessionId}/history/${id}`;
+
+  /* The server refuses every request once the session expires, but a page
+     already open would keep showing what it loaded. End it on screen at the
+     same moment: drop the records, forget this browser's half of the
+     credential, and say why. */
+  useAccessDeadline(history?.expiresAt, () => {
+    forgetMechanicSessionToken(sessionId);
+    setHistory(null);
+    setSearchResult(null);
+    setError(ACCESS_ENDED_MESSAGE);
+  });
 
   if (loading) {
     return (
