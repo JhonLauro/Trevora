@@ -7,6 +7,7 @@ import { isLoggedIn } from '../api/currentUser.js';
 import { markOnboardingStep } from '../api/onboarding.js';
 import { hasSeenWalkthrough, markWalkthroughSeen } from '../api/walkthrough.js';
 import { getVehicles } from '../api/vehicles.js';
+import useSharingPolicy from '../hooks/useSharingPolicy.js';
 
 /**
  * Where this page hands off to.
@@ -46,8 +47,9 @@ async function onwardRoute() {
  * the review flags are the plain-language labels `utils/fieldConfidence.js`
  * actually prints rather than the retired High/Medium/Low grades, the input
  * methods carry the names `ServiceInputMethodPage` gives them, and granted
- * access lasts **four** hours -- 24 hours is the life of the QR link, which is
- * a different clock (`QRAccessService` vs `AccessApprovalService`).
+ * access is stated for how long it actually lasts. That figure is not typed
+ * here: it comes from `SharingPolicy` through `useSharingPolicy`, and the
+ * session and the QR link are different clocks.
  */
 
 /* Scanning this in the walkthrough decodes to a sentence, not a link. It is a
@@ -214,11 +216,12 @@ function HistoryPreview() {
 }
 
 function SharePreview() {
+  const { sessionDuration } = useSharingPolicy();
   const stages = [
     ['01', 'You generate a code', 'One code, one vehicle.'],
     ['02', 'The mechanic scans', 'The scan grants nothing on its own.'],
     ['03', 'You approve', 'Read-only, confirmed records only.'],
-    ['04', 'Access ends', 'By itself after four hours, or sooner if you revoke it.'],
+    ['04', 'Access ends', `By itself after ${sessionDuration}, or sooner if you revoke it.`],
   ];
 
   return (
@@ -378,7 +381,7 @@ const STEPS = [
     label: 'Share',
     eyebrow: '04 · Share',
     title: 'A mechanic can ask. Only you can grant.',
-    body: 'Scanning only asks. Nothing opens until you approve, and what you grant is read-only, one vehicle, and closes itself after four hours.',
+    body: 'Scanning only asks. Nothing opens until you approve, and what you grant is read-only, one vehicle, and closes itself after {sessionDuration}.',
     preview: <SharePreview />,
   },
   {
@@ -412,6 +415,9 @@ const LEAVE_ANIMATION_MS = 5000;
 
 export default function WelcomePage() {
   const navigate = useNavigate();
+  /* STEPS is module-level data and cannot hold the hook's value, so the
+     one body that states a duration carries a placeholder filled here. */
+  const { sessionDuration } = useSharingPolicy();
   const [step, setStep] = useState(0);
   /* Which step's heading has finished typing. The preview and the final CTA
      wait on this rather than on a fixed delay — a longer headline should push
@@ -554,7 +560,7 @@ export default function WelcomePage() {
       <section className="wt-stage" key={current.id} data-step={current.id} aria-live="polite">
         <p className="wt-eyebrow">{current.eyebrow}</p>
         <TypedHeading text={current.title} onDone={markTyped} />
-        <p className="wt-body">{current.body}</p>
+        <p className="wt-body">{current.body.replace('{sessionDuration}', sessionDuration)}</p>
 
         {current.preview && (
           <figure className={`wt-frame${headingDone ? ' is-in' : ''}`}>
