@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import com.trevora.api.shared.http.OutboundHttp;
+import com.trevora.api.shared.aibudget.AiSpendGuard;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -44,19 +46,31 @@ public class GoogleVisionOCRProvider {
     private final RestClient restClient;
     private final String apiKey;
 
+    private final AiSpendGuard spendGuard;
+
+    /** For tests and the golden-set harness, which build this outside Spring: no spending limit applies. */
+    public GoogleVisionOCRProvider(ObjectMapper objectMapper, String apiKey) {
+        this(objectMapper, apiKey, AiSpendGuard.unlimited());
+    }
+
+    @Autowired
     public GoogleVisionOCRProvider(
             ObjectMapper objectMapper,
-            @Value("${trevora.ocr.google-vision.api-key:}") String apiKey
+            @Value("${trevora.ocr.google-vision.api-key:}") String apiKey,
+            AiSpendGuard spendGuard
     ) {
         this.objectMapper = objectMapper;
         this.restClient = OutboundHttp.restClient(OutboundHttp.VISION_READ_TIMEOUT);
         this.apiKey = blankToNull(apiKey);
+        this.spendGuard = spendGuard;
     }
 
     public String extractText(MultipartFile receiptImage) {
         if (apiKey == null) {
             throw new ReceiptProcessingException("Google Cloud Vision OCR is enabled but GOOGLE_CLOUD_VISION_API_KEY is not configured.");
         }
+        // Per page, before the call: an upload stops at the page the budget runs out on.
+        spendGuard.requireBudget("receipt-ocr");
 
         String base64Image;
         try {
@@ -87,6 +101,7 @@ public class GoogleVisionOCRProvider {
                     .body(request)
                     .retrieve()
                     .body(String.class);
+            spendGuard.recordVisionPages("receipt-ocr", 1);
 
             return parseResponse(responseBody);
         } catch (RestClientResponseException exception) {
