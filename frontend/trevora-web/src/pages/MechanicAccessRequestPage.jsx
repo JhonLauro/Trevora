@@ -126,8 +126,14 @@ export default function MechanicAccessRequestPage() {
 
   useEffect(() => {
     if (!submittedRequest || approvedSession) return undefined;
+    /* A declined request cannot change, so there is nothing left to wait for.
+       This used to keep asking every five seconds for as long as the tab was
+       open. */
+    if (String(submittedRequest.status).toUpperCase() === 'DENIED') return undefined;
 
     const intervalId = window.setInterval(() => {
+      // A phone in a pocket does not need an answer every five seconds.
+      if (document.visibilityState !== 'visible') return;
       getMechanicRequestStatus(token)
         .then((status) => {
           if (status.mechanicRequest) setSubmittedRequest(status.mechanicRequest);
