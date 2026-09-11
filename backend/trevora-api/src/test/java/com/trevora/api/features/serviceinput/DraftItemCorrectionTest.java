@@ -89,7 +89,8 @@ class DraftItemCorrectionTest {
                 mock(VoiceProcessingService.class),
                 mock(CurrentUserService.class),
                 new ObjectMapper(),
-                new ServiceClassificationService()
+                new ServiceClassificationService(),
+                ReceiptUploadFingerprints.disabled()
         );
     }
 

@@ -14,6 +14,7 @@ import com.trevora.api.features.serviceinput.VoiceTranslationRequest;
 import com.trevora.api.features.validation.ServiceDraftCorrectionService;
 import com.trevora.api.features.serviceinput.ServiceInputService;
 import com.trevora.api.features.servicerecord.ServiceRecordService;
+import com.trevora.api.shared.ratelimit.ReceiptUploadAllowance;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,13 +40,16 @@ public class ServiceRecordController {
     private final ServiceDraftCorrectionService serviceDraftCorrectionService;
     private final ServiceRecordService serviceRecordService;
     private final VoiceTranscriptionService voiceTranscriptionService;
+    private final ReceiptUploadAllowance receiptUploadAllowance;
 
     public ServiceRecordController(
             ServiceInputService serviceInputService,
             ServiceDraftCorrectionService serviceDraftCorrectionService,
             ServiceRecordService serviceRecordService,
-            VoiceTranscriptionService voiceTranscriptionService
+            VoiceTranscriptionService voiceTranscriptionService,
+            ReceiptUploadAllowance receiptUploadAllowance
     ) {
+        this.receiptUploadAllowance = receiptUploadAllowance;
         this.serviceInputService = serviceInputService;
         this.serviceDraftCorrectionService = serviceDraftCorrectionService;
         this.serviceRecordService = serviceRecordService;
@@ -73,7 +77,7 @@ public class ServiceRecordController {
             @RequestParam(required = false) String receiptPagesJson
     ) {
         List<MultipartFile> files = normalizedReceiptFiles(receiptImage, receiptImages);
-        ServiceDraft draft = serviceInputService.createReceiptDraft(
+        ServiceInputService.ReceiptDraftOutcome outcome = serviceInputService.createOrReuseReceiptDraft(
                 vehicleId,
                 files,
                 receiptInputMode,
@@ -83,7 +87,18 @@ public class ServiceRecordController {
                 receiptContentType,
                 receiptPagesJson
         );
-        return ServiceDraftResponse.from(draft, serviceInputService.getItemsForDraft(draft.getDraftId()));
+        ServiceDraft draft = outcome.draft();
+        if (outcome.reused()) {
+            receiptUploadAllowance.refundForCurrentUser(files.size());
+        }
+        return ServiceDraftResponse.from(
+                draft, serviceInputService.getItemsForDraft(draft.getDraftId()), outcome.reused());
+    }
+
+    /** How many receipt pages the owner has used this hour and today, and when each resets. */
+    @GetMapping("/receipt/usage")
+    public ReceiptUploadAllowance.ReceiptUsageResponse receiptUsage() {
+        return receiptUploadAllowance.usageForCurrentUser();
     }
 
     @PostMapping("/voice")

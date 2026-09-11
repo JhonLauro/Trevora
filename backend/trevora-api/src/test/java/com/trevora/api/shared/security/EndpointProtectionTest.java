@@ -97,6 +97,9 @@ class EndpointProtectionTest {
         registry.put("GET /api/auth/me/tips", Guard.SELF);
         registry.put("POST /api/auth/me/tips/{tipKey}/seen", Guard.SELF);
         registry.put("POST /api/auth/sync", Guard.SELF);
+        // The caller's own receipt page allowance, keyed on the current user
+        // inside ReceiptUploadAllowance. No vehicle or record id to tamper with.
+        registry.put("GET /api/service-drafts/receipt/usage", Guard.SELF);
         registry.put("DELETE /api/auth/account", Guard.SELF);
 
         // -- mechanic session: id + token, checked in MechanicAccessService --
