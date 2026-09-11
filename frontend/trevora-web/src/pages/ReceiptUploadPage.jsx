@@ -690,7 +690,7 @@ export default function ReceiptUploadPage() {
                     <button
                       className="flow-link"
                       type="button"
-                      style={{ color: 'var(--ink-muted)' }}
+                      style={{ color: 'var(--bad-text)' }}
                       onClick={() => removePage(page.id)}
                     >
                       Remove
