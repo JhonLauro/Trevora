@@ -2232,3 +2232,38 @@
     padding-left: 0;
   }
 }
+
+/* The confirm button belongs after the fields once the rail stacks.
+
+   Below 1200px the rail moves above the fields -- status, what to look at,
+   where it is saving -- and it carried the button up with it, so "Continue to
+   confirm" sat in the middle of the page, above every field it confirms. On a
+   phone its `position: sticky` could not help: sticky only moves inside its
+   parent, and the parent was the short rail at the top.
+
+   Here the rail's own box is taken out of the layout, so its cards and its
+   actions become items of the form, and each is placed: the rail's cards
+   first, then the fields, then the actions last. The button is not rendered a
+   second time instead, because it carries the `draft-confirm` tip anchor and
+   two of those would aim the tip at whichever copy happened to be hidden. With
+   the form as its parent, the phone rule's sticky now docks the button to the
+   bottom of the screen while scrolling and lets it settle under the last
+   field, which is what that rule always meant to do. */
+@media (max-width: 1200px) {
+  .flow-check {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .flow-check__rail { display: contents; }
+
+  .flow-check__main {
+    order: 1;
+    /* The form's gap is now the rail's 16px between cards; this restores the
+       24px the fields sat below the rail at. */
+    margin-top: 8px;
+  }
+
+  .flow-rail-actions { order: 2; }
+}
