@@ -231,6 +231,18 @@
 
 /* ---- mechanic: read-only quotation ------------------------------------ */
 
+/* `.ink-card` carries no padding of its own -- each variant states it, the way
+   `.mechanic-briefing` does. This one did not, so the heading sat against the
+   card border. The same omission as `.mechanic-warranty`, and invisible until
+   an owner actually records a concern, which is why it outlived it. */
+.mechanic-concerns {
+  padding: 18px 20px;
+}
+
+.mechanic-concerns .ink-section-title {
+  margin-bottom: 12px;
+}
+
 .mechanic-concerns ul {
   display: flex;
   flex-direction: column;
@@ -242,9 +254,13 @@
 
 /* A left rule rather than a card: these are quoted, and a quote wants a margin
    mark, not a container. The amber matches the "needs attention" tone the
-   briefing already uses on this page. */
+   briefing already uses on this page.
+
+   Tokenised: the literal #d97706 is a light-theme amber that stayed put when
+   the page went dark, where it reads as a stronger alarm than it is against a
+   near-black card. */
 .mechanic-concern {
-  border-left: 3px solid #d97706;
+  border-left: 3px solid var(--status-warn-text, #d97706);
   padding: 0.1rem 0 0.1rem 0.75rem;
 }
 

@@ -149,7 +149,16 @@
 .mechanic-warranty {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  /* The base step between stacked lines. The two places that want a different
+     one say so below, rather than every element carrying its own margin. */
+  gap: 6px;
+  /* `.ink-card` is background, border and radius only -- it carries no padding,
+     and every variant is expected to state its own the way `.record-card` and
+     `.mechanic-briefing` do. This one never did, so the whole block sat flush
+     against its own border: measured, the eyebrow began 1px from the card edge,
+     and that 1px was the border. Matched to `.mechanic-briefing`'s 18px with a
+     little more on the sides, which is what the long sentences here want. */
+  padding: 18px 20px;
 }
 
 .mechanic-warranty__line {
@@ -159,15 +168,24 @@
   margin: 0;
 }
 
+/* The heading and its eyebrow are one unit; the lines underneath are separate
+   statements. A single uniform gap spaced all four the same and left the block
+   reading as an undifferentiated stack. */
+.mechanic-warranty .ink-section-title {
+  margin-bottom: 4px;
+}
+
 /* Full size, ordinary ink, above a rule. See the note at the top of this file:
-   the size is the claim. */
+   the size is the claim. What changed is only the room around it -- at 0.35rem
+   above the rule and 0.75rem below, the attribution crowded the statement it
+   qualifies instead of closing the block. */
 .mechanic-warranty__source {
   border-top: 1px solid var(--rule);
   color: var(--ink);
   font-size: 17px;
   line-height: 1.5;
-  margin: 0.35rem 0 0;
-  padding-top: 0.75rem;
+  margin: 10px 0 0;
+  padding-top: 14px;
 }
 
 /* ---- the dialog's own proportions -------------------------------------- */

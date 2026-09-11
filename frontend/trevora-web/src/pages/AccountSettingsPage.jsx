@@ -1,5 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LANGUAGES, useLanguage } from '../i18n/index.jsx';
+/* `translate as t` for the module-level helpers below — splitName and
+   changeCountLabel are plain functions, so they cannot hold the hook, and the
+   bare `t(` in them was resolving to nothing at all. Inside the component the
+   hook's own `t` shadows this import, so nothing there changes. */
+import { LANGUAGES, translate as t, useLanguage } from '../i18n/index.jsx';
 import { deleteAccount, syncCurrentUserProfile } from '../api/auth.js';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import { getGarageSummary } from '../api/serviceHistory.js';
