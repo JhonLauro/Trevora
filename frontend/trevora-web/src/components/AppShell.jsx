@@ -16,7 +16,7 @@ import {
   getNotificationPreferences,
   isNotificationEnabled,
 } from '../api/notificationPreferences.js';
-import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
+import { usePendingAccessRequests } from '../hooks/usePendingAccessRequests.js';
 import AccessRequestToasts from './AccessRequestToasts.jsx';
 import { supabase } from '../api/supabaseClient.js';
 import ConfirmDialog from './ink/ConfirmDialog.jsx';
@@ -129,7 +129,6 @@ export default function AppShell({ children }) {
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(getActiveCurrentUser);
   const [authenticated, setAuthenticated] = useState(isLoggedIn);
-  const [pendingCount, setPendingCount] = useState(0);
   const [notificationPreferences, setNotificationPreferences] = useState(getNotificationPreferences);
   const [menuOpen, setMenuOpen] = useState(false);
   /* The sheet has to outlive the decision to close it: an element removed from
@@ -178,17 +177,12 @@ export default function AppShell({ children }) {
     notificationPreferences,
   );
 
-  useEffect(() => {
-    if (!canUseOwnerWorkflows || !mechanicRequestsEnabled) {
-      setPendingCount(0);
-      return undefined;
-    }
-    let active = true;
-    getPendingMechanicAccessRequests()
-      .then((data) => { if (active) setPendingCount(data.length); })
-      .catch(() => { if (active) setPendingCount(0); });
-    return () => { active = false; };
-  }, [canUseOwnerWorkflows, mechanicRequestsEnabled, location.pathname]);
+  /* Shared with the toast below, and refreshed on its own every few seconds.
+     It used to be fetched on route change only, so an owner sitting on one
+     screen while a mechanic waited at the counter saw nothing until they
+     clicked something. */
+  const pendingRequests = usePendingAccessRequests(canUseOwnerWorkflows && mechanicRequestsEnabled);
+  const pendingCount = pendingRequests.length;
 
   /* Must match the exit animation in brand-app.css. A timer rather than
      `animationend`: under `prefers-reduced-motion` that event may never
@@ -443,6 +437,7 @@ export default function AppShell({ children }) {
         enabled={canUseOwnerWorkflows}
         mechanicRequests={mechanicRequestsEnabled}
         preferences={notificationPreferences}
+        requests={pendingRequests}
       />
 
       <ConfirmDialog

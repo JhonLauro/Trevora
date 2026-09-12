@@ -12,6 +12,7 @@ import {
   getNotificationPreferences,
 } from '../api/notificationPreferences.js';
 import { getMechanicAccessRequests, getOwnerMechanicAccessSessions } from '../api/qrAccess';
+import { usePendingAccessRequests } from '../hooks/usePendingAccessRequests.js';
 
 /* The glyph is chosen from the category at render time rather than stored on
    the notification. The builders used to carry a literal character each —
@@ -136,6 +137,12 @@ export default function NotificationsPage() {
   const [readIds, setReadIds] = useState(() => loadReadNotificationIds(currentUser?.userId));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  /* The shell's shared poll. This page loads its own list -- it shows answered
+     and expired items too -- but reloads it whenever the poll notices the
+     pending set change, so a request that arrives while the page is open shows
+     up without a refresh. */
+  const pendingRequests = usePendingAccessRequests(true);
+  const pendingSignature = pendingRequests.map((request) => request.mechanicAccessRequestId).join('|');
 
   useEffect(() => {
     let active = true;
@@ -170,7 +177,7 @@ export default function NotificationsPage() {
     return () => {
       active = false;
     };
-  }, [currentUser?.userId]);
+  }, [currentUser?.userId, pendingSignature]);
 
   // A switch flipped in Settings, or an event raised on another tab, should be
   // reflected here without a reload.
