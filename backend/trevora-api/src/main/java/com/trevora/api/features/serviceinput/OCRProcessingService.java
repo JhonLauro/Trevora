@@ -473,6 +473,9 @@ public class OCRProcessingService {
         metadata.put("fieldConfidence", fieldConfidence == null ? Map.of() : fieldConfidence);
         metadata.put("aiSuggestedFields", aiSuggestedFields == null ? List.of() : aiSuggestedFields);
         metadata.put("classification", classification == null ? Map.of() : classification.toMetadata());
+        // The receipt's own parts, labour and charges figures, read for the review
+        // screen's check. Never fed back into the extracted amounts or kinds.
+        metadata.put("printedSubtotals", PrintedSubtotals.read(rawOcrText).toMetadata());
         List<String> warnings = new ArrayList<>();
         if (aiWarnings != null) {
             warnings.addAll(aiWarnings.stream().filter(warning -> warning != null && !warning.isBlank()).toList());
