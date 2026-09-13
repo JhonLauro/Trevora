@@ -1903,3 +1903,20 @@
 .ink-modal__actions {
   flex-shrink: 0;
 }
+
+/* ConfirmDialog with a third choice: one column of equal, full-width buttons
+   at every width, in the order ConfirmDialog writes them (recommended first,
+   Cancel last). Wrapping three labels of different lengths right-aligned left
+   each on its own ragged line. The class pair outranks the shared row and its
+   column-reverse below 560px, which would flip the order back. */
+.ink-modal__actions.ink-modal__actions--three {
+  align-items: stretch;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 10px;
+}
+
+.ink-modal__actions.ink-modal__actions--three .ink-button {
+  justify-content: center;
+  width: 100%;
+}

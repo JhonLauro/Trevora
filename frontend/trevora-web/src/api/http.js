@@ -43,10 +43,12 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     let message = 'Request failed.';
     let code = null;
+    let pages = null;
     try {
       const body = await response.json();
       message = body.message ?? body.error ?? message;
       code = body.code ?? null;
+      pages = Array.isArray(body.pages) ? body.pages : null;
     } catch {
       message = response.statusText || message;
     }
@@ -69,6 +71,8 @@ export async function apiRequest(path, options = {}) {
     const error = new Error(message);
     error.status = response.status;
     error.code = code;
+    // Which receipt pages a quality refusal is about, and why, when it is one.
+    error.pages = pages;
     throw error;
   }
 

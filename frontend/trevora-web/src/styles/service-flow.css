@@ -96,6 +96,23 @@
   outline-offset: 2px;
 }
 
+/* A dialog opened from inside the flow. `.flow button:hover` above outranks
+   `.ink-button:hover`, so a filled dialog button emptied itself under the
+   pointer -- and the flow's own primary action is brand green, not ink. Both
+   restated for the filled button only; outline and danger buttons are left to
+   their own rules. */
+.flow .ink-modal__actions .ink-button:not(.ink-button--outline):not(.ink-button--danger) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.flow .ink-modal__actions .ink-button:not(.ink-button--outline):not(.ink-button--danger):hover:not(:disabled) {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #ffffff;
+}
+
 .flow-header__actions {
   align-items: center;
   display: flex;
@@ -1400,7 +1417,7 @@
   flex-direction: column;
 }
 
-.flow-page-card.is-blurry { border: 2px solid var(--tier1); }
+.flow-page-card.has-issue { border: 2px solid var(--tier1); }
 
 .flow-page-card__img {
   height: 132px;
@@ -1458,6 +1475,19 @@
 }
 
 .flow-page-card__blur-msg { font-size: 13px; font-weight: 600; color: var(--tier1); }
+
+/* The fix and the way out, on one line: the button takes the room, Remove keeps
+   to its own width at the end, the same place it sits on an unmarked page. */
+.flow-page-card__blur-actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.flow-page-card__blur-actions .flow-btn {
+  flex: 1;
+  min-width: 0;
+}
 
 .flow-page-add {
   border: 1.5px dashed var(--border);

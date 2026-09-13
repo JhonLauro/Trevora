@@ -34,6 +34,12 @@ export default function ConfirmDialog({
   // met — account deletion makes you type the word first. Defaults to false,
   // so every existing call site behaves exactly as before.
   confirmDisabled = false,
+  // An optional third choice between Cancel and confirm, for a decision with
+  // two ways forward rather than one. Absent by default, so every existing call
+  // site renders exactly as before. No tone means the filled button.
+  extraLabel,
+  onExtra,
+  extraTone = '',
 }) {
   const dialogRef = useRef(null);
   const cancelRef = useRef(null);
@@ -86,6 +92,39 @@ export default function ConfirmDialog({
 
   if (!open) return null;
 
+  const hasExtra = Boolean(extraLabel && onExtra);
+  const cancelButton = (
+    <button
+      className="ink-button ink-button--outline"
+      type="button"
+      ref={cancelRef}
+      disabled={busy}
+      onClick={onCancel}
+    >
+      Cancel
+    </button>
+  );
+  const confirmButton = (
+    <button
+      className={`ink-button ink-button--${tone}`}
+      type="button"
+      disabled={busy || confirmDisabled}
+      onClick={onConfirm}
+    >
+      {busy ? busyLabel : confirmLabel}
+    </button>
+  );
+  const extraButton = hasExtra && (
+    <button
+      className={extraTone ? `ink-button ink-button--${extraTone}` : 'ink-button'}
+      type="button"
+      disabled={busy}
+      onClick={onExtra}
+    >
+      {extraLabel}
+    </button>
+  );
+
   return (
     <div className="ink-modal__backdrop" onClick={() => { if (!busy) onCancel(); }}>
       <div
@@ -102,25 +141,21 @@ export default function ConfirmDialog({
 
         {error && <p className="ink-modal__error" role="alert">{error}</p>}
 
-        <div className="ink-modal__actions">
-          <button
-            className="ink-button ink-button--outline"
-            type="button"
-            ref={cancelRef}
-            disabled={busy}
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
-          <button
-            className={`ink-button ink-button--${tone}`}
-            type="button"
-            disabled={busy || confirmDisabled}
-            onClick={onConfirm}
-          >
-            {busy ? busyLabel : confirmLabel}
-          </button>
-        </div>
+        {hasExtra ? (
+          /* Three choices are a list, not a toolbar: one column, full width,
+             most recommended first and Cancel last. Written in that order so
+             Tab moves the way the eye does; focus still starts on Cancel. */
+          <div className="ink-modal__actions ink-modal__actions--three">
+            {extraButton}
+            {confirmButton}
+            {cancelButton}
+          </div>
+        ) : (
+          <div className="ink-modal__actions">
+            {cancelButton}
+            {confirmButton}
+          </div>
+        )}
       </div>
     </div>
   );

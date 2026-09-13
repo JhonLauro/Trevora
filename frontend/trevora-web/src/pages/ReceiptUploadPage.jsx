@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Camera, Plus, Sun, Upload } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
 import GarageTransition from '../components/GarageTransition.jsx';
+import ConfirmDialog from '../components/ink/ConfirmDialog.jsx';
 import ProcessingModal, {
   ProcessingStep,
   formatWait,
@@ -12,7 +13,7 @@ import ProcessingModal, {
 } from '../components/flow/ProcessingModal.jsx';
 import { createReceiptPagesServiceDraft, primeServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
-import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
+import { assessReceiptFile, prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
 import { stripImageMetadata } from '../utils/stripImageMetadata';
 import { warmUpApi, isApiWarm } from '../api/warmup.js';
 import {
@@ -69,6 +70,8 @@ export default function ReceiptUploadPage() {
   const [replacingPageId, setReplacingPageId] = useState(null);
   const [lightingHint, setLightingHint] = useState(null);
   const [error, setError] = useState('');
+  // Asked once, before reading pages marked as likely to read badly.
+  const [qualityConfirmOpen, setQualityConfirmOpen] = useState(false);
   // Receipt pages left this hour and today. Never shown as counts -- the
   // limits are there for bots -- only as a small notice when the chosen pages
   // will not fit, or the account has been warned for spamming.
@@ -197,7 +200,9 @@ export default function ReceiptUploadPage() {
   }, [cameraActive]);
 
   const isScanMode = activeMode === 'SCAN';
-  const hasScannedPage = pages.some((page) => page.source === 'SCAN');
+  // Every page marked and none likely to read well: there is nothing worth
+  // sending, so Read stays shut until one is replaced or removed.
+  const allPagesFlagged = pages.length > 0 && pages.every((page) => page.issues.length > 0);
 
   async function addUploadFiles(fileList) {
     const files = Array.from(fileList || []).filter(isSupportedReceiptFile);
@@ -212,7 +217,7 @@ export default function ReceiptUploadPage() {
       const prepared = await Promise.all(files.map(prepareReceiptFile));
       setPages((current) => renumberPages([
         ...current,
-        ...prepared.map((result) => toPage(result.file, 'UPLOAD', result.isBlurry)),
+        ...prepared.map((result) => toPage(result.file, 'UPLOAD', result.issues)),
       ]));
     } finally {
       setPreparingUpload(false);
@@ -242,7 +247,7 @@ export default function ReceiptUploadPage() {
         return {
           ...page,
           file: result.file,
-          isBlurry: result.isBlurry,
+          issues: result.issues,
           previewUrl: URL.createObjectURL(result.file),
         };
       }));
@@ -260,9 +265,10 @@ export default function ReceiptUploadPage() {
       return;
     }
     // A camera-app photo carries the phone's GPS position, and this path skips
-    // prepareReceiptFile, so nothing else removes it. Pixels are left as they are.
-    const cleaned = await stripImageMetadata(file);
-    setPages((current) => renumberPages([...current, toPage(cleaned, 'SCAN')]));
+    // prepareReceiptFile, so nothing else removes it or checks how it will read.
+    // Pixels are left as they are.
+    const [cleaned, issues] = await Promise.all([stripImageMetadata(file), assessReceiptFile(file)]);
+    setPages((current) => renumberPages([...current, toPage(cleaned, 'SCAN', issues)]));
     setError('');
   }
 
@@ -332,24 +338,24 @@ export default function ReceiptUploadPage() {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, width, height);
 
-    const { blob, isBlurry } = await prepareCanvasCapture(canvas);
+    const { blob, issues } = await prepareCanvasCapture(canvas);
     if (!blob) {
       setError('The camera frame could not be captured. Please try again or upload receipt images instead.');
       return;
     }
 
-    // A blurry capture is added and flagged rather than silently refused. An
-    // uploaded page that looks blurry gets a badge and a Replace button; a
-    // captured one used to just not appear, which reads as a broken button.
+    // A capture likely to read badly is added and flagged rather than silently
+    // refused. An uploaded page gets a badge and a Replace button; a captured
+    // one used to just not appear, which reads as a broken button.
     const pageNumber = pagesRef.current.length + 1;
     const file = new File([blob], `receipt-scan-page-${pageNumber}.jpg`, {
       type: 'image/jpeg',
       lastModified: Date.now(),
     });
-    setPages((current) => renumberPages([...current, toPage(file, 'SCAN', isBlurry)]));
+    setPages((current) => renumberPages([...current, toPage(file, 'SCAN', issues)]));
     setError('');
-    setCameraMessage(isBlurry
-      ? `Page ${pageNumber} captured, but it looks blurry. Retake it for a better read.`
+    setCameraMessage(issues.length > 0
+      ? `Page ${pageNumber} captured. ${t(qualityKey(issues[0]))}.`
       : `Page ${pageNumber} captured. Add another page or finish scanning.`);
   }
 
@@ -404,15 +410,67 @@ export default function ReceiptUploadPage() {
     addUploadFiles(event.dataTransfer.files);
   }
 
+  /**
+   * Pages marked as likely to read badly -- by this screen, or by the server's
+   * own check on an earlier attempt -- are asked about once rather than
+   * blocked. The check can be wrong, and a receipt that really is faded has no
+   * better photo to take.
+   */
   async function handleSubmit(event) {
     event.preventDefault();
     if (pages.length === 0) {
       setError(t('receipt.needOne'));
       return;
     }
+    if (allPagesFlagged) return;
+    if (pages.some((page) => page.issues.length > 0)) {
+      setQualityConfirmOpen(true);
+      return;
+    }
+    await submitPages(false);
+  }
+
+  /**
+   * The server's quality gate stopped the upload before reading anything: mark
+   * the pages it named, so each shows what is wrong and the next tap asks
+   * before reading them anyway.
+   *
+   * @returns whether the error was one
+   */
+  function applyServerQualityIssues(err) {
+    if (err?.status !== 422 || !Array.isArray(err.pages) || err.pages.length === 0) return false;
+    const issueByPage = new Map(err.pages.map((item) => [item.pageNumber, item.issue]));
+    setPages((current) => current.map((page) => {
+      const issue = issueByPage.get(page.pageNumber);
+      if (!issue || page.issues.includes(issue)) return page;
+      return { ...page, issues: [issue, ...page.issues] };
+    }));
+    setError(t('quality.serverStopped'));
+    return true;
+  }
+
+  /**
+   * Drops every marked page and reads the rest -- for when the bad shots were
+   * extras, and removing them one at a time is the only thing standing between
+   * the owner and a draft.
+   */
+  function readClearPagesOnly() {
+    setQualityConfirmOpen(false);
+    const clear = renumberPages(pages.filter((page) => page.issues.length === 0));
+    if (clear.length === 0) return;
+    pages.filter((page) => page.issues.length > 0).forEach((page) => URL.revokeObjectURL(page.previewUrl));
+    setPages(clear);
+    submitPages(false, clear);
+  }
+
+  /**
+   * @param pagesToSend the pages to read: all of them, unless the owner has just
+   *     dropped the marked ones and the state has not caught up yet
+   */
+  async function submitPages(readAnyway, pagesToSend = pages) {
     // Caught here rather than after the pages have been uploaded to storage
     // and refused: the allowance already knows this upload would not fit.
-    const block = uploadBlock(allowance, pages.length);
+    const block = uploadBlock(allowance, pagesToSend.length);
     if (block === 'usedUp' || block === 'over') {
       setRefusal('limit');
       return;
@@ -424,7 +482,7 @@ export default function ReceiptUploadPage() {
     setSaving(true);
     setError('');
     setRefusal(null);
-    setProgress({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
+    setProgress({ stage: 'STORING', storedPages: 0, totalPages: pagesToSend.length });
 
     // The review screen is a lazy route, so without this its chunk starts
     // downloading at `navigate()` — the moment the car leaves the frame — and
@@ -438,11 +496,12 @@ export default function ReceiptUploadPage() {
     try {
       const draft = await createReceiptPagesServiceDraft({
         vehicleId,
-        pages,
+        pages: pagesToSend,
         // Camera capture brings its own artefacts - glare, skew, focus - and a
         // mixed set contains them, so one scanned page is enough to say so.
-        receiptInputMode: hasScannedPage ? 'SCAN' : 'UPLOAD',
+        receiptInputMode: pagesToSend.some((page) => page.source === 'SCAN') ? 'SCAN' : 'UPLOAD',
         onProgress: setProgress,
+        readAnyway,
       });
       stopCamera();
       // Start the review request now rather than on arrival, so the two
@@ -462,7 +521,7 @@ export default function ReceiptUploadPage() {
       if (refused) {
         refusedAtRef.current = Date.now();
         setRefusal(refused);
-      } else {
+      } else if (!applyServerQualityIssues(err)) {
         setError(friendlyReceiptError(err));
       }
     } finally {
@@ -650,7 +709,7 @@ export default function ReceiptUploadPage() {
           <div className="flow-pages">
             {pages.map((page, index) => (
               <article
-                className={`flow-page-card${page.isBlurry ? ' is-blurry' : ''}`}
+                className={`flow-page-card${page.issues.length > 0 ? ' has-issue' : ''}`}
                 key={page.id}
               >
                 <button
@@ -663,20 +722,35 @@ export default function ReceiptUploadPage() {
                   <span className="flow-page-card__n">{page.pageNumber}</span>
                 </button>
 
-                {page.isBlurry ? (
+                {page.issues.length > 0 ? (
                   <div className="flow-page-card__blur">
-                    <span className="flow-page-card__blur-msg">Too blurry to read</span>
-                    <button
-                      className="flow-btn flow-btn--ghost"
-                      type="button"
-                      style={{ height: 38, fontSize: 14 }}
-                      onClick={() => (page.source === 'SCAN'
-                        ? retakeScanPage(page.id)
-                        : requestReplaceUploadPage(page.id))}
-                      disabled={replacingPageId === page.id}
-                    >
-                      {page.source === 'SCAN' ? 'Retake' : 'Replace'}
-                    </button>
+                    <span className="flow-page-card__blur-msg">{t(qualityKey(page.issues[0]))}</span>
+                    {/* Remove sits beside the fix rather than behind it. A page
+                        that reads badly is often one that should not be in the
+                        receipt at all -- a duplicate, a stray shot -- and making
+                        someone replace it first just to be allowed to delete it
+                        was a detour. */}
+                    <div className="flow-page-card__blur-actions">
+                      <button
+                        className="flow-btn flow-btn--ghost"
+                        type="button"
+                        style={{ height: 38, fontSize: 14 }}
+                        onClick={() => (page.source === 'SCAN'
+                          ? retakeScanPage(page.id)
+                          : requestReplaceUploadPage(page.id))}
+                        disabled={replacingPageId === page.id}
+                      >
+                        {page.source === 'SCAN' ? 'Retake' : 'Replace'}
+                      </button>
+                      <button
+                        className="flow-link"
+                        type="button"
+                        style={{ color: 'var(--bad-text)' }}
+                        onClick={() => removePage(page.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flow-page-card__foot">
@@ -757,6 +831,14 @@ export default function ReceiptUploadPage() {
 
         {cameraMessage && <p className="flow-note">{cameraMessage}</p>}
 
+        {/* Why Read is greyed out. A button that just will not press, with no
+            reason beside it, reads as broken. */}
+        {allPagesFlagged && (
+          <p className="flow-note" role="status" style={{ color: 'var(--bad-text)' }}>
+            {t('quality.allMarked')}
+          </p>
+        )}
+
         <div className="flow-actions">
           <button
             className="flow-btn flow-btn--ghost"
@@ -765,11 +847,29 @@ export default function ReceiptUploadPage() {
           >
             {t('flow.back')}
           </button>
-          <button className="flow-btn" type="submit" disabled={saving || loading || pages.length === 0}>
+          <button className="flow-btn" type="submit" disabled={saving || loading || pages.length === 0 || allPagesFlagged}>
             {pages.length > 1 ? `Read these ${pages.length} pages` : t('receipt.read')}
           </button>
         </div>
       </form>
+
+      {/* Asked, not blocked -- see handleSubmit. Cancel goes back to the pages,
+          where each marked one has its own Retake or Replace. */}
+      <ConfirmDialog
+        open={qualityConfirmOpen}
+        title={t('quality.confirmTitle')}
+        body={t('quality.confirmBody')}
+        confirmLabel={t('quality.readAnyway')}
+        tone="outline"
+        // Only when there is something clear to read without the marked pages.
+        extraLabel={pages.some((page) => page.issues.length === 0) ? t('quality.readClearOnly') : undefined}
+        onExtra={readClearPagesOnly}
+        onCancel={() => setQualityConfirmOpen(false)}
+        onConfirm={() => {
+          setQualityConfirmOpen(false);
+          submitPages(true);
+        }}
+      />
 
       {previewPage && (
         <div
@@ -862,7 +962,20 @@ function coldFoot(storing, wokeCold, t) {
   return t('receipt.longer');
 }
 
-function toPage(file, source, isBlurry = false) {
+/* Keys, resolved at render. `issues` lists the most fundamental problem first,
+   and that is the one a page names. */
+const QUALITY_MESSAGE_KEYS = {
+  LOW_RESOLUTION: 'quality.small',
+  POOR_LIGHTING: 'quality.lighting',
+  BLURRY: 'quality.blurry',
+  MISALIGNED: 'quality.tilted',
+};
+
+function qualityKey(issue) {
+  return QUALITY_MESSAGE_KEYS[issue] ?? 'quality.generic';
+}
+
+function toPage(file, source, issues = []) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     file,
@@ -871,7 +984,9 @@ function toPage(file, source, isBlurry = false) {
     source,
     pageNumber: 1,
     previewUrl: URL.createObjectURL(file),
-    isBlurry,
+    // How well it is likely to read: [] when nothing is wrong, most fundamental
+    // problem first otherwise. See qualityIssues in receiptImage.js.
+    issues: Array.isArray(issues) ? issues : [],
   };
 }
 
