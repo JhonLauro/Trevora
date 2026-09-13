@@ -142,7 +142,12 @@ export default function PrivacyPage() {
       <h2>5. How long we keep it</h2>
       <p>
         Your records stay until you remove them or close your account — a service history is only
-        useful if it is not quietly thrown away. Deleting a record removes it from your history.
+        useful if it is not quietly thrown away.
+      </p>
+      <p>
+        Deleting a record, a draft or a vehicle removes it from your history, but not yet
+        everything behind it: the receipt photos you uploaded, and the text read from them, can
+        stay in our storage afterwards.
       </p>
       <p>
         A mechanic&apos;s session expires {sessionDuration} after you approve it; a share link
@@ -150,9 +155,11 @@ export default function PrivacyPage() {
         stays with your account.
       </p>
       <p>
-        <strong>To close your account and have its data removed, email us.</strong> There is no
-        self-service delete inside Trevora yet, and we would rather say so plainly than describe a
-        button that does not exist. We will act on the request within thirty days.
+        <strong>You can close your account yourself</strong>, under Account settings, Delete
+        account. It is permanent. It removes your profile, vehicles, records and drafts, and the
+        receipt photos still attached to them. Photos from records, drafts or vehicles you deleted
+        earlier may remain in our storage. Copies can also remain in our hosting provider&apos;s
+        backups until those backups expire.
       </p>
 
       <h2>6. Your rights</h2>
