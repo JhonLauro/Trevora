@@ -12,7 +12,7 @@ import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import LeaveDraftDialog from '../components/flow/LeaveDraftDialog.jsx';
 import { useLeaveGuard } from '../navigation/LeaveGuard.jsx';
-import { amountsCheck, railAttention, serializeLineEntries } from '../utils/serviceLines';
+import { amountsCheck, formatPeso, railAttention, serializeLineEntries } from '../utils/serviceLines';
 import { issuesByField } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
 import {
@@ -129,26 +129,43 @@ function coveredOf(form) {
 }
 
 /**
- * Says what the owner will actually be recorded as having paid, so the
- * consequence of the number is visible while they type it rather than only
- * once it reaches the spend counter.
+ * What the owner will be recorded as having paid, or null until there is a
+ * total and a covered amount to work it out from.
+ *
+ * <p>With coverage, this is the number that matters most to the owner: what
+ * they actually handed over. Total cost is the bill before coverage (migration
+ * 010), so it is not that number whenever anything was covered.
  */
-function coverageHint(form) {
+function paidFigures(form) {
   const total = Number(form.totalCost);
   const covered = Number(form.amountCovered);
-  if (!Number.isFinite(total) || form.totalCost === '') {
+  if (form.totalCost === '' || !Number.isFinite(total)) return null;
+  if (form.amountCovered === '' || !Number.isFinite(covered) || covered <= 0) return null;
+  return { paid: Math.max(total - covered, 0), total, fullyCovered: covered >= total };
+}
+
+/** What to fill in next, while there is not yet an amount paid to show. */
+function coverageHint(form) {
+  if (form.totalCost === '' || !Number.isFinite(Number(form.totalCost))) {
     return t('review.totalFirst');
   }
-  if (!Number.isFinite(covered) || form.amountCovered === '' || covered <= 0) {
-    return t('review.coveredHelp');
-  }
-  if (covered >= total) {
-    return 'Fully covered — this record will show as costing you nothing.';
-  }
-  const money = (value) => value.toLocaleString(undefined, {
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
-  });
-  return `You paid ${money(total - covered)} of ${money(total)}.`;
+  return t('review.coveredHelp');
+}
+
+/** The amount paid, given its own weight rather than a line of muted text. */
+function PaidFigure({ figures }) {
+  const t = useT();
+  return (
+    <div className="flow-paid" aria-live="polite">
+      <span className="flow-paid__label">{t('review.youPaid')}</span>
+      <span className="flow-paid__value">{formatPeso(figures.paid)}</span>
+      <span className="flow-paid__of">
+        {figures.fullyCovered
+          ? t('review.fullyCovered')
+          : t('review.ofTotal', { total: formatPeso(figures.total) })}
+      </span>
+    </div>
+  );
 }
 
 /** How the source is described in the subtitle, in the owner's terms. */
@@ -516,9 +533,10 @@ export default function ServiceDraftReviewPage() {
                       value={form.amountCovered ?? ''}
                       onChange={updateField}
                     />
-                    <span className="flow-note">{coverageHint(form)}</span>
+                    {!paidFigures(form) && <span className="flow-note">{coverageHint(form)}</span>}
                   </label>
                 )}
+                {form.hasCoverage && paidFigures(form) && <PaidFigure figures={paidFigures(form)} />}
               </div>
             </section>
 

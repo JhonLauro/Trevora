@@ -3997,3 +3997,22 @@ reasoning is in `CLAUDE.md` under "Core domain model and invariants".
   tested with its verbatim OCR through `OCRProcessingService` with the model
   mocked. A signed-in upload and the review screen are verified only when the
   owner of this work opens them in the browser, before merge.
+
+## Part and Supplies tags pass every amounts check (2026-09-13)
+
+One issue seen from two sides; decide them together.
+
+- **The blind spot.** The review screen's parts/labour check counts Part and
+  Supplies (MATERIAL) lines together toward the receipt's PARTS figure, because
+  receipts print consumables under parts. So a line tagged Supplies that is
+  really a Part, or the reverse, passes every check we have. Only the owner
+  reading the kind column catches it. Documented in `PrintedSubtotals.java` and
+  pinned in `serviceLines.test.js` ("cannot see a part tagged as supplies").
+- **Seen on real runs.** Palmetto 57 Nissan, 2026-09-13: SYN / CVT 5QT tagged
+  Supplies and CVT ENHANCER tagged Part when both are parts. The price-column
+  triplet work would fix amounts, not kinds: kind is the model's choice.
+- **The label side.** The amounts table's "Parts" row includes Supplies lines
+  without saying so. With CVT ENHANCER tagged Supplies, Parts reads "Your lines
+  162.26" while the lines actually tagged Part add to 134.27, so an owner adding
+  up their Part lines cannot find the figure. Open question: relabel the row
+  "Parts and supplies" (a label, not an added sentence), or leave it.
