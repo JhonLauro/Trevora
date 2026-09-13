@@ -180,7 +180,7 @@ export function Balance({ services, totalCost, printed }) {
         </div>
         {check.state === 'gap' && (
           <div className="flow-balance__cell">
-            <span className="flow-eyebrow">{check.gap > 0 ? 'Over by' : 'Short by'}</span>
+            <span className="flow-eyebrow">{check.gap > 0 ? t('lines.overBy') : t('lines.shortBy')}</span>
             <span className="flow-balance__value is-gap">{gap}</span>
           </div>
         )}
@@ -255,7 +255,7 @@ function messageFor(check) {
     case 'gap':
       return check.againstCharges
         ? t('lines.gapCharges')
-        : 'We do not know which figure is right — you have the paper. Change either side, or leave the gap.';
+        : t('lines.gapTotal');
     case 'split-unreadable':
       return t('lines.splitUnreadable');
     case 'verified':
@@ -271,17 +271,13 @@ function messageFor(check) {
         </>
       );
     case 'match':
-      if (check.unpricedCount > 0) {
-        return `The priced lines match the receipt total. ${check.unpricedCount} line${
-          check.unpricedCount === 1 ? ' has' : 's have'
-        } no amount yet.`;
-      }
+      if (check.unpricedCount === 1) return t('lines.matchUnpricedOne');
+      if (check.unpricedCount > 1) return t('lines.matchUnpricedOther', { count: check.unpricedCount });
       return t('lines.matches');
     case 'no-total':
       return t('lines.fillTotal');
     case 'no-prices':
-      return t('lines.noneHaveAmount')
-        + ' Add the amounts from the receipt to make this check work.';
+      return `${t('lines.noneHaveAmount')} ${t('lines.addAmounts')}`;
     default:
       return '';
   }

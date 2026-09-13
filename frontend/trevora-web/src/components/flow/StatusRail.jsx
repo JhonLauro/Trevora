@@ -59,7 +59,7 @@ export default function StatusRail({
     ? statusWhenReady(t, attention)
     : blocking.length === 1
       ? t('rail.oneThing')
-      : `${blocking.length} things have to change before this can be saved. The rest is yours to judge.`;
+      : t('rail.manyThings', { count: blocking.length });
 
   return (
     <aside className="flow-check__rail">
@@ -70,7 +70,7 @@ export default function StatusRail({
           the receipt. */}
       <section className={`flow-status${ready && !attention ? ' is-ready' : ''}`}>
         <div>
-          <p className="flow-status__eyebrow">Status</p>
+          <p className="flow-status__eyebrow">{t('rail.status')}</p>
           <p className="flow-status__title">{ready ? t('rail.readyToSave') : t('rail.notReady')}</p>
         </div>
         <p className="flow-status__body">{statusLine}</p>
@@ -80,13 +80,13 @@ export default function StatusRail({
         <section className="flow-card flow-rail-list">
           {blocking.length > 0 && (
             <>
-              <h2 className="flow-rail-list__head is-blocking">Has to change · {blocking.length}</h2>
+              <h2 className="flow-rail-list__head is-blocking">{t('rail.hasToChange', { count: blocking.length })}</h2>
               {blocking.map((item) => <RailItem key={item.id} item={item} />)}
             </>
           )}
           {review.length > 0 && (
             <>
-              <h2 className="flow-rail-list__head">Worth a look · {review.length}</h2>
+              <h2 className="flow-rail-list__head">{t('rail.worthALook', { count: review.length })}</h2>
               {review.map((item) => <RailItem key={item.id} item={item} />)}
             </>
           )}
@@ -118,7 +118,7 @@ export default function StatusRail({
           data-tip="draft-confirm"
           disabled={saving || (!dirty && !ready)}
         >
-          {saving ? 'Saving…' : t('rail.continueConfirm')}
+          {saving ? t('rail.saving') : t('rail.continueConfirm')}
         </button>
         {!dirty && !ready && (
           <p className="flow-rail-actions__hint">{t('rail.fixAbove')}</p>

@@ -558,6 +558,17 @@
   "lines.railShortTotal": "Lines are {gap} short of the receipt total.",
   "lines.railOverCharges": "Lines are {gap} over the receipt's charges.",
   "lines.railShortCharges": "Lines are {gap} short of the receipt's charges.",
+  "lines.overBy": "Over by",
+  "lines.shortBy": "Short by",
+  "lines.gapTotal": "We do not know which figure is right — you have the paper. Change either side, or leave the gap.",
+  "lines.matchUnpricedOne": "The priced lines match the receipt total. 1 line has no amount yet.",
+  "lines.matchUnpricedOther": "The priced lines match the receipt total. {count} lines have no amount yet.",
+  "lines.addAmounts": "Add the amounts from the receipt to make this check work.",
   "rail.readyButCheck": "Nothing is stopping this from being saved, but the amounts don't match the receipt yet. Check them before you continue.",
-  "rail.readyButUnchecked": "Nothing is stopping this from being saved, but we couldn't fully check the amounts against the receipt. Check them before you continue."
+  "rail.readyButUnchecked": "Nothing is stopping this from being saved, but we couldn't fully check the amounts against the receipt. Check them before you continue.",
+  "rail.status": "Status",
+  "rail.hasToChange": "Has to change · {count}",
+  "rail.worthALook": "Worth a look · {count}",
+  "rail.manyThings": "{count} things have to change before this can be saved. The rest is yours to judge.",
+  "rail.saving": "Saving…"
 }
