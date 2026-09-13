@@ -74,19 +74,30 @@ public class ServiceRecordController {
             @RequestParam(required = false) String receiptStoragePath,
             @RequestParam(required = false) String receiptOriginalFilename,
             @RequestParam(required = false) String receiptContentType,
-            @RequestParam(required = false) String receiptPagesJson
+            @RequestParam(required = false) String receiptPagesJson,
+            @RequestParam(required = false, defaultValue = "false") boolean readAnyway
     ) {
         List<MultipartFile> files = normalizedReceiptFiles(receiptImage, receiptImages);
-        ServiceInputService.ReceiptDraftOutcome outcome = serviceInputService.createOrReuseReceiptDraft(
-                vehicleId,
-                files,
-                receiptInputMode,
-                receiptStorageBucket,
-                receiptStoragePath,
-                receiptOriginalFilename,
-                receiptContentType,
-                receiptPagesJson
-        );
+        ServiceInputService.ReceiptDraftOutcome outcome;
+        try {
+            outcome = serviceInputService.createOrReuseReceiptDraft(
+                    vehicleId,
+                    files,
+                    receiptInputMode,
+                    receiptStorageBucket,
+                    receiptStoragePath,
+                    receiptOriginalFilename,
+                    receiptContentType,
+                    receiptPagesJson,
+                    readAnyway
+            );
+        } catch (ReceiptQualityException stopped) {
+            /* Nothing was read and nothing was spent, so the pages go back on the
+               owner's allowance -- the same as an upload that reopened an existing
+               draft. Otherwise a retake would count every page twice. */
+            receiptUploadAllowance.refundForCurrentUser(files.size());
+            throw stopped;
+        }
         ServiceDraft draft = outcome.draft();
         if (outcome.reused()) {
             receiptUploadAllowance.refundForCurrentUser(files.size());

@@ -3882,3 +3882,45 @@ that needs someone to upload a photo, run 026, and reload.
 
 Rollback is in the migration header and needs no frontend change. The dashboard
 and service role can still open these files; policies do not apply to them.
+
+## Receipt photo quality gate (2026-09-13)
+
+Receipt pages are checked before Google Vision is paid to read them.
+
+- **Screen.** `receiptImage.js` measures every page as it is added -- Upload, the
+  in-app camera, and the phone's own camera app, which was never checked -- and
+  marks it: too small, too dark or glary, blurry. Tapping Read with a marked page
+  asks once: Cancel, or Read anyway.
+- **Server.** `ReceiptImageQualityGate`, called from `OCRProcessingService`
+  before any page goes to Vision; same measurements, same default limits. In
+  `enforce` mode an upload with a bad page is stopped with 422 and a code per page
+  (`RECEIPT_LOW_RESOLUTION`, `RECEIPT_POOR_LIGHTING`, `RECEIPT_BLURRY`,
+  `RECEIPT_MISALIGNED`); the screen marks those pages, and `readAnyway=true` reads
+  them. A stopped upload refunds its pages to the allowance.
+- **Health number.** `receipt_quality_daily`, migration **027** (not yet
+  applied); the reject-rate query is in its header. Writes are best-effort, with
+  no JPA entity, so the API boots and uploads work before it exists. Each page's
+  measurements are also kept in the draft's `fieldMetadata.pages[].quality`.
+
+Open, on purpose or not yet:
+
+- **Thresholds are untuned.** Defaults: long edge 800px, sharpness 45,
+  brightness 50-245, contrast 15, tilt 20 degrees. 45 was the screen's existing
+  blur number; on synthetic receipts it only catches heavy blur. To tune, run
+  `TREVORA_RECEIPT_QUALITY_GATE_MODE=shadow` for a while, read the `quality`
+  metadata and the table, then change `trevora.receipt.quality-gate.*` AND
+  `RECEIPT_QUALITY_LIMITS` in receiptImage.js together.
+- **No pixel deskew.** Vision reads tilted text and
+  `GoogleVisionOCRProvider.estimateSkew` straightens word geometry up to about
+  25 degrees, so tilt only asks for a retake past 20. A 5-degree reject would have
+  stopped `talisay-repair-order-skewed`, which reads fine.
+- **Not measured on real photos.** The golden image set is not on this machine;
+  `GoldenImageTest` uses the ungated constructor, so golden scores are unaffected.
+  HEIC, CMYK and undecodable pages are not judged (fail open). No OpenCV.
+- The Tagalog and Cebuano strings for the new messages need a native speaker's
+  check.
+- Verified: gate and pipeline unit tests on synthetic images, the existing receipt
+  tests, frontend build and i18n check, the browser-side measurement. Not
+  verified: a signed-in upload end to end, or API boot on the author's machine
+  (JDK 25 there fails `SupabaseJwkProvider`'s HttpClient with "Unable to establish
+  loopback connection" before any receipt code loads).

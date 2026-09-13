@@ -1,5 +1,7 @@
 package com.trevora.api.shared.exception;
 
+import com.trevora.api.features.serviceinput.ReceiptQualityErrorResponse;
+import com.trevora.api.features.serviceinput.ReceiptQualityException;
 import com.trevora.api.features.serviceinput.ReceiptUploadException;
 import com.trevora.api.features.serviceinput.VoiceTranscriptionException;
 import com.trevora.api.shared.aibudget.AiBudgetExceededException;
@@ -72,6 +74,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleVoiceTranscription(VoiceTranscriptionException exception) {
         return ResponseEntity.badRequest()
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
+    /* 422 with a code per page, so the receipt screen can mark each page, say what
+       to do about it, and offer to read the pages anyway. */
+    @ExceptionHandler(ReceiptQualityException.class)
+    public ResponseEntity<ReceiptQualityErrorResponse> handleReceiptQuality(ReceiptQualityException exception) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ReceiptQualityErrorResponse.from(exception, HttpStatus.UNPROCESSABLE_ENTITY.value()));
     }
 
     @ExceptionHandler(ReceiptUploadException.class)

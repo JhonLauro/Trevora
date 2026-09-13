@@ -5,12 +5,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class OCRProcessingService {
+    private static final Logger log = LoggerFactory.getLogger(OCRProcessingService.class);
+
     /**
      * Pages one upload may carry. Each one is a separate billed Google Vision
      * call made in a loop while the caller waits, so without a ceiling a single
@@ -33,13 +38,33 @@ public class OCRProcessingService {
     private final GoogleVisionOCRProvider googleVisionOCRProvider;
     private final OpenAIServiceDraftExtractionProvider openAIExtractionProvider;
     private final ServiceClassificationService classificationService;
+    private final ReceiptImageQualityGate qualityGate;
+    private final ReceiptQualityStats qualityStats;
     private final String ocrProvider;
     private final String aiProvider;
 
+    /** For tests and the golden-set harness: no quality gate, so every page goes straight to OCR. */
     public OCRProcessingService(
             GoogleVisionOCRProvider googleVisionOCRProvider,
             OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
             ServiceClassificationService classificationService,
+            String ocrProvider,
+            String aiProvider,
+            int maxReceiptPages,
+            long maxReceiptPageBytes
+    ) {
+        this(googleVisionOCRProvider, openAIExtractionProvider, classificationService,
+                ReceiptImageQualityGate.off(), ReceiptQualityStats.disabled(),
+                ocrProvider, aiProvider, maxReceiptPages, maxReceiptPageBytes);
+    }
+
+    @Autowired
+    public OCRProcessingService(
+            GoogleVisionOCRProvider googleVisionOCRProvider,
+            OpenAIServiceDraftExtractionProvider openAIExtractionProvider,
+            ServiceClassificationService classificationService,
+            ReceiptImageQualityGate qualityGate,
+            ReceiptQualityStats qualityStats,
             @Value("${trevora.ocr.provider:mock}") String ocrProvider,
             @Value("${trevora.ai.extraction.provider:mock}") String aiProvider,
             @Value("${trevora.receipt.max-pages:10}") int maxReceiptPages,
@@ -48,6 +73,8 @@ public class OCRProcessingService {
         this.googleVisionOCRProvider = googleVisionOCRProvider;
         this.openAIExtractionProvider = openAIExtractionProvider;
         this.classificationService = classificationService;
+        this.qualityGate = qualityGate;
+        this.qualityStats = qualityStats;
         this.ocrProvider = normalizeProvider(ocrProvider, "mock");
         this.aiProvider = normalizeProvider(aiProvider, "mock");
         this.maxReceiptPages = Math.max(1, maxReceiptPages);
@@ -66,6 +93,20 @@ public class OCRProcessingService {
             List<MultipartFile> receiptImages,
             String receiptInputMode,
             VehicleContext vehicle
+    ) {
+        return extractReceiptFields(receiptImages, receiptInputMode, vehicle, false);
+    }
+
+    /**
+     * @param readAnyway the owner was told these pages may not read well and chose
+     *                   to read them as they are, so the quality gate records them
+     *                   but does not stop them
+     */
+    public ReceiptExtractionResult extractReceiptFields(
+            List<MultipartFile> receiptImages,
+            String receiptInputMode,
+            VehicleContext vehicle,
+            boolean readAnyway
     ) {
         List<MultipartFile> files = receiptImages == null
                 ? List.of()
@@ -90,6 +131,15 @@ public class OCRProcessingService {
                                     + (maxReceiptPageBytes / (1024 * 1024)) + " MB or smaller."
                     );
                 });
+        /*
+         * The quality gate, as its own step before anything is paid for: every
+         * page is looked at before any page goes to Vision, so an upload with one
+         * unreadable page out of five costs nothing rather than four calls.
+         * Checked before the provider is, like the limits above, so it behaves
+         * the same with OCR configured or not.
+         */
+        List<ReceiptQualityReport> quality = checkQuality(files, readAnyway);
+
         String inputMode = normalizeInputMode(receiptInputMode);
         String firstFileName = files.isEmpty() ? "uploaded receipt" : fileNameFor(files.get(0));
 
@@ -114,6 +164,9 @@ public class OCRProcessingService {
             page.put("originalFilename", fileName);
             page.put("inputMode", inputMode);
             page.put("ocrProvider", ocrProvider);
+            if (index < quality.size()) {
+                page.put("quality", quality.get(index).toMetadata());
+            }
 
             try {
                 String rawText = googleVisionOCRProvider.extractText(file);
@@ -167,6 +220,39 @@ public class OCRProcessingService {
             extractionErrors.add(exception.getMessage());
             return rawOcrDraft(combinedOcrText, inputMode, pages, extractionErrors);
         }
+    }
+
+    /**
+     * Runs the quality gate over every page of an upload.
+     *
+     * <p>Each page is measured, counted in {@link ReceiptQualityStats} and logged,
+     * whatever the mode, so SHADOW gives the same numbers ENFORCE would act on.
+     * In ENFORCE the upload is then stopped if any page has a problem -- unless
+     * the owner has already been warned and chose to read it anyway.
+     *
+     * @return one report per page, in page order; empty when the gate is off
+     */
+    private List<ReceiptQualityReport> checkQuality(List<MultipartFile> files, boolean readAnyway) {
+        ReceiptImageQualityGate.Mode mode = qualityGate.mode();
+        if (mode == ReceiptImageQualityGate.Mode.OFF) {
+            return List.of();
+        }
+        List<ReceiptQualityReport> reports = new ArrayList<>();
+        List<ReceiptQualityException.PageIssue> problems = new ArrayList<>();
+        for (int index = 0; index < files.size(); index++) {
+            ReceiptQualityReport report = qualityGate.assess(files.get(index));
+            reports.add(report);
+            qualityStats.record(report, readAnyway);
+            log.info("Receipt quality: page {} {}, mode {}{}",
+                    index + 1, report.summary(), mode, readAnyway ? ", read anyway" : "");
+            if (!report.passed()) {
+                problems.add(new ReceiptQualityException.PageIssue(index + 1, report.primaryIssue()));
+            }
+        }
+        if (mode == ReceiptImageQualityGate.Mode.ENFORCE && !readAnyway && !problems.isEmpty()) {
+            throw new ReceiptQualityException(problems);
+        }
+        return reports;
     }
 
     /**

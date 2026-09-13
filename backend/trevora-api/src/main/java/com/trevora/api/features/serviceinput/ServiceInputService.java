@@ -145,6 +145,26 @@ public class ServiceInputService {
             String receiptContentType,
             String receiptPagesJson
     ) {
+        return createOrReuseReceiptDraft(vehicleId, receiptImages, receiptInputMode, receiptStorageBucket,
+                receiptStoragePath, receiptOriginalFilename, receiptContentType, receiptPagesJson, false);
+    }
+
+    /**
+     * @param readAnyway the owner was warned that some pages may not read well and
+     *                   chose to read them anyway; see {@link ReceiptImageQualityGate}
+     */
+    @Transactional
+    public ReceiptDraftOutcome createOrReuseReceiptDraft(
+            UUID vehicleId,
+            List<MultipartFile> receiptImages,
+            String receiptInputMode,
+            String receiptStorageBucket,
+            String receiptStoragePath,
+            String receiptOriginalFilename,
+            String receiptContentType,
+            String receiptPagesJson,
+            boolean readAnyway
+    ) {
         requireVehicleOwner();
         // The ownership check already loads the vehicle, and the extractor needs
         // it: a receipt only means something against the vehicle it belongs to.
@@ -161,7 +181,7 @@ public class ServiceInputService {
         }
 
         ReceiptExtractionResult extraction = ocrProcessingService.extractReceiptFields(
-                receiptImages, receiptInputMode, VehicleContext.from(vehicle));
+                receiptImages, receiptInputMode, VehicleContext.from(vehicle), readAnyway);
 
         ServiceDraft draft = new ServiceDraft();
         draft.setVehicleId(vehicleId);

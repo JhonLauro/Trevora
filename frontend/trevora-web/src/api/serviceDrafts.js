@@ -49,7 +49,7 @@ export function getReceiptUsage() {
   return apiRequest('/service-drafts/receipt/usage');
 }
 
-export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode, onProgress }) {
+export async function createReceiptPagesServiceDraft({ vehicleId, pages, receiptInputMode, onProgress, readAnyway = false }) {
   onProgress?.({ stage: 'STORING', storedPages: 0, totalPages: pages.length });
   const storedPages = await uploadReceiptPages({
     vehicleId,
@@ -61,6 +61,9 @@ export async function createReceiptPagesServiceDraft({ vehicleId, pages, receipt
   const formData = new FormData();
   formData.append('vehicleId', vehicleId);
   formData.append('receiptInputMode', receiptInputMode || 'UPLOAD');
+  // The owner was told some pages may not read well and chose to read them as
+  // they are, so the server's quality gate records them without stopping them.
+  if (readAnyway) formData.append('readAnyway', 'true');
   pages.forEach((page) => {
     formData.append('receiptImages', page.file ?? page);
   });
