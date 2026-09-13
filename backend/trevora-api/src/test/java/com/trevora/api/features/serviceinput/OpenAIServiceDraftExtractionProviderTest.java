@@ -204,6 +204,58 @@ class OpenAIServiceDraftExtractionProviderTest {
                 "No total was printed on the receipt.");
     }
 
+    @Test
+    void theOdometerCitationStopsTheYearReplacingTheReading() {
+        // The Palmetto 57 Nissan invoice: the model read 66425 and cited the
+        // mileage line; the page, as reconstructed here, offers only the YEAR (20)
+        // under the MILEAGE header. Before the citation was read, 20 won.
+        ReceiptDraftFields fields =
+                parseOpenAIResponse(draftWithCitedOdometer(66425, "MILEAGE IN / OUT | 66425/66426"));
+        String page = """
+                MAKE MODEL | VIN | LICENSE | MILEAGE IN / OUT | TAG
+                20 NISSAN ROGUE
+                """;
+
+        ReceiptDraftFields resolved = withResolvedOdometer(fields, page);
+
+        assertThat(resolved.odometer()).isEqualTo(66426);
+        assertThat(resolved.warnings()).anyMatch(warning -> warning.contains("66426"));
+    }
+
+    private String draftWithCitedOdometer(int odometer, String sourceText) {
+        return chatCompletionEnvelope("""
+                {
+                  "serviceDate": "2025-01-11",
+                  "services": [],
+                  "odometer": %d,
+                  "totalCost": null,
+                  "shopName": null,
+                  "location": null,
+                  "remarks": null,
+                  "classification": null,
+                  "confidenceNotes": [],
+                  "fieldSources": {
+                    "odometer": {"value": "%d", "confidence": "high", "sourceType": "EXTRACTED_FROM_TEXT",
+                                 "sourceText": "%s", "pageNumber": 1, "needsReview": false}
+                  },
+                  "fieldConfidence": {},
+                  "aiSuggestedFields": [],
+                  "warnings": []
+                }
+                """.formatted(odometer, odometer, sourceText));
+    }
+
+    private ReceiptDraftFields withResolvedOdometer(ReceiptDraftFields fields, String ocrText) {
+        try {
+            Method method = OpenAIServiceDraftExtractionProvider.class
+                    .getDeclaredMethod("withResolvedOdometer", ReceiptDraftFields.class, String.class);
+            method.setAccessible(true);
+            return (ReceiptDraftFields) method.invoke(provider, fields, ocrText);
+        } catch (ReflectiveOperationException exception) {
+            throw new RuntimeException(exception);
+        }
+    }
+
     private String draftWithOdometer(String odometerJson) {
         return chatCompletionEnvelope("""
                 {

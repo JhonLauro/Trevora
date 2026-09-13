@@ -235,11 +235,24 @@ public class OpenAIServiceDraftExtractionProvider {
      * different one is worse than either value, because nobody can tell it
      * happened.
      */
+    /** The OCR snippet the model cited for a field, or null when it cited nothing. */
+    private static String citedText(Map<String, Object> fieldSources, String fieldName) {
+        if (fieldSources == null || !(fieldSources.get(fieldName) instanceof Map<?, ?> evidence)) {
+            return null;
+        }
+        Object sourceText = evidence.get("sourceText");
+        return sourceText == null ? null : String.valueOf(sourceText);
+    }
+
     private ReceiptDraftFields withResolvedOdometer(ReceiptDraftFields fields, String ocrText) {
         if (fields == null) {
             return null;
         }
-        Integer resolved = OdometerResolver.resolve(ocrText, fields.odometer());
+        // The model's own citation is read too, under the same rules. Without it a
+        // number that merely sits under a mileage header - the YEAR column on the
+        // Palmetto 57 Nissan invoice - replaced the reading the model had cited.
+        Integer resolved = OdometerResolver.resolve(
+                ocrText, fields.odometer(), citedText(fields.fieldSources(), "odometer"));
         if (java.util.Objects.equals(resolved, fields.odometer())) {
             return fields;
         }
