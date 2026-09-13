@@ -1,15 +1,12 @@
 package com.trevora.api.features.auth;
 
-import com.trevora.api.features.servicerecord.ServiceRecord;
-import com.trevora.api.features.servicerecord.ServiceRecordRepository;
+import com.trevora.api.features.serviceinput.ReceiptFiles;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
-import com.trevora.api.shared.exception.AccessRequestException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import com.trevora.api.features.servicerecord.ServiceRecord;
+import com.trevora.api.features.servicerecord.ServiceRecordRepository;
+import com.trevora.api.shared.exception.DeletionUnavailableException;
 import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -17,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -36,6 +32,14 @@ import org.springframework.web.client.RestClientException;
  * knows the shape of the tree, and a hand-written loop would only be a second,
  * staler copy of it.
  *
+ * <p><b>Receipt files first, then the account.</b> Storage has no cascade. This
+ * used to delete the auth user first and clean Storage afterwards, logging a
+ * failure as a warning: the account was gone and its photos stayed, a silent
+ * partial deletion. Now the files go first through {@link ReceiptFiles}; if
+ * Storage refuses, nothing is deleted and the owner is told so. If the auth
+ * deletion then fails, the account still exists with its photos already
+ * removed, and trying again finishes it -- the harmless direction.
+ *
  * <p><b>Mechanics are not deleted, and that is deliberate.</b> Mechanics never
  * register — {@code mechanic_id} is null on every row today, and 016 gave those
  * two columns ON DELETE SET NULL rather than CASCADE. Deleting an owner removes
@@ -46,22 +50,20 @@ import org.springframework.web.client.RestClientException;
  * auth user and deleting storage objects are both admin operations, and the
  * anon key can do neither. Without the key the most this could manage is
  * emptying the app tables while leaving the Google login working and the
- * receipt images sitting in the bucket — the signed-in owner would appear to
- * have deleted their account, then sign back in to a working, empty one. That
- * half-state is the exact problem migration 016 was written to end, so it is
- * refused rather than reproduced.
+ * receipt images sitting in the bucket. That half-state is refused, loudly: an
+ * error in the log, and a 503 that tells the owner nothing was removed.
  */
 @Service
 public class AccountDeletionService {
+
     private static final Logger log = LoggerFactory.getLogger(AccountDeletionService.class);
-    private static final String DEFAULT_RECEIPT_BUCKET = "service-receipts";
 
     private final CurrentUserService currentUserService;
     private final ServiceRecordRepository serviceRecordRepository;
     private final ServiceDraftRepository serviceDraftRepository;
+    private final ReceiptFiles receiptFiles;
     private final String supabaseUrl;
     private final String serviceRoleKey;
-
     // Built on first use: constructing a client eagerly opens a socket in every
     // deployment, including the ones where nobody ever deletes an account.
     private RestClient restClient;
@@ -70,12 +72,14 @@ public class AccountDeletionService {
             CurrentUserService currentUserService,
             ServiceRecordRepository serviceRecordRepository,
             ServiceDraftRepository serviceDraftRepository,
+            ReceiptFiles receiptFiles,
             @Value("${supabase.url:}") String supabaseUrl,
             @Value("${supabase.service-role-key:}") String serviceRoleKey
     ) {
         this.currentUserService = currentUserService;
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceDraftRepository = serviceDraftRepository;
+        this.receiptFiles = receiptFiles;
         this.supabaseUrl = trimTrailingSlash(blankToNull(supabaseUrl));
         this.serviceRoleKey = blankToNull(serviceRoleKey);
     }
@@ -83,9 +87,9 @@ public class AccountDeletionService {
     @Transactional(readOnly = true)
     public AccountDeletionResponse deleteCurrentAccount() {
         if (supabaseUrl == null || serviceRoleKey == null) {
-            throw new AccessRequestException(
-                    "Account deletion is not configured on this server. "
-                            + "SUPABASE_SERVICE_ROLE_KEY must be set before an account can be removed.");
+            log.error("Account deletion refused: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set. "
+                    + "Nothing was deleted.");
+            throw new DeletionUnavailableException("account");
         }
 
         UUID userId = currentUserService.getCurrentUserId();
@@ -95,121 +99,28 @@ public class AccountDeletionService {
          * user goes, the rows that name these files are gone too, and the
          * objects would be unreachable rather than merely orphaned.
          */
-        List<StoredObject> receipts = collectReceiptObjects(userId);
+        Set<ReceiptFiles.StoredReceipt> receipts = collectReceiptObjects(userId);
+        receiptFiles.removeOrRefuse(receipts, "account", "account " + userId);
 
-        /*
-         * Order matters. The auth user is deleted first because that is the
-         * step that can fail on the server's side, and a failure here must
-         * leave the account untouched rather than half-erased. Storage is
-         * cleaned afterwards: if that fails, the account is properly gone and
-         * what remains is unreferenced bytes in a bucket, which is a problem
-         * someone can fix later without the owner's data being in limbo.
-         */
         deleteAuthUser(userId);
-
-        int receiptsDeleted = deleteReceiptObjects(receipts);
-
-        log.info("Deleted account {} and {} of {} stored receipt objects.",
-                userId, receiptsDeleted, receipts.size());
-
-        return new AccountDeletionResponse(
-                userId,
-                receipts.size(),
-                receiptsDeleted,
-                receiptsDeleted == receipts.size()
-        );
+        log.info("Deleted account {} and its {} stored receipt file(s).", userId, receipts.size());
+        return new AccountDeletionResponse(userId, receipts.size(), receipts.size(), true);
     }
 
-    // ------------------------------------------------------------ receipts
-
     /**
-     * Every storage object this owner put in the bucket.
-     *
-     * <p>A record carries a single {@code receiptStoragePath}, but a multi-page
-     * receipt also records each page under {@code fieldMetadata.storedReceiptPages}.
-     * Collecting only the first would leave every page after page one behind,
-     * so both are read. Drafts are included because an unconfirmed draft has
-     * usually already uploaded its image.
+     * Every storage object this owner put in the bucket, from confirmed records
+     * and from drafts, which have usually uploaded their images already.
      */
-    private List<StoredObject> collectReceiptObjects(UUID ownerId) {
-        Set<StoredObject> objects = new LinkedHashSet<>();
-
+    private Set<ReceiptFiles.StoredReceipt> collectReceiptObjects(UUID ownerId) {
+        Set<ReceiptFiles.StoredReceipt> objects = new LinkedHashSet<>();
         for (ServiceRecord record : serviceRecordRepository.findByOwnerId(ownerId, Sort.unsorted())) {
-            addObject(objects, record.getReceiptStorageBucket(), record.getReceiptStoragePath());
-            addPagesFromMetadata(objects, record.getFieldMetadata());
+            objects.addAll(ReceiptFiles.of(record));
         }
-
         for (ServiceDraft draft : serviceDraftRepository.findByOwnerId(ownerId)) {
-            addObject(objects, draft.getReceiptStorageBucket(), draft.getReceiptStoragePath());
-            addPagesFromMetadata(objects, draft.getFieldMetadata());
+            objects.addAll(ReceiptFiles.of(draft));
         }
-
-        return new ArrayList<>(objects);
+        return objects;
     }
-
-    @SuppressWarnings("unchecked")
-    private void addPagesFromMetadata(Set<StoredObject> objects, Map<String, Object> metadata) {
-        Object pages = metadata == null ? null : metadata.get("storedReceiptPages");
-        if (!(pages instanceof Iterable<?> iterable)) {
-            return;
-        }
-        for (Object page : iterable) {
-            if (page instanceof Map<?, ?> map) {
-                Object bucket = ((Map<String, Object>) map).get("bucket");
-                Object path = ((Map<String, Object>) map).get("path");
-                addObject(objects, bucket == null ? null : bucket.toString(),
-                        path == null ? null : path.toString());
-            }
-        }
-    }
-
-    private void addObject(Set<StoredObject> objects, String bucket, String path) {
-        String cleanPath = blankToNull(path);
-        if (cleanPath == null) {
-            return;
-        }
-        String cleanBucket = blankToNull(bucket);
-        objects.add(new StoredObject(cleanBucket == null ? DEFAULT_RECEIPT_BUCKET : cleanBucket, cleanPath));
-    }
-
-    /**
-     * Storage has no cascade, so the files are removed explicitly, one request
-     * per bucket. Failures are logged rather than thrown: by this point the
-     * account is already gone, and reporting the deletion as failed would be
-     * inaccurate and would invite the owner to try again on an account that no
-     * longer exists.
-     */
-    private int deleteReceiptObjects(List<StoredObject> objects) {
-        if (objects.isEmpty()) {
-            return 0;
-        }
-
-        Map<String, List<String>> pathsByBucket = new LinkedHashMap<>();
-        for (StoredObject object : objects) {
-            pathsByBucket.computeIfAbsent(object.bucket(), key -> new ArrayList<>()).add(object.path());
-        }
-
-        int deleted = 0;
-        for (Map.Entry<String, List<String>> entry : pathsByBucket.entrySet()) {
-            try {
-                restClient().method(org.springframework.http.HttpMethod.DELETE)
-                        .uri(supabaseUrl + "/storage/v1/object/" + entry.getKey())
-                        .header("apikey", serviceRoleKey)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceRoleKey)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(Map.of("prefixes", entry.getValue()))
-                        .retrieve()
-                        .toBodilessEntity();
-                deleted += entry.getValue().size();
-            } catch (RestClientException exception) {
-                log.warn("Could not delete {} receipt object(s) from bucket {}: {}",
-                        entry.getValue().size(), entry.getKey(), exception.getMessage());
-            }
-        }
-        return deleted;
-    }
-
-    // ---------------------------------------------------------- auth user
 
     private void deleteAuthUser(UUID userId) {
         try {
@@ -221,12 +132,15 @@ public class AccountDeletionService {
                     .toBodilessEntity();
         } catch (RestClientException exception) {
             /*
-             * Nothing has been destroyed at this point, so this is a clean
-             * failure: the owner still has their account and can try again.
+             * The receipt files are already gone, so "nothing was removed" would
+             * not be true here. The account and its records still exist, and
+             * trying again finishes the deletion.
              */
-            log.error("Supabase rejected the account deletion for {}: {}", userId, exception.getMessage());
-            throw new AccessRequestException(
-                    "The account could not be deleted. Nothing was removed — please try again.");
+            log.error("Supabase rejected the account deletion for {} after its receipt files were removed: {}",
+                    userId, exception.getMessage());
+            throw DeletionUnavailableException.withMessage(
+                    "Your account could not be deleted, and your records are still here. Some receipt photos "
+                            + "may already have been removed. Try again to finish deleting the account.");
         }
     }
 
@@ -248,8 +162,5 @@ public class AccountDeletionService {
             return null;
         }
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
-    }
-
-    private record StoredObject(String bucket, String path) {
     }
 }

@@ -2,6 +2,10 @@ package com.trevora.api.features.history;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
+import com.trevora.api.features.serviceinput.ReceiptFiles;
+import com.trevora.api.features.serviceinput.ReceiptUploadFingerprints;
+import com.trevora.api.features.serviceinput.ServiceDraft;
+import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.vehicle.VehicleProfile;
 import com.trevora.api.features.vehicle.VehicleResponse;
 import com.trevora.api.features.vehicle.WarrantyStatusResolver;
@@ -17,6 +21,8 @@ import com.trevora.api.features.servicerecord.ServiceRecordItemReader;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,16 +41,26 @@ public class ServiceHistoryService {
     private final VehicleService vehicleService;
     private final CurrentUserService currentUserService;
 
+    private final ServiceDraftRepository serviceDraftRepository;
+    private final ReceiptFiles receiptFiles;
+    private final ReceiptUploadFingerprints receiptUploadFingerprints;
+
     public ServiceHistoryService(
             ServiceRecordRepository serviceRecordRepository,
             ServiceRecordItemReader serviceRecordItemReader,
             VehicleService vehicleService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            ServiceDraftRepository serviceDraftRepository,
+            ReceiptFiles receiptFiles,
+            ReceiptUploadFingerprints receiptUploadFingerprints
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.vehicleService = vehicleService;
         this.currentUserService = currentUserService;
+        this.serviceDraftRepository = serviceDraftRepository;
+        this.receiptFiles = receiptFiles;
+        this.receiptUploadFingerprints = receiptUploadFingerprints;
     }
 
     /**
@@ -175,10 +191,13 @@ public class ServiceHistoryService {
     /**
      * Removes one confirmed service record.
      *
-     * `service_record_items` cascades at the database level, so only the
-     * record itself is deleted here. The originating `service_draft` is left
-     * alone: it is the provenance of the entry, not part of it, and dropping
-     * it would erase how the record was captured as well as the record.
+     * `service_record_items` cascades at the database level. The originating
+     * confirmed `service_draft` is deleted too. It used to be kept as the
+     * record's provenance, but it holds the same receipt text and photo paths
+     * as the record, and with no screen of its own the owner could never delete
+     * it: deleting a record left its transcript and photos behind. Deletion
+     * destroys (decided 2026-09-13), so the photos of both go first, through
+     * {@link ReceiptFiles}, and if they cannot be removed nothing is deleted.
      *
      * A hard delete, deliberately — the alternative is a hidden row that
      * still counts in nothing and shows in nothing. But the history is the
@@ -192,7 +211,24 @@ public class ServiceHistoryService {
                 .findByRecordIdAndVehicleIdAndOwnerId(recordId, vehicleId, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
 
+        ServiceDraft draft = record.getDraftId() == null
+                ? null
+                : serviceDraftRepository
+                        .findByDraftIdAndOwnerId(record.getDraftId(), currentUserService.getCurrentUserId())
+                        .orElse(null);
+        Set<ReceiptFiles.StoredReceipt> files = new LinkedHashSet<>(ReceiptFiles.of(record));
+        files.addAll(ReceiptFiles.of(draft));
+        receiptFiles.removeOrRefuse(files, "record", "record " + recordId);
+
+        // The record first, flushed, then its draft: 016 cascades the record from
+        // the draft, and deleting the draft first would leave Hibernate deleting
+        // a record row the database had already removed.
         serviceRecordRepository.delete(record);
+        if (draft != null) {
+            serviceRecordRepository.flush();
+            receiptUploadFingerprints.forget(record.getDraftId());
+            serviceDraftRepository.delete(draft);
+        }
     }
 
     /**

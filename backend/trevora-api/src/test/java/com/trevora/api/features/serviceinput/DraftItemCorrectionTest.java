@@ -90,7 +90,8 @@ class DraftItemCorrectionTest {
                 mock(CurrentUserService.class),
                 new ObjectMapper(),
                 new ServiceClassificationService(),
-                ReceiptUploadFingerprints.disabled()
+                ReceiptUploadFingerprints.disabled(),
+                new ReceiptFiles("", "")
         );
     }
 

@@ -13,6 +13,7 @@ import com.trevora.api.features.serviceinput.VoiceDraftExtractionResult;
 import com.trevora.api.features.serviceinput.VoiceServiceDraftRequest;
 import com.trevora.api.features.serviceinput.DraftStatus;
 import com.trevora.api.features.serviceinput.InputMethod;
+import com.trevora.api.shared.exception.DraftHasRecordException;
 import com.trevora.api.shared.exception.ResourceNotFoundException;
 import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
@@ -39,6 +40,7 @@ public class ServiceInputService {
     private final ObjectMapper objectMapper;
     private final ServiceClassificationService classificationService;
     private final ReceiptUploadFingerprints receiptUploadFingerprints;
+    private final ReceiptFiles receiptFiles;
 
     public ServiceInputService(
             ServiceDraftRepository serviceDraftRepository,
@@ -50,9 +52,11 @@ public class ServiceInputService {
             CurrentUserService currentUserService,
             ObjectMapper objectMapper,
             ServiceClassificationService classificationService,
-            ReceiptUploadFingerprints receiptUploadFingerprints
+            ReceiptUploadFingerprints receiptUploadFingerprints,
+            ReceiptFiles receiptFiles
     ) {
         this.receiptUploadFingerprints = receiptUploadFingerprints;
+        this.receiptFiles = receiptFiles;
         this.serviceDraftRepository = serviceDraftRepository;
         this.serviceDraftItemRepository = serviceDraftItemRepository;
         this.serviceDraftLineEntryRepository = serviceDraftLineEntryRepository;
@@ -274,10 +278,23 @@ public class ServiceInputService {
      * <p>Scoped by owner like every read: a draft id is not permission.
      * Items and line entries go with it through the database cascade declared
      * in migrations 007 and 011.
+     *
+     * <p>Deletion destroys: the receipt photos go first, through
+     * {@link ReceiptFiles}, then the upload fingerprint and the row. If the
+     * photos cannot be removed nothing is deleted and the owner is told so.
+     *
+     * <p>A confirmed draft is refused. Migration 016 cascades the service record
+     * from its draft, so deleting one here would silently delete the record it
+     * became; the record's own delete removes the draft with it.
      */
     @Transactional
     public void deleteDraftForCurrentUser(UUID draftId) {
         ServiceDraft draft = getDraftForCurrentUser(draftId);
+        if (draft.getStatus() == DraftStatus.CONFIRMED) {
+            throw new DraftHasRecordException();
+        }
+        receiptFiles.removeOrRefuse(ReceiptFiles.of(draft), "draft", "draft " + draftId);
+        receiptUploadFingerprints.forget(draftId);
         serviceDraftRepository.delete(draft);
     }
 

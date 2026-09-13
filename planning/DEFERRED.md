@@ -4016,3 +4016,63 @@ One issue seen from two sides; decide them together.
   162.26" while the lines actually tagged Part add to 134.27, so an owner adding
   up their Part lines cannot find the figure. Open question: relabel the row
   "Parts and supplies" (a label, not an added sentence), or leave it.
+
+## The checks cover money, not what was done to the car (2026-09-13)
+
+Beside the part-code item: every check we have looks at amounts. Descriptions
+and part codes are not validated anywhere, and on a service history what was
+done to the car matters as much as what it cost.
+
+- **Seen on a real run.** Palmetto 57 Nissan, after PR #76: all three amounts
+  right (134.27 / 27.99 / 77.73) and the banner showed "Matches the receipt",
+  but the descriptions drifted. "TRANSMISSION FLUID" (lifted from the
+  operation's description block) held 27.99 with code "66001 / E85501";
+  "ENHANCER" (CVT dropped) held SYN / CVT 5QT's 77.73 with "66001EE5501"; SYN /
+  CVT 5QT was missing. Amounts and descriptions drift independently, so a run
+  can be right in one column and wrong in the other, and it would have saved.
+- **No printed figure constrains a description** the way PARTS / LABOR
+  constrains an amount.
+- **What the price-column triplet work would and would not fix.** It pairs each
+  description and its part code with the price on the same physical row, which
+  fixes misattributed names like ENHANCER holding 77.73. It does not stop the
+  model inventing a line from the operation text, which one prompt rule invites
+  ("include every itemised line, whether or not it carries a price"). A cheap
+  follow-on on receipts with price columns: flag part lines with no priced row
+  behind them, or more part lines than priced rows.
+- **Wording.** Verdict 5 says "Matches the receipt" but checked amounts only.
+  "Amounts match the receipt" would claim what was verified. Not changed.
+
+## Deletion destroys receipt data everywhere (2026-09-13)
+
+Decision and limits are in `CLAUDE.md` ("Deletion destroys; it never
+anonymises"). What changed and what is still open:
+
+- **Before.** Deleting a record left its confirmed draft behind (transcript,
+  photo paths) with no screen to delete it; deleting a draft, record or vehicle
+  left photos in `service-receipts`; account deletion removed the account first
+  and logged Storage failures as warnings.
+- **Now.** `ReceiptFiles` collects every stored path (main path and
+  `storedReceiptPages`) and removes them before any row. Record delete also
+  deletes its confirmed draft and fingerprint. Draft delete removes its
+  fingerprint and refuses a confirmed draft (409 `DRAFT_HAS_RECORD`). Vehicle
+  and account delete remove every file first. Refusals are 503
+  `DELETION_UNAVAILABLE`, logged as errors. Boot logs an error when the key is
+  missing; `/health/deletion` reports it, and nothing watches it. API responses
+  carry `Cache-Control: no-store`.
+- **Not literally "never partial".** The database and Storage cannot share a
+  transaction. Files go first, so the only possible leftover is a row whose
+  photos are gone, which a retry finishes.
+- **Open: the orphan cleanup.** Confirmed drafts whose record was deleted, and
+  photos no draft or record references, from before this change. Size them with
+  the two read-only queries in the deletion report before running anything
+  destructive; only unreferenced objects older than 24 hours, since uploads
+  precede their drafts. Remove objects through the Storage API, not by deleting
+  `storage.objects` rows.
+- **Open: the rescan path still swallows a refusal.** `discardDraftAndRescan`
+  (wrong vehicle, already in history) navigates on even when the delete is
+  refused. The draft stays listed under unfinished drafts, so it is visible,
+  but the owner is not told.
+- **Gate before merge.** `SUPABASE_SERVICE_ROLE_KEY` must be set in
+  production; without it every delete of something with photos is refused.
+- **Privacy page.** Updated to say deletion removes photos and text. The
+  contact address is still the placeholder `privacy@trevora.example`.

@@ -77,6 +77,8 @@ class EndpointProtectionTest {
 
         // -- unauthenticated on purpose ------------------------------------
         registry.put("GET /health", Guard.PUBLIC);
+        // Public like /health, for an uptime monitor. Says only whether receipt files can be removed.
+        registry.put("GET /health/deletion", Guard.PUBLIC);
         registry.put("POST /api/auth/login", Guard.PUBLIC);
         registry.put("POST /api/auth/register", Guard.PUBLIC);
         // A mechanic scans a QR and has no account. The token in the path is
