@@ -124,6 +124,131 @@ export function reconciliation(services, totalCost) {
   };
 }
 
+/**
+ * Money on the paper, split by what it paid for.
+ *
+ * The line sum matching the total proves little: on the Palmetto 57 Nissan
+ * invoice the labour charge landed on a part line and a part's price on the
+ * labour line, and the sum still matched to the centavo. That receipt also
+ * prints PARTS AMOUNT and LABOR AMOUNT, and those catch it at once.
+ *
+ * `printed` is `fieldMetadata.printedSubtotals`, read from the OCR text by the
+ * backend (PrintedSubtotals.java). Every figure in it was printed on the
+ * receipt; nothing here computes one and passes it off as printed. When the
+ * receipt prints TOTAL CHARGES the lines are checked against that, because the
+ * record's total is the amount paid, after tax and credits.
+ *
+ * Warns only. Amounts and kinds are never changed here.
+ *
+ * What this check cannot see, by construction:
+ *  - A part tagged as supplies, or the reverse. Both count toward PARTS, since
+ *    receipts print consumables under parts, so the sum does not move.
+ *  - Two part amounts swapped with each other, or two labour amounts. The
+ *    subtotal does not move either. Only the paper says which cost what.
+ * Fee lines count toward neither figure.
+ *
+ * Verdicts, first match wins: split-mismatch, gap, split-unreadable,
+ * no-total / no-prices, verified (the only one that means everything was
+ * checked), sum-only. Drafts without `printed` (manual entry, receipts read
+ * before this existed) keep the plain total check: match, gap, no-total,
+ * no-prices. `attention` is true for the first three receipt verdicts.
+ */
+export function amountsCheck(services, totalCost, printed) {
+  const charges = printed ? toCentavos(printed.charges) : null;
+  const againstCharges = charges !== null;
+  const base = reconciliation(services, againstCharges ? printed.charges : totalCost);
+  const check = {
+    ...base,
+    againstCharges,
+    verdict: base.state,
+    attention: false,
+    parts: null,
+    labour: null,
+    totalAlsoOff: false,
+    sourcesDisagree: false,
+    paidNote: null,
+  };
+  if (!printed || base.state === 'no-lines') return check;
+
+  const paid = toCentavos(totalCost);
+  if (againstCharges && paid !== null && paid !== charges) {
+    check.paidNote = { paid, charges, explained: adjustmentsExplain(printed, charges, paid) };
+  }
+
+  const printedParts = toCentavos(printed.parts);
+  const printedLabour = toCentavos(printed.labour);
+  const splitRead = printed.split === 'READ' && printedParts !== null && printedLabour !== null;
+  if (splitRead) {
+    const sums = kindSums(allLineEntries(services));
+    check.parts = {
+      printed: printedParts,
+      lines: sums.parts,
+      off: Math.abs(sums.parts - printedParts) > RECONCILE_TOLERANCE_CENTAVOS,
+    };
+    check.labour = {
+      printed: printedLabour,
+      lines: sums.labour,
+      off: Math.abs(sums.labour - printedLabour) > RECONCILE_TOLERANCE_CENTAVOS,
+    };
+  }
+
+  // A line with no amount yet makes both subtotals short, which is a missing
+  // amount rather than an amount on the wrong line. The total check reports it.
+  const allPriced = base.pricedCount > 0 && base.unpricedCount === 0;
+  if (splitRead && allPriced && (check.parts.off || check.labour.off)) {
+    return {
+      ...check,
+      verdict: 'split-mismatch',
+      attention: true,
+      totalAlsoOff: base.state === 'gap',
+      sourcesDisagree: Boolean(printed.sourcesDisagree),
+    };
+  }
+  if (base.state === 'gap') return { ...check, verdict: 'gap', attention: true };
+  if (printed.split === 'UNREADABLE' || (printed.split === 'READ' && !splitRead)) {
+    return { ...check, verdict: 'split-unreadable', attention: true };
+  }
+  if (base.state !== 'match') return check;
+  return { ...check, verdict: splitRead && base.unpricedCount === 0 ? 'verified' : 'sum-only' };
+}
+
+/**
+ * What the status panel says about the amounts: null when there is nothing to
+ * say, 'mismatch' when they disagree with the receipt, 'unchecked' when the
+ * receipt's split could not be read. The last must not claim a mismatch
+ * nobody has seen.
+ */
+export function railAttention(check) {
+  if (!check.attention) return null;
+  return check.verdict === 'split-unreadable' ? 'unchecked' : 'mismatch';
+}
+
+function kindSums(entries) {
+  let parts = 0;
+  let labour = 0;
+  entries.forEach((entry) => {
+    const amount = toCentavos(entry.lineTotal);
+    if (amount === null) return;
+    if (entry.kind === 'OPERATION') labour += amount;
+    // PART and MATERIAL, and an unrecognised kind, which is MATERIAL by default.
+    else if (entry.kind !== 'FEE') parts += amount;
+  });
+  return { parts, labour };
+}
+
+/**
+ * Whether the tax and credit rows the receipt printed under its charges turn
+ * the charges into the amount paid. Only rows that were actually read count; if
+ * any of them could not be read, the answer is no rather than a guess.
+ */
+function adjustmentsExplain(printed, charges, paid) {
+  if (!printed.adjustmentsReadable) return false;
+  const tax = toCentavos(printed.tax);
+  const credits = toCentavos(printed.credits);
+  if (tax === null && credits === null) return false;
+  return Math.abs(charges + (tax ?? 0) - (credits ?? 0) - paid) <= 1;
+}
+
 /** Centavos back to pesos, for display. */
 export function pesosFromCentavos(centavos) {
   return (centavos ?? 0) / 100;

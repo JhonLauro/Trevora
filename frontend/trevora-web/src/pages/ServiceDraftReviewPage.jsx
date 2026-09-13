@@ -12,7 +12,7 @@ import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import LeaveDraftDialog from '../components/flow/LeaveDraftDialog.jsx';
 import { useLeaveGuard } from '../navigation/LeaveGuard.jsx';
-import { serializeLineEntries } from '../utils/serviceLines';
+import { amountsCheck, railAttention, serializeLineEntries } from '../utils/serviceLines';
 import { issuesByField } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
 import {
@@ -244,7 +244,7 @@ export default function ServiceDraftReviewPage() {
 
     // The balance gap is a property of the record's lines rather than of a
     // field, but it does have somewhere to jump to, so it lists like the rest.
-    const gap = balanceWarning(form.services, form.totalCost);
+    const gap = balanceWarning(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals);
     if (gap) reviewItems.push({ id: DONE_ID, name: t('review.whatDone'), why: gap });
 
     return { blocking: blockingItems, review: reviewItems };
@@ -525,7 +525,11 @@ export default function ServiceDraftReviewPage() {
                 </div>
               </div>
               <div style={{ padding: '18px 24px 0' }}>
-                <Balance services={form.services} totalCost={form.totalCost} />
+                <Balance
+                  services={form.services}
+                  totalCost={form.totalCost}
+                  printed={draft.fieldMetadata?.printedSubtotals}
+                />
               </div>
               <ServiceLinesEditor id={DONE_ID} value={form.services} onChange={updateServices} />
             </section>
@@ -533,6 +537,7 @@ export default function ServiceDraftReviewPage() {
 
           <StatusRail
             ready={readyToConfirm}
+            attention={railAttention(amountsCheck(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals))}
             blocking={blocking}
             review={review}
             vehicleName={vehicleDisplayName(vehicle, draft)}
