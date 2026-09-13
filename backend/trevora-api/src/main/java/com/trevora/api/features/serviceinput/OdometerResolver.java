@@ -83,6 +83,33 @@ final class OdometerResolver {
      */
     private static final int MAX_PLAUSIBLE_KM = 2_000_000;
 
+    /**
+     * An in/out pair such as {@code 66425/66426}: the reading when the vehicle
+     * arrived, then when it left. Three or more digits each, so a date such as
+     * {@code 03/31/2025} never qualifies, and the guards on either side stop a
+     * fragment of a longer run doing so either.
+     *
+     * <p>{@link #NUMBER} rejects anything touching a slash, which is right for
+     * dates and wrong for this. On the Palmetto 57 Nissan invoice it left the YEAR
+     * column's {@code 20} as the only candidate under the MILEAGE header, and 20
+     * replaced the reading the model had extracted correctly.
+     */
+    private static final Pattern IN_OUT_PAIR =
+            Pattern.compile("(?<![\\w,./-])(\\d{3,7})\\s*/\\s*(\\d{3,7})(?![\\w,./-])");
+
+    /** The label that announces a pair: "MILEAGE IN / OUT", "ODO IN/OUT". Whole words, so VIN is not IN. */
+    private static final Pattern IN_OUT_LABEL = Pattern.compile("\\bin\\b.*\\bout\\b");
+
+    /** Arrival and departure on one visit are a test drive apart, not a service interval. */
+    private static final int MAX_IN_OUT_SPREAD = 2_000;
+
+    /**
+     * How far above a pair its label may sit. A dealer form prints the column
+     * headers, then the vehicle row, then the row holding the readings: two lines
+     * up on the Palmetto invoice as the layout reconstruction emits it.
+     */
+    private static final int IN_OUT_LABEL_LOOKBACK = 2;
+
     private OdometerResolver() {
     }
 
@@ -93,12 +120,25 @@ final class OdometerResolver {
      *     labelled candidate to prefer over it
      */
     static Integer resolve(String ocrText, Integer extracted) {
-        List<Integer> candidates = readingCandidates(ocrText);
+        return resolve(ocrText, extracted, null);
+    }
+
+    /**
+     * @param citedText the OCR snippet the model cited for the odometer, or null.
+     *     Read under exactly the same label rules as the page and pooled with the
+     *     page's candidates. The citation is where the model says it found the
+     *     reading, so a labelled reading there counts. Pooling rather than
+     *     deferring to it keeps "largest wins" in charge, which is what stops a
+     *     cited history-block reading (Toyota's {@code MILEAGE 3 KM}) or a cited
+     *     service target ({@code Next Svc Km}) from beating the real reading.
+     */
+    static Integer resolve(String ocrText, Integer extracted, String citedText) {
+        List<Integer> candidates = new ArrayList<>(readingCandidates(ocrText));
+        candidates.addAll(readingCandidates(citedText));
         if (candidates.isEmpty()) {
             return extracted;
         }
-        int best = candidates.stream().mapToInt(Integer::intValue).max().orElseThrow();
-        return best;
+        return candidates.stream().mapToInt(Integer::intValue).max().orElseThrow();
     }
 
     /** Every number on the page introduced by a reading label and not by a limit label. */
@@ -125,6 +165,10 @@ final class OdometerResolver {
             // leaves nothing behind if there is not.
             String context = strikeOut(governing.toLowerCase(Locale.ROOT));
 
+            // Before the single-number check, because a pair's label can sit
+            // further up than the one line that check looks at.
+            candidates.addAll(inOutReadings(lines, index));
+
             if (!containsAny(context, READING_LABELS)) {
                 continue;
             }
@@ -138,6 +182,38 @@ final class OdometerResolver {
             }
         }
         return List.copyOf(candidates);
+    }
+
+    /**
+     * The departure reading of every in/out pair on this line whose label - a
+     * reading label together with the words IN and OUT - sits on the line or up
+     * to {@link #IN_OUT_LABEL_LOOKBACK} lines above it.
+     */
+    private static List<Integer> inOutReadings(String[] lines, int index) {
+        Matcher pair = IN_OUT_PAIR.matcher(lines[index]);
+        if (!pair.find()) {
+            return List.of();
+        }
+        StringBuilder above = new StringBuilder();
+        for (int line = Math.max(0, index - IN_OUT_LABEL_LOOKBACK); line <= index; line++) {
+            above.append(lines[line]).append(' ');
+        }
+        String context = strikeOut(above.toString().toLowerCase(Locale.ROOT));
+        if (!containsAny(context, READING_LABELS) || !IN_OUT_LABEL.matcher(context).find()) {
+            return List.of();
+        }
+
+        List<Integer> readings = new ArrayList<>();
+        pair.reset();
+        while (pair.find()) {
+            Integer in = parse(pair.group(1));
+            Integer out = parse(pair.group(2));
+            if (in != null && out != null && out >= in && out - in <= MAX_IN_OUT_SPREAD
+                    && out <= MAX_PLAUSIBLE_KM) {
+                readings.add(out);
+            }
+        }
+        return readings;
     }
 
     /**

@@ -129,6 +129,98 @@ class OdometerResolverTest {
         assertThat(OdometerResolver.resolve(goldenOcr("talisay-official-receipt"), null)).isNull();
     }
 
+    // ---- in/out pairs and the model's citation: the Palmetto 57 Nissan invoice ----
+
+    @Test
+    void anInOutPairOnOneLineYieldsTheDepartureReading() {
+        String text = "MILEAGE IN / OUT | 66425/66426";
+
+        assertThat(OdometerResolver.resolve(text, 66425)).isEqualTo(66426);
+    }
+
+    @Test
+    void thePalmettoInvoiceAsReconstructedYieldsTheDepartureReadingNotTheYear() {
+        // Verbatim from the layout reconstruction of the real invoice. 20 is the
+        // YEAR column, and it sits under the MILEAGE header too - which is how it
+        // replaced the model's correct reading. The pair is two lines below its label.
+        String text = """
+                YEAR | CELL | SERVICE ADVISOR : 3719 MELKIZEDEK VILLALONA
+                MAKE MODEL | VIN | LICENSE | MILEAGE IN / OUT | TAG
+                20 NISSAN ROGUE
+                DEL DATE | PROD DATE WARR EXP | SNIAT2MT 0709570 | 66425/66426 | T2932
+                PROMISED
+                """;
+
+        assertThat(OdometerResolver.resolve(text, 66425)).isEqualTo(66426);
+        assertThat(OdometerResolver.resolve(text, 20)).isEqualTo(66426);
+    }
+
+    @Test
+    void theModelsCitationIsReadAlongsideThePage() {
+        // Only the YEAR row survives under the header here, so the page alone
+        // offers 20. The model cited the line the reading is actually on.
+        String page = """
+                MAKE MODEL | VIN | LICENSE | MILEAGE IN / OUT | TAG
+                20 NISSAN ROGUE
+                """;
+
+        assertThat(OdometerResolver.resolve(page, 66425)).isEqualTo(20);
+        assertThat(OdometerResolver.resolve(page, 66425, "MILEAGE IN / OUT | 66425/66426")).isEqualTo(66426);
+    }
+
+    @Test
+    void aCitedHistoryReadingDoesNotBeatTheCurrentOne() {
+        // Why the citation is pooled rather than obeyed: on the Toyota repair order
+        // the model answered 3, and the line it would cite is the history block.
+        String page = goldenOcr("talisay-repair-order");
+
+        assertThat(OdometerResolver.resolve(page, 3, "MILEAGE | 3 KM")).isEqualTo(242);
+        assertThat(OdometerResolver.resolve(page, 3, "03/31/2025 | G7NA058266 | 3 KM")).isEqualTo(242);
+    }
+
+    @Test
+    void aCitedServiceTargetIsNotAReading() {
+        String page = """
+                Km Reading | Next Svc Date
+                21,055 | 21 May 2027
+                Next Svc Km | Colour
+                31,055 | BLACK
+                """;
+
+        assertThat(OdometerResolver.resolve(page, 31055, "Next Svc Km | 31,055")).isEqualTo(21055);
+    }
+
+    @Test
+    void aDateUnderAnInOutLabelIsNotAPair() {
+        String text = """
+                Mileage In / Out | Date
+                Name | : 03/31/2025
+                """;
+
+        assertThat(OdometerResolver.readingCandidates(text)).isEmpty();
+    }
+
+    @Test
+    void aPairFurtherApartThanOneVisitIsNotAPair() {
+        String text = """
+                MILEAGE IN / OUT
+                12000/48000
+                """;
+
+        assertThat(OdometerResolver.readingCandidates(text)).isEmpty();
+    }
+
+    @Test
+    void aSlashPairWithNoInOutLabelIsNotAPair() {
+        // A part number or a ratio under a mileage header is not an arrival and a departure.
+        String text = """
+                MILEAGE
+                100/250
+                """;
+
+        assertThat(OdometerResolver.readingCandidates(text)).isEmpty();
+    }
+
     private static String goldenOcr(String caseId) {
         String resource = "golden/" + caseId + "/ocr.txt";
         try (InputStream stream = OdometerResolverTest.class.getClassLoader().getResourceAsStream(resource)) {
