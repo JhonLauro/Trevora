@@ -18,12 +18,13 @@ import java.util.regex.Pattern;
  * the screen said everything matched. The same receipt prints PARTS AMOUNT 105.72
  * and LABOR AMOUNT 134.27, which catches that swap at once.
  *
- * <p><b>Read, never computed, never applied.</b> Every figure here is a value
- * printed next to its label. Nothing in extraction uses it: amounts and line
- * kinds are left exactly as the model returned them, and the owner decides what
- * is right. Where both a per-job figure and the totals box are printed and they
- * disagree, the totals box wins and the disagreement is reported rather than
- * hidden.
+ * <p><b>Read, never computed.</b> Every figure here is a value printed next to
+ * its label. The amounts and line kinds are left exactly as the model returned
+ * them, and the owner decides what is right. Where both a per-job figure and the
+ * totals box are printed and they disagree, the totals box wins and the
+ * disagreement is reported rather than hidden. The one consumer that sets a value
+ * from these figures is {@link ReceiptTotalResolver}, and only when four of them
+ * reconcile.
  *
  * <p><b>What this check cannot see.</b> Both are consequences of comparing sums,
  * and neither is fixable by reading harder:
@@ -52,15 +53,44 @@ public record PrintedSubtotals(
         BigDecimal charges,
         BigDecimal tax,
         BigDecimal credits,
-        boolean adjustmentsReadable
+        boolean adjustmentsReadable,
+        Totals totals
 ) {
 
     public enum Split { READ, UNREADABLE, NOT_PRINTED }
 
     public enum Source { TOTALS_BOX, PER_JOB }
 
+    /** One labelled figure as printed, cited from its label onward: "LESS INSURANCE | 56.79". */
+    public record Cited(String text, BigDecimal amount) { }
+
+    /**
+     * The totals box as rows, kept word for word so a value set from them can
+     * cite what it came from.
+     *
+     * @param chargesLabels how many TOTAL CHARGES labels the whole text carries.
+     *     More than one means several documents in one upload, and no one box
+     *     speaks for all of them.
+     * @param adjustmentsComplete every tax and credit label under the charges had
+     *     its amount. True when there were none, unlike {@code adjustmentsReadable},
+     *     which needs at least one row to say anything.
+     * @param paid the amount-paid row (THIS AMOUNT, PLEASE PAY, AMOUNT DUE) just
+     *     below the adjustments, or null
+     */
+    public record Totals(
+            int chargesLabels,
+            String chargesRow,
+            List<Cited> taxRows,
+            List<Cited> creditRows,
+            boolean adjustmentsComplete,
+            BigDecimal paid,
+            String paidRow
+    ) {
+        static final Totals NONE = new Totals(0, null, List.of(), List.of(), false, null, null);
+    }
+
     static final PrintedSubtotals NONE =
-            new PrintedSubtotals(Split.NOT_PRINTED, null, null, null, false, null, null, null, false);
+            new PrintedSubtotals(Split.NOT_PRINTED, null, null, null, false, null, null, null, false, Totals.NONE);
 
     /** A money amount at the start of a cell: "105.72", "1,250.00", "0.00 OTHER :". */
     private static final Pattern LEADING_AMOUNT =
@@ -85,6 +115,8 @@ public record PrintedSubtotals(
     private static final Pattern END_OF_BOX =
             Pattern.compile("\\bPLEASE\\s+PAY\\b|\\bTHIS\\s+AMOUNT\\b|\\bAMOUNT\\s+DUE\\b", Pattern.CASE_INSENSITIVE);
     private static final int ADJUSTMENT_ROWS = 4;
+    // Palmetto prints "PLEASE PAY" on one row and "THIS AMOUNT | 200.00" on the next.
+    private static final int PAID_ROWS = 3;
 
     public static PrintedSubtotals read(String ocrText) {
         if (ocrText == null || ocrText.isBlank()) {
@@ -132,27 +164,57 @@ public record PrintedSubtotals(
         BigDecimal tax = null;
         BigDecimal credits = null;
         boolean adjustmentsReadable = false;
+        String chargesRow = null;
+        List<Cited> taxRows = List.of();
+        List<Cited> creditRows = List.of();
+        boolean adjustmentsComplete = false;
+        BigDecimal paid = null;
+        String paidRow = null;
+        int chargesLabels = cited(CHARGES, lines, null).size();
+
         int chargesLine = firstLineMatching(CHARGES, lines);
         if (chargesLine >= 0) {
-            charges = labelled(CHARGES, List.of(lines.get(chargesLine))).first();
+            List<Cited> chargesCells = cited(CHARGES, List.of(lines.get(chargesLine)), null);
+            charges = chargesCells.get(0).amount();
+            chargesRow = chargesCells.get(0).text();
         }
         if (charges != null) {
             List<String> rows = new ArrayList<>();
-            for (int i = chargesLine + 1; i < lines.size() && rows.size() < ADJUSTMENT_ROWS; i++) {
+            int endOfBox = -1;
+            int i = chargesLine + 1;
+            for (; i < lines.size() && rows.size() < ADJUSTMENT_ROWS; i++) {
                 if (END_OF_BOX.matcher(lines.get(i)).find()) {
+                    endOfBox = i;
                     break;
                 }
                 rows.add(lines.get(i));
             }
-            Labelled creditRows = labelled(CREDIT, rows);
-            Labelled taxRows = labelled(TAX, rows, CREDIT);
-            credits = creditRows.values().isEmpty() ? null : creditRows.sum();
-            tax = taxRows.values().isEmpty() ? null : taxRows.sum();
-            int labels = creditRows.labels() + taxRows.labels();
-            adjustmentsReadable = labels > 0 && creditRows.complete() && taxRows.complete();
+            creditRows = cited(CREDIT, rows, null);
+            taxRows = cited(TAX, rows, CREDIT);
+            Labelled creditLabels = Labelled.of(creditRows);
+            Labelled taxLabels = Labelled.of(taxRows);
+            credits = creditLabels.values().isEmpty() ? null : creditLabels.sum();
+            tax = taxLabels.values().isEmpty() ? null : taxLabels.sum();
+            int labels = creditLabels.labels() + taxLabels.labels();
+            adjustmentsReadable = labels > 0 && creditLabels.complete() && taxLabels.complete();
+            adjustmentsComplete = (creditLabels.labels() == 0 || creditLabels.complete())
+                    && (taxLabels.labels() == 0 || taxLabels.complete());
+
+            int paidFrom = endOfBox >= 0 ? endOfBox : i;
+            for (int j = paidFrom; j < lines.size() && j < paidFrom + PAID_ROWS && paid == null; j++) {
+                for (Cited cell : cited(END_OF_BOX, List.of(lines.get(j)), null)) {
+                    if (cell.amount() != null) {
+                        paid = cell.amount();
+                        paidRow = cell.text();
+                        break;
+                    }
+                }
+            }
         }
 
-        return new PrintedSubtotals(split, parts, labour, source, disagree, charges, tax, credits, adjustmentsReadable);
+        Totals totals = new Totals(chargesLabels, chargesRow, taxRows, creditRows, adjustmentsComplete, paid, paidRow);
+        return new PrintedSubtotals(
+                split, parts, labour, source, disagree, charges, tax, credits, adjustmentsReadable, totals);
     }
 
     /** For {@code field_metadata.printedSubtotals}. Amounts as strings, so no float ever touches money. */
@@ -169,6 +231,7 @@ public record PrintedSubtotals(
         putAmount(metadata, "tax", tax);
         putAmount(metadata, "credits", credits);
         metadata.put("adjustmentsReadable", adjustmentsReadable);
+        putAmount(metadata, "paid", totals == null ? null : totals.paid());
         return metadata;
     }
 
@@ -179,6 +242,11 @@ public record PrintedSubtotals(
     }
 
     private record Labelled(int labels, List<BigDecimal> values, BigDecimal first) {
+        static Labelled of(List<Cited> cells) {
+            List<BigDecimal> values = cells.stream().map(Cited::amount).filter(java.util.Objects::nonNull).toList();
+            return new Labelled(cells.size(), values, cells.isEmpty() ? null : cells.get(0).amount());
+        }
+
         boolean complete() {
             return labels > 0 && values.size() == labels;
         }
@@ -189,7 +257,7 @@ public record PrintedSubtotals(
     }
 
     private static Labelled labelled(Pattern label, List<String> lines) {
-        return labelled(label, lines, null);
+        return Labelled.of(cited(label, lines, null));
     }
 
     /**
@@ -197,12 +265,13 @@ public record PrintedSubtotals(
      * in the rest of that cell, or at the start of the next one when the label
      * ends its cell. Cells whose text matches {@code excluded} are skipped, so a
      * "LESS ... TAX" credit row is not counted as tax too.
+     *
+     * <p>The citation starts at the label, not the cell. On Palmetto the credit
+     * cell is "add battery so Desenho to perform the servicesars LESS INSURANCE";
+     * the legal text glued in front is OCR layout, not the receipt's label.
      */
-    private static Labelled labelled(Pattern label, List<String> lines, Pattern excluded) {
-        int labels = 0;
-        List<BigDecimal> values = new ArrayList<>();
-        BigDecimal first = null;
-        boolean firstSeen = false;
+    private static List<Cited> cited(Pattern label, List<String> lines, Pattern excluded) {
+        List<Cited> found = new ArrayList<>();
         for (String line : lines) {
             String[] cells = line.split("\\|", -1);
             for (int i = 0; i < cells.length; i++) {
@@ -213,23 +282,17 @@ public record PrintedSubtotals(
                 if (!matcher.find()) {
                     continue;
                 }
-                labels++;
                 String rest = cells[i].substring(matcher.end());
                 if (rest.isBlank() && i + 1 < cells.length) {
                     rest = cells[i + 1];
                 }
                 Matcher amount = LEADING_AMOUNT.matcher(rest);
                 BigDecimal value = amount.lookingAt() ? new BigDecimal(amount.group(1).replace(",", "")) : null;
-                if (value != null) {
-                    values.add(value);
-                }
-                if (!firstSeen) {
-                    first = value;
-                    firstSeen = true;
-                }
+                String name = matcher.group().trim().replaceAll("\\s+", " ");
+                found.add(new Cited(value == null ? name : name + " | " + amount.group(1), value));
             }
         }
-        return new Labelled(labels, values, first);
+        return found;
     }
 
     private static int firstLineMatching(Pattern pattern, List<String> lines) {

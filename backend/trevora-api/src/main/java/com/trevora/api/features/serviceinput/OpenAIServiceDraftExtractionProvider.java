@@ -159,7 +159,8 @@ public class OpenAIServiceDraftExtractionProvider {
                 ServiceDraftResponseSchema.forReceipt(),
                 "receipt-extraction"
         );
-        return withResolvedServiceDate(withResolvedOdometer(fields, ocr.text()), ocr.text());
+        return withLinesCheckedAgainstCharges(
+                withResolvedServiceDate(withResolvedOdometer(fields, ocr.text()), ocr.text()), ocr.text());
     }
 
     /**
@@ -242,6 +243,58 @@ public class OpenAIServiceDraftExtractionProvider {
         }
         Object sourceText = evidence.get("sourceText");
         return sourceText == null ? null : String.valueOf(sourceText);
+    }
+
+    /**
+     * Checks the lines against the charges the receipt prints, when it prints
+     * them, rather than against the total.
+     *
+     * <p>The lines are what the charges itemise. The total is the bill after tax,
+     * or the amount paid after a credit: Palmetto 57 Nissan's lines come to
+     * 239.99, its charges are 239.99, and the total is 256.79 or 200.00 depending
+     * on which the model read. Checked against the total, two correct figures were
+     * reported as a misread.
+     */
+    private ReceiptDraftFields withLinesCheckedAgainstCharges(ReceiptDraftFields fields, String ocrText) {
+        if (fields == null) {
+            return null;
+        }
+        BigDecimal charges = PrintedSubtotals.read(ocrText).charges();
+        if (charges == null) {
+            return fields;
+        }
+        String againstTotal = reconcileWarning(fields.services(), fields.totalCost(), TOTAL_PHRASE);
+        String againstCharges = reconcileWarning(fields.services(), charges, CHARGES_PHRASE);
+        if (java.util.Objects.equals(againstTotal, againstCharges)) {
+            return fields;
+        }
+        List<String> warnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
+        if (againstTotal != null) {
+            warnings.remove(againstTotal);
+        }
+        if (againstCharges != null) {
+            warnings.add(againstCharges);
+        }
+        return new ReceiptDraftFields(
+                fields.documentType(),
+                fields.documentNumber(),
+                fields.referenceNumbers(),
+                fields.serviceDate(),
+                fields.services(),
+                fields.odometer(),
+                fields.totalCost(),
+                fields.shopName(),
+                fields.location(),
+                fields.remarks(),
+                fields.confidenceNotes(),
+                fields.fieldSources(),
+                fields.fieldConfidence(),
+                fields.aiSuggestedFields(),
+                fields.classification(),
+                warnings,
+                fields.plateNumber(),
+                fields.vinChassisNumber()
+        );
     }
 
     private ReceiptDraftFields withResolvedOdometer(ReceiptDraftFields fields, String ocrText) {
@@ -728,7 +781,10 @@ public class OpenAIServiceDraftExtractionProvider {
             }
             DocumentType documentType = DocumentType.fromNullable(asText(fieldsNode.get("documentType")));
             noteDocumentType(documentType, services, totalCost, warnings);
-            reconcile(services, totalCost, warnings);
+            String linesGap = reconcileWarning(services, totalCost, TOTAL_PHRASE);
+            if (linesGap != null) {
+                warnings.add(linesGap);
+            }
             return new ReceiptDraftFields(
                     documentType,
                     asText(fieldsNode.get("documentNumber")),
@@ -1383,9 +1439,14 @@ public class OpenAIServiceDraftExtractionProvider {
      * match the lines would be inventing a value — the thing this pipeline is
      * least allowed to do. The owner sees the discrepancy and decides.
      */
-    private void reconcile(List<ServiceItemFields> services, BigDecimal totalCost, List<String> warnings) {
-        if (services == null || services.isEmpty() || totalCost == null) {
-            return;
+    private static final String TOTAL_PHRASE = "the receipt total reads";
+    private static final String CHARGES_PHRASE = "the receipt's printed charges read";
+
+    /** The gap warning, or null when the lines agree with {@code comparand} or cannot be checked. */
+    private static String reconcileWarning(
+            List<ServiceItemFields> services, BigDecimal comparand, String comparandPhrase) {
+        if (services == null || services.isEmpty() || comparand == null) {
+            return null;
         }
         List<BigDecimal> priced = services.stream()
                 .flatMap(service -> service.lineEntriesOrEmpty().stream())
@@ -1393,18 +1454,18 @@ public class OpenAIServiceDraftExtractionProvider {
                 .filter(java.util.Objects::nonNull)
                 .toList();
         if (priced.isEmpty()) {
-            return;
+            return null;
         }
 
         BigDecimal sum = priced.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal gap = sum.subtract(totalCost).abs();
+        BigDecimal gap = sum.subtract(comparand).abs();
         if (gap.compareTo(RECONCILE_TOLERANCE) <= 0) {
-            return;
+            return null;
         }
-        warnings.add(String.format(
-                "The %d itemised lines add up to %s but the receipt total reads %s, a difference of %s."
+        return String.format(
+                "The %d itemised lines add up to %s but %s %s, a difference of %s."
                         + " One of the two was misread - check the lines against the receipt before confirming.",
-                priced.size(), sum.toPlainString(), totalCost.toPlainString(), gap.toPlainString()));
+                priced.size(), sum.toPlainString(), comparandPhrase, comparand.toPlainString(), gap.toPlainString());
     }
 
     private List<ServiceItemFields> asServiceItems(JsonNode node) {

@@ -83,6 +83,22 @@ Authenticated requests must carry the Supabase bearer token (`Authorization: Bea
 - One `User` (owner) owns many `vehicle_profiles`; one `vehicle_profile` has many `service_records`.
 - `service_drafts` (Module 1/2, unconfirmed/in-progress) are distinct from confirmed `service_records` (Module 2 output, Module 3+ source of truth). **Never expose or display incomplete `service_drafts` as service history** — this rule is repeated throughout the codebase's CONTEXT.md files and must be preserved in any feature touching history, AI explanation, sharing, or mechanic access.
 - `service_records.draft_id` preserves traceability back to the originating draft.
+- **`total_cost` is the bill before coverage; what the owner paid is derived.**
+  `amount_covered` (migration 010) is what insurance, a warranty or goodwill
+  absorbed, and paid = `total_cost - amount_covered` is never stored. When a
+  receipt prints charges, tax, an insurance/warranty/goodwill credit and the
+  amount paid, and charges + tax - credits equals that amount paid,
+  `total_cost` is charges + tax and `amount_covered` is the credit (Palmetto 57
+  Nissan: 239.99 + 16.80 = 256.79, 56.79 covered, 200.00 paid). Otherwise it is
+  what the model read. See `ReceiptTotalResolver`.
+  Decided 2026-09-13, **reversing** an earlier call that `total_cost` should
+  hold the amount paid. That call was wrong: it contradicts 010, and with any
+  coverage it reported 200.00 - 56.79 = 143.21 as paid while the
+  `covered <= total` check passed, across the whole cost history rather than
+  one receipt. The "read, never computed" rule does not forbid this: that rule
+  stops us recomputing a figure the receipt already prints; this is the sum of
+  two printed figures, used only when four of them reconcile. Do not
+  re-litigate it without reading `planning/DEFERRED.md` first.
 - Supported MVP account roles: `VEHICLE_OWNER` and `ADMIN`. Mechanics are never registered users — they get temporary, owner-approved, single-vehicle-scoped read-only access via QR/share tokens (`mechanicaccess`/`sharing` features). Mechanic-facing APIs must be read-only and must verify session approval and expiration before returning data.
 - Vehicle/owner scoping must be enforced on every query that touches vehicles, drafts, or records.
 

@@ -3945,3 +3945,55 @@ Open, on purpose or not yet:
   verified: a signed-in upload end to end, or API boot on the author's machine
   (JDK 25 there fails `SupabaseJwkProvider`'s HttpClient with "Unable to establish
   loopback connection" before any receipt code loads).
+
+## total_cost is the bill before coverage; credited receipts fill amount_covered (2026-09-13)
+
+Reverses the earlier decision that `total_cost` holds the amount paid; the
+reasoning is in `CLAUDE.md` under "Core domain model and invariants".
+
+- **What changed.** `ReceiptTotalResolver` sets `total_cost` to charges + tax and
+  `amount_covered` to the credit when: exactly one TOTAL CHARGES in the text; the
+  tax and credit rows under it all read; an amount-paid row (THIS AMOUNT / PLEASE
+  PAY / AMOUNT DUE) read; and charges + tax - credits equals it to the centavo.
+  Credits count only when every non-zero credit row says INSURANCE, INSURER,
+  WARRANTY or GOODWILL. Anything else - LESS DISCOUNT, a coupon, an unrecognised
+  label, a figure that does not reconcile - leaves the model's total and nothing
+  covered. The values carry citations in `fieldSources` (`amountCovered` with
+  `needsReview`) and a note in the draft's warnings.
+- **Lines are checked against printed charges** when read, not against the
+  total (`withLinesCheckedAgainstCharges`), in the extractor's gap warning and on
+  the review screen.
+- **Read sites adjusted with it.** Garage "Spending" chart and the per-vehicle
+  activity strip (`monthlySeries`) and "Where it went" (`spendByCategory`) now
+  chart the amount paid, like the Spend figure beside them. The duplicate check
+  matches on the same total or the same amount paid, so a credited receipt filed
+  under both meanings is still caught. The review note derives paid as total
+  less covered. Unchanged on purpose: mechanic views, AI explanation, "Total cost"
+  labels (invoice), spend totals and `RecordCost` (already paid-based).
+  Unreachable and untouched: `DashboardPage`, `VehicleServiceHistoryPage`,
+  `PartsMap`.
+- **Existing data.** Two records carry owner-entered coverage (1,355.00 / 1,000
+  and 8,258.00 / 8,258). Both read coherently as the bill before coverage - the
+  fully covered one only makes sense that way - so they are left as they are and
+  the owners were not contacted. On records storing the amount paid as their
+  total: **no affected records found within those limits** - the query matched
+  five label wordings (amount due, please pay, this amount, balance due, amount
+  paid) in the total's citation, and only records whose total carries a
+  citation. That is enough to skip a backfill. It is not proof that no record is
+  affected.
+- **Still to do (after this, in order).** Deduction rows by position rather than
+  by the word LESS, with arithmetic deciding the sign; the `coverage_kind` column
+  on migration **028** (claim it in the group chat first); the coverage toggle's
+  citation on the review page; the one-line breakdown ("Charges PHP 239.99 + tax
+  PHP 16.80 = PHP 256.79. Covered PHP 56.79. You paid PHP 200.00.") replacing the
+  paid note, shown only when tax was read.
+- **Queued, not started: part codes drift one row.** On the Palmetto 57 Nissan
+  receipt PERFORM got "66001 / E85501", CVT ENHANCER got "66001EE5501" and SYN /
+  CVT 5QT got none. Correct: 66001 to the enhancer, EE5501 to SYN / CVT 5QT. Same
+  one-row drift as the amounts, on a field nothing checks.
+- **Verified / not.** No prompt change. Golden totals are unaffected by
+  construction: no golden OCR prints TOTAL CHARGES
+  (`PrintedSubtotalsTest.noGoldenReceiptPrintsASplit`). The Palmetto path is
+  tested with its verbatim OCR through `OCRProcessingService` with the model
+  mocked. A signed-in upload and the review screen are verified only when the
+  owner of this work opens them in the browser, before merge.

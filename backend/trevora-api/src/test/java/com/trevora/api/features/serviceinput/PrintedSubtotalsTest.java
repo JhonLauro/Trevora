@@ -158,7 +158,16 @@ class PrintedSubtotalsTest {
                 .containsEntry("charges", "239.99")
                 .containsEntry("tax", "16.80")
                 .containsEntry("credits", "56.79")
-                .containsEntry("adjustmentsReadable", true);
+                .containsEntry("adjustmentsReadable", true)
+                .containsEntry("paid", "200.00");
+
+        PrintedSubtotals.Totals totals = PrintedSubtotals.read(text).totals();
+        assertThat(totals.chargesLabels()).isEqualTo(1);
+        assertThat(totals.chargesRow()).isEqualTo("TOTAL CHARGES | 239.99");
+        assertThat(totals.creditRows()).extracting(PrintedSubtotals.Cited::text).containsExactly("LESS INSURANCE | 56.79");
+        assertThat(totals.taxRows()).extracting(PrintedSubtotals.Cited::text).containsExactly("TAX | 16.80");
+        assertThat(totals.adjustmentsComplete()).isTrue();
+        assertThat(totals.paidRow()).isEqualTo("THIS AMOUNT | 200.00");
     }
 
     @Test

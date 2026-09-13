@@ -72,6 +72,14 @@ describe('spend attribution', () => {
 
     expect(charted).toBe(12500);
   });
+
+  it('charts what the owner paid, not the bill before coverage', () => {
+    // Palmetto 57 Nissan: a 256.79 bill, 56.79 covered by insurance, 200.00 paid.
+    const covered = { totalCost: 256.79, amountCovered: 56.79, services: [item('Maintenance', 239.99, 0)] };
+    const charted = spendByCategory([covered]).reduce((sum, row) => sum + row.total, 0);
+
+    expect(charted).toBeCloseTo(200, 2);
+  });
 });
 
 describe('filter attribution', () => {

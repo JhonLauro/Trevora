@@ -16,6 +16,10 @@ public record ReceiptExtractionResult(
         String shopName,
         String location,
         String remarks,
-        Map<String, Object> fieldMetadata
+        Map<String, Object> fieldMetadata,
+        // What insurance, a warranty or goodwill covered, when the receipt's
+        // totals box proved it. Null when nothing was proven, which leaves the
+        // draft's default of nothing covered.
+        BigDecimal amountCovered
 ) {
 }

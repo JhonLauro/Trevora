@@ -153,7 +153,7 @@ export function reconciliation(services, totalCost) {
  * before this existed) keep the plain total check: match, gap, no-total,
  * no-prices. `attention` is true for the first three receipt verdicts.
  */
-export function amountsCheck(services, totalCost, printed) {
+export function amountsCheck(services, totalCost, printed, amountCovered) {
   const charges = printed ? toCentavos(printed.charges) : null;
   const againstCharges = charges !== null;
   const base = reconciliation(services, againstCharges ? printed.charges : totalCost);
@@ -174,7 +174,11 @@ export function amountsCheck(services, totalCost, printed) {
   };
   if (!printed || base.state === 'no-lines') return check;
 
-  const paid = toCentavos(totalCost);
+  // What the owner paid: the bill less whatever was covered (migration 010).
+  // total_cost is the bill before coverage, so it is the amount paid only when
+  // nothing was covered.
+  const bill = toCentavos(totalCost);
+  const paid = bill === null ? null : bill - (toCentavos(amountCovered) ?? 0);
   if (againstCharges && paid !== null && paid !== charges) {
     check.paidNote = { paid, charges, explained: adjustmentsExplain(printed, charges, paid) };
   }
