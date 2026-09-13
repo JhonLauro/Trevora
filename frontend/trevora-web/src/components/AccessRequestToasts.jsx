@@ -4,8 +4,8 @@ import {
   approveMechanicAccessRequest,
   denyMechanicAccessRequest,
   forgetPendingMechanicAccessRequests,
-  getPendingMechanicAccessRequests,
 } from '../api/qrAccess.js';
+import { refreshPendingAccessRequests } from '../hooks/usePendingAccessRequests.js';
 import {
   LOCAL_NOTIFICATIONS_CHANGED_EVENT,
   getLocalNotifications,
@@ -16,9 +16,10 @@ import { isNotificationEnabled } from '../api/notificationPreferences.js';
  * Approve or deny a mechanic's access request without leaving the page.
  *
  * <p>Until now the only way to answer one was to notice the sidebar count,
- * open Notifications, and decide there. The count is only refreshed when the
- * route changes, so an owner sitting on their Garage while a mechanic waits at
- * the counter learned nothing at all.
+ * open Notifications, and decide there -- and the count only refreshed when the
+ * route changed, so an owner sitting on their Garage while a mechanic waited at
+ * the counter learned nothing at all. Both now come from one poll a few seconds
+ * apart; see `usePendingAccessRequests`.
  *
  * <p><b>Why an auto-dismissing toast is safe here, when usually it is not.</b>
  * Putting a consequential action in something that disappears is normally a
@@ -38,19 +39,14 @@ import { isNotificationEnabled } from '../api/notificationPreferences.js';
    camp on the screen. Paused on hover, so this is a floor rather than a cap. */
 const VISIBLE_MS = 10_000;
 
-/* The app had no polling at all: the pending count refreshed on navigation.
-   25s is a compromise between a mechanic standing at a counter and a free-tier
-   API answering every open tab. Skipped entirely while the tab is hidden. */
-const POLL_MS = 25_000;
-
-export default function AccessRequestToasts({ enabled, preferences, mechanicRequests }) {
+export default function AccessRequestToasts({ enabled, preferences, mechanicRequests, requests }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [toasts, setToasts] = useState([]);
   const [busyId, setBusyId] = useState(null);
 
   /* Requests already shown this session. Without it every poll would re-toast
-     the same pending request every 25 seconds until it was answered. */
+     the same pending request until it was answered. */
   const seenRef = useRef(new Set());
   const timersRef = useRef(new Map());
 
@@ -79,54 +75,30 @@ export default function AccessRequestToasts({ enabled, preferences, mechanicRequ
 
   // ------------------------------------------------------------ polling
 
+  /* The requests come from the shell's shared poll (see
+     `usePendingAccessRequests`), so the badge and this toast are never out of
+     step and there is one request in flight rather than two.
+
+     Only the toast is gated on the mechanic-request switch. Turning that off
+     should silence mechanics, not the whole surface -- draft notices have
+     their own switch, checked per notification below. */
   useEffect(() => {
-    /* Only the request poll is gated on the mechanic-request switch. Turning
-       that off should silence mechanics, not the whole surface — draft notices
-       have their own switch, checked per notification below. */
-    if (!enabled || !mechanicRequests) return undefined;
+    if (!enabled || !mechanicRequests || !Array.isArray(requests)) return;
 
-    let active = true;
+    const fresh = requests.filter((request) => {
+      const id = request.mechanicAccessRequestId;
+      if (!id || seenRef.current.has(id)) return false;
+      seenRef.current.add(id);
+      return true;
+    });
+    if (!fresh.length) return;
 
-    async function check() {
-      // A hidden tab has nobody to show a toast to, and polling it only spends
-      // somebody's API quota.
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const pending = await getPendingMechanicAccessRequests({ fresh: true });
-        if (!active || !Array.isArray(pending)) return;
-
-        const fresh = pending.filter((request) => {
-          const id = request.mechanicAccessRequestId;
-          if (!id || seenRef.current.has(id)) return false;
-          seenRef.current.add(id);
-          return true;
-        });
-
-        if (fresh.length) {
-          setToasts((current) => [
-            ...current,
-            ...fresh.map((request) => ({ id: request.mechanicAccessRequestId, request })),
-          ]);
-          fresh.forEach((request) => startTimer(request.mechanicAccessRequestId));
-        }
-      } catch {
-        // A failed poll is not worth telling anyone about; the next one is 25
-        // seconds away and Notifications still holds the truth.
-      }
-    }
-
-    check();
-    const interval = window.setInterval(check, POLL_MS);
-    // Catch up immediately when somebody comes back to the tab rather than
-    // making them wait out the remainder of an interval.
-    document.addEventListener('visibilitychange', check);
-
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', check);
-    };
-  }, [enabled, mechanicRequests, startTimer]);
+    setToasts((current) => [
+      ...current,
+      ...fresh.map((request) => ({ id: request.mechanicAccessRequestId, request })),
+    ]);
+    fresh.forEach((request) => startTimer(request.mechanicAccessRequestId));
+  }, [enabled, mechanicRequests, requests, startTimer]);
 
   /* ------------------------------------------------- local notifications
 
@@ -183,6 +155,8 @@ export default function AccessRequestToasts({ enabled, preferences, mechanicRequ
     try {
       await (approve ? approveMechanicAccessRequest(id) : denyMechanicAccessRequest(id));
       forgetPendingMechanicAccessRequests();
+      // So the sidebar count drops with the toast rather than at the next poll.
+      refreshPendingAccessRequests();
       dismiss(id);
     } catch {
       /* Leave the toast up and stop its timer. The owner can try again or open

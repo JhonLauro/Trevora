@@ -7,7 +7,7 @@ import MonthBars from '../components/ink/MonthBars.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
 import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js';
-import { getPendingMechanicAccessRequests } from '../api/qrAccess.js';
+import { usePendingAccessRequests } from '../hooks/usePendingAccessRequests.js';
 import { formatAmount, formatMonthYear, pluralize, relativeDays } from '../utils/format';
 import {
   allTimeSeries, lastTwelveMonths, monthSeries, peakMonth, previousPeriodTotal, seriesTotal,
@@ -602,13 +602,12 @@ export default function GaragePage() {
   const currentUser = getActiveCurrentUser();
   const firstName = getUserDisplayName(currentUser).split(' ')[0] || 'there';
 
+  /* The shell's shared poll, so the strip agrees with the sidebar badge and
+     both notice a new request within seconds. */
+  const pendingRequests = usePendingAccessRequests(true);
   useEffect(() => {
-    let active = true;
-    getPendingMechanicAccessRequests()
-      .then((data) => { if (active) setRequestCount(data.length); })
-      .catch(() => { if (active) setRequestCount(0); });
-    return () => { active = false; };
-  }, []);
+    setRequestCount(pendingRequests.length);
+  }, [pendingRequests]);
 
   /* Drafts the owner started and left. Failing quietly to none is right here:
      the strip is a prompt, and a prompt that cannot load is better absent than
