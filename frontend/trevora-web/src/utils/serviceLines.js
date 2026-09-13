@@ -166,6 +166,10 @@ export function amountsCheck(services, totalCost, printed) {
     labour: null,
     totalAlsoOff: false,
     sourcesDisagree: false,
+    // Set on a gap when parts and labour could not be checked as well:
+    // 'unpriced' or 'unreadable'. The gap message says so rather than letting
+    // the weaker verdict stand in for a check that never ran.
+    unchecked: null,
     paidNote: null,
   };
   if (!printed || base.state === 'no-lines') return check;
@@ -192,10 +196,17 @@ export function amountsCheck(services, totalCost, printed) {
     };
   }
 
-  // A line with no amount yet makes both subtotals short, which is a missing
-  // amount rather than an amount on the wrong line. The total check reports it.
+  // A line with no amount can only leave a kind's lines short of the receipt,
+  // never over it. So an over-run is an amount on the wrong line even while
+  // other lines are unpriced. A shortfall with unpriced lines could be either,
+  // and is reported as unchecked below. It used to skip the split check
+  // whenever any line was unpriced, and the live Palmetto draft - parts at
+  // 296.53 against 105.72, labour line empty - showed only the charges gap.
   const allPriced = base.pricedCount > 0 && base.unpricedCount === 0;
-  if (splitRead && allPriced && (check.parts.off || check.labour.off)) {
+  const overrun = splitRead && base.pricedCount > 0
+    && (check.parts.lines - check.parts.printed > RECONCILE_TOLERANCE_CENTAVOS
+      || check.labour.lines - check.labour.printed > RECONCILE_TOLERANCE_CENTAVOS);
+  if (splitRead && (overrun || (allPriced && (check.parts.off || check.labour.off)))) {
     return {
       ...check,
       verdict: 'split-mismatch',
@@ -204,8 +215,14 @@ export function amountsCheck(services, totalCost, printed) {
       sourcesDisagree: Boolean(printed.sourcesDisagree),
     };
   }
-  if (base.state === 'gap') return { ...check, verdict: 'gap', attention: true };
-  if (printed.split === 'UNREADABLE' || (printed.split === 'READ' && !splitRead)) {
+  const splitUnreadable = printed.split === 'UNREADABLE' || (printed.split === 'READ' && !splitRead);
+  if (base.state === 'gap') {
+    let unchecked = null;
+    if (splitUnreadable) unchecked = 'unreadable';
+    else if (splitRead && !allPriced) unchecked = 'unpriced';
+    return { ...check, verdict: 'gap', attention: true, unchecked };
+  }
+  if (splitUnreadable) {
     return { ...check, verdict: 'split-unreadable', attention: true };
   }
   if (base.state !== 'match') return check;

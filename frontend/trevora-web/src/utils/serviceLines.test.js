@@ -84,15 +84,48 @@ describe('amountsCheck', () => {
     expect(check.verdict).toBe('gap');
     expect(check.attention).toBe(true);
     expect(check.parts.off).toBe(false);
+    // The split was checked and passed, so the gap has nothing to add.
+    expect(check.unchecked).toBeNull();
   });
 
-  it('does not call missing amounts a wrong-line problem', () => {
+  // The live Palmetto draft as the browser showed it. The labour line was
+  // almost certainly empty (the field showed its 0.00 placeholder); the save
+  // that followed overwrote the row, so both readings are pinned.
+  const livePalmetto = (performAmount) => services(
+    line('OPERATION', 'PERFORM CVT TRANSMISSION FLUID SERVICE', performAmount),
+    line('PART', 'TRANSMISSION FLUID', 134.27),
+    line('PART', 'CVT ENHANCER', 134.27),
+    line('PART', 'SYN / CVT 5QT', 27.99),
+    line('OPERATION', 'MPI MULTI POINT INSPECTION', 0),
+    line('OPERATION', 'TIRE CONDITION GOOD', 0),
+  );
+
+  it('flags parts over the printed figure even while a line has no amount', () => {
+    for (const amount of [null, '', 0]) {
+      const check = amountsCheck(livePalmetto(amount), 200, PALMETTO);
+      expect(check.verdict, JSON.stringify(amount)).toBe('split-mismatch');
+      expect(check.parts).toMatchObject({ printed: 10572, lines: 29653, off: true });
+      expect(check.labour).toMatchObject({ printed: 13427, lines: 0, off: true });
+    }
+  });
+
+  it('says parts and labour went unchecked when an unpriced line leaves them short', () => {
     const check = amountsCheck(services(
       line('OPERATION', 'PERFORM CVT TRANSMISSION FLUID SERVICE', 134.27),
       line('PART', 'CVT ENHANCER', null),
       line('PART', 'SYN/CVT 5QT', 77.73),
     ), 200, PALMETTO);
     expect(check.verdict).toBe('gap');
+    expect(check.unchecked).toBe('unpriced');
+    expect(check.unpricedCount).toBe(1);
+  });
+
+  it('does not let a total gap hide an unreadable split', () => {
+    const check = amountsCheck(correctLines(), 150, {
+      split: 'UNREADABLE', sourcesDisagree: false, adjustmentsReadable: false,
+    });
+    expect(check.verdict).toBe('gap');
+    expect(check.unchecked).toBe('unreadable');
   });
 
   it('says so when the split is printed but unreadable', () => {
