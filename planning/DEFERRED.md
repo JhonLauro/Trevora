@@ -3882,3 +3882,24 @@ that needs someone to upload a photo, run 026, and reload.
 
 Rollback is in the migration header and needs no frontend change. The dashboard
 and service role can still open these files; policies do not apply to them.
+
+## Golden runs measured gpt-4o-mini unless OPENAI_MODEL was exported (2026-09-13)
+
+Correction to the "Model evaluation" note above, which says the code default is
+"deliberately still `gpt-4o-mini`". That stopped being true on 2026-09-08
+(`9762645`): production's default is `gpt-5.4-mini`. The golden harnesses were
+not updated with it. `GoldenExtractionTest` and `GoldenImageTest` still fell back
+to `gpt-4o-mini` whenever `OPENAI_MODEL` was not exported, and Maven does not read
+`.env`, so a golden run could score a model production no longer ships without
+saying which model it scored.
+
+- The two 100% -> 36% prompt regressions (2026-08-23) were measured on
+  `gpt-4o-mini`, which was also the shipped model then. They are evidence about
+  that model and have not been re-measured on `gpt-5.4-mini`. The report did not
+  record the model, so this is inferred from the harness default, not proven.
+- Both harnesses now default to `gpt-5.4-mini`, and the scorecard prints a
+  `model:` line (`not recorded` when a harness forgets to say), so a score always
+  names what it measured.
+- The Palmetto 57 Nissan baseline (5 runs, 2026-09-13, 16:54-16:55 +08:00)
+  requested `gpt-5.4-mini`. Our logs do not record the model OpenAI served; that
+  is being confirmed from the OpenAI usage dashboard.

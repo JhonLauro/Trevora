@@ -124,4 +124,13 @@ class GoldenReportTest {
     private FieldScore score(String field, double value) {
         return new FieldScore(field, value, false, "");
     }
+
+    @Test
+    void theScorecardNamesTheModelItMeasured() {
+        GoldenReport report = new GoldenReport();
+        assertThat(report.render(1)).contains("model: not recorded");
+
+        report.recordModel("gpt-5.4-mini");
+        assertThat(report.render(1)).contains("model: gpt-5.4-mini");
+    }
 }
