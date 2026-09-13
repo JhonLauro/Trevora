@@ -122,6 +122,9 @@ import './styles/warranty.css';
 // The receipt screen's small page-allowance notice. Additive, own
 // `.allowance-note*` namespace, tokens only.
 import './styles/receipt-allowance.css';
+// Icon row actions for the records table and the vehicle timeline. Additive,
+// own `.icon-action*` namespace, tokens only.
+import './styles/icon-actions.css';
 // Last: it redefines the token values every sheet above draws from.
 import './styles/theme.css';
 

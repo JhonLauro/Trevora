@@ -1,0 +1,109 @@
+/* Row actions as icons.
+
+   The trash / check / filled-arrow glyphs the Records page's "Not finished yet"
+   block introduced (unfinished-drafts.css), reused by the records table (the
+   Garage, the Records page, a vehicle's table view) and the vehicle timeline,
+   so every list of records offers its actions the same way.
+
+   The words are not gone: each control carries its label as `aria-label` and
+   `title`, so a screen reader still reads it and a pointer shows it on hover.
+
+   Every rule is scoped under `.icon-actions` for (0,2,0). The containers
+   already have gap and layout rules in ink-vehicle.css at (0,1,0), and a link
+   inside a table or card can pick up a colour from a (0,1,1) rule; doubling the
+   class wins both without `!important`. The drafts block keeps its own rules. */
+
+.icon-actions.ink-table__actions,
+.icon-actions.ink-record-card__actions,
+.icon-actions.vehicle-timeline__card-actions {
+  align-items: center;
+  display: flex;
+  /* Tight, because they are one group of related choices. */
+  gap: 4px;
+}
+
+/* On a card the actions sit at the right, where a thumb already is, rather
+   than stretching into full-width buttons. */
+.icon-actions.ink-record-card__actions {
+  justify-content: flex-end;
+}
+
+/* In the table the actions column is the last one, so its icons line up along
+   the table's right edge whether a row has one control or two.
+
+   No side padding on this cell. ink-app.css gives every `table td` 12px each
+   side, which leaves 36px inside the 60px column for a 38px icon and 64px
+   inside the 88px one for two -- measured in the browser, the pair spilled 16px
+   left across the grid gap into the status column. The column width is the
+   room the icons get; the row's own 24px padding still keeps them off the
+   card's edge. */
+.icon-actions.ink-table__actions {
+  justify-content: flex-end;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.icon-actions .icon-action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  /* Every button carries `min-height: var(--field-h)` from ink-app.css, and a
+     min-height beats a height -- without this these render as tall stadiums.
+     The same trap is noted in unfinished-drafts.css and service-flow.css. */
+  min-height: 0;
+  padding: 0;
+  text-decoration: none;
+  transition: background 120ms ease-out, color 120ms ease-out;
+  width: 38px;
+}
+
+/* Borderless until pointed at, so a column of them does not read as a toolbar. */
+.icon-actions .icon-action:hover:not(:disabled) {
+  background: var(--hover-tint);
+  color: var(--ink);
+}
+
+.icon-actions .icon-action:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.icon-actions .icon-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Red on approach, not at rest: a permanently red icon in a quiet list reads as
+   an error. */
+.icon-actions .icon-action--danger:hover:not(:disabled) {
+  background: var(--status-bad-bg);
+  color: var(--status-bad-text);
+}
+
+/* Opening the record is what people come for, so it keeps a filled shape. */
+.icon-actions .icon-action--primary {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.icon-actions .icon-action--primary:hover {
+  background: var(--brand-hover);
+  color: #ffffff;
+}
+
+/* The timeline breaks its actions onto their own line on narrow screens
+   (ink-vehicle.css). Icons fit on that line with room to spare, so they keep
+   to its right end instead of starting at the left. */
+@media (max-width: 720px) {
+  .icon-actions.vehicle-timeline__card-actions {
+    gap: 4px;
+    justify-content: flex-end;
+  }
+}

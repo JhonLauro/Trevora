@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { createReceiptSignedUrl } from '../../api/receiptStorage';
+import ReceiptViewer from '../ReceiptViewer';
 
 /**
  * The receipt as a page strip above the fields, rather than as a column beside
@@ -37,7 +38,7 @@ export function storedReceiptPages(source) {
 export default function ReceiptStrip({ draft }) {
   const [pages, setPages] = useState([]);
   const [active, setActive] = useState(0);
-  const [full, setFull] = useState(null);
+  const [viewing, setViewing] = useState(false);
   const [error, setError] = useState('');
   const [showText, setShowText] = useState(false);
 
@@ -60,17 +61,6 @@ export default function ReceiptStrip({ draft }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.draftId, draft?.receiptStoragePath]);
 
-  /* Escape closes the full-size view. Mounted only while it is open, so this
-     never competes with anything else on the page for the key. */
-  useEffect(() => {
-    if (!full) return undefined;
-    function onKeyDown(event) {
-      if (event.key === 'Escape') setFull(null);
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [full]);
-
   const rawText = draft?.fieldMetadata?.rawOcrText;
   const hasRawText = typeof rawText === 'string' && rawText.trim().length > 0;
   const count = stored.length;
@@ -84,7 +74,7 @@ export default function ReceiptStrip({ draft }) {
           The receipt · {count} page{count === 1 ? '' : 's'}
         </span>
         {pages[active] && (
-          <button className="flow-link" type="button" onClick={() => setFull(pages[active])}>
+          <button className="flow-link" type="button" onClick={() => setViewing(true)}>
             Open full size
           </button>
         )}
@@ -96,7 +86,7 @@ export default function ReceiptStrip({ draft }) {
             className={`flow-page${index === active ? ' is-active' : ''}`}
             type="button"
             key={page.path}
-            onClick={() => { setActive(index); if (page.url) setFull(page); }}
+            onClick={() => { setActive(index); if (page.url) setViewing(true); }}
             aria-label={`Receipt page ${page.pageNumber}`}
           >
             {page.url && <img src={page.url} alt="" />}
@@ -132,29 +122,17 @@ export default function ReceiptStrip({ draft }) {
         <pre className="flow-quote" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{rawText}</pre>
       )}
 
-      {full && (
-        <div
-          className="image-preview-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Receipt page"
-          /* Clicking away closes it, the way every image viewer people already
-             use behaves. Guarded on the target so a click that lands on the
-             photograph itself does not dismiss the thing it was aimed at --
-             and a receipt is a document somebody is peering at, so a stray tap
-             while reading must not throw it away. */
-          onClick={(event) => { if (event.target === event.currentTarget) setFull(null); }}
-        >
-          <button
-            className="image-preview-close"
-            type="button"
-            aria-label="Close receipt preview"
-            onClick={() => setFull(null)}
-          >
-            ×
-          </button>
-          <img src={full.url} alt={`Receipt page ${full.pageNumber}`} />
-        </div>
+      {/* The same full-size viewer a saved record opens, zoom included. This
+          is the step where a figure has to be read off the photo to check it,
+          so it is the last place a fitted-only preview belonged. Paging inside
+          the viewer moves the strip's highlighted page with it. */}
+      {viewing && pages[active] && (
+        <ReceiptViewer
+          pages={pages}
+          index={active}
+          onIndexChange={setActive}
+          onClose={() => setViewing(false)}
+        />
       )}
     </section>
   );
