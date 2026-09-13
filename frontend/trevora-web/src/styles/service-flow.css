@@ -2297,3 +2297,12 @@
 
   .flow-rail-actions { order: 2; }
 }
+
+/* The receipt's printed parts and labour figures, under the total check, shown
+   only when the lines do not match them. */
+.flow-balance-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}

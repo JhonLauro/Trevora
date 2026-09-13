@@ -53,7 +53,11 @@ class GoldenExtractionTest {
         // is wrong; this says how, which is the difference between knowing there
         // is a problem and knowing what to change in the prompt.
         boolean dump = Boolean.getBoolean("golden.dump");
-        String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-4o-mini");
+        // The model production ships (application.properties). This used to fall back
+        // to gpt-4o-mini, and Maven does not read .env, so a run without OPENAI_MODEL
+        // exported quietly scored a model production had stopped using. The scorecard
+        // now prints whichever model was requested.
+        String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-5.4-mini");
 
         OpenAIServiceDraftExtractionProvider provider =
                 new OpenAIServiceDraftExtractionProvider(new ObjectMapper(), apiKey, model);
@@ -65,6 +69,7 @@ class GoldenExtractionTest {
         // what would be stored rather than the model's raw answer.
         ServiceClassificationService classificationService = new ServiceClassificationService();
         GoldenReport report = new GoldenReport();
+        report.recordModel(model);
 
         List<String> awaitingCapture = new java.util.ArrayList<>();
         for (GoldenCase goldenCase : cases) {

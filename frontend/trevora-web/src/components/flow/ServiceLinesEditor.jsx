@@ -9,7 +9,7 @@ import {
   formatPeso,
   lineEntriesOf,
   pesosFromCentavos,
-  reconciliation,
+  amountsCheck,
 } from '../../utils/serviceLines';
 
 /**
@@ -156,18 +156,14 @@ function emptyService(sortOrder = 0) {
  * an extraction-time warning string went stale the moment a figure changed and
  * kept claiming a mismatch that was already resolved.
  */
-export function Balance({ services, totalCost }) {
+export function Balance({ services, totalCost, printed }) {
   const t = useT();
-  const balance = reconciliation(services, totalCost);
-  if (balance.state === 'no-lines') return null;
+  const check = amountsCheck(services, totalCost, printed);
+  if (check.verdict === 'no-lines') return null;
 
-  const lineSum = formatPeso(pesosFromCentavos(balance.lineSum));
-  const printed = balance.printedTotal === null
-    ? null
-    : formatPeso(pesosFromCentavos(balance.printedTotal));
-  const gap = balance.gap === null
-    ? null
-    : formatPeso(Math.abs(pesosFromCentavos(balance.gap)));
+  const lineSum = centavosAsPeso(check.lineSum);
+  const comparand = check.printedTotal === null ? null : centavosAsPeso(check.printedTotal);
+  const gap = check.gap === null ? null : formatPeso(Math.abs(pesosFromCentavos(check.gap)));
 
   return (
     <>
@@ -177,49 +173,131 @@ export function Balance({ services, totalCost }) {
           <span className="flow-balance__value">{lineSum}</span>
         </div>
         <div className="flow-balance__cell">
-          <span className="flow-eyebrow">{t('lines.receiptTotalSays')}</span>
-          <span className="flow-balance__value">{printed ?? t('lines.notFilled')}</span>
+          <span className="flow-eyebrow">
+            {check.againstCharges ? t('lines.receiptCharges') : t('lines.receiptTotalSays')}
+          </span>
+          <span className="flow-balance__value">{comparand ?? t('lines.notFilled')}</span>
         </div>
-        {balance.state === 'gap' && (
+        {check.state === 'gap' && (
           <div className="flow-balance__cell">
-            <span className="flow-eyebrow">{balance.gap > 0 ? 'Over by' : 'Short by'}</span>
+            <span className="flow-eyebrow">{check.gap > 0 ? 'Over by' : 'Short by'}</span>
             <span className="flow-balance__value is-gap">{gap}</span>
           </div>
         )}
       </div>
-      <p className="flow-note">{messageFor(balance)}</p>
+      {check.verdict === 'split-mismatch' && (
+        <div className="flow-balance-split">
+          <SplitRow
+            printedLabel={t('lines.receiptSaysParts')}
+            linesLabel={t('lines.yourPartLines')}
+            figures={check.parts}
+          />
+          <SplitRow
+            printedLabel={t('lines.receiptSaysLabour')}
+            linesLabel={t('lines.yourLabourLines')}
+            figures={check.labour}
+          />
+        </div>
+      )}
+      <p className="flow-note">{messageFor(check)}</p>
+      {check.paidNote && (
+        <p className="flow-note">
+          {t('lines.paidSeparately', {
+            paid: centavosAsPeso(check.paidNote.paid),
+            charges: centavosAsPeso(check.paidNote.charges),
+          })}
+          {check.paidNote.explained && ` ${t('lines.paidExplained')}`}
+        </p>
+      )}
     </>
   );
 }
 
-function messageFor(balance) {
-  if (balance.state === 'match') {
-    if (balance.unpricedCount > 0) {
-      return `The priced lines match the receipt total. ${balance.unpricedCount} line${
-        balance.unpricedCount === 1 ? ' has' : 's have'
-      } no amount yet.`;
-    }
-    return t('lines.matches');
-  }
-  if (balance.state === 'gap') {
-    return 'We do not know which figure is right — you have the paper. Change either side, or leave the gap.';
-  }
-  if (balance.state === 'no-total') {
-    return t('lines.fillTotal');
-  }
-  if (balance.state === 'no-prices') {
-    return t('lines.noneHaveAmount')
-      + ' Add the amounts from the receipt to make this check work.';
-  }
-  return '';
+function centavosAsPeso(centavos) {
+  return formatPeso(pesosFromCentavos(centavos));
 }
 
-/** The gap as one sentence for the rail, or null when there is nothing to say. */
-export function balanceWarning(services, totalCost) {
-  const balance = reconciliation(services, totalCost);
-  if (balance.state !== 'gap' || balance.gap === null) return null;
-  const gap = formatPeso(Math.abs(pesosFromCentavos(balance.gap)));
-  return `Lines are ${gap} ${balance.gap > 0 ? 'over' : 'short of'} the receipt total.`;
+/** One printed subtotal beside what the lines of that kind add up to. */
+function SplitRow({ printedLabel, linesLabel, figures }) {
+  return (
+    <div className="flow-balance">
+      <div className="flow-balance__cell">
+        <span className="flow-eyebrow">{printedLabel}</span>
+        <span className="flow-balance__value">{centavosAsPeso(figures.printed)}</span>
+      </div>
+      <div className="flow-balance__cell">
+        <span className="flow-eyebrow">{linesLabel}</span>
+        <span className={`flow-balance__value${figures.off ? ' is-gap' : ''}`}>
+          {centavosAsPeso(figures.lines)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function messageFor(check) {
+  switch (check.verdict) {
+    case 'split-mismatch':
+      return (
+        <>
+          <strong>{t('lines.splitMismatch.lead')}</strong>
+          {' '}
+          {t('lines.splitMismatch.body', {
+            parts: centavosAsPeso(check.parts.printed),
+            labour: centavosAsPeso(check.labour.printed),
+            partLines: centavosAsPeso(check.parts.lines),
+            labourLines: centavosAsPeso(check.labour.lines),
+          })}
+          {check.totalAlsoOff && ` ${t('lines.splitMismatch.totalAlsoOff')}`}
+          {check.sourcesDisagree && ` ${t('lines.splitMismatch.sourcesDisagree')}`}
+        </>
+      );
+    case 'gap':
+      return check.againstCharges
+        ? t('lines.gapCharges')
+        : 'We do not know which figure is right — you have the paper. Change either side, or leave the gap.';
+    case 'split-unreadable':
+      return t('lines.splitUnreadable');
+    case 'verified':
+      return t('lines.verified');
+    case 'sum-only':
+      return (
+        <>
+          <strong>{t('lines.sumOnly.lead')}</strong>
+          {' '}
+          {check.unpricedCount === 0 && t('lines.sumOnly.body')}
+          {check.unpricedCount === 1 && t('lines.sumOnly.unpricedOne')}
+          {check.unpricedCount > 1 && t('lines.sumOnly.unpricedOther', { count: check.unpricedCount })}
+        </>
+      );
+    case 'match':
+      if (check.unpricedCount > 0) {
+        return `The priced lines match the receipt total. ${check.unpricedCount} line${
+          check.unpricedCount === 1 ? ' has' : 's have'
+        } no amount yet.`;
+      }
+      return t('lines.matches');
+    case 'no-total':
+      return t('lines.fillTotal');
+    case 'no-prices':
+      return t('lines.noneHaveAmount')
+        + ' Add the amounts from the receipt to make this check work.';
+    default:
+      return '';
+  }
+}
+
+/** The check as one sentence for the rail, or null when there is nothing to say. */
+export function balanceWarning(services, totalCost, printed) {
+  const check = amountsCheck(services, totalCost, printed);
+  if (check.verdict === 'split-mismatch') return t('lines.railSplitMismatch');
+  if (check.verdict === 'split-unreadable') return t('lines.railSplitUnreadable');
+  if (check.verdict !== 'gap' || check.gap === null) return null;
+  const gap = formatPeso(Math.abs(pesosFromCentavos(check.gap)));
+  if (check.againstCharges) {
+    return check.gap > 0 ? t('lines.railOverCharges', { gap }) : t('lines.railShortCharges', { gap });
+  }
+  return check.gap > 0 ? t('lines.railOverTotal', { gap }) : t('lines.railShortTotal', { gap });
 }
 
 export default function ServiceLinesEditor({ value, onChange, id }) {
