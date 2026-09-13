@@ -77,7 +77,11 @@ class GoldenImageTest {
         // chasing an empty lineEntries array by reasoning from scores alone, and
         // two of them were wrong - the output was there to be read the whole time.
         boolean dump = Boolean.getBoolean("golden.dump");
-        String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-4o-mini");
+        // The model production ships (application.properties). This used to fall back
+        // to gpt-4o-mini, and Maven does not read .env, so a run without OPENAI_MODEL
+        // exported quietly scored a model production had stopped using. The scorecard
+        // now prints whichever model was requested.
+        String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-5.4-mini");
 
         GoogleVisionOCRProvider vision = new GoogleVisionOCRProvider(new ObjectMapper(), visionKey);
         OpenAIServiceDraftExtractionProvider extraction =
@@ -92,6 +96,7 @@ class GoldenImageTest {
                 "google-vision", "openai", 10, 10L * 1024 * 1024);
 
         GoldenReport report = new GoldenReport();
+        report.recordModel(model);
         OcrStabilityReport ocrReport = new OcrStabilityReport();
         List<GoldenCase> runnable = new ArrayList<>();
 
