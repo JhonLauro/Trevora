@@ -274,7 +274,7 @@ public class DraftPlausibilityService {
                  */
                 .filter(other -> other.getStatus() != DraftStatus.CONFIRMED)
                 .filter(other -> looksLikeOneReceipt(
-                        draft, other.getServiceDate(), other.getOdometer(), other.getTotalCost()))
+                        draft, other.getServiceDate(), other.getOdometer(), other.getTotalCost(), other.getAmountCovered()))
                 .filter(other -> shopDoesNotContradict(draft.getShopName(), other.getShopName()))
                 .findFirst()
                 .orElse(null);
@@ -288,7 +288,7 @@ public class DraftPlausibilityService {
                 "Possible duplicate",
                 "POSSIBLE_DUPLICATE",
                 "WARNING",
-                "You have another draft " + agreementWith(draft, match.getTotalCost(), match.getOdometer())
+                "You have another draft " + agreementWith(draft, match.getTotalCost(), match.getAmountCovered(), match.getOdometer())
                         + dateClause(match.getServiceDate())
                         + ". It has not been confirmed yet. If this is the same receipt scanned "
                         + "twice, throw one away rather than confirming both.",
@@ -296,7 +296,7 @@ public class DraftPlausibilityService {
                 draft,
                 false,
                 "issue.duplicateDraft",
-                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getOdometer()),
+                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getAmountCovered(), match.getOdometer()),
                         "date", String.valueOf(match.getServiceDate()))
         ));
     }
@@ -309,7 +309,7 @@ public class DraftPlausibilityService {
         ServiceRecord match = history.stream()
                 .filter(record -> !isSameDraft(record, draft))
                 .filter(record -> looksLikeOneReceipt(
-                        draft, record.getServiceDate(), record.getOdometer(), record.getTotalCost()))
+                        draft, record.getServiceDate(), record.getOdometer(), record.getTotalCost(), record.getAmountCovered()))
                 .filter(record -> shopDoesNotContradict(draft.getShopName(), record.getShopName()))
                 .min(Comparator.comparing(ServiceRecord::getServiceDate))
                 .orElse(null);
@@ -327,7 +327,7 @@ public class DraftPlausibilityService {
                 "Possible duplicate",
                 "POSSIBLE_DUPLICATE",
                 "WARNING",
-                "This vehicle already has a record " + agreementWith(draft, match.getTotalCost(), match.getOdometer())
+                "This vehicle already has a record " + agreementWith(draft, match.getTotalCost(), match.getAmountCovered(), match.getOdometer())
                         + dateClause(match.getServiceDate())
                         + ". If it is the same receipt, delete this draft rather than confirming it "
                         + "— a second copy would inflate the spend total and the years covered.",
@@ -335,7 +335,7 @@ public class DraftPlausibilityService {
                 draft,
                 false,
                 "issue.duplicateRecord",
-                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getOdometer()),
+                Map.of("agreement", agreementKeyWith(draft, match.getTotalCost(), match.getAmountCovered(), match.getOdometer()),
                         "date", String.valueOf(match.getServiceDate()))
         ));
     }
@@ -368,21 +368,42 @@ public class DraftPlausibilityService {
      * same round figure can recur across a year of routine servicing.
      */
     private boolean looksLikeOneReceipt(
-            ServiceDraft draft, LocalDate otherDate, Integer otherOdometer, BigDecimal otherTotal) {
+            ServiceDraft draft, LocalDate otherDate, Integer otherOdometer, BigDecimal otherTotal,
+            BigDecimal otherCovered) {
         /* Two totals that both read cleanly and disagree settle it, and settle
            it against a match. One visit can produce a parts slip and a labour
            invoice on the same afternoon at the same odometer: same visit, two
            documents, two records -- not two copies of one. Without this the
            odometer alone would accuse them of duplicating each other. */
-        if (draft.getTotalCost() != null && otherTotal != null
-                && !sameMoney(draft.getTotalCost(), otherTotal)) {
+        boolean sameAmount = sameAmount(draft, otherTotal, otherCovered);
+        if (draft.getTotalCost() != null && otherTotal != null && !sameAmount) {
             return false;
         }
         if (sameOdometer(draft.getOdometer(), otherOdometer)) {
             return true;
         }
+        return sameAmount && nearlySameDate(draft.getServiceDate(), otherDate);
+    }
+
+    /**
+     * The same money: the same total, or the same amount paid.
+     *
+     * <p>Two copies of one credited receipt can disagree on the total and still
+     * be one visit. Before 2026-09-13 such a receipt could be stored with the
+     * amount paid as its total; it is now stored as the bill before coverage with
+     * the credit beside it. Palmetto 57 Nissan filed both ways reads 200.00 and
+     * 256.79 - different totals, 200.00 paid either way.
+     */
+    private boolean sameAmount(ServiceDraft draft, BigDecimal otherTotal, BigDecimal otherCovered) {
         return sameMoney(draft.getTotalCost(), otherTotal)
-                && nearlySameDate(draft.getServiceDate(), otherDate);
+                || sameMoney(paid(draft.getTotalCost(), draft.getAmountCovered()), paid(otherTotal, otherCovered));
+    }
+
+    private static BigDecimal paid(BigDecimal total, BigDecimal covered) {
+        if (total == null) {
+            return null;
+        }
+        return covered == null ? total : total.subtract(covered);
     }
 
     /** A reading of zero is a placeholder, not a measurement. */
@@ -391,8 +412,9 @@ public class DraftPlausibilityService {
     }
 
     /** Names whichever signal actually matched, rather than assuming the total. */
-    private String agreementWith(ServiceDraft draft, BigDecimal otherTotal, Integer otherOdometer) {
-        if (sameMoney(draft.getTotalCost(), otherTotal)) {
+    private String agreementWith(
+            ServiceDraft draft, BigDecimal otherTotal, BigDecimal otherCovered, Integer otherOdometer) {
+        if (sameAmount(draft, otherTotal, otherCovered)) {
             return "for the same total";
         }
         if (sameOdometer(draft.getOdometer(), otherOdometer)) {
@@ -410,8 +432,9 @@ public class DraftPlausibilityService {
 
 
     /** Which signal matched, as a key the reader's own language can phrase. */
-    private String agreementKeyWith(ServiceDraft draft, BigDecimal otherTotal, Integer otherOdometer) {
-        if (sameMoney(draft.getTotalCost(), otherTotal)) {
+    private String agreementKeyWith(
+            ServiceDraft draft, BigDecimal otherTotal, BigDecimal otherCovered, Integer otherOdometer) {
+        if (sameAmount(draft, otherTotal, otherCovered)) {
             return "issue.agreement.total";
         }
         if (sameOdometer(draft.getOdometer(), otherOdometer)) {

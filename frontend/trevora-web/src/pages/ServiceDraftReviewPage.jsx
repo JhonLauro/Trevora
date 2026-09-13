@@ -123,6 +123,11 @@ function vehicleSubtext(vehicle) {
   }`;
 }
 
+/** What the form marks as covered right now, as the amounts check expects it. */
+function coveredOf(form) {
+  return form.hasCoverage ? form.amountCovered : 0;
+}
+
 /**
  * Says what the owner will actually be recorded as having paid, so the
  * consequence of the number is visible while they type it rather than only
@@ -244,7 +249,7 @@ export default function ServiceDraftReviewPage() {
 
     // The balance gap is a property of the record's lines rather than of a
     // field, but it does have somewhere to jump to, so it lists like the rest.
-    const gap = balanceWarning(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals);
+    const gap = balanceWarning(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals, coveredOf(form));
     if (gap) reviewItems.push({ id: DONE_ID, name: t('review.whatDone'), why: gap });
 
     return { blocking: blockingItems, review: reviewItems };
@@ -529,6 +534,7 @@ export default function ServiceDraftReviewPage() {
                   services={form.services}
                   totalCost={form.totalCost}
                   printed={draft.fieldMetadata?.printedSubtotals}
+                  amountCovered={coveredOf(form)}
                 />
               </div>
               <ServiceLinesEditor id={DONE_ID} value={form.services} onChange={updateServices} />
@@ -537,7 +543,7 @@ export default function ServiceDraftReviewPage() {
 
           <StatusRail
             ready={readyToConfirm}
-            attention={railAttention(amountsCheck(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals))}
+            attention={railAttention(amountsCheck(form.services, form.totalCost, draft.fieldMetadata?.printedSubtotals, coveredOf(form)))}
             blocking={blocking}
             review={review}
             vehicleName={vehicleDisplayName(vehicle, draft)}

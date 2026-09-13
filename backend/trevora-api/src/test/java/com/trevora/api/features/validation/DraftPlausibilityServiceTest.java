@@ -431,6 +431,18 @@ class DraftPlausibilityServiceTest {
                 .noneMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
     }
 
+    @Test
+    void theSameCreditedReceiptIsCaughtWhetherItsTotalIsTheBillOrWhatWasPaid() {
+        // Filed once holding the amount paid as its total, scanned again holding
+        // the bill before coverage with the insurance credit beside it.
+        history(record(LocalDate.of(2025, 1, 11), null, "200.00", "Palmetto 57 Nissan"));
+        ServiceDraft rescan = draft(LocalDate.of(2025, 1, 11), null, "256.79", "Palmetto 57 Nissan");
+        rescan.setAmountCovered(new BigDecimal("56.79"));
+
+        assertThat(service.check(rescan, vehicle(null)))
+                .anyMatch(issue -> "POSSIBLE_DUPLICATE".equals(issue.category()));
+    }
+
     private void siblings(ServiceDraft... rows) {
         when(drafts.findByVehicleIdAndOwnerId(eq(VEHICLE), eq(OWNER))).thenReturn(List.of(rows));
     }

@@ -156,9 +156,9 @@ function emptyService(sortOrder = 0) {
  * an extraction-time warning string went stale the moment a figure changed and
  * kept claiming a mismatch that was already resolved.
  */
-export function Balance({ services, totalCost, printed }) {
+export function Balance({ services, totalCost, printed, amountCovered }) {
   const t = useT();
-  const check = amountsCheck(services, totalCost, printed);
+  const check = amountsCheck(services, totalCost, printed, amountCovered);
   if (check.verdict === 'no-lines') return null;
 
   const lineSum = centavosAsPeso(check.lineSum);
@@ -294,8 +294,8 @@ function uncheckedSentence(check) {
 }
 
 /** The check as one sentence for the rail, or null when there is nothing to say. */
-export function balanceWarning(services, totalCost, printed) {
-  const check = amountsCheck(services, totalCost, printed);
+export function balanceWarning(services, totalCost, printed, amountCovered) {
+  const check = amountsCheck(services, totalCost, printed, amountCovered);
   if (check.verdict === 'split-mismatch') return t('lines.railSplitMismatch');
   if (check.verdict === 'split-unreadable') return t('lines.railSplitUnreadable');
   if (check.verdict !== 'gap' || check.gap === null) return null;

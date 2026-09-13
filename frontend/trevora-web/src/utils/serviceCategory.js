@@ -1,3 +1,4 @@
+import { ownerPaidFor } from './spend';
 /**
  * Service categories, as the backend decided them.
  *
@@ -129,7 +130,8 @@ export function spendByCategory(records) {
 
   (records || []).forEach((record) => {
     const category = spendCategory(record);
-    totals.set(category, (totals.get(category) || 0) + Number(record.totalCost || 0));
+    // What the owner paid, not the bill before coverage: see monthlySeries.
+    totals.set(category, (totals.get(category) || 0) + ownerPaidFor(record));
     counts.set(category, (counts.get(category) || 0) + 1);
     if (!names.has(category)) names.set(category, new Set());
     serviceNames(record).forEach((name) => names.get(category).add(name));

@@ -200,6 +200,11 @@ public class ServiceInputService {
         draft.setShopName(blankToNull(extraction.shopName()));
         draft.setLocation(blankToNull(extraction.location()));
         draft.setRemarks(blankToNull(extraction.remarks()));
+        // Set only when the receipt's totals box proved a credit. The owner can
+        // switch it off or change it on review, like any extracted value.
+        if (extraction.amountCovered() != null) {
+            draft.setAmountCovered(extraction.amountCovered());
+        }
         draft.setStatus(DraftStatus.DRAFT);
         draft.setFieldMetadata(enrichReceiptMetadata(extraction.fieldMetadata(), receiptPagesJson));
         draft.setReceiptStorageBucket(blankToNull(receiptStorageBucket));

@@ -56,6 +56,14 @@ describe('amountsCheck', () => {
     expect(amountsCheck(correctLines(), 239.99, PALMETTO).paidNote).toBeNull();
   });
 
+  it('takes the amount paid as the bill less what was covered', () => {
+    // total_cost is the bill before coverage: 256.79, with 56.79 covered.
+    expect(amountsCheck(correctLines(), 256.79, PALMETTO, 56.79).paidNote)
+      .toEqual({ paid: 20000, charges: 23999, explained: true });
+    // Coverage switched off: the whole bill was paid, and the rows no longer explain it.
+    expect(amountsCheck(correctLines(), 256.79, PALMETTO, 0).paidNote.explained).toBe(false);
+  });
+
   // The two blind spots documented in PrintedSubtotals.java, pinned so nobody
   // mistakes a pass here for proof that every amount is on the right line.
   it('cannot see a part tagged as supplies', () => {

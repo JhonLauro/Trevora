@@ -1,5 +1,7 @@
 package com.trevora.api.features.serviceinput;
 
+import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -314,6 +316,26 @@ public class OCRProcessingService {
                 pageCount,
                 vehicle
         );
+        // The bill before coverage, and the coverage, when the receipt's own
+        // totals box proves both. Otherwise the model's total stands and nothing
+        // is marked covered. See ReceiptTotalResolver.
+        Optional<ReceiptTotalResolver.Resolution> resolved =
+                ReceiptTotalResolver.resolve(PrintedSubtotals.read(rawOcrText), fields.totalCost());
+        BigDecimal totalCost = resolved.map(ReceiptTotalResolver.Resolution::totalCost).orElse(fields.totalCost());
+        BigDecimal amountCovered = resolved.map(ReceiptTotalResolver.Resolution::amountCovered).orElse(null);
+        Map<String, Object> resolvedSources =
+                new LinkedHashMap<>(fields.fieldSources() == null ? Map.of() : fields.fieldSources());
+        List<String> resolvedWarnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
+        resolved.ifPresent(resolution -> {
+            resolvedSources.put("totalCost", printedEvidence(resolution.totalCitation(), false));
+            if (resolution.coveredCitation() != null) {
+                // Needs review: a suggestion like every other extracted value.
+                resolvedSources.put("amountCovered", printedEvidence(resolution.coveredCitation(), true));
+            }
+            if (resolution.note() != null) {
+                resolvedWarnings.add(resolution.note());
+            }
+        });
         Map<String, Object> metadata = metadata(
                 "google_vision_openai",
                 rawOcrText,
@@ -321,11 +343,11 @@ public class OCRProcessingService {
                 pages,
                 false,
                 fields.confidenceNotes(),
-                fields.fieldSources(),
+                resolvedSources,
                 fields.fieldConfidence(),
                 fields.aiSuggestedFields(),
                 overallClassification,
-                fields.warnings(),
+                resolvedWarnings,
                 extractionErrors
         );
         // The document's own number and the numbers it points at. Kept in
@@ -358,11 +380,12 @@ public class OCRProcessingService {
                 fields.serviceDate(),
                 classifiedServices,
                 fields.odometer(),
-                fields.totalCost(),
+                totalCost,
                 fields.shopName(),
                 fields.location(),
                 fields.remarks(),
-                metadata
+                metadata,
+                amountCovered
         );
     }
 
@@ -392,6 +415,16 @@ public class OCRProcessingService {
             classified.add(item.withClassification(itemClassification));
         }
         return classified;
+    }
+
+    /** Evidence for a value set from the receipt's printed rows, shaped like the model's own. */
+    private static Map<String, Object> printedEvidence(String sourceText, boolean needsReview) {
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("sourceType", "EXTRACTED_FROM_TEXT");
+        evidence.put("sourceText", sourceText);
+        evidence.put("confidence", needsReview ? "medium" : "high");
+        evidence.put("needsReview", needsReview);
+        return evidence;
     }
 
     private String servicesHaystack(List<ServiceItemFields> items) {
@@ -445,7 +478,8 @@ public class OCRProcessingService {
                         classification,
                         List.of(),
                         extractionErrors
-                )
+                ),
+                null
         );
     }
 
@@ -481,7 +515,8 @@ public class OCRProcessingService {
                 null,
                 null,
                 null,
-                unreadableMetadata(fileName, receiptInputMode, pageCount, extractionErrors)
+                unreadableMetadata(fileName, receiptInputMode, pageCount, extractionErrors),
+                null
         );
     }
 

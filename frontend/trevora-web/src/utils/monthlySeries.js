@@ -5,6 +5,8 @@
  * combined spending panel. Both are plain divs — no charting library.
  */
 
+import { ownerPaidFor } from './spend';
+
 const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /**
@@ -39,7 +41,10 @@ export function monthSeries(records, months = 12, now = new Date()) {
     const key = String(record.serviceDate).slice(0, 7);
     const bucket = index.get(key);
     if (!bucket) return;
-    bucket.total += Number(record.totalCost || 0);
+    // What the owner paid, like the "Spend" figure beside this chart. total_cost
+    // is the bill before coverage, so summing it here disagreed with that figure
+    // on any record something had covered.
+    bucket.total += ownerPaidFor(record);
     bucket.records.push(record);
   });
 
