@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2 } from 'lucide-react';
 import { createReceiptSignedUrl } from '../api/receiptStorage';
+import ReceiptViewer from './ReceiptViewer';
 
 /**
  * The stored receipt for a confirmed record, and the full-size view of it.
@@ -28,55 +29,7 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState({});
   const [zoomed, setZoomed] = useState(false);
-  const closeRef = useRef(null);
   const openerRef = useRef(null);
-
-  /*
-   * Magnification inside the full-size view.
-   *
-   * <p>Fitting the page to the screen is the right way to open -- it answers
-   * "which receipt is this" at a glance -- but it is not enough to read a
-   * line item off a phone photograph, which is the reason the image was kept
-   * at all. So the fitted view is the starting point, not the only one.
-   *
-   * <p>`scale` is a multiplier on that fitted size and `offset` moves the
-   * image under a fixed frame. Panning is stored in pixels rather than
-   * percentages because a drag is measured in pixels; converting twice only
-   * introduces rounding the eye can see.
-   */
-  const MIN_SCALE = 1;
-  const MAX_SCALE = 5;
-  const [scale, setScale] = useState(MIN_SCALE);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const dragRef = useRef(null);
-  const pinchRef = useRef(null);
-
-  /* Back to fitted. Called on open, on close, and whenever the page changes --
-     page two at 4x, panned to where page one's total was, is disorienting. */
-  const resetZoom = useCallback(() => {
-    setScale(MIN_SCALE);
-    setOffset({ x: 0, y: 0 });
-  }, []);
-
-  /*
-   * Zoom about a point rather than the centre.
-   *
-   * <p>Zooming about the centre means the thing being examined slides away as
-   * it grows, and it is examined precisely because it is not in the middle.
-   * Keeping the point under the cursor fixed is what makes the wheel and pinch
-   * feel like magnifying the paper instead of moving it.
-   */
-  const zoomAbout = useCallback((nextScale, pointX, pointY) => {
-    setScale((current) => {
-      const target = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
-      if (target === current) return current;
-      const ratio = target / current;
-      setOffset((o) => (target === MIN_SCALE
-        ? { x: 0, y: 0 }
-        : { x: pointX - (pointX - o.x) * ratio, y: pointY - (pointY - o.y) * ratio }));
-      return target;
-    });
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -106,36 +59,20 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
   const count = signed.length;
   const current = signed[index];
 
+  /* The card's own pager. The full-size view pages itself, and resets its zoom
+     when it does -- see ReceiptViewer. */
   const step = useCallback((delta) => {
     if (count < 2) return;
     // Wraps. With two or three pages, a disabled arrow at each end is more
     // fiddling than it saves.
     setIndex((now) => (now + delta + count) % count);
-    /* A new page opens fitted. Arriving at page two already at 4x, panned to
-       where page one's total happened to be, shows a corner of nothing. */
-    resetZoom();
-  }, [count, resetZoom]);
+  }, [count]);
 
-  /* Escape closes, arrows page. Only while the full-size view is open — the
-     card itself must not swallow arrow keys from the page around it. */
+  /* Focus goes back to the thumbnail on close, so a keyboard user is never
+     left on a control that has gone. The viewer puts it on its close button
+     when it opens. */
   useEffect(() => {
-    if (!zoomed) return undefined;
-
-    function onKeyDown(event) {
-      if (event.key === 'Escape') setZoomed(false);
-      if (event.key === 'ArrowRight') step(1);
-      if (event.key === 'ArrowLeft') step(-1);
-    }
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [zoomed, step]);
-
-  /* Focus goes to the close button on open and back to the thumbnail on
-     close, so a keyboard user is never left on a control that has gone. */
-  useEffect(() => {
-    if (zoomed) closeRef.current?.focus();
-    else openerRef.current?.focus({ preventScroll: true });
+    if (!zoomed) openerRef.current?.focus({ preventScroll: true });
   }, [zoomed]);
 
   if (pages.length === 0) return null;
@@ -195,158 +132,12 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
       </div>
 
       {zoomed && current && (
-        <div
-          className="rcpt-full"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Receipt page ${current.pageNumber} of ${count}`}
-          /* Backdrop only: a click that started inside the image must not
-              close it, which is what happens when the handler sits on the
-              container and does not check its target. */
-          onClick={(event) => {
-            if (event.target === event.currentTarget) { setZoomed(false); resetZoom(); }
-          }}
-        >
-          <div className="rcpt-full__bar">
-            <span className="rcpt-full__title">
-              {count > 1 ? `Page ${index + 1} of ${count}` : 'Receipt'}
-            </span>
-            {/* Wheel, pinch and double-click all work, and none of them
-                announce themselves. Buttons are how somebody finds out the
-                view zooms at all -- and the only way in with a keyboard. */}
-            <div className="rcpt-full__zoomers">
-              <button
-                className="rcpt-full__close"
-                type="button"
-                aria-label="Zoom out"
-                disabled={scale <= MIN_SCALE}
-                onClick={() => zoomAbout(scale / 1.4, 0, 0)}
-              >
-                <Minus size={18} aria-hidden="true" />
-              </button>
-              <span className="rcpt-full__level" aria-live="polite">
-                {Math.round(scale * 100)}%
-              </span>
-              <button
-                className="rcpt-full__close"
-                type="button"
-                aria-label="Zoom in"
-                disabled={scale >= MAX_SCALE}
-                onClick={() => zoomAbout(scale * 1.4, 0, 0)}
-              >
-                <Plus size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <button
-              className="rcpt-full__close"
-              type="button"
-              ref={closeRef}
-              aria-label="Close"
-              onClick={() => { setZoomed(false); resetZoom(); }}
-            >
-              <X size={20} aria-hidden="true" />
-            </button>
-          </div>
-
-          {/* The frame is fixed and the image moves inside it, so panning
-              never drags the picture out over the toolbar or the arrows. */}
-          <div
-            className="rcpt-full__stage"
-            onWheel={(event) => {
-              /* Ctrl+wheel is the browser's own page zoom on some setups, so
-                 plain wheel is used here and the event is claimed either way --
-                 a wheel over a magnified receipt means this image, not the
-                 page behind the overlay. */
-              event.preventDefault();
-              const rect = event.currentTarget.getBoundingClientRect();
-              zoomAbout(
-                scale * (event.deltaY < 0 ? 1.15 : 1 / 1.15),
-                event.clientX - rect.left - rect.width / 2,
-                event.clientY - rect.top - rect.height / 2,
-              );
-            }}
-            onDoubleClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              /* One gesture, both directions: magnified goes back to fitted,
-                 fitted jumps to something worth reading rather than nudging. */
-              zoomAbout(
-                scale > MIN_SCALE ? MIN_SCALE : 2.5,
-                event.clientX - rect.left - rect.width / 2,
-                event.clientY - rect.top - rect.height / 2,
-              );
-            }}
-            onPointerDown={(event) => {
-              if (scale === MIN_SCALE) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              dragRef.current = {
-                id: event.pointerId,
-                startX: event.clientX - offset.x,
-                startY: event.clientY - offset.y,
-              };
-            }}
-            onPointerMove={(event) => {
-              const drag = dragRef.current;
-              if (!drag || drag.id !== event.pointerId) return;
-              setOffset({ x: event.clientX - drag.startX, y: event.clientY - drag.startY });
-            }}
-            onPointerUp={() => { dragRef.current = null; }}
-            onPointerCancel={() => { dragRef.current = null; }}
-            onTouchStart={(event) => {
-              if (event.touches.length !== 2) return;
-              const [a, b] = event.touches;
-              pinchRef.current = {
-                distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
-                scale,
-              };
-            }}
-            onTouchMove={(event) => {
-              const pinch = pinchRef.current;
-              if (!pinch || event.touches.length !== 2) return;
-              event.preventDefault();
-              const [a, b] = event.touches;
-              const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-              const rect = event.currentTarget.getBoundingClientRect();
-              zoomAbout(
-                pinch.scale * (distance / pinch.distance),
-                (a.clientX + b.clientX) / 2 - rect.left - rect.width / 2,
-                (a.clientY + b.clientY) / 2 - rect.top - rect.height / 2,
-              );
-            }}
-            onTouchEnd={() => { pinchRef.current = null; }}
-          >
-            <img
-              className="rcpt-full__image"
-              src={current.url}
-              alt={`Receipt page ${current.pageNumber}, full size`}
-              draggable={false}
-              style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-                cursor: scale > MIN_SCALE ? (dragRef.current ? 'grabbing' : 'grab') : 'zoom-in',
-              }}
-            />
-          </div>
-
-          {count > 1 && (
-            <>
-              <button
-                className="rcpt-full__step rcpt-full__step--prev"
-                type="button"
-                aria-label="Previous page"
-                onClick={() => step(-1)}
-              >
-                <ChevronLeft size={24} aria-hidden="true" />
-              </button>
-              <button
-                className="rcpt-full__step rcpt-full__step--next"
-                type="button"
-                aria-label="Next page"
-                onClick={() => step(1)}
-              >
-                <ChevronRight size={24} aria-hidden="true" />
-              </button>
-            </>
-          )}
-        </div>
+        <ReceiptViewer
+          pages={signed}
+          index={index}
+          onIndexChange={setIndex}
+          onClose={() => setZoomed(false)}
+        />
       )}
     </>
   );

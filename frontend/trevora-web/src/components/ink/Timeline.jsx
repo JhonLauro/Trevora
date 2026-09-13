@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowRight, BadgeCheck, Trash2 } from 'lucide-react';
 import { useT } from '../../i18n/index.jsx';
 import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
@@ -91,30 +92,41 @@ export default function Timeline({ records, vehicleId, onDelete, onMarkReviewed 
                         actions rather than wherever it runs out of width.
                         Carries the same gap the row already used, so on a
                         wide screen this renders exactly as it did flat. */}
-                    <div className="vehicle-timeline__card-actions">
-                      <Link className="ink-table__action" to={`/vehicles/${vehicleId}/history/${record.recordId}`}>
-                        {t('table.open')}
-                      </Link>
-                      {onMarkReviewed && status === 'warn' && (
-                        <button
-                          className="ink-link-button"
-                          type="button"
-                          aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
-                          onClick={() => onMarkReviewed(record)}
-                        >
-                          {t('table.markReviewed')}
-                        </button>
-                      )}
+                    {/* Icons, in the order the "Not finished yet" block uses:
+                        trash, check, then the filled arrow that opens the
+                        record. Each keeps its word as `title`, and its
+                        accessible name as `aria-label`. */}
+                    <div className="vehicle-timeline__card-actions icon-actions">
                       {onDelete && (
                         <button
-                          className="ink-link-button ink-link-button--danger"
+                          className="icon-action icon-action--danger"
                           type="button"
                           aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
+                          title={t('table.delete')}
                           onClick={() => onDelete(record)}
                         >
-                          {t('table.delete')}
+                          <Trash2 size={17} aria-hidden="true" />
                         </button>
                       )}
+                      {onMarkReviewed && status === 'warn' && (
+                        <button
+                          className="icon-action"
+                          type="button"
+                          aria-label={`Mark the ${serviceItemsSummaryLabel(record.services)} record reviewed`}
+                          title={t('table.markReviewed')}
+                          onClick={() => onMarkReviewed(record)}
+                        >
+                          <BadgeCheck size={17} aria-hidden="true" />
+                        </button>
+                      )}
+                      <Link
+                        aria-label={t('table.open')}
+                        className="icon-action icon-action--primary"
+                        title={t('table.open')}
+                        to={`/vehicles/${vehicleId}/history/${record.recordId}`}
+                      >
+                        <ArrowRight size={17} aria-hidden="true" />
+                      </Link>
                     </div>
                   </div>
                 </div>

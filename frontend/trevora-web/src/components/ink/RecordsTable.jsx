@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowRight, Trash2 } from 'lucide-react';
 import { useT } from '../../i18n/index.jsx';
 import RecordCost from './RecordCost.jsx';
 import { Link } from 'react-router-dom';
@@ -44,9 +45,11 @@ function subLine(record) {
 
 export default function RecordsTable({ records, ariaLabel, showVehicle = true, onDelete }) {
   const t = useT();
-  /* The action column widens when it holds two controls rather than one. */
+  /* The action column widens when it holds two controls rather than one: two
+     38px icons and the 4px between them, with a little to spare. It was 132px
+     while they were the words "View" and "Delete". */
   const columns = (showVehicle ? CROSS_VEHICLE_COLUMNS : SINGLE_VEHICLE_COLUMNS)
-    .replace(/ 60px$/, onDelete ? ' 132px' : ' 60px');
+    .replace(/ 60px$/, onDelete ? ' 88px' : ' 60px');
 
   return (
     <>
@@ -78,18 +81,29 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                   {recordStatusLabel(record)}
                 </span>
               </td>
-              <td className="ink-table__actions">
-                <Link className="ink-table__action" to={recordHref(record)}>{t('table.view')}</Link>
+              {/* Icons, like the "Not finished yet" block: trash, then the
+                  filled arrow that opens the record. Each keeps its word as
+                  `title`, and its accessible name as `aria-label`. */}
+              <td className="ink-table__actions icon-actions">
                 {onDelete && (
                   <button
-                    className="ink-link-button ink-link-button--danger"
+                    className="icon-action icon-action--danger"
                     type="button"
                     aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
+                    title={t('table.delete')}
                     onClick={() => onDelete(record)}
                   >
-                    {t('table.delete')}
+                    <Trash2 size={17} aria-hidden="true" />
                   </button>
                 )}
+                <Link
+                  aria-label={t('table.view')}
+                  className="icon-action icon-action--primary"
+                  title={t('table.view')}
+                  to={recordHref(record)}
+                >
+                  <ArrowRight size={17} aria-hidden="true" />
+                </Link>
               </td>
             </tr>
           ))}
@@ -114,19 +128,26 @@ export default function RecordsTable({ records, ariaLabel, showVehicle = true, o
                 {showVehicle ? `${record.vehicleName} · ${subLine(record)}` : subLine(record)}
               </div>
             </div>
-            <div className="ink-record-card__actions">
-              <Link className="ink-button ink-button--outline ink-button--sm" to={recordHref(record)}>
-                {t('table.viewRecord')}
-              </Link>
+            <div className="ink-record-card__actions icon-actions">
               {onDelete && (
                 <button
-                  className="ink-button ink-button--outline ink-button--sm ink-button--danger-outline"
+                  className="icon-action icon-action--danger"
                   type="button"
+                  aria-label={`Delete the ${serviceItemsSummaryLabel(record.services)} record`}
+                  title={t('table.delete')}
                   onClick={() => onDelete(record)}
                 >
-                  {t('table.delete')}
+                  <Trash2 size={17} aria-hidden="true" />
                 </button>
               )}
+              <Link
+                aria-label={t('table.viewRecord')}
+                className="icon-action icon-action--primary"
+                title={t('table.viewRecord')}
+                to={recordHref(record)}
+              >
+                <ArrowRight size={17} aria-hidden="true" />
+              </Link>
             </div>
           </article>
         ))}
