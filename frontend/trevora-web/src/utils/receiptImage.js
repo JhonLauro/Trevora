@@ -1,5 +1,9 @@
 // Client-side receipt image prep before OCR upload: downscale/compress large photos
 // and flag blurry captures so owners can retake before the request ever reaches the backend.
+// Redrawing through a canvas also leaves the photo's EXIF (GPS included) behind; the
+// fallbacks, which keep the original file, strip it without re-encoding instead.
+
+import { stripImageMetadata } from './stripImageMetadata';
 
 export const RECEIPT_IMAGE_MAX_EDGE = 2000;
 export const RECEIPT_IMAGE_QUALITY = 0.85;
@@ -16,7 +20,7 @@ export async function prepareReceiptFile(file) {
 
     const blob = await canvasToBlob(canvas, RECEIPT_IMAGE_QUALITY);
     if (!blob) {
-      return { file, isBlurry: false, sharpness: null };
+      return { file: await stripImageMetadata(file), isBlurry: false, sharpness: null };
     }
 
     return {
@@ -25,8 +29,9 @@ export async function prepareReceiptFile(file) {
       sharpness,
     };
   } catch {
-    // Formats the browser can't decode (e.g. some HEIC files) fall back to the original file untouched.
-    return { file, isBlurry: false, sharpness: null };
+    // Formats the browser can't decode (e.g. some HEIC files) fall back to the original file,
+    // minus its metadata where that can be removed losslessly. stripImageMetadata never throws.
+    return { file: await stripImageMetadata(file), isBlurry: false, sharpness: null };
   }
 }
 

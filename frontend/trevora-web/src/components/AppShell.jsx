@@ -22,6 +22,7 @@ import { supabase } from '../api/supabaseClient.js';
 import ConfirmDialog from './ink/ConfirmDialog.jsx';
 import InkLockup from './InkLockup.jsx';
 import ThemeToggle from './ink/ThemeToggle.jsx';
+import useAvatarSrc from '../hooks/useAvatarSrc.js';
 
 /**
  * Five destinations. "Add service record" is deliberately absent: it is an
@@ -144,7 +145,8 @@ export default function AppShell({ children }) {
   const closeTimerRef = useRef(null);
 
   const displayName = authenticated ? getUserDisplayName(currentUser) : t('shell.signedOut');
-  const avatarUrl = authenticated ? currentUser?.avatar || '' : '';
+  // A signed link, not the stored pointer: the photo bucket is private.
+  const avatarUrl = useAvatarSrc(authenticated ? currentUser?.avatar || '' : '');
   // A photo that 404s -- deleted from the bucket, or a stale Google URL --
   // would otherwise show as a broken-image glyph. Falling back to the initials
   // needs state rather than removing the node: the initials are the other

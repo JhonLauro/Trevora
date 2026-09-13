@@ -3833,3 +3833,52 @@ Still open: a receipt upload keeps its database transaction open for the whole A
 read, so the spend ledger and fingerprint writes inside it still borrow a second
 connection. Harmless at current traffic; moving the read out of the transaction is
 its own change.
+
+## Photo location data stripped before upload (2026-09-13)
+
+Phone photos carry EXIF, usually with GPS. Vehicle photos, profile photos (a
+public bucket), receipts taken with the native camera button, and the rare
+receipt the browser could not redraw were all uploaded with it intact. Receipts
+that go through `prepareReceiptFile` were already clean, because the canvas
+redraw drops it. Nothing in Trevora reads image metadata, so it was exposure
+with no use.
+
+`src/utils/stripImageMetadata.js` now runs on those four paths. It edits bytes,
+not pixels: JPEG EXIF/XMP/IPTC/MPF/comment segments and data after the image end
+(motion-photo video) are removed, PNG eXIf/text chunks too; frame data, tables,
+the ICC profile and Adobe APP14 are copied through unchanged. The orientation is
+written back as a 36-byte EXIF segment so photos do not turn sideways. Anything
+it cannot parse completely is uploaded exactly as before. Checked outside the
+repo: identical decoded pixels in Pillow for all 8 orientations, progressive,
+restart markers, CMYK and grayscale; 40k corrupted files never threw.
+
+Open:
+- HEIC and WebP pass through unchanged. The privacy policy says so.
+- Photos uploaded before this change still carry their metadata. No backfill.
+- Client-side only. The server neither strips nor rejects metadata.
+- `npm test` fails because vitest is not installed (`npm install` fixes it);
+  `stripImageMetadata.test.js` has only been run under a Node shim so far.
+- Encrypting photos "against us" was considered and dropped: OCR has to read
+  receipt images, so they cannot be end-to-end encrypted.
+
+## Profile photos made private (2026-09-13)
+
+`profile-photos` was the only public bucket (013). Migration **026** adds an
+owner-only read policy, drops the public-read policy and flips the bucket to
+private. **Deploy the frontend before running 026**: the new frontend works with
+the bucket either way, the old one only while it is public.
+
+No data moved. The URL already in each account's `trevora_avatar_url` metadata
+is kept as a pointer; `resolveAvatarSrc` (`api/profilePhoto.js`) reads the path
+out of it and signs a one-hour link, and `useAvatarSrc` renews it while a screen
+stays open. The sidebar and the settings page are the only places an avatar is
+drawn, and both fall back to initials if the image fails. Google photo URLs pass
+through untouched.
+
+Verified: build, and the signing logic in the browser with a stubbed storage
+client (signs, shares one request between simultaneous callers, caches, falls
+back on refusal or error). Not verified: signed in, against the real bucket --
+that needs someone to upload a photo, run 026, and reload.
+
+Rollback is in the migration header and needs no frontend change. The dashboard
+and service role can still open these files; policies do not apply to them.

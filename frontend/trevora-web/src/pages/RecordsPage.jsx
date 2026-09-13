@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, BadgeCheck, ChevronDown, Trash2 } from 'lucide-react';
 import { useT } from '../i18n/index.jsx';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import FilterMenu from '../components/ink/FilterMenu.jsx';
@@ -288,14 +289,22 @@ export default function RecordsPage() {
               <h2 className="draft-strip__title">
                 {t('drafts.heading')} <span className="draft-strip__count">{visibleDrafts.length}</span>
               </h2>
+              {/* A chevron rather than the word, for the same reason the row
+                  actions lost theirs: this is a disclosure control, the
+                  universal shape for one is an arrow that turns, and "Hide"
+                  floating at the far end of a wide header read as a stray link.
+                  The word survives as the accessible name, which still changes
+                  between Hide and Show so a screen reader is told the state. */}
               <button
-                className="draft-strip__toggle"
-                type="button"
-                aria-expanded={draftsOpen}
                 aria-controls="draft-strip-list"
+                aria-expanded={draftsOpen}
+                aria-label={draftsOpen ? t('action.hide') : t('action.show')}
+                className="draft-strip__toggle"
                 onClick={toggleDrafts}
+                title={draftsOpen ? t('action.hide') : t('action.show')}
+                type="button"
               >
-                {draftsOpen ? t('action.hide') : t('action.show')}
+                <ChevronDown size={18} aria-hidden="true" />
               </button>
             </div>
             {draftError && (
@@ -319,16 +328,24 @@ export default function RecordsPage() {
                     ].join(' · ')}
                   </span>
                 </div>
+                {/* Icons, not words. Three text buttons per row on a list that
+                    is four rows long put twelve competing labels on a block
+                    whose whole job is to stay out of the way of the records
+                    below it. Each still carries its word as `aria-label` and
+                    `title`, so a screen reader hears it and a pointer sees it
+                    on hover -- the label is moved, not dropped. */}
                 <div className="draft-strip__actions">
                   {/* Without this the list only ever grows: a draft nobody
                       intends to finish has no other way out, and the block
                       that was meant to help ends up burying the records. */}
                   <button
-                    className="ink-link-button ink-link-button--danger"
-                    type="button"
+                    aria-label={t('action.discard')}
+                    className="draft-action draft-action--danger"
                     onClick={() => askDiscardDraft(draft)}
+                    title={t('action.discard')}
+                    type="button"
                   >
-                    {t('action.discard')}
+                    <Trash2 size={17} aria-hidden="true" />
                   </button>
                   {/* Only where the word is true.
                       ServiceRecordService.validationStatusFor grants VALIDATED
@@ -341,16 +358,25 @@ export default function RecordsPage() {
                       drafts get Finish, which is the review this is missing. */}
                   {canValidate(draft) && (
                     <button
-                      className="ink-link-button"
-                      type="button"
+                      aria-label={t('drafts.markValidated')}
+                      className="draft-action"
                       disabled={confirmingId === draft.draftId}
                       onClick={() => markValidated(draft)}
+                      title={t('drafts.markValidated')}
+                      type="button"
                     >
-                      {confirmingId === draft.draftId ? 'Saving…' : t('drafts.markValidated')}
+                      <BadgeCheck size={17} aria-hidden="true" />
                     </button>
                   )}
-                  <Link className="ink-button ink-button--outline" to={`/service-drafts/${draft.draftId}`}>
-                    {t('action.finish')}
+                  {/* The one action that is not optional, so it keeps a filled
+                      shape rather than becoming a third identical glyph. */}
+                  <Link
+                    aria-label={t('action.finish')}
+                    className="draft-action draft-action--primary"
+                    title={t('action.finish')}
+                    to={`/service-drafts/${draft.draftId}`}
+                  >
+                    <ArrowRight size={17} aria-hidden="true" />
                   </Link>
                 </div>
               </li>

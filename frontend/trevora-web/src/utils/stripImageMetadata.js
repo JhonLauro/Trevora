@@ -1,0 +1,417 @@
+/**
+ * Removes location, camera and other metadata from a photo before it leaves
+ * the device -- without decoding or re-encoding it.
+ *
+ * <p>WHY. A phone photo carries EXIF, and EXIF usually carries GPS. A receipt
+ * photographed on a kitchen table or a car photographed in a driveway would
+ * otherwise upload the owner's home coordinates into storage and, for
+ * receipts, on to Google Cloud Vision. Nothing in Trevora reads that metadata
+ * -- the backend has no EXIF reader and never branches on it -- so it is pure
+ * exposure with no use.
+ *
+ * <p>WHY NOT A CANVAS. Redrawing the image would strip metadata too, and
+ * receiptImage.js already does that for receipts it can decode. But a redraw
+ * re-compresses the JPEG and changes pixels, which is a risk on the path that
+ * feeds OCR. This works on the file's bytes instead: metadata segments are
+ * removed, and everything the decoder reads -- frame headers, tables, colour
+ * profile, the compressed scan data -- is copied through bit for bit. The
+ * pixels a decoder produces from the output are the pixels it produced from
+ * the input.
+ *
+ * <p>ROTATION IS KEPT. Phones usually store a portrait photo sideways plus an
+ * orientation tag, and browsers and Vision both apply that tag. Dropping it
+ * would turn photos on their side, so a 36-byte EXIF segment holding only the
+ * orientation is written back in place of the original.
+ *
+ * <p>WHEN IN DOUBT, CHANGE NOTHING. Every function here returns the original
+ * file untouched if anything is unexpected: a format it does not handle (HEIC,
+ * WebP), a structure it cannot fully parse, a rotation it cannot read, or an
+ * output that fails its own re-check. The worst case is a photo that uploads
+ * exactly as it did before this existed. It never throws and never blocks an
+ * upload.
+ */
+
+const SOI = 0xd8;
+const EOI = 0xd9;
+const SOS = 0xda;
+const APP0 = 0xe0;
+const APP1 = 0xe1;
+const APP2 = 0xe2;
+const APP14 = 0xee;
+const COM = 0xfe;
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/* Ancillary PNG chunks that change how the image renders. Everything else
+   ancillary (eXIf, tEXt, zTXt, iTXt, tIME, private chunks) is metadata, and the
+   PNG spec guarantees a decoder may ignore any ancillary chunk it does not know,
+   so dropping those cannot break decoding. Critical chunks are always kept. */
+const PNG_RENDERING_CHUNKS = new Set([
+  'tRNS', 'cHRM', 'gAMA', 'iCCP', 'sBIT', 'sRGB', 'cICP', 'mDCv', 'cLLi',
+  'bKGD', 'hIST', 'pHYs', 'sPLT', 'acTL', 'fcTL', 'fdAT',
+]);
+
+// ----------------------------------------------------------------- helpers
+
+function startsWith(bytes, offset, ascii, end) {
+  if (offset === undefined || offset + ascii.length > end) return false;
+  for (let i = 0; i < ascii.length; i += 1) {
+    if (bytes[offset + i] !== ascii.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+function readU16(bytes, offset, little) {
+  return little
+    ? bytes[offset] | (bytes[offset + 1] << 8)
+    : (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readU32(bytes, offset, little) {
+  const [a, b, c, d] = little
+    ? [bytes[offset + 3], bytes[offset + 2], bytes[offset + 1], bytes[offset]]
+    : [bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]];
+  return a * 16777216 + (b << 16) + (c << 8) + d;
+}
+
+function concat(parts) {
+  let total = 0;
+  for (const part of parts) total += part.length;
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function sameBytes(a, b) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * The orientation stored in a TIFF block -- the body of a JPEG EXIF segment or
+ * a PNG eXIf chunk.
+ *
+ * @returns 1-8, 1 when the tag is absent, or null when the structure cannot be
+ *     trusted. Null is the signal to leave the whole file alone: a rotation we
+ *     cannot read is a rotation we cannot put back.
+ */
+function tiffOrientation(bytes, start, end) {
+  const length = end - start;
+  if (length < 8) return null;
+
+  let little;
+  if (bytes[start] === 0x49 && bytes[start + 1] === 0x49) little = true;
+  else if (bytes[start] === 0x4d && bytes[start + 1] === 0x4d) little = false;
+  else return null;
+
+  if (readU16(bytes, start + 2, little) !== 42) return null;
+
+  const ifd0 = readU32(bytes, start + 4, little);
+  if (ifd0 < 8 || ifd0 + 2 > length) return null;
+
+  const count = readU16(bytes, start + ifd0, little);
+  if (ifd0 + 2 + count * 12 > length) return null;
+
+  for (let i = 0; i < count; i += 1) {
+    const entry = start + ifd0 + 2 + i * 12;
+    if (readU16(bytes, entry, little) !== 0x0112) continue;
+    const type = readU16(bytes, entry + 2, little);
+    const values = readU32(bytes, entry + 4, little);
+    if (type !== 3 || values < 1) return null;
+    const value = readU16(bytes, entry + 8, little);
+    // Out-of-range values are ignored by browsers, which is the same as 1.
+    return value >= 1 && value <= 8 ? value : 1;
+  }
+  return 1;
+}
+
+// -------------------------------------------------------------------- JPEG
+
+/** A JPEG APP1 segment holding one EXIF field: orientation. Nothing else. */
+function orientationSegment(value) {
+  return Uint8Array.of(
+    0xff, APP1, 0x00, 0x22, // marker, length 34
+    0x45, 0x78, 0x69, 0x66, 0x00, 0x00, // "Exif\0\0"
+    0x4d, 0x4d, 0x00, 0x2a, 0x00, 0x00, 0x00, 0x08, // big-endian TIFF, IFD0 at 8
+    0x00, 0x01, // one entry
+    0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, value, 0x00, 0x00, // Orientation
+    0x00, 0x00, 0x00, 0x00, // no further IFD
+  );
+}
+
+function isOrientationSegment(bytes, segment) {
+  if (segment.marker !== APP1 || segment.end - segment.start !== 36) return false;
+  const value = bytes[segment.start + 29];
+  return value >= 2 && value <= 8
+    && sameBytes(bytes.subarray(segment.start, segment.end), orientationSegment(value));
+}
+
+function isStandalone(marker) {
+  return (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01;
+}
+
+/**
+ * Every segment before the first scan, and where that scan starts.
+ *
+ * <p>Length-based, never a search for marker bytes: an ICC profile or a
+ * thumbnail can contain the byte pair FF DA without it meaning anything.
+ */
+function parseJpegHeader(bytes) {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== SOI) return null;
+
+  const segments = [];
+  let orientation = 1;
+  let exifSeen = false;
+  let pos = 2;
+
+  while (pos < bytes.length) {
+    if (bytes[pos] !== 0xff) return null;
+    while (pos < bytes.length && bytes[pos] === 0xff) pos += 1; // fill bytes
+    if (pos >= bytes.length) return null;
+
+    const start = pos - 1;
+    const marker = bytes[pos];
+    pos += 1;
+
+    if (marker === SOS) return { segments, sosStart: start, orientation };
+    if (marker === SOI || marker === EOI || marker === 0x00) return null;
+    if (isStandalone(marker)) {
+      segments.push({ marker, start, end: pos });
+      continue;
+    }
+
+    if (pos + 2 > bytes.length) return null;
+    const length = (bytes[pos] << 8) | bytes[pos + 1];
+    if (length < 2 || pos + length > bytes.length) return null;
+
+    const payload = pos + 2;
+    const end = pos + length;
+
+    // Browsers take orientation from the first EXIF segment, so that is the
+    // one read here.
+    if (marker === APP1 && !exifSeen && startsWith(bytes, payload, 'Exif\u0000\u0000', end)) {
+      exifSeen = true;
+      const value = tiffOrientation(bytes, payload + 6, end);
+      if (value === null) return null;
+      orientation = value;
+    }
+
+    segments.push({ marker, start, end, payload });
+    pos = end;
+  }
+  return null;
+}
+
+/**
+ * Header segments the decoder needs, versus metadata.
+ *
+ * <p>An allow-list for the APPn range rather than a block-list, so a vendor
+ * segment nobody has heard of is removed by default instead of slipping
+ * through. Kept: JFIF, the ICC colour profile, and Adobe's APP14, which tells
+ * the decoder how to convert CMYK and some YCbCr files -- dropping that one
+ * changes colours. Removed: EXIF and XMP (APP1), the multi-picture index MPF
+ * (APP2), IPTC (APP13), maker segments, and comments.
+ */
+function keepHeaderSegment(bytes, segment) {
+  const { marker, payload, end } = segment;
+  if (marker === APP0) return startsWith(bytes, payload, 'JFIF\u0000', end);
+  if (marker === APP2) return startsWith(bytes, payload, 'ICC_PROFILE\u0000', end);
+  if (marker === APP14) return true;
+  if (marker >= 0xe0 && marker <= 0xef) return false;
+  if (marker === COM) return false;
+  return true;
+}
+
+/**
+ * Where the primary image ends, so data appended after it can be dropped.
+ *
+ * <p>Motion photos append a video, and Ultra HDR photos append a gain-map
+ * image, after the main image's end marker -- either can carry its own
+ * metadata. Walking to that marker has to be exact: inside compressed data a
+ * real 0xFF is always followed by 0x00 or a restart marker, and between the
+ * scans of a progressive JPEG the tables are length-prefixed, so their contents
+ * are skipped rather than searched.
+ *
+ * @returns the offset just past EOI, or -1 if it could not be found cleanly --
+ *     in which case nothing after the header is truncated.
+ */
+function findEoiEnd(bytes, sosStart) {
+  let pos = sosStart;
+  while (pos < bytes.length) {
+    if (bytes[pos] !== 0xff) return -1;
+    while (pos < bytes.length && bytes[pos] === 0xff) pos += 1;
+    if (pos >= bytes.length) return -1;
+
+    const marker = bytes[pos];
+    pos += 1;
+
+    if (marker === EOI) return pos;
+    if (isStandalone(marker)) continue;
+    if (marker === 0x00 || marker === SOI) return -1;
+
+    if (pos + 2 > bytes.length) return -1;
+    const length = (bytes[pos] << 8) | bytes[pos + 1];
+    if (length < 2 || pos + length > bytes.length) return -1;
+    pos += length;
+
+    if (marker !== SOS) continue;
+
+    while (pos < bytes.length) {
+      if (bytes[pos] !== 0xff) {
+        pos += 1;
+        continue;
+      }
+      if (pos + 1 >= bytes.length) return -1;
+      const next = bytes[pos + 1];
+      if (next === 0x00 || isStandalone(next)) {
+        pos += 2;
+        continue;
+      }
+      if (next === 0xff) {
+        pos += 1;
+        continue;
+      }
+      break;
+    }
+  }
+  return -1;
+}
+
+function stripJpeg(bytes) {
+  const header = parseJpegHeader(bytes);
+  if (!header) return null;
+
+  const kept = header.segments.filter((segment) => keepHeaderSegment(bytes, segment));
+  const eoiEnd = findEoiEnd(bytes, header.sosStart);
+  const tailEnd = eoiEnd === -1 ? bytes.length : eoiEnd;
+
+  const parts = [bytes.subarray(0, 2)];
+  const rotation = header.orientation !== 1 ? orientationSegment(header.orientation) : null;
+  let inserted = false;
+
+  kept.forEach((segment, index) => {
+    // After a leading JFIF segment if there is one, so a JFIF file stays one;
+    // otherwise first, where cameras put EXIF.
+    if (rotation && !inserted && !(index === 0 && segment.marker === APP0)) {
+      parts.push(rotation);
+      inserted = true;
+    }
+    parts.push(bytes.subarray(segment.start, segment.end));
+  });
+  if (rotation && !inserted) parts.push(rotation);
+
+  parts.push(bytes.subarray(header.sosStart, tailEnd));
+  const out = concat(parts);
+
+  /* Check the output before trusting it: it must parse, report the same
+     rotation, carry no metadata segment but the one written above, and end
+     where the image ends. Any disagreement means the original goes up instead. */
+  const check = parseJpegHeader(out);
+  if (!check || check.orientation !== header.orientation) return null;
+  const leftovers = check.segments.filter(
+    (segment) => !keepHeaderSegment(out, segment) && !isOrientationSegment(out, segment),
+  );
+  if (leftovers.length > 0) return null;
+  if (eoiEnd !== -1 && (out[out.length - 2] !== 0xff || out[out.length - 1] !== EOI)) return null;
+
+  return out;
+}
+
+// --------------------------------------------------------------------- PNG
+
+function isPng(bytes) {
+  return bytes.length >= 8 && PNG_SIGNATURE.every((value, index) => bytes[index] === value);
+}
+
+function stripPng(bytes) {
+  if (!isPng(bytes)) return null;
+
+  const parts = [bytes.subarray(0, 8)];
+  let pos = 8;
+  let first = true;
+  let sawEnd = false;
+
+  while (pos + 12 <= bytes.length) {
+    const length = readU32(bytes, pos, false);
+    if (length > bytes.length - pos - 12) return null;
+    const end = pos + 12 + length;
+    const type = String.fromCharCode(bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]);
+    if (!/^[A-Za-z]{4}$/.test(type)) return null;
+    if (first && type !== 'IHDR') return null;
+    first = false;
+
+    const critical = (bytes[pos + 4] & 0x20) === 0;
+
+    if (type === 'eXIf') {
+      /* A PNG's eXIf can also hold a rotation. Rebuilding the chunk would mean
+         recomputing its CRC; a rotated PNG photo is rare enough that leaving
+         the file untouched is the safer trade. */
+      if (tiffOrientation(bytes, pos + 8, pos + 8 + length) !== 1) return null;
+    } else if (critical || PNG_RENDERING_CHUNKS.has(type)) {
+      parts.push(bytes.subarray(pos, end));
+    }
+
+    pos = end;
+    if (type === 'IEND') {
+      sawEnd = true;
+      break;
+    }
+  }
+
+  if (!sawEnd) return null;
+  return concat(parts);
+}
+
+// ------------------------------------------------------------------- public
+
+/**
+ * @param {Uint8Array|ArrayBuffer} input
+ * @returns {{ bytes: Uint8Array, changed: boolean, format: 'jpeg'|'png'|'other' }}
+ *     When nothing was removed, `bytes` is the very array passed in.
+ */
+export function stripMetadataFromBytes(input) {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+
+  let format = 'other';
+  let out = null;
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === SOI) {
+    format = 'jpeg';
+    out = stripJpeg(bytes);
+  } else if (isPng(bytes)) {
+    format = 'png';
+    out = stripPng(bytes);
+  }
+
+  if (!out || sameBytes(out, bytes)) return { bytes, changed: false, format };
+  return { bytes: out, changed: true, format };
+}
+
+/**
+ * A copy of the file with its metadata removed, or the same file when there
+ * was nothing to remove or it could not be done safely.
+ *
+ * <p>The name, type and date are carried over, so everything downstream --
+ * storage paths, content types, extension checks -- behaves exactly as it did
+ * with the original.
+ */
+export async function stripImageMetadata(file) {
+  try {
+    if (!file || typeof file.arrayBuffer !== 'function') return file;
+    const { bytes, changed } = stripMetadataFromBytes(new Uint8Array(await file.arrayBuffer()));
+    if (!changed) return file;
+    if (typeof File === 'function' && typeof file.name === 'string') {
+      return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
+    }
+    return new Blob([bytes], { type: file.type });
+  } catch {
+    return file;
+  }
+}
