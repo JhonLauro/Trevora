@@ -35,8 +35,18 @@ function RailItem({ item }) {
   );
 }
 
+function statusWhenReady(t, attention) {
+  if (attention === 'unchecked') return t('rail.readyButUnchecked');
+  if (attention === 'mismatch') return t('rail.readyButCheck');
+  return t('rail.nothingStopping');
+}
+
 export default function StatusRail({
   ready,
+  // Ready, but the receipt's amounts do not check out: 'mismatch' or
+  // 'unchecked' (see railAttention). Saving stays possible; the panel just
+  // stops calling it settled.
+  attention = null,
   blocking = [],
   review = [],
   vehicleName,
@@ -46,7 +56,7 @@ export default function StatusRail({
 }) {
   const t = useT();
   const statusLine = ready
-    ? t('rail.nothingStopping')
+    ? statusWhenReady(t, attention)
     : blocking.length === 1
       ? t('rail.oneThing')
       : `${blocking.length} things have to change before this can be saved. The rest is yours to judge.`;
@@ -56,8 +66,9 @@ export default function StatusRail({
       {/* Green is the ready state, not the panel. A blocked save announcing
           itself on the same green as the primary button and the progress bar
           reads as approval; it keeps the neutral ink ground until there is
-          genuinely nothing in the way. */}
-      <section className={`flow-status${ready ? ' is-ready' : ''}`}>
+          genuinely nothing in the way, which excludes amounts that do not match
+          the receipt. */}
+      <section className={`flow-status${ready && !attention ? ' is-ready' : ''}`}>
         <div>
           <p className="flow-status__eyebrow">Status</p>
           <p className="flow-status__title">{ready ? t('rail.readyToSave') : t('rail.notReady')}</p>
