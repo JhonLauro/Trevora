@@ -138,6 +138,29 @@ class PrintedSubtotalsTest {
         assertThat(printed.adjustmentsReadable()).isFalse();
     }
 
+    /**
+     * The whole job and totals section of the real upload, verbatim, rather than
+     * the excerpt above: the labels arrive with legal text glued in front ("ANY
+     * LABOR AMOUNT", "STUTOR PARTS AMOUNT") among rows the excerpt leaves out.
+     * The header above it, with the VIN and customer number, is not included.
+     */
+    @Test
+    void palmettoWholeSectionVerbatim() throws IOException {
+        String text = Files.readString(
+                Path.of("src/test/resources/printed-subtotals/palmetto-jobs-and-totals.txt"), StandardCharsets.UTF_8);
+
+        assertThat(PrintedSubtotals.read(text).toMetadata())
+                .containsEntry("split", "READ")
+                .containsEntry("parts", "105.72")
+                .containsEntry("labour", "134.27")
+                .containsEntry("source", "TOTALS_BOX")
+                .containsEntry("sourcesDisagree", false)
+                .containsEntry("charges", "239.99")
+                .containsEntry("tax", "16.80")
+                .containsEntry("credits", "56.79")
+                .containsEntry("adjustmentsReadable", true);
+    }
+
     @Test
     void noTextMeansNothingPrinted() {
         assertThat(PrintedSubtotals.read(null)).isEqualTo(PrintedSubtotals.NONE);

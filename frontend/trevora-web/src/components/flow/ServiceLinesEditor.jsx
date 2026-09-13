@@ -252,10 +252,11 @@ function messageFor(check) {
           {check.sourcesDisagree && ` ${t('lines.splitMismatch.sourcesDisagree')}`}
         </>
       );
-    case 'gap':
-      return check.againstCharges
-        ? t('lines.gapCharges')
-        : t('lines.gapTotal');
+    case 'gap': {
+      const gap = check.againstCharges ? t('lines.gapCharges') : t('lines.gapTotal');
+      const unchecked = uncheckedSentence(check);
+      return unchecked ? `${gap} ${unchecked}` : gap;
+    }
     case 'split-unreadable':
       return t('lines.splitUnreadable');
     case 'verified':
@@ -281,6 +282,15 @@ function messageFor(check) {
     default:
       return '';
   }
+}
+
+/** What the gap message has to add when parts and labour were not checked. */
+function uncheckedSentence(check) {
+  if (check.unchecked === 'unreadable') return t('lines.gapUncheckedUnreadable');
+  if (check.unchecked !== 'unpriced') return '';
+  return check.unpricedCount === 1
+    ? t('lines.gapUncheckedUnpricedOne')
+    : t('lines.gapUncheckedUnpricedOther', { count: check.unpricedCount });
 }
 
 /** The check as one sentence for the rail, or null when there is nothing to say. */

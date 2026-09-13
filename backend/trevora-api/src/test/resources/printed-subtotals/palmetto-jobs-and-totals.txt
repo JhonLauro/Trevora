@@ -1,0 +1,50 @@
+LINE OPCODE | 09:40 11JAN25
+A PERFORM | TECH TYPE HOURS
+CVT
+CAUSE : PERFORM TRANSMISSION CVT | FLUID SERVICE | LIST | NET | TOTAL
+WCVT | TRANSMISSION FLUID | - 66001 / E85501
+PERFORM CVT TRANSMISSION | SERVICE
+66001EE5501 | FLUID SERVICE
+-
+115356CPNTN | 1.00
+1 66001 CVT
+1 EE5501 | ENHANCER | 134.27 | 134.27
+PARTS : | SYN / CVT 50T | 27.99 | 27.99 | 27.99
+105.72 | LABOR : | 134.27 | 77.73 | 77.73 | 77.73
+B MULTI | OTHER : | 0.00 | TOTAL LINE A : | 239.99
+POINT INSPECTION
+MPI MULTI POINT
+INSPECTION
+115356 ISPN 0.00
+PARTS : | 0.00
+LABOR : | 0.00 OTHER : | ( N / C )
+0.00 | TOTAL LINE B | 0.00
+C TIRE CONDITION GOOD
+GRE TIRE CONDITION GOOD
+115356 ISPN | 0.00
+PARTS : | 0.00 | LABOR : | 0.00 OTHER : | ( N / C )
+0.00 | TOTAL LINE C | 0.00
+LEAS
+DECLAMED ALL PARTS AND ACCESSORES ARE SOLD AND ALL INCLUDING REPAIRS ANY ARE PERFORMED PEDA | DEALERSH | DESCRIPTION | TOTALS
+WARRANTY BALERY DISCLAIMS ALL PURPOSE WARRANTIES AND METER EXPRESS ASSUMES AND APLIED NOR , AUTHORIZES ANY OTHER PERSON ASSUME FOR IT ANY LABOR AMOUNT | 134.27
+AND FITNESS IN CONNECTION FOR PARTICULAR WITH THE SALE REPAIRS PARTS OR ARE ACCESSORIES THOSE WHICH OR MAY ANY BE OFFERED AS PERFOR THE MANUFACTURER | STUTOR PARTS AMOUNT | 105.72
+LIABILITY WARRANTIES ON PARTS AND ACCESSORES OR DETRATOR OR SHALL LABLE FOR PERFORMANCE UNDER SUCH TO PROPERTY WARRANTS , SAMAGES cute FOR LOSS HALL GAS ON LUBE | 0.00
+AND NOT ONLY BE ENTITLED SUCH MANUFACTURER TO RECOVER FROM THE DEALERSHIP COME OR ANY ANY CONSEQUENTIAL OTHER INCIDENTAL DAMAGES DAMAGE DAMAGES | SUBLET AMOUNT | 0.00
+OF USE LOSS OF TIME LOSS OF PRONTO | equal to 12 % of the total cost of labor and pets , not to exceed $ 39.99 | MISC CHARGES
+SHOP SUPPLY COSTS We have add a costs charge and profits to the motor vehicle repair facility tread for macaanee in the | shop 403718 | 0.00
+the Reper Order | charge presents requires 51.00 fee to be cuested for each new | 403 7185 | TOTAL CHARGES | 239.99
+and waste disposal fee be The collected State of for Fionda each new or remanufactured add battery so Desenho to perform the servicesars LESS INSURANCE | 56.79
+and a $ 1.50 to | that you were notified of and authorized inspect the any replaced pea | d by you The | TAX | 16.80
+By signing below , you and acknowledge that you received for had the opportunity of the Amount to Due | SALES
+itemized in this retumet invoice to you in exchange for your payment | AUTHORIZED DEALERSHIP REPRESENTATIVE SIGNATURE | PLEASE PAY
+vehicle is being | CUSTOMER SIGNATURE | THIS AMOUNT | 200.00
+DATE | against a motor vehicle dealer for an unfair or deceptive trade
+requires that , at least 30 days before bringing any claim | and telephone number of the consumer , the in name the
+Section 501.98 , Florida Statutes , | dealer with a witten demands to the came the amount of damages , and copies of any documents recognized
+practice , a consumer must provide description the of the facts that serve as the basis for the claim by ; the United States Postal Service or transaction by a nationally occurred , or an
+and address of the dealer : a | relate to the claim . Such notice must be was delivered purchased or leased or where the subject
+possession of the consumer which to the address where the subject vehicle
+carrier , return receipt requested regularly , | conducts business
+address at which the dealer | Customer X | OTHERWISE INDICATED .
+ALL PARTS ARE NEW UNLESS
+Customer X | CUSTOMER COPY
