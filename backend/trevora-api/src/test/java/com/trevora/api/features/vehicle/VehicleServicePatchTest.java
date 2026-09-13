@@ -68,7 +68,8 @@ class VehicleServicePatchTest {
                 mock(ServiceDraftRepository.class),
                 mock(QRAccessRepository.class),
                 mock(MechanicAccessRepository.class),
-                mock(MechanicAccessSessionRepository.class));
+                mock(MechanicAccessSessionRepository.class),
+                mock(com.trevora.api.features.serviceinput.ReceiptFiles.class));
     }
 
     /** The details dialog's save: four registration fields, nothing else. */

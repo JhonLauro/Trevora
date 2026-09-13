@@ -2,6 +2,7 @@ package com.trevora.api.shared.exception;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,5 +64,26 @@ class GlobalExceptionHandlerStatusTest {
 
         assertNotNull(response.getBody());
         assertNotNull(response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("a refused deletion is a 503 with its code, and says nothing was removed")
+    void refusedDeletionIsServiceUnavailable() {
+        ResponseEntity<ApiErrorResponse> response =
+                handler.handleDeletionUnavailable(new DeletionUnavailableException("record"));
+
+        assertEquals(503, response.getStatusCode().value());
+        assertEquals(DeletionUnavailableException.CODE, response.getBody().code());
+        assertTrue(response.getBody().message().contains("nothing was removed"));
+    }
+
+    @Test
+    @DisplayName("deleting a confirmed draft is a 409 that names the action to use instead")
+    void confirmedDraftIsConflict() {
+        ResponseEntity<ApiErrorResponse> response = handler.handleDraftHasRecord(new DraftHasRecordException());
+
+        assertEquals(409, response.getStatusCode().value());
+        assertEquals(DraftHasRecordException.CODE, response.getBody().code());
+        assertTrue(response.getBody().message().contains("Delete the record"));
     }
 }

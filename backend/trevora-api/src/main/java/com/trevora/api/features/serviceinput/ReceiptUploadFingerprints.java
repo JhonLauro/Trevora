@@ -64,6 +64,8 @@ public class ReceiptUploadFingerprints {
             on conflict (draft_id) do nothing
             """;
 
+    private static final String FORGET = "delete from public.receipt_upload_fingerprints where draft_id = ?";
+
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate ownTransaction;
     private volatile long lastFailureLoggedAt;
@@ -142,6 +144,20 @@ public class ReceiptUploadFingerprints {
         } catch (RuntimeException failure) {
             noteFailure("record", failure);
         }
+    }
+
+    /**
+     * Removes a deleted draft's fingerprint.
+     *
+     * <p>Unlike the lookup and the insert, this runs in the caller's transaction
+     * and lets a failure through: the row names a draft and a hash of its pages,
+     * and a deletion that could not remove it should not report success.
+     */
+    public void forget(UUID draftId) {
+        if (jdbcTemplate == null || draftId == null) {
+            return;
+        }
+        jdbcTemplate.update(FORGET, draftId);
     }
 
     private void noteFailure(String action, RuntimeException failure) {

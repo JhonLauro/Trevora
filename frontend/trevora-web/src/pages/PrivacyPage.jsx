@@ -145,9 +145,9 @@ export default function PrivacyPage() {
         useful if it is not quietly thrown away.
       </p>
       <p>
-        Deleting a record, a draft or a vehicle removes it from your history, but not yet
-        everything behind it: the receipt photos you uploaded, and the text read from them, can
-        stay in our storage afterwards.
+        Deleting a record, a draft or a vehicle removes it from your history, together with its
+        receipt photos and the text read from them. If they cannot be removed at that moment,
+        nothing is deleted and you are told so.
       </p>
       <p>
         A mechanic&apos;s session expires {sessionDuration} after you approve it; a share link
@@ -156,10 +156,10 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>You can close your account yourself</strong>, under Account settings, Delete
-        account. It is permanent. It removes your profile, vehicles, records and drafts, and the
-        receipt photos still attached to them. Photos from records, drafts or vehicles you deleted
-        earlier may remain in our storage. Copies can also remain in our hosting provider&apos;s
-        backups until those backups expire.
+        account. It is permanent. It removes your profile, vehicles, records and drafts, and every
+        receipt photo and the text read from them. Photos from records, drafts or vehicles deleted
+        before this change may remain in our storage until we clear them. Copies can also remain in
+        our hosting provider&apos;s backups until those backups expire.
       </p>
 
       <h2>6. Your rights</h2>

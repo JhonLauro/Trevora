@@ -34,6 +34,23 @@ public class GlobalExceptionHandler {
                         exception.getMessage(), HttpStatus.FORBIDDEN.value(), AccountSuspendedException.CODE));
     }
 
+    /* 503 with a code: receipt files could not be removed, so nothing was deleted.
+       The message tells the owner their data is still there. */
+    @ExceptionHandler(DeletionUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleDeletionUnavailable(DeletionUnavailableException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        DeletionUnavailableException.CODE));
+    }
+
+    /* 409: the draft belongs to a saved record. The message names the delete to use instead. */
+    @ExceptionHandler(DraftHasRecordException.class)
+    public ResponseEntity<ApiErrorResponse> handleDraftHasRecord(DraftHasRecordException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.CONFLICT.value(),
+                        DraftHasRecordException.CODE));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

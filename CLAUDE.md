@@ -99,6 +99,22 @@ Authenticated requests must carry the Supabase bearer token (`Authorization: Bea
   stops us recomputing a figure the receipt already prints; this is the sum of
   two printed figures, used only when four of them reconcile. Do not
   re-litigate it without reading `planning/DEFERRED.md` first.
+- **Deletion destroys; it never anonymises.** Deleting a record, draft, vehicle
+  or account removes its rows, its receipt photos and the text read from them
+  (decided 2026-09-13). Anonymising was rejected: a receipt transcript with the
+  shop, date, plate, VIN and amounts identifies its owner with the name
+  removed, and someone deleting a record means it is gone, not kept in a
+  weaker form. Every delete path removes files first through `ReceiptFiles`,
+  then rows. Without the service-role key it refuses with 503
+  `DELETION_UNAVAILABLE` and an error log, never deleting rows and leaving
+  photos. Deleting a confirmed draft on its own is refused with 409
+  `DRAFT_HAS_RECORD`, because migration 016 would cascade away its record.
+  Known limits, not solved: Supabase backups keep deleted data until they
+  expire; Google Vision and OpenAI keep what they were sent under their own
+  retention; notifications in `localStorage` are cleared only on the device
+  that deletes the account. **Nothing watches `/health/deletion`** -- it
+  exists for a monitor that is not configured, so a missing key is announced
+  only by the error logged at boot.
 - Supported MVP account roles: `VEHICLE_OWNER` and `ADMIN`. Mechanics are never registered users — they get temporary, owner-approved, single-vehicle-scoped read-only access via QR/share tokens (`mechanicaccess`/`sharing` features). Mechanic-facing APIs must be read-only and must verify session approval and expiration before returning data.
 - Vehicle/owner scoping must be enforced on every query that touches vehicles, drafts, or records.
 

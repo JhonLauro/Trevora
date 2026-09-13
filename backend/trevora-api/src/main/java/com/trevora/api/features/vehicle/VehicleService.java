@@ -3,6 +3,7 @@ package com.trevora.api.features.vehicle;
 
 import com.trevora.api.features.auth.CurrentUserService;
 import com.trevora.api.features.mechanicaccess.MechanicAccessSessionRepository;
+import com.trevora.api.features.serviceinput.ReceiptFiles;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
 import com.trevora.api.features.sharing.MechanicAccessRepository;
@@ -17,7 +18,10 @@ import com.trevora.api.features.vehicle.VehicleRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,6 +33,7 @@ public class VehicleService {
     private final QRAccessRepository qrAccessRepository;
     private final MechanicAccessRepository mechanicAccessRepository;
     private final MechanicAccessSessionRepository mechanicAccessSessionRepository;
+    private final ReceiptFiles receiptFiles;
 
     public VehicleService(
             VehicleRepository vehicleRepository,
@@ -37,7 +42,8 @@ public class VehicleService {
             ServiceDraftRepository serviceDraftRepository,
             QRAccessRepository qrAccessRepository,
             MechanicAccessRepository mechanicAccessRepository,
-            MechanicAccessSessionRepository mechanicAccessSessionRepository
+            MechanicAccessSessionRepository mechanicAccessSessionRepository,
+            ReceiptFiles receiptFiles
     ) {
         this.vehicleRepository = vehicleRepository;
         this.currentUserService = currentUserService;
@@ -46,6 +52,7 @@ public class VehicleService {
         this.qrAccessRepository = qrAccessRepository;
         this.mechanicAccessRepository = mechanicAccessRepository;
         this.mechanicAccessSessionRepository = mechanicAccessSessionRepository;
+        this.receiptFiles = receiptFiles;
     }
 
 
@@ -261,6 +268,18 @@ public class VehicleService {
     public void deleteVehicleForCurrentUser(UUID vehicleId) {
         requireVehicleOwner();
         VehicleProfile vehicle = getVehicleForCurrentUser(vehicleId);
+
+        /* Every receipt photo of every record and draft first. Once the rows are
+           gone nothing names these files any more, which is how deleting a
+           vehicle used to leave its photos in the bucket for good. If they
+           cannot be removed, nothing below runs. */
+        UUID ownerId = currentUserService.getCurrentUserId();
+        Set<ReceiptFiles.StoredReceipt> files = new LinkedHashSet<>();
+        serviceRecordRepository.findByVehicleIdAndOwnerId(vehicleId, ownerId, Sort.unsorted())
+                .forEach(record -> files.addAll(ReceiptFiles.of(record)));
+        serviceDraftRepository.findByVehicleIdAndOwnerId(vehicleId, ownerId)
+                .forEach(draft -> files.addAll(ReceiptFiles.of(draft)));
+        receiptFiles.removeOrRefuse(files, "vehicle", "vehicle " + vehicleId);
 
         mechanicAccessSessionRepository.deleteByVehicleId(vehicleId);
         mechanicAccessRepository.deleteByVehicleId(vehicleId);

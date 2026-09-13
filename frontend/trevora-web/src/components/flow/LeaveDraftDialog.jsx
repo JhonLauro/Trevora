@@ -19,7 +19,7 @@ import { useT } from '../../i18n/index.jsx';
  * receipt on purpose, and the recoverable answer should be the easy one; the
  * destructive answer is a quiet link, spelled out, and never the default focus.
  */
-export default function LeaveDraftDialog({ open, saving, onSave, onDiscard, onCancel }) {
+export default function LeaveDraftDialog({ open, saving, error, onSave, onDiscard, onCancel }) {
   const t = useT();
   const [busy, setBusy] = useState(null);
   const dialogRef = useRef(null);
@@ -123,6 +123,9 @@ export default function LeaveDraftDialog({ open, saving, onSave, onDiscard, onCa
           >
             {busy === 'discard' ? t('leave.discarding') : t('leave.discard')}
           </button>
+          {/* A refused delete stays here with the server's reason. Closing the
+              dialog would read as the draft having gone. */}
+          {error && <p className="ink-modal__error" role="alert">{error}</p>}
         </div>
       </div>
     </div>

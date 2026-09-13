@@ -89,7 +89,8 @@ class ReceiptUploadReuseTest {
                 currentUser,
                 new ObjectMapper(),
                 new ServiceClassificationService(),
-                fingerprints);
+                fingerprints,
+                new ReceiptFiles("", ""));
 
         ServiceInputService.ReceiptDraftOutcome outcome = service.createOrReuseReceiptDraft(
                 vehicleId, List.of(page("IMG_1.jpg", "page one")), "UPLOAD", null, null, null, null, null);

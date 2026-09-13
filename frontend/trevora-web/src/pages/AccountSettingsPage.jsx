@@ -5,6 +5,7 @@ import React, { useMemo, useRef, useState } from 'react';
    hook's own `t` shadows this import, so nothing there changes. */
 import { LANGUAGES, translate as t, useLanguage } from '../i18n/index.jsx';
 import { deleteAccount, syncCurrentUserProfile } from '../api/auth.js';
+import { clearLocalNotifications } from '../api/localNotifications.js';
 import ConfirmDialog from '../components/ink/ConfirmDialog';
 import { getGarageSummary } from '../api/serviceHistory.js';
 import { clearLoggedInUser, getActiveCurrentUser, getUserDisplayName, setLoggedInUser } from '../api/currentUser';
@@ -178,8 +179,14 @@ export default function AccountSettingsPage() {
     if (!deleteArmed || deleting) return;
     setDeleting(true);
     setDeleteError('');
+    // Read before deleting: deleteAccount signs this browser out, and the
+    // notifications are stored under the signed-in user's id.
+    const deletedUserId = getActiveCurrentUser()?.userId;
     try {
       await deleteAccount();
+      // This device's notifications only. Other devices keep theirs until their
+      // browser storage is cleared; nothing on the server can reach them.
+      clearLocalNotifications(deletedUserId);
       // Full reload, not a route change: every cached list and context in
       // memory refers to an account that no longer exists.
       window.location.assign('/login');

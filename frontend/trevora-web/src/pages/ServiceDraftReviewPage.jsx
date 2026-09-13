@@ -183,6 +183,7 @@ export default function ServiceDraftReviewPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
   const [leavePrompt, setLeavePrompt] = useState(false);
+  const [discardError, setDiscardError] = useState('');
   /* Where the reader was going when they were stopped, so the dialog can
      finish the journey instead of always dumping them in the Garage. */
   const [leavingTo, setLeavingTo] = useState('/');
@@ -360,13 +361,16 @@ export default function ServiceDraftReviewPage() {
   }
 
   /* Throw it away: the draft and its receipt pages, not merely the edits.
-     Navigation happens even if the delete fails -- being stuck in a dialog is
-     worse than one stray draft, and it stays deletable from the Records page. */
+     A refused delete keeps the dialog open with the reason. It used to navigate
+     away regardless, which now would look like the draft had gone when the
+     server had deleted nothing. */
   async function discardDraft() {
+    setDiscardError('');
     try {
       await deleteServiceDraft(draftId);
-    } catch {
-      // Deliberately swallowed; see above.
+    } catch (err) {
+      setDiscardError(err.message);
+      return;
     }
     setLeavePrompt(false);
     navigate(leavingTo);
@@ -597,8 +601,9 @@ export default function ServiceDraftReviewPage() {
         open={leavePrompt}
         saving={saving}
         onSave={keepAsDraft}
+        error={discardError}
         onDiscard={discardDraft}
-        onCancel={() => setLeavePrompt(false)}
+        onCancel={() => { setDiscardError(''); setLeavePrompt(false); }}
       />
     </FlowChrome>
   );
