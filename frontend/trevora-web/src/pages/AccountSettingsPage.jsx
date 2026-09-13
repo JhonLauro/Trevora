@@ -13,6 +13,7 @@ import {
   saveNotificationPreferences,
 } from '../api/notificationPreferences.js';
 import { describeAvatarLimit, uploadProfilePhoto } from '../api/profilePhoto.js';
+import useAvatarSrc from '../hooks/useAvatarSrc.js';
 import { supabase } from '../api/supabaseClient.js';
 
 const PROFILE_EXTRAS_KEY = 'trevora.profileExtras';
@@ -112,6 +113,9 @@ export default function AccountSettingsPage() {
     // leftover base64 photo from the old localStorage scheme.
     avatar: currentUser?.avatar || profileExtras.avatar || '',
   });
+  // `form.avatar` is the stored pointer; the bucket is private, so this is what gets drawn.
+  const avatarSrc = useAvatarSrc(form.avatar);
+  const [brokenAvatarSrc, setBrokenAvatarSrc] = useState('');
   const [detailErrors, setDetailErrors] = useState({});
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -438,7 +442,9 @@ export default function AccountSettingsPage() {
         <form className="set-body" onSubmit={saveProfile}>
           <div className="set-avatar-row">
             <span className="set-avatar">
-              {form.avatar ? <img alt="" src={form.avatar} /> : initials(form.firstName, form.lastName)}
+              {avatarSrc && avatarSrc !== brokenAvatarSrc
+                ? <img alt="" src={avatarSrc} onError={() => setBrokenAvatarSrc(avatarSrc)} />
+                : initials(form.firstName, form.lastName)}
             </span>
             <div className="set-avatar-meta">
               <span className="set-avatar-name">{displayName || t('set.vehicleOwner')}</span>

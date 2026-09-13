@@ -13,6 +13,7 @@ import ProcessingModal, {
 import { createReceiptPagesServiceDraft, primeServiceDraftReview } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import { prepareReceiptFile, prepareCanvasCapture } from '../utils/receiptImage';
+import { stripImageMetadata } from '../utils/stripImageMetadata';
 import { warmUpApi, isApiWarm } from '../api/warmup.js';
 import {
   ReceiptAllowanceNotice,
@@ -251,13 +252,17 @@ export default function ReceiptUploadPage() {
     }
   }
 
-  function addScanFile(fileList) {
+  async function addScanFile(fileList) {
+    // Picked out before the first await: the caller clears the input right after calling this.
     const file = Array.from(fileList || []).find(isSupportedReceiptFile);
     if (!file) {
       setError('Capture a supported receipt image.');
       return;
     }
-    setPages((current) => renumberPages([...current, toPage(file, 'SCAN')]));
+    // A camera-app photo carries the phone's GPS position, and this path skips
+    // prepareReceiptFile, so nothing else removes it. Pixels are left as they are.
+    const cleaned = await stripImageMetadata(file);
+    setPages((current) => renumberPages([...current, toPage(cleaned, 'SCAN')]));
     setError('');
   }
 

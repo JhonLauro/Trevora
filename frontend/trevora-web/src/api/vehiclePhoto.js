@@ -1,16 +1,15 @@
 import { getActiveCurrentUser } from './currentUser.js';
 import { requireSupabaseClient } from './supabaseClient.js';
+import { stripImageMetadata } from '../utils/stripImageMetadata.js';
 
 /**
- * Photos of a vehicle, stored the way receipts are rather than the way profile
- * photos are.
+ * Photos of a vehicle, stored the way receipts are.
  *
- * <p>The difference is deliberate. `profile-photos` is public-read because an
- * avatar carries nothing private and is drawn on every screen. A photo of a
- * car is usually a photo of its plate, generally taken where the car is kept,
- * and the same picture can end up in front of a mechanic who scanned a QR
- * code. So this bucket is private and the app renders a signed URL that
- * expires, exactly like `service-receipts`.
+ * <p>A photo of a car is usually a photo of its plate, generally taken where
+ * the car is kept, and the same picture can end up in front of a mechanic who
+ * scanned a QR code. So this bucket is private and the app renders a signed
+ * URL that expires, exactly like `service-receipts` -- and, since migration
+ * 026, `profile-photos`, which started out public-read.
  *
  * <p>What is stored on the vehicle is the bucket and the path, never a URL —
  * a signed URL would be stale within the hour.
@@ -59,9 +58,13 @@ export async function uploadVehiclePhoto(file) {
   // first path segment against the caller's auth uid.
   const path = `${ownerId}/vehicle-${Date.now()}-${randomSuffix()}.${fileExtension(file)}`;
 
+  // Where the car is kept is exactly what a phone's GPS tag records, and this
+  // photo can be shown to a mechanic. The picture itself is not touched.
+  const cleaned = await stripImageMetadata(file);
+
   const { error } = await client.storage
     .from(VEHICLE_PHOTO_BUCKET)
-    .upload(path, file, {
+    .upload(path, cleaned, {
       cacheControl: '3600',
       contentType: file.type || undefined,
       upsert: false,

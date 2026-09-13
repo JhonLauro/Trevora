@@ -103,29 +103,51 @@
    hides how much it is hiding is worse than one left open. */
 
 .draft-strip__heading {
-  align-items: baseline;
+  /* Centre, not baseline: the chevron is a box now rather than a line of text,
+     and baseline alignment hung it below the title. */
+  align-items: center;
   display: flex;
   gap: 14px;
   justify-content: space-between;
 }
 
+/* A counted badge rather than a loose numeral. "Not finished yet 4" read as a
+   sentence with a typo in it; the number is a quantity and should look like
+   one, sitting with the title instead of trailing after it. */
 .draft-strip__count {
-  color: var(--ink-muted, #57534c);
+  background: var(--status-none-bg);
+  border: 1px solid var(--status-none-border);
+  border-radius: 100px;
+  color: var(--ink-muted);
+  display: inline-block;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1;
+  margin-left: 6px;
+  min-width: 22px;
+  padding: 4px 8px;
+  text-align: center;
+  vertical-align: 2px;
 }
 
 .draft-strip__toggle {
+  align-items: center;
   background: none;
   border: 0;
+  border-radius: 100px;
   color: var(--ink-muted, #57534c);
   cursor: pointer;
+  display: inline-flex;
   flex-shrink: 0;
-  font: inherit;
-  font-size: 15px;
-  padding: 2px 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  height: 34px;
+  justify-content: center;
+  /* Same floor that caught the row actions: a bare button carries
+     `min-height: 52px` from styles.css and it beats `height`. */
+  min-height: 0;
+  padding: 0;
+  transition: background 120ms ease-out, color 120ms ease-out;
+  width: 34px;
 }
 
 .draft-strip__toggle:hover:not(:disabled) {
@@ -142,20 +164,18 @@
 }
 
 @media (max-width: 560px) {
-  /* Stacked rather than side by side: at full width they would read as a pair
-     of equals, and the destructive one should not look like the one people
-     actually want. Reversed so Finish takes the top -- the same order, and the
-     same column-reverse, that .ink-modal__actions already uses on this
-     breakpoint. */
+  /* These used to stack column-reverse at full width, which was right when they
+     were two text buttons: side by side and equally wide, the destructive one
+     read as a peer of the one people actually want. Icons undo that problem on
+     their own -- a 38px glyph cannot be mistaken for the filled green circle
+     beside it -- and stacking three of them would make a 130px tower out of a
+     row that fits in 130px across. So they stay a row, and sit under the facts
+     rather than beside them. */
   .draft-strip__actions {
-    align-items: stretch;
-    flex-direction: column-reverse;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .draft-strip__actions .ink-link-button {
-    padding: 6px 0;
+    align-items: center;
+    flex-direction: row;
+    gap: 4px;
+    width: auto;
   }
 }
 
@@ -166,4 +186,151 @@
   color: var(--danger-ink, #8c2018);
   font-size: 15px;
   margin: 8px 0 0;
+}
+
+/* ------------------------------------------------------------ the actions
+
+   Three words per row became three glyphs. On a four-row block that is twelve
+   competing labels removed from a panel whose entire job is to sit quietly
+   above the records and not compete with them.
+
+   The words are not gone -- each button carries one as `aria-label` and
+   `title`, so a screen reader reads it and a pointer shows it on hover. That
+   is the trade an icon button has to make good on, and it is the reason none
+   of these is a bare glyph with no accessible name.
+
+   44px, not the 32 that would look tidier. These sit in a row a thumb has to
+   hit on a phone, and one of them deletes something. */
+
+.draft-strip__actions {
+  align-items: center;
+  display: flex;
+  /* Tight, because they are one group of related choices rather than three
+     separate decisions. */
+  gap: 4px;
+}
+
+.draft-strip__actions .draft-action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 38px;
+  justify-content: center;
+  /* `min-height: 52px` is set on bare buttons in styles.css and ink-app.css, and
+     a min-height beats a height -- so without this these render 38 wide by 52
+     tall, a stadium pretending to be a circle. service-flow.css carries a
+     comment about the same trap; this is the second time it has caught someone,
+     which is worth noting where the next person will look. */
+  min-height: 0;
+  padding: 0;
+  text-decoration: none;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+  width: 38px;
+}
+
+/* Borderless until pointed at. A row of outlined buttons reads as a toolbar
+   and pulls the eye; these should be invisible until wanted. */
+.draft-strip__actions .draft-action:hover:not(:disabled) {
+  background: var(--hover-tint);
+  color: var(--ink);
+}
+
+.draft-strip__actions .draft-action:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.draft-strip__actions .draft-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* Red on approach, not at rest. A permanently red icon in a quiet list reads
+   as an error state; this one is only destructive once you reach for it. */
+.draft-strip__actions .draft-action--danger:hover:not(:disabled) {
+  background: var(--status-bad-bg);
+  color: var(--status-bad-text);
+}
+
+/* The one action the block exists to encourage, so it keeps a filled shape
+   rather than becoming a third identical glyph in a row of three. */
+.draft-strip__actions .draft-action--primary {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.draft-strip__actions .draft-action--primary:hover {
+  background: var(--brand-hover);
+  color: #ffffff;
+}
+
+/* ------------------------------------------------------------- the facts
+
+   The vehicle name repeated once per row is the other half of the noise: on a
+   page already scoped to one owner's records, four rows reading "Mitsubishi
+   Mirage G4" tell you nothing four times. It stays -- an owner with two cars
+   needs it -- but it stops being the loudest thing in the row, and the date
+   and shop, which are what actually distinguish one draft from another, stop
+   being the quietest. */
+
+.draft-strip__vehicle {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  order: 2;
+}
+
+.draft-strip__meta {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  order: 1;
+}
+
+@media (max-width: 560px) {
+  /* The facts stack above the actions; the actions keep to the right, where a
+     thumb already is. */
+  .draft-strip__row {
+    align-items: flex-start;
+  }
+
+  .draft-strip__actions {
+    align-self: flex-end;
+  }
+}
+
+/* The chevron points down while the list is open and up while it is closed, so
+   the arrow always shows what pressing it does rather than what the state is.
+   `aria-expanded` is the source of truth, so the rotation cannot fall out of
+   step with the control's own accessible state. */
+.draft-strip__toggle svg {
+  transition: transform 160ms ease-out;
+}
+
+.draft-strip__toggle[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+
+.draft-strip__toggle:hover {
+  background: var(--hover-tint);
+  color: var(--ink);
+}
+
+.draft-strip__toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Someone who asked for less motion gets the same information without the
+   turn: the arrow still points the right way, it simply arrives there. */
+@media (prefers-reduced-motion: reduce) {
+  .draft-strip__toggle svg {
+    transition: none;
+  }
 }

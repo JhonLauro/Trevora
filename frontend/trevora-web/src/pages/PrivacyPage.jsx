@@ -82,6 +82,12 @@ export default function PrivacyPage() {
         whether you collapsed the sidebar, and your notification preferences. Clearing your
         browser data clears them.
       </p>
+      <p>
+        Photos taken on a phone usually carry hidden details from the camera, often including the
+        place they were taken. Before a JPEG or PNG photo leaves your device, Trevora removes that
+        location and camera information; the picture itself is not changed. Photos in other
+        formats, such as HEIC, are uploaded as they are.
+      </p>
 
       <h2>3. Why we hold it</h2>
       <ul>
