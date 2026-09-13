@@ -2298,11 +2298,94 @@
   .flow-rail-actions { order: 2; }
 }
 
-/* The receipt's printed parts and labour figures, under the total check, shown
-   only when the lines do not match them. */
-.flow-balance-split {
+/* The amounts check. One row when the receipt checks out; a table of the
+   figures when something needs looking at. Marked by weight, as before. */
+.flow-balance--row {
+  /* Stays a row on a phone, where .flow-balance stacks its cells. */
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+}
+.flow-balance--row .flow-balance__value {
+  margin-left: auto;
+  font-size: 16px;
+}
+.flow-balance__icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.flow-balance-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.flow-balance-table th,
+.flow-balance-table td {
+  padding: 8px 16px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.flow-balance-table thead th {
+  padding-top: 12px;
+  padding-bottom: 2px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.flow-balance-table th[scope="row"] {
+  text-align: left;
+  font-family: inherit;
+}
+.flow-balance-table tbody tr:last-child > * { padding-bottom: 12px; }
+.flow-balance-table__total > * { border-top: 1px solid var(--rule); }
+.flow-balance-table .is-gap { font-weight: 500; }
+
+/* Standing next to the car with the receipt in hand: the row name keeps its
+   width and the two figures share the rest. */
+@media (max-width: 767px) {
+  .flow-balance-table th,
+  .flow-balance-table td {
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 14px;
+  }
+  .flow-balance-table thead td { width: 30%; }
+}
+
+/* What the owner paid, when something was covered. The number they handed
+   over, so it reads as a figure, not as a hint under the covered amount. */
+.flow-paid {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.flow-paid__label {
+  flex-basis: 100%;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+.flow-paid__value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.flow-paid__of {
+  font-size: 14px;
+  color: var(--ink-muted);
 }

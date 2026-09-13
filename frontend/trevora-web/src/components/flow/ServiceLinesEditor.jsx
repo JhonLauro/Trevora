@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useT } from '../../i18n/index.jsx';
 import { translate as t } from '../../i18n/index.jsx';
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { serviceNameSuggestions } from '../../data/serviceNames';
 import {
   DEFAULT_LINE_KIND,
@@ -152,63 +152,64 @@ function emptyService(sortOrder = 0) {
  *
  * <p>Reports the gap and never corrects either side: which of the two figures
  * was misread is a question only the person holding the paper can answer.
- * Recomputed from the form on every keystroke, so it closes as you fix it —
- * an extraction-time warning string went stale the moment a figure changed and
- * kept claiming a mismatch that was already resolved.
+ * Recomputed from the form on every keystroke, so it closes as you fix it.
+ *
+ * <p><b>Numbers with honest labels, not sentences explaining numbers.</b> A
+ * receipt that checks out gets one row. The table appears only when something
+ * needs looking at, and its rows carry what the sentences used to say: which
+ * figure, the receipt's value, the lines' value, and the difference. Text
+ * appears in proportion to what is wrong. Owners in validation called this
+ * screen text-heavy before the parts and labour check added three rows of
+ * labels and three sentences to it.
  */
 export function Balance({ services, totalCost, printed, amountCovered }) {
   const t = useT();
   const check = amountsCheck(services, totalCost, printed, amountCovered);
   if (check.verdict === 'no-lines') return null;
 
-  const lineSum = centavosAsPeso(check.lineSum);
-  const comparand = check.printedTotal === null ? null : centavosAsPeso(check.printedTotal);
-  const gap = check.gap === null ? null : formatPeso(Math.abs(pesosFromCentavos(check.gap)));
+  if (check.verdict === 'verified' || check.verdict === 'sum-only' || check.verdict === 'match') {
+    const verified = check.verdict === 'verified';
+    return (
+      <>
+        <div className={`flow-balance flow-balance--row${verified ? ' is-verified' : ''}`}>
+          {verified && <Check className="flow-balance__icon" aria-hidden="true" />}
+          <span>{verified ? t('lines.matchesReceipt') : t('lines.onlyTotalChecked')}</span>
+          <span className="flow-balance__value">{centavosAsPeso(check.printedTotal)}</span>
+        </div>
+        {check.unpricedCount > 0 && <p className="flow-note">{unpricedNote(check.unpricedCount)}</p>}
+      </>
+    );
+  }
 
+  const message = messageFor(check);
   return (
     <>
-      <div className="flow-balance">
-        <div className="flow-balance__cell">
-          <span className="flow-eyebrow">{t('manual.linesAddUp')}</span>
-          <span className="flow-balance__value">{lineSum}</span>
-        </div>
-        <div className="flow-balance__cell">
-          <span className="flow-eyebrow">
-            {check.againstCharges ? t('lines.receiptCharges') : t('lines.receiptTotalSays')}
-          </span>
-          <span className="flow-balance__value">{comparand ?? t('lines.notFilled')}</span>
-        </div>
-        {check.state === 'gap' && (
-          <div className="flow-balance__cell">
-            <span className="flow-eyebrow">{check.gap > 0 ? t('lines.overBy') : t('lines.shortBy')}</span>
-            <span className="flow-balance__value is-gap">{gap}</span>
-          </div>
-        )}
-      </div>
-      {check.verdict === 'split-mismatch' && (
-        <div className="flow-balance-split">
-          <SplitRow
-            printedLabel={t('lines.receiptSaysParts')}
-            linesLabel={t('lines.yourPartLines')}
-            figures={check.parts}
+      <table className="flow-balance-table">
+        <thead>
+          <tr>
+            <td />
+            {/* The currency once per column, not on every figure: a casa bill in the
+                thousands wrapped "PHP" onto its own line in each cell on a phone. */}
+            <th scope="col">{t('lines.receiptColumn')} (PHP)</th>
+            <th scope="col">{t('lines.yourLines')} (PHP)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {check.verdict === 'split-mismatch' && (
+            <>
+              {/* Parts includes Supplies lines: receipts print consumables under parts. */}
+              <FigureRow label={t('lines.partsRow')} figures={check.parts} />
+              <FigureRow label={t('lines.labourRow')} figures={check.labour} />
+            </>
+          )}
+          <FigureRow
+            label={check.againstCharges ? t('lines.itemsTotal') : t('lines.receiptTotal')}
+            figures={{ printed: check.printedTotal, lines: check.lineSum, off: check.state === 'gap' }}
+            total={check.verdict === 'split-mismatch'}
           />
-          <SplitRow
-            printedLabel={t('lines.receiptSaysLabour')}
-            linesLabel={t('lines.yourLabourLines')}
-            figures={check.labour}
-          />
-        </div>
-      )}
-      <p className="flow-note">{messageFor(check)}</p>
-      {check.paidNote && (
-        <p className="flow-note">
-          {t('lines.paidSeparately', {
-            paid: centavosAsPeso(check.paidNote.paid),
-            charges: centavosAsPeso(check.paidNote.charges),
-          })}
-          {check.paidNote.explained && ` ${t('lines.paidExplained')}`}
-        </p>
-      )}
+        </tbody>
+      </table>
+      {message && <p className="flow-note">{message}</p>}
     </>
   );
 }
@@ -217,64 +218,43 @@ function centavosAsPeso(centavos) {
   return formatPeso(pesosFromCentavos(centavos));
 }
 
-/** One printed subtotal beside what the lines of that kind add up to. */
-function SplitRow({ printedLabel, linesLabel, figures }) {
+/** A table figure without its currency, which the column heading carries. */
+function centavosAsAmount(centavos) {
+  return pesosFromCentavos(centavos).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** One figure: its name, what the receipt prints, and what the lines add up to. */
+function FigureRow({ label, figures, total = false }) {
+  const t = useT();
   return (
-    <div className="flow-balance">
-      <div className="flow-balance__cell">
-        <span className="flow-eyebrow">{printedLabel}</span>
-        <span className="flow-balance__value">{centavosAsPeso(figures.printed)}</span>
-      </div>
-      <div className="flow-balance__cell">
-        <span className="flow-eyebrow">{linesLabel}</span>
-        <span className={`flow-balance__value${figures.off ? ' is-gap' : ''}`}>
-          {centavosAsPeso(figures.lines)}
-        </span>
-      </div>
-    </div>
+    <tr className={total ? 'flow-balance-table__total' : undefined}>
+      <th scope="row">{label}</th>
+      <td>{figures.printed === null ? t('lines.notFilled') : centavosAsAmount(figures.printed)}</td>
+      <td className={figures.off ? 'is-gap' : undefined}>{centavosAsAmount(figures.lines)}</td>
+    </tr>
   );
 }
 
+function unpricedNote(count) {
+  return count === 1 ? t('lines.unpricedOne') : t('lines.unpricedOther', { count });
+}
+
+/** The one sentence the table cannot say, or '' when it says everything. */
 function messageFor(check) {
   switch (check.verdict) {
-    case 'split-mismatch':
-      return (
-        <>
-          <strong>{t('lines.splitMismatch.lead')}</strong>
-          {' '}
-          {t('lines.splitMismatch.body', {
-            parts: centavosAsPeso(check.parts.printed),
-            labour: centavosAsPeso(check.labour.printed),
-            partLines: centavosAsPeso(check.parts.lines),
-            labourLines: centavosAsPeso(check.labour.lines),
-          })}
-          {check.totalAlsoOff && ` ${t('lines.splitMismatch.totalAlsoOff')}`}
-          {check.sourcesDisagree && ` ${t('lines.splitMismatch.sourcesDisagree')}`}
-        </>
-      );
+    case 'split-mismatch': {
+      const cause = wrongLinesCause(check);
+      return check.sourcesDisagree ? `${cause} ${t('lines.sourcesDisagree')}` : cause;
+    }
     case 'gap': {
-      const gap = check.againstCharges ? t('lines.gapCharges') : t('lines.gapTotal');
       const unchecked = uncheckedSentence(check);
-      return unchecked ? `${gap} ${unchecked}` : gap;
+      return unchecked ? `${t('lines.leaveGap')} ${unchecked}` : t('lines.leaveGap');
     }
     case 'split-unreadable':
       return t('lines.splitUnreadable');
-    case 'verified':
-      return t('lines.verified');
-    case 'sum-only':
-      return (
-        <>
-          <strong>{t('lines.sumOnly.lead')}</strong>
-          {' '}
-          {check.unpricedCount === 0 && t('lines.sumOnly.body')}
-          {check.unpricedCount === 1 && t('lines.sumOnly.unpricedOne')}
-          {check.unpricedCount > 1 && t('lines.sumOnly.unpricedOther', { count: check.unpricedCount })}
-        </>
-      );
-    case 'match':
-      if (check.unpricedCount === 1) return t('lines.matchUnpricedOne');
-      if (check.unpricedCount > 1) return t('lines.matchUnpricedOther', { count: check.unpricedCount });
-      return t('lines.matches');
     case 'no-total':
       return t('lines.fillTotal');
     case 'no-prices':
@@ -282,6 +262,23 @@ function messageFor(check) {
     default:
       return '';
   }
+}
+
+/**
+ * Verdict 1 in one sentence, naming the cause the figures can prove.
+ *
+ * <p>A missing amount can only leave a figure short, never over. So when a line
+ * is unpriced, verdict 1 fired on an over-run: something really is on the wrong
+ * line, and there is also an amount to fill in (the live Palmetto run: labour's
+ * 134.27 on CVT FLUID ENHANCER, and PERFORM empty). With every line priced and
+ * the items total matching the receipt, amounts only moved between lines. With
+ * every line priced and the total off too, an amount may be misread rather than
+ * misplaced, and "wrong lines" would claim more than the figures show.
+ */
+function wrongLinesCause(check) {
+  if (check.unpricedCount === 1) return t('lines.wrongLinesUnpricedOne');
+  if (check.unpricedCount > 1) return t('lines.wrongLinesUnpricedOther', { count: check.unpricedCount });
+  return check.state === 'gap' ? t('lines.amountsDontMatch') : t('lines.wrongLines');
 }
 
 /** What the gap message has to add when parts and labour were not checked. */
