@@ -558,6 +558,17 @@
   "lines.railShortTotal": "Nakulangan og {gap} ang mga linya sa total sa resibo.",
   "lines.railOverCharges": "Milapas og {gap} ang mga linya sa singil sa resibo.",
   "lines.railShortCharges": "Nakulangan og {gap} ang mga linya sa singil sa resibo.",
+  "lines.overBy": "Milapas og",
+  "lines.shortBy": "Nakulangan og",
+  "lines.gapTotal": "Wala mi kahibalo unsa nga numero ang sakto — anaa kanimo ang papel. Usba ang bisan asa, o biyai ang kalainan.",
+  "lines.matchUnpricedOne": "Mohaum sa total sa resibo ang mga linya nga naay kantidad. 1 ka linya walay kantidad pa.",
+  "lines.matchUnpricedOther": "Mohaum sa total sa resibo ang mga linya nga naay kantidad. {count} ka linya walay kantidad pa.",
+  "lines.addAmounts": "Ibutang ang mga kantidad gikan sa resibo aron molihok kini nga pagsusi.",
   "rail.readyButCheck": "Walay nagpugong sa pag-save niini, apan wala pa mohaum sa resibo ang mga kantidad. Susiha kini sa dili pa mopadayon.",
-  "rail.readyButUnchecked": "Walay nagpugong sa pag-save niini, apan wala mi makasusi pag-ayo sa mga kantidad batok sa resibo. Susiha kini sa dili pa mopadayon."
+  "rail.readyButUnchecked": "Walay nagpugong sa pag-save niini, apan wala mi makasusi pag-ayo sa mga kantidad batok sa resibo. Susiha kini sa dili pa mopadayon.",
+  "rail.status": "Kahimtang",
+  "rail.hasToChange": "Kinahanglan usbon · {count}",
+  "rail.worthALook": "Angay tan-awon · {count}",
+  "rail.manyThings": "{count} ka butang kinahanglan usbon sa dili pa kini ma-save. Ikaw ang mohukom sa uban.",
+  "rail.saving": "Nag-save…"
 }

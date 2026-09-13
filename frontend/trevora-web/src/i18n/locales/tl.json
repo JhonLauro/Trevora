@@ -558,6 +558,17 @@
   "lines.railShortTotal": "Kulang ng {gap} ang mga linya sa kabuuan ng resibo.",
   "lines.railOverCharges": "Labis ng {gap} ang mga linya sa singil ng resibo.",
   "lines.railShortCharges": "Kulang ng {gap} ang mga linya sa singil ng resibo.",
+  "lines.overBy": "Labis ng",
+  "lines.shortBy": "Kulang ng",
+  "lines.gapTotal": "Hindi namin alam kung aling numero ang tama — nasa iyo ang papel. Baguhin ang alinman, o hayaan ang pagkakaiba.",
+  "lines.matchUnpricedOne": "Tugma sa kabuuan ng resibo ang mga linyang may halaga. 1 linya ay walang halaga pa.",
+  "lines.matchUnpricedOther": "Tugma sa kabuuan ng resibo ang mga linyang may halaga. {count} linya ay walang halaga pa.",
+  "lines.addAmounts": "Ilagay ang mga halaga mula sa resibo para gumana ang pagsusuring ito.",
   "rail.readyButCheck": "Walang humahadlang sa pag-save nito, pero hindi pa tugma sa resibo ang mga halaga. Suriin ang mga ito bago magpatuloy.",
-  "rail.readyButUnchecked": "Walang humahadlang sa pag-save nito, pero hindi namin lubos na nasuri ang mga halaga laban sa resibo. Suriin ang mga ito bago magpatuloy."
+  "rail.readyButUnchecked": "Walang humahadlang sa pag-save nito, pero hindi namin lubos na nasuri ang mga halaga laban sa resibo. Suriin ang mga ito bago magpatuloy.",
+  "rail.status": "Katayuan",
+  "rail.hasToChange": "Dapat baguhin · {count}",
+  "rail.worthALook": "Dapat tingnan · {count}",
+  "rail.manyThings": "{count} bagay ang dapat baguhin bago ito ma-save. Ikaw ang magpapasya sa iba.",
+  "rail.saving": "Sine-save…"
 }
