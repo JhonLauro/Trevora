@@ -74,11 +74,12 @@ public class VehicleProfile {
      * they know, so the read side reports a partial answer as partial rather
      * than as a confident yes or no.
      *
-     * <p>Nothing derived is stored beside them — no expiry date, no status. A
-     * stored expiry could contradict the start date and period it came from
-     * the moment either was corrected, which is the rule 010 already applied
-     * to out-of-pocket cost. {@code WarrantyStatusResolver} computes all of it
-     * on read.
+     * <p>Nothing derived is stored beside them — no computed expiry, no
+     * status. A computed expiry could contradict the start date and period it
+     * came from the moment either was corrected, which is the rule 010 already
+     * applied to out-of-pocket cost. {@code WarrantyStatusResolver} computes
+     * status on read. {@link #warrantyExpiryDate} is not an exception to this:
+     * it holds an end date a document printed, not one worked out here.
      *
      * <p>None of this has been checked with a dealer. It is what the owner
      * typed, and every screen that shows it has to say so.
@@ -91,6 +92,28 @@ public class VehicleProfile {
 
     @Column(name = "warranty_km_limit")
     private Integer warrantyKmLimit;
+
+    /**
+     * The warranty end date as a document prints it (migration 029). When set
+     * it wins over start date + months, because dealers count from
+     * registration, round to month ends or extend on promotion, and the paper
+     * is right where our arithmetic is not.
+     *
+     * <p><b>A receipt's Delivery Date is never the warranty start.</b> Dealer
+     * stock and demo units are delivered to the dealer long before a customer
+     * buys them, and cover starts at the sale or registration. The two happen
+     * to match on some receipts, which is exactly what makes copying one into
+     * the other look safe. Only a date printed as the warranty start counts.
+     */
+    @Column(name = "warranty_expiry_date")
+    private LocalDate warrantyExpiryDate;
+
+    /**
+     * Who supplied the warranty fields: {@code OWNER} or {@code RECEIPT}.
+     * Null when no terms are recorded. A null is never shown as either one.
+     */
+    @Column(name = "warranty_source")
+    private String warrantySource;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -186,6 +209,22 @@ public class VehicleProfile {
 
     public void setWarrantyKmLimit(Integer warrantyKmLimit) {
         this.warrantyKmLimit = warrantyKmLimit;
+    }
+
+    public LocalDate getWarrantyExpiryDate() {
+        return warrantyExpiryDate;
+    }
+
+    public void setWarrantyExpiryDate(LocalDate warrantyExpiryDate) {
+        this.warrantyExpiryDate = warrantyExpiryDate;
+    }
+
+    public String getWarrantySource() {
+        return warrantySource;
+    }
+
+    public void setWarrantySource(String warrantySource) {
+        this.warrantySource = warrantySource;
     }
 
     public String getBodyType() {

@@ -34,6 +34,7 @@ import {
   warrantyEndedReasons,
   warrantyGapLines,
   warrantyLimitLine,
+  warrantySourceKey,
   warrantyTitleKey,
   warrantyTone,
 } from '../utils/warranty';
@@ -225,6 +226,7 @@ function WarrantyPanel({ warranty, spend, onEdit }) {
   const distance = warrantyDistanceLine(warranty);
   const gaps = warrantyGapLines(warranty);
   const ended = warrantyEndedReasons(warranty);
+  const sourceKey = warrantySourceKey(warranty);
 
   return (
     <>
@@ -254,7 +256,7 @@ function WarrantyPanel({ warranty, spend, onEdit }) {
           <p className="warranty-card__gap" key={gap.key}>{t(gap.key, gap.vars)}</p>
         ))}
 
-        <p className="warranty-card__source">{t('warranty.source')}</p>
+        {sourceKey && <p className="warranty-card__source">{t(sourceKey)}</p>}
       </section>
 
       <CoveredSpend spend={spend} />
