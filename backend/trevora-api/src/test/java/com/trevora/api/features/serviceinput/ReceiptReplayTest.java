@@ -96,6 +96,19 @@ class ReceiptReplayTest {
         }
         line(report, "  " + paired + " of " + pairs.size() + " priced lines on the right row");
 
+        // The totals box must keep reading after any layout change: it is where
+        // the bill, the tax, the credit and the amount paid come from.
+        PrintedSubtotals printed = PrintedSubtotals.read(layout);
+        line(report, "");
+        line(report, "TOTALS BOX (read from the OCR text, free)");
+        line(report, "  charges " + printed.charges() + ", tax " + printed.tax() + ", credits " + printed.credits()
+                + ", paid " + (printed.totals() == null ? null : printed.totals().paid()));
+        line(report, ReceiptTotalResolver.resolve(printed, null)
+                .map(resolved -> "  [" + (same(resolved.totalCost(), key.totalCost())
+                        && same(resolved.amountCovered(), key.amountCovered()) ? "ok" : "XX") + "] total "
+                        + resolved.totalCost() + ", covered " + resolved.amountCovered())
+                .orElse("  [XX] the totals box did not reconcile, so the total would be whatever the model read"));
+
         // ------------------------------------------------------------ model, paid and opt-in
         int runs = Integer.getInteger("replay.model-runs", 0);
         line(report, "");
@@ -159,6 +172,10 @@ class ReceiptReplayTest {
                 ? "OCR INPUT: identical in every run, so every difference above is the model's"
                 : "OCR INPUT: DIFFERED between runs (" + inputs.size() + " versions) - model variance cannot be isolated");
         report.append(ReplayScorer.summarise(scores));
+    }
+
+    private static boolean same(java.math.BigDecimal first, java.math.BigDecimal second) {
+        return first == null || second == null ? first == second : first.compareTo(second) == 0;
     }
 
     private static List<String> withoutPageHeader(List<String> lines) {

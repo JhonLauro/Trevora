@@ -4114,3 +4114,45 @@ path after Vision (resolvers included). Reports go to `target/replay/`.
   account id, captures stored beside their receipt photo and removed through
   `ReceiptFiles` with it, a daily 30-day purge, and capture refused with an error
   log whenever a capture older than 31 days still exists. Nothing would watch it.
+
+## Price-column bend correction: layout pairs 0 of 3 to 3 of 3 on Palmetto (2026-09-14)
+
+`GoogleVisionOCRProvider.bendCorrectedNearPriceColumns`. A bent page has no single
+angle: on the Palmetto 57 Nissan repair order the page-wide median is 0.0 degrees
+while the item rows run at about 2.8, so each price landed a row below its own
+description (and part codes and the word FLUID drifted with it). When a page prints
+the same amount in three separated columns on at least two rows with aligned
+columns (LIST / NET / TOTAL), the words' own angle in a band around those rows is
+the local slope, and only that band is projected along it to the price columns.
+Nothing outside the band moves, so the totals box is untouched; with no aligned
+triplets nothing changes at all.
+
+- **Measured, free (`./mvnw test -Preplay`).** Priced lines on the right row: 0 of
+  3 before, 3 of 3 after. Totals box still reads charges 239.99, tax 16.80, credits
+  56.79, paid 200.00, and resolves to 256.79 with 56.79 covered. Rows now read
+  `1 66001 CVT ENHANCER | 27.99 | 27.99 | 27.99`,
+  `1 EE5501 SYN / CVT 50T | 77.73 | 77.73 | 77.73`,
+  `115356CPNTN | 1.00 | 134.27 | 134.27`, and
+  `PERFORM CVT TRANSMISSION FLUID SERVICE` whole.
+- **Before, paid (2 batches of 5, gpt-5.4-mini).** 0 of 10 runs exact. Part codes
+  0 of 5 on both parts in the batch that showed them; PERFORM's description 0 of 5
+  and 2 of 5 (FLUID split onto another row); SYN's amount read as the 105.72 PARTS
+  subtotal in 3 of 5. Kinds swung between batches (ENHANCER 5/5 then 1/5), so judge
+  kinds on 10 runs, not 5.
+- **Not proven.** Only Palmetto's raw Vision reading is saved, so golden receipts
+  cannot be replayed through the new code. Their OCR text shows no row repeating an
+  amount three times, which is the gate, but that is a text check, not a replay.
+  The paid after-run is still to do.
+
+## Price-column bend correction, paid result: 0 of 10 exact to 6 of 10 (2026-09-14)
+
+Follow-up to the note above. 10 paid replays on gpt-5.4-mini with the correction in:
+**6 of 10 exact**, against 0 of 10 before. Every run now has every description,
+every amount, total cost and amount covered right, and no run invented a line.
+What is left is the model's, on identical input:
+
+- **Part codes on the two parts, 6 of 10.** Three runs left both blank; one swapped
+  them (E85501 on CVT ENHANCER, 66001 on SYN / CVT 5QT).
+- **Kinds, 9 of 10 each**, all in that same swapped run, which also missed remarks.
+- **Not scored, still wrong:** PERFORM's part code is usually the operation header's
+  (66001EE5501 or 66001 / E85501). The answer key does not score PERFORM's code.
