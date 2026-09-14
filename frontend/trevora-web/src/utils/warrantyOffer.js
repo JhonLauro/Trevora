@@ -24,15 +24,24 @@ export function readWarrantyOffer(draft, vehicle) {
 
   const recordedStart = isoDate(vehicle.warranty?.startDate);
   const recordedEnd = isoDate(vehicle.warranty?.expiryDate);
-  if (!recordedStart && !recordedEnd) {
-    return { kind: 'offer', start, end };
+
+  // Only a date both sides have can disagree.
+  const startsDiffer = Boolean(start && recordedStart && start !== recordedStart);
+  const endsDiffer = Boolean(end && recordedEnd && end !== recordedEnd);
+  if (startsDiffer || endsDiffer) {
+    return { kind: 'conflict', start, end, recordedStart, recordedEnd };
   }
 
-  // A date only one side has is not a disagreement.
-  const startsAgree = !start || !recordedStart || start === recordedStart;
-  const endsAgree = !end || !recordedEnd || end === recordedEnd;
-  if (startsAgree && endsAgree) return null;
-  return { kind: 'conflict', start, end, recordedStart, recordedEnd };
+  /* Nothing disagrees, but the receipt may still fill a gap: a vehicle with a
+     start date and no period has no end date, and the paper prints one. That
+     is an offer, not agreement -- saying nothing would leave the warranty tab
+     reading "incomplete" while the answer sits in the record's metadata. */
+  const fillsStart = Boolean(start && !recordedStart);
+  const fillsEnd = Boolean(end && !recordedEnd);
+  if (fillsStart || fillsEnd) {
+    return { kind: 'offer', start, end };
+  }
+  return null;
 }
 
 /**

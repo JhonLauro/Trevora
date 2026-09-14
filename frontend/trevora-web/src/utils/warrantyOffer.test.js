@@ -27,6 +27,12 @@ describe('warranty offer from a receipt', () => {
       .toBeNull();
   });
 
+  /* The GLE case: a start date typed, the period cleared, so no end date. */
+  it('offers the printed end date to a vehicle that has only the start', () => {
+    expect(readWarrantyOffer(receipt('2024-07-31', '2026-07-31'), vehicleWith('2024-07-31', null)))
+      .toEqual({ kind: 'offer', start: '2024-07-31', end: '2026-07-31' });
+  });
+
   /* A different date is usually a typo or an extended warranty, not another car. */
   it('reports a disagreement with both periods so the owner can choose', () => {
     expect(readWarrantyOffer(receipt('2024-07-31', '2027-07-31'), vehicleWith('2024-07-31', '2026-07-31')))
