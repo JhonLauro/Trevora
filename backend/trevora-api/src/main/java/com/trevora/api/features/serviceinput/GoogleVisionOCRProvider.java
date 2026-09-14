@@ -217,8 +217,12 @@ public class GoogleVisionOCRProvider {
         double rowTolerance = medianHeight * 0.5;
         double columnGap = medianHeight * 1.5;
 
+        // A bend the single page angle cannot straighten, corrected only where the
+        // page proves it has price columns. See bendCorrectedNearPriceColumns.
+        List<PositionedWord> placed = bendCorrectedNearPriceColumns(straightened, medianHeight, columnGap);
+
         StringBuilder text = new StringBuilder();
-        for (List<PositionedWord> row : groupIntoRows(straightened, rowTolerance)) {
+        for (List<PositionedWord> row : groupIntoRows(placed, rowTolerance)) {
             row.sort(Comparator.comparingDouble(PositionedWord::left));
             StringBuilder line = new StringBuilder();
             PositionedWord previous = null;
@@ -235,6 +239,157 @@ public class GoogleVisionOCRProvider {
             }
         }
         return text.toString().trim();
+    }
+
+    /** A money amount as Vision reads it: "27.99", "1,250.00". */
+    private static final java.util.regex.Pattern PRICE =
+            java.util.regex.Pattern.compile("^\\d{1,3}(?:,\\d{3})*\\.\\d{2}$");
+
+    /** One amount printed in three price columns on one row: LIST, NET and TOTAL. */
+    record PriceTriplet(String amount, double centreY, List<Double> columns) {
+    }
+
+    /**
+     * Straightens the item rows of a bent page, using its price columns as the
+     * evidence, and only when it has them.
+     *
+     * <p><b>The failure.</b> {@link #estimateSkew} rotates the page by one
+     * angle, the median of all its words. A page that bends has no single
+     * angle: on the Palmetto 57 Nissan repair order the median is 0.0 degrees
+     * while the item rows run at about 2.8. Descriptions sit around x 200 and
+     * prices around x 470, so each price lands a row below its own
+     * description: CVT ENHANCER came out beside 134.27, SYN / CVT 5QT beside
+     * 27.99, and 77.73 beside the PARTS subtotal, where the model read it as a
+     * subtotal and dropped it. Part codes and the word FLUID drifted the same
+     * way.
+     *
+     * <p><b>The evidence.</b> Dealer repair orders print each line price in
+     * LIST, NET and TOTAL columns: the same amount three times at fixed x
+     * positions. Subtotals print once, further left. Two or more such triplets
+     * with aligned columns prove the page is a priced table and say where its
+     * price rows are.
+     *
+     * <p><b>The correction.</b> The words' own printed angle, measured only in a
+     * band around those rows, is the local slope. Words in the band are
+     * projected along it to the price columns, so a description takes the
+     * height its price is printed at. Nothing outside the band moves: the totals
+     * box further down reads correctly today, and correcting a whole bent page
+     * by one local angle is what broke it in an earlier row-tracing prototype.
+     *
+     * <p><b>Otherwise nothing changes.</b> No aligned triplets, too few angle
+     * samples, or no slope: the words come back untouched, so every receipt
+     * without price columns lays out exactly as before. Measured with
+     * {@code ReceiptReplayTest}: on Palmetto, priced lines on the right row went
+     * from 0 of 3 to 3 of 3.
+     */
+    List<PositionedWord> bendCorrectedNearPriceColumns(
+            List<PositionedWord> words, double medianHeight, double columnGap) {
+        List<PriceTriplet> triplets = priceTriplets(words, medianHeight, columnGap);
+        if (!columnsAlign(triplets, medianHeight)) {
+            return words;
+        }
+        double top = triplets.stream().mapToDouble(PriceTriplet::centreY).min().orElse(0);
+        double bottom = triplets.stream().mapToDouble(PriceTriplet::centreY).max().orElse(0);
+        double medianWidth = median(words.stream().map(PositionedWord::width).sorted().toList());
+        List<Double> bandAngles = words.stream()
+                .filter(word -> word.centreY() >= top - 4 * medianHeight && word.centreY() <= bottom + 4 * medianHeight)
+                .filter(word -> word.width() >= medianWidth)
+                .map(PositionedWord::angle)
+                .sorted()
+                .toList();
+        if (bandAngles.size() < MIN_ANGLE_SAMPLES) {
+            return words;
+        }
+        double bend = median(bandAngles);
+        if (bend == 0 || Math.abs(bend) > MAX_SKEW_RADIANS) {
+            return words;
+        }
+        double anchorX = median(triplets.stream().flatMap(triplet -> triplet.columns().stream()).sorted().toList());
+        double from = top - 6 * medianHeight;
+        double to = bottom + 3 * medianHeight;
+        double slope = Math.tan(bend);
+        log.info("Receipt price columns: {} repeated prices, a {} deg bend corrected near them",
+                triplets.size(), String.format(java.util.Locale.ROOT, "%.1f", Math.toDegrees(bend)));
+        return words.stream()
+                .map(word -> word.centreY() < from || word.centreY() > to
+                        ? word
+                        : new PositionedWord(word.text(), word.centreX(),
+                                word.centreY() + (anchorX - word.centreX()) * slope,
+                                word.width(), word.height(), word.angle() - bend))
+                .toList();
+    }
+
+    /**
+     * Amounts printed at three or more separated x positions within one row
+     * height of each other, top to bottom. {@code 0.00} is skipped: an empty
+     * column repeats it everywhere and proves nothing.
+     */
+    List<PriceTriplet> priceTriplets(List<PositionedWord> words, double medianHeight, double columnGap) {
+        java.util.Map<String, List<PositionedWord>> byAmount = new java.util.LinkedHashMap<>();
+        for (PositionedWord word : words) {
+            if (PRICE.matcher(word.text()).matches() && !"0.00".equals(word.text())) {
+                byAmount.computeIfAbsent(word.text(), ignored -> new ArrayList<>()).add(word);
+            }
+        }
+        List<PriceTriplet> found = new ArrayList<>();
+        for (java.util.Map.Entry<String, List<PositionedWord>> entry : byAmount.entrySet()) {
+            List<PositionedWord> same = new ArrayList<>(entry.getValue());
+            if (same.size() < 3) {
+                continue;
+            }
+            same.sort(Comparator.comparingDouble(PositionedWord::centreY));
+            boolean[] used = new boolean[same.size()];
+            for (int i = 0; i < same.size(); i++) {
+                if (used[i]) {
+                    continue;
+                }
+                List<PositionedWord> row = new ArrayList<>();
+                for (int j = i; j < same.size(); j++) {
+                    if (!used[j] && Math.abs(same.get(j).centreY() - same.get(i).centreY()) <= 0.8 * medianHeight) {
+                        row.add(same.get(j));
+                        used[j] = true;
+                    }
+                }
+                row.sort(Comparator.comparingDouble(PositionedWord::centreX));
+                if (row.size() < 3 || !separated(row, columnGap)) {
+                    continue;
+                }
+                List<PositionedWord> columns = row.subList(row.size() - 3, row.size());
+                found.add(new PriceTriplet(entry.getKey(),
+                        median(columns.stream().map(PositionedWord::centreY).sorted().toList()),
+                        columns.stream().map(PositionedWord::centreX).toList()));
+            }
+        }
+        found.sort(Comparator.comparingDouble(PriceTriplet::centreY));
+        return found;
+    }
+
+    private static boolean separated(List<PositionedWord> sortedByX, double columnGap) {
+        for (int i = 1; i < sortedByX.size(); i++) {
+            if (sortedByX.get(i).centreX() - sortedByX.get(i - 1).centreX() <= columnGap) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** At least two triplets whose three columns sit at the same x positions, within two line heights. */
+    private static boolean columnsAlign(List<PriceTriplet> triplets, double medianHeight) {
+        if (triplets.size() < 2) {
+            return false;
+        }
+        List<Double> first = triplets.get(0).columns();
+        long aligned = triplets.stream()
+                .filter(triplet -> {
+                    for (int i = 0; i < 3; i++) {
+                        if (Math.abs(triplet.columns().get(i) - first.get(i)) > 2 * medianHeight) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .count();
+        return aligned >= 2;
     }
 
     /**
