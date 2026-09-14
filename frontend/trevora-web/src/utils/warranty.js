@@ -75,6 +75,10 @@ export function warrantyTone(warranty) {
  * <p>"whichever comes first" appears only when both limits are actually known.
  * On a vehicle with one of them it would be describing a race with one runner,
  * and worse, it would imply the other limit had been checked.
+ *
+ * <p>A time-only period names its start when there is one. A receipt can print
+ * an end date with no start, and then only the end is said rather than a
+ * start being made up.
  */
 export function warrantyLimitLine(warranty) {
   if (!warranty) return null;
@@ -88,7 +92,10 @@ export function warrantyLimitLine(warranty) {
     };
   }
   if (hasDate) {
-    return { key: 'warranty.limits.timeOnly', vars: { date: formatDate(warranty.expiryDate) } };
+    const end = formatDate(warranty.expiryDate);
+    return warranty.startDate
+      ? { key: 'warranty.limits.timeOnly', vars: { start: formatDate(warranty.startDate), end } }
+      : { key: 'warranty.limits.endOnly', vars: { end } };
   }
   if (hasKm) {
     return { key: 'warranty.limits.kmOnly', vars: { km: formatKilometres(warranty.kmLimit) } };
@@ -179,6 +186,25 @@ export function warrantyEndedReasons(warranty) {
     });
   }
   return reasons;
+}
+
+/**
+ * Where the terms came from, or null for no line.
+ *
+ * <p>Null returns null on purpose. Existing vehicles were backfilled OWNER by
+ * migration 029, so a null source with terms showing is unexpected, and saying
+ * nothing is better than guessing either way -- above all, never "from a
+ * receipt" when nobody knows that.
+ */
+export function warrantySourceKey(warranty) {
+  switch (warranty?.source) {
+    case 'OWNER':
+      return 'warranty.source.owner';
+    case 'RECEIPT':
+      return 'warranty.source.receipt';
+    default:
+      return null;
+  }
 }
 
 /**

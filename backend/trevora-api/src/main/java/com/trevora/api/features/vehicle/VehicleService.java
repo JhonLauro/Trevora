@@ -60,6 +60,19 @@ public class VehicleService {
 
 
 
+    /**
+     * The source after an owner has written warranty terms: OWNER while any
+     * term remains, null once every one is cleared. An owner's save makes the
+     * whole set theirs, including a printed end date they left standing.
+     */
+    static String ownerWarrantySource(VehicleProfile vehicle) {
+        boolean anyTerm = vehicle.getWarrantyStartDate() != null
+                || vehicle.getWarrantyMonths() != null
+                || vehicle.getWarrantyKmLimit() != null
+                || vehicle.getWarrantyExpiryDate() != null;
+        return anyTerm ? "OWNER" : null;
+    }
+
     public List<VehicleProfile> getVehiclesForCurrentUser() {
         requireVehicleOwner();
         return vehicleRepository.findByOwnerIdOrderByCreatedAtDesc(currentUserService.getCurrentUserId());
@@ -81,6 +94,7 @@ public class VehicleService {
         vehicle.setWarrantyStartDate(request.warrantyStartDate());
         vehicle.setWarrantyMonths(request.warrantyMonths());
         vehicle.setWarrantyKmLimit(request.warrantyKmLimit());
+        vehicle.setWarrantySource(ownerWarrantySource(vehicle));
 
         return vehicleRepository.save(vehicle);
     }
@@ -194,6 +208,9 @@ public class VehicleService {
         }
         if (request.has("warrantyKmLimit")) {
             vehicle.setWarrantyKmLimit(request.getWarrantyKmLimit());
+        }
+        if (request.has("warrantyStartDate") || request.has("warrantyMonths") || request.has("warrantyKmLimit")) {
+            vehicle.setWarrantySource(ownerWarrantySource(vehicle));
         }
 
         /* The photo is one fact in two columns: a path without its bucket

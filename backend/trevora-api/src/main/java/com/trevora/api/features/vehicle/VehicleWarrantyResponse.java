@@ -22,7 +22,10 @@ public record VehicleWarrantyResponse(
         LocalDate expiryDate,
         Long daysRemaining,
         Integer currentKm,
-        Integer kmRemaining
+        Integer kmRemaining,
+        /* OWNER, RECEIPT, or null when nothing is recorded. Owner-only: the
+           mechanic's copy says nothing about where terms came from. */
+        String source
 ) {
     public static VehicleWarrantyResponse from(VehicleProfile vehicle, WarrantyCoverage coverage) {
         return new VehicleWarrantyResponse(
@@ -34,7 +37,8 @@ public record VehicleWarrantyResponse(
                 coverage.expiryDate(),
                 coverage.daysRemaining(),
                 coverage.currentKm(),
-                coverage.kmRemaining()
+                coverage.kmRemaining(),
+                vehicle.getWarrantySource()
         );
     }
 }

@@ -72,6 +72,38 @@ class VehicleServicePatchTest {
                 mock(com.trevora.api.features.serviceinput.ReceiptFiles.class));
     }
 
+    /**
+     * Existing vehicles and owner saves are OWNER. Clearing every term leaves
+     * nothing to attribute, so the source goes back to null rather than
+     * claiming an owner supplied terms that are no longer there.
+     */
+    @Test
+    void marksWarrantyTermsAsTheOwnersWhenTheOwnerSavesThem() {
+        stored.setWarrantySource("RECEIPT");
+        PatchVehicleRequest request = new PatchVehicleRequest();
+        request.setWarrantyMonths(60);
+
+        assertThat(service.patchVehicleForCurrentUser(VEHICLE, request).getWarrantySource())
+                .isEqualTo("OWNER");
+
+        PatchVehicleRequest clearAll = new PatchVehicleRequest();
+        clearAll.setWarrantyStartDate(null);
+        clearAll.setWarrantyMonths(null);
+        clearAll.setWarrantyKmLimit(null);
+
+        assertThat(service.patchVehicleForCurrentUser(VEHICLE, clearAll).getWarrantySource()).isNull();
+    }
+
+    @Test
+    void leavesTheWarrantySourceAloneWhenNoWarrantyFieldWasSent() {
+        stored.setWarrantySource("RECEIPT");
+        PatchVehicleRequest request = new PatchVehicleRequest();
+        request.setPlateNumber("XYZ 9876");
+
+        assertThat(service.patchVehicleForCurrentUser(VEHICLE, request).getWarrantySource())
+                .isEqualTo("RECEIPT");
+    }
+
     /** The details dialog's save: four registration fields, nothing else. */
     @Test
     void leavesTheWarrantyAloneWhenOnlyThePlateWasSent() {

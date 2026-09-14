@@ -89,18 +89,28 @@ public final class WarrantyStatusResolver {
         LocalDate startDate = vehicle.getWarrantyStartDate();
         Integer months = vehicle.getWarrantyMonths();
         Integer kmLimit = vehicle.getWarrantyKmLimit();
+        LocalDate printedExpiry = vehicle.getWarrantyExpiryDate();
 
-        if (startDate == null && months == null && kmLimit == null) {
+        if (startDate == null && months == null && kmLimit == null && printedExpiry == null) {
             return WarrantyCoverage.notSet(currentKm);
         }
 
         /* Each limit needs both of its halves before it can say anything. A
            period with no date to count from and a distance limit with no
            reading to measure against are equally unusable, and treating either
-           as "fine" would be a guess dressed as an answer. */
-        LocalDate expiryDate = (startDate != null && months != null)
-                ? startDate.plusMonths(months)
-                : null;
+           as "fine" would be a guess dressed as an answer.
+
+           A printed end date needs neither half and wins over both: start +
+           months is our arithmetic, the printed date is the dealer's, and they
+           differ whenever the dealer counts from registration or rounds. */
+        LocalDate expiryDate;
+        if (printedExpiry != null) {
+            expiryDate = printedExpiry;
+        } else if (startDate != null && months != null) {
+            expiryDate = startDate.plusMonths(months);
+        } else {
+            expiryDate = null;
+        }
         Long daysRemaining = expiryDate == null ? null : ChronoUnit.DAYS.between(today, expiryDate);
         Integer kmRemaining = (kmLimit != null && currentKm != null) ? kmLimit - currentKm : null;
 

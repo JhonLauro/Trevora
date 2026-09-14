@@ -29,6 +29,38 @@ class WarrantyStatusResolverTest {
         return vehicle;
     }
 
+    /**
+     * A printed end date wins over start + months. Here the dealer's paper says
+     * 14 June 2028 while 36 months from purchase would be 14 March 2028; the
+     * screen has to agree with the paper in the owner's glovebox.
+     */
+    @Test
+    void prefersThePrintedExpiryOverStartPlusMonths() {
+        VehicleProfile vehicle = vehicle(LocalDate.of(2025, 3, 14), 36, 100_000);
+        vehicle.setWarrantyExpiryDate(LocalDate.of(2028, 6, 14));
+
+        WarrantyCoverage coverage = WarrantyStatusResolver.resolve(vehicle, 42_300, TODAY);
+
+        assertThat(coverage.expiryDate()).isEqualTo(LocalDate.of(2028, 6, 14));
+        assertThat(coverage.status()).isEqualTo(WarrantyStatus.ACTIVE);
+    }
+
+    /** A receipt can print an end date with no start date; that alone is enough to check time. */
+    @Test
+    void checksTimeFromAPrintedExpiryWithNoStartDate() {
+        VehicleProfile vehicle = vehicle(null, null, null);
+        vehicle.setWarrantyExpiryDate(TODAY.plusDays(30));
+
+        WarrantyCoverage coverage = WarrantyStatusResolver.resolve(vehicle, null, TODAY);
+
+        assertThat(coverage.status()).isEqualTo(WarrantyStatus.TIME_ONLY);
+        assertThat(coverage.expiringSoon()).isTrue();
+
+        vehicle.setWarrantyExpiryDate(TODAY);
+        assertThat(WarrantyStatusResolver.resolve(vehicle, null, TODAY).status())
+                .isEqualTo(WarrantyStatus.EXPIRED);
+    }
+
     @Test
     void reportsNotSetWhenNoTermsRecorded() {
         WarrantyCoverage coverage = WarrantyStatusResolver.resolve(vehicle(null, null, null), 42_300, TODAY);

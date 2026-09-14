@@ -6,6 +6,7 @@ import {
   warrantyEndedReasons,
   warrantyGapLines,
   warrantyLimitLine,
+  warrantySourceKey,
   warrantyTitleKey,
   warrantyTone,
 } from './warranty';
@@ -29,6 +30,7 @@ describe('warranty presentation', () => {
     daysRemaining: 554,
     currentKm: 42300,
     kmRemaining: 57700,
+    source: 'OWNER',
   };
 
   it('reads an unset warranty as unset', () => {
@@ -137,6 +139,27 @@ describe('warranty presentation', () => {
 
     expect(warrantyEndedReasons(over).map((reason) => reason.key))
       .toEqual(['warranty.ended.byDate', 'warranty.ended.byDistance']);
+  });
+
+  it('states a time-only period from its start, or only its end when no start is known', () => {
+    const timeOnly = { ...active, status: 'TIME_ONLY', kmLimit: null, kmRemaining: null };
+
+    expect(warrantyLimitLine(timeOnly)).toEqual({
+      key: 'warranty.limits.timeOnly',
+      vars: { start: 'Mar 14, 2025', end: 'Mar 14, 2028' },
+    });
+    expect(warrantyLimitLine({ ...timeOnly, startDate: null, months: null })).toEqual({
+      key: 'warranty.limits.endOnly',
+      vars: { end: 'Mar 14, 2028' },
+    });
+  });
+
+  /* A null source must not read as either one, least of all "from a receipt". */
+  it('names where the terms came from, and says nothing when that is unknown', () => {
+    expect(warrantySourceKey(active)).toBe('warranty.source.owner');
+    expect(warrantySourceKey({ ...active, source: 'RECEIPT' })).toBe('warranty.source.receipt');
+    expect(warrantySourceKey({ ...active, source: null })).toBeNull();
+    expect(warrantySourceKey({ ...active, source: undefined })).toBeNull();
   });
 
   it('shows a distance with no limit to measure it against as a bare reading', () => {
