@@ -545,7 +545,7 @@
   "lines.railOverCharges": "Milapas og {gap} ang mga linya sa singil sa resibo.",
   "lines.railShortCharges": "Nakulangan og {gap} ang mga linya sa singil sa resibo.",
   "lines.addAmounts": "Ibutang ang mga kantidad gikan sa resibo aron molihok kini nga pagsusi.",
-  "lines.matchesReceipt": "Mohaum sa resibo",
+  "lines.matchesReceipt": "Mohaum ang mga kantidad sa mga total sa resibo",
   "lines.onlyTotalChecked": "Ang total ra ang gisusi",
   "lines.receiptColumn": "Resibo",
   "lines.yourLines": "Imong mga linya",

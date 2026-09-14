@@ -169,6 +169,9 @@ export function Balance({ services, totalCost, printed, amountCovered }) {
 
   if (check.verdict === 'verified' || check.verdict === 'sum-only' || check.verdict === 'match') {
     const verified = check.verdict === 'verified';
+    /* The label says amounts, not "the receipt": this checks the total and the
+       printed parts and labour figures and nothing else. Descriptions, part
+       codes and two part prices swapped with each other are not checked. */
     return (
       <>
         <div className={`flow-balance flow-balance--row${verified ? ' is-verified' : ''}`}>

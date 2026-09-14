@@ -545,7 +545,7 @@
   "lines.railOverCharges": "Lines are {gap} over the receipt's charges.",
   "lines.railShortCharges": "Lines are {gap} short of the receipt's charges.",
   "lines.addAmounts": "Add the amounts from the receipt to make this check work.",
-  "lines.matchesReceipt": "Matches the receipt",
+  "lines.matchesReceipt": "Amounts add up to the receipt's totals",
   "lines.onlyTotalChecked": "Only the total was checked",
   "lines.receiptColumn": "Receipt",
   "lines.yourLines": "Your lines",
