@@ -4156,3 +4156,28 @@ What is left is the model's, on identical input:
 - **Kinds, 9 of 10 each**, all in that same swapped run, which also missed remarks.
 - **Not scored, still wrong:** PERFORM's part code is usually the operation header's
   (66001EE5501 or 66001 / E85501). The answer key does not score PERFORM's code.
+
+## Correction: part codes in descriptions are not a bug; PERFORM's code is not drift (2026-09-14)
+
+Corrects two claims made earlier today, including in the "checks cover money" note
+and the part-code queue item above. Do not treat either as a defect to fix.
+
+- **"66001 CVT ENHANCER" as a description is a correct read.** The paper prints
+  `1 66001   CVT ENHANCER` and `1 EE5501  SYN/CVT 5QT`: the part code sits in its own
+  column on the same physical row, and the extraction copied that row. Nothing was
+  absorbed. The empty code field under it follows from the whole row going into the
+  description. Moving the code into the `partCode` field is a formatting improvement
+  (searchable codes, the same display as PERFORM), not a fix. It needs a parse that
+  gets codes right without catching things like "10W40 OIL", and it ranks last among
+  the small items.
+- **PERFORM carrying 66001EE5501 is not the one-row drift.** Measured in the saved
+  Vision reading: `66001EE5501` (x 165, y 294) and `66001 / E85501` (x 337-387, y
+  276-280) are printed inside the operation's own text block, under
+  `WCVT PERFORM CVT TRANSMISSION FLUID SERVICE`, before its tech row. They list the
+  parts that operation used. No price sits on those rows, so the price-column
+  correction does not move them and will not change this. The model chooses a part
+  reference from the operation's block over the operation code `WCVT`. Whether that
+  is wrong is a definition question (what partCode means on a Labour line), and
+  changing it is a prompt change with golden runs either side.
+- **Replay answer key updated to match.** A part line's description may include its
+  printed code, and a code found at the start of the description counts as the code.

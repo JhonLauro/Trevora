@@ -64,6 +64,16 @@ class ReplayScorerTest {
         assertThat(ReplayScorer.score(PALMETTO, run, TOTAL, COVERED, REMARKS).exact()).isTrue();
     }
 
+    /** The live upload after the price-column fix: each part row read whole, code first. */
+    @Test
+    void aPartRowReadWholeWithItsPrintedCodeIsCorrect() {
+        List<ServiceLineEntryFields> run = new java.util.ArrayList<>(correct());
+        run.set(1, line("PART", "66001 CVT ENHANCER", null, "27.99"));
+        run.set(2, line("PART", "EE5501 SYN / CVT 50T", null, "77.73"));
+
+        assertThat(ReplayScorer.score(PALMETTO, run, TOTAL, COVERED, REMARKS).exact()).isTrue();
+    }
+
     @Test
     void theTotalsAndRemarksCountToo() {
         ReplayScorer.RunScore score = ReplayScorer.score(PALMETTO, correct(), new BigDecimal("200.00"), null, null);
