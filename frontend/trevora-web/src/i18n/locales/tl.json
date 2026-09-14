@@ -545,7 +545,7 @@
   "lines.railOverCharges": "Labis ng {gap} ang mga linya sa singil ng resibo.",
   "lines.railShortCharges": "Kulang ng {gap} ang mga linya sa singil ng resibo.",
   "lines.addAmounts": "Ilagay ang mga halaga mula sa resibo para gumana ang pagsusuring ito.",
-  "lines.matchesReceipt": "Tugma sa resibo",
+  "lines.matchesReceipt": "Tugma ang mga halaga sa mga kabuuan ng resibo",
   "lines.onlyTotalChecked": "Ang kabuuan ang tanging sinuri",
   "lines.receiptColumn": "Resibo",
   "lines.yourLines": "Iyong mga linya",
