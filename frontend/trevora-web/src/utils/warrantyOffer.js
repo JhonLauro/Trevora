@@ -60,3 +60,29 @@ export function warrantyOfferPatch(offer) {
 function isoDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 }
+
+/**
+ * What the Saved page says after a receipt filled the vehicle's warranty dates.
+ *
+ * <p>The period comes from the vehicle as it now stands, so a receipt that
+ * filled only the end date still shows the start the owner typed. The status
+ * line comes from the warranty the backend resolved: ended, or running until
+ * the end date. Anything else, such as a period with no end, gets no line.
+ *
+ * @param update the confirmation response's `warrantyUpdate`, or undefined
+ * @returns null when nothing was filled
+ */
+export function warrantyNotice(update, vehicle) {
+  if (!update || (!isoDate(update.startDate) && !isoDate(update.expiryDate))) return null;
+  const warranty = vehicle?.warranty ?? {};
+  const start = isoDate(warranty.startDate) ?? isoDate(update.startDate);
+  const end = isoDate(warranty.expiryDate) ?? isoDate(update.expiryDate);
+
+  let status = null;
+  if (end && warranty.status === 'EXPIRED') {
+    status = { key: 'warrantyNotice.ended', date: end, tone: 'ended' };
+  } else if (end && ['ACTIVE', 'TIME_ONLY', 'MILEAGE_ONLY'].includes(warranty.status)) {
+    status = { key: 'warrantyNotice.until', date: end, tone: 'ok' };
+  }
+  return { start, end, status };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readWarrantyOffer, warrantyOfferPatch } from './warrantyOffer';
+import { readWarrantyOffer, warrantyNotice, warrantyOfferPatch } from './warrantyOffer';
 
 const receipt = (start, end) => ({
   fieldMetadata: { receiptWarrantyStartDate: start, receiptWarrantyExpiryDate: end },
@@ -54,5 +54,32 @@ describe('warranty offer from a receipt', () => {
       .toEqual({ warrantySource: 'RECEIPT', warrantyStartDate: '2024-07-31', warrantyExpiryDate: '2026-07-31' });
     expect(warrantyOfferPatch({ start: null, end: '2026-07-31' }))
       .toEqual({ warrantySource: 'RECEIPT', warrantyExpiryDate: '2026-07-31' });
+  });
+});
+
+describe('warranty updated notice', () => {
+  const filledVehicle = (status) => ({
+    vehicleId: 'v1',
+    warranty: { status, startDate: '2024-07-31', expiryDate: '2026-07-31' },
+  });
+
+  it('says nothing when confirming filled nothing', () => {
+    expect(warrantyNotice(undefined, filledVehicle('EXPIRED'))).toBeNull();
+    expect(warrantyNotice({ startDate: null, expiryDate: null }, filledVehicle('EXPIRED'))).toBeNull();
+  });
+
+  /* The GLE: the receipt filled the end; the start was already the owner's. */
+  it('shows the whole period as the vehicle now has it, and that it has ended', () => {
+    expect(warrantyNotice({ startDate: null, expiryDate: '2026-07-31' }, filledVehicle('EXPIRED')))
+      .toEqual({
+        start: '2024-07-31',
+        end: '2026-07-31',
+        status: { key: 'warrantyNotice.ended', date: '2026-07-31', tone: 'ended' },
+      });
+  });
+
+  it('says a running period is within warranty until its end', () => {
+    expect(warrantyNotice({ startDate: '2024-07-31', expiryDate: '2026-07-31' }, filledVehicle('TIME_ONLY')).status)
+      .toEqual({ key: 'warrantyNotice.until', date: '2026-07-31', tone: 'ok' });
   });
 });

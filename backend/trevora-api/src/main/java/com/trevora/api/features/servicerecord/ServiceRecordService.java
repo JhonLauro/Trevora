@@ -17,6 +17,7 @@ import com.trevora.api.features.serviceinput.ServiceDraft;
 import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.serviceinput.ServiceDraftRepository;
 import com.trevora.api.features.servicerecord.ServiceRecordRepository;
+import com.trevora.api.features.vehicle.ReceiptWarrantyFill;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class ServiceRecordService {
     private final ServiceRecordItemReader serviceRecordItemReader;
     private final ServiceDraftValidationService serviceDraftValidationService;
     private final CurrentUserService currentUserService;
+    private final ReceiptWarrantyFill receiptWarrantyFill;
 
     public ServiceRecordService(
             ServiceInputService serviceInputService,
@@ -41,7 +43,8 @@ public class ServiceRecordService {
             ServiceRecordLineEntryRepository serviceRecordLineEntryRepository,
             ServiceRecordItemReader serviceRecordItemReader,
             ServiceDraftValidationService serviceDraftValidationService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            ReceiptWarrantyFill receiptWarrantyFill
     ) {
         this.serviceInputService = serviceInputService;
         this.serviceDraftRepository = serviceDraftRepository;
@@ -51,6 +54,7 @@ public class ServiceRecordService {
         this.serviceRecordItemReader = serviceRecordItemReader;
         this.serviceDraftValidationService = serviceDraftValidationService;
         this.currentUserService = currentUserService;
+        this.receiptWarrantyFill = receiptWarrantyFill;
     }
 
     @Transactional
@@ -75,11 +79,19 @@ public class ServiceRecordService {
         draft.setStatus(DraftStatus.CONFIRMED);
         ServiceDraft savedDraft = serviceDraftRepository.save(draft);
 
+        // Warranty dates the receipt printed fill any the vehicle is missing, in
+        // this transaction. A disagreement is left alone for the Saved page to ask
+        // about. See ReceiptWarrantyFill.
+        ReceiptWarrantyFill.Filled warrantyUpdate = receiptWarrantyFill
+                .fillFrom(draft.getVehicleId(), currentUserService.getCurrentUserId(), draft.getFieldMetadata())
+                .orElse(null);
+
         return new ServiceRecordConfirmationResponse(
                 ServiceRecordResponse.from(savedRecord, recordItems),
                 ServiceDraftResponse.from(savedDraft, draftItems),
                 validation,
-                "Service record saved."
+                "Service record saved.",
+                warrantyUpdate
         );
     }
 

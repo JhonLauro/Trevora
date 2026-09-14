@@ -47,6 +47,9 @@ class ServiceRecordServiceTest {
     private ServiceDraftValidationService serviceDraftValidationService;
     @Mock
     private CurrentUserService currentUserService;
+    // Unstubbed: Mockito answers Optional.empty(), so these tests fill no warranty.
+    @Mock
+    private com.trevora.api.features.vehicle.ReceiptWarrantyFill receiptWarrantyFill;
 
     private ServiceRecordService serviceRecordService;
 
@@ -60,7 +63,8 @@ class ServiceRecordServiceTest {
                 serviceRecordLineEntryRepository,
                 serviceRecordItemReader,
                 serviceDraftValidationService,
-                currentUserService
+                currentUserService,
+                receiptWarrantyFill
         );
     }
 

@@ -4306,3 +4306,23 @@ it belongs with the layout work, measured with `./mvnw test -Preplay` before and
   what they typed. Resending the same start and months (the warranty dialog sends all
   three terms every save) keeps it. The dialog still does not show or edit the printed
   end date itself.
+
+## Receipt warranty dates now fill the vehicle automatically (2026-09-15)
+
+**Reverses, for this one case, the rule that nothing writes to the vehicle without an
+owner's click.** Decided by the project owner: asking "Add it?" for a warranty period
+the dealer printed only added a step, and an expired period reads as expired either
+way.
+
+- **When.** On confirming the record, in the same transaction
+  (`ReceiptWarrantyFill`, called from `ServiceRecordService.confirmDraft`).
+- **What.** Only a warranty date the vehicle is missing: the start, or the end (a
+  stored end, or start + months). The source becomes RECEIPT.
+- **Never.** A date both sides have and disagree on is not touched. The Saved page
+  still shows Keep mine / Use the receipt's. Nothing is filled that would end the
+  period before it starts.
+- **Told.** The confirmation response carries `warrantyUpdate`; the Saved page shows
+  "Warranty updated", the period, whether it has ended, and View warranty, which opens
+  `/vehicles/:id?tab=warranty`.
+- **Unchanged.** The plate and VIN still wait for a click: a different plate can mean
+  a different car.

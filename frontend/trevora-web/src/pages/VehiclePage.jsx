@@ -291,6 +291,16 @@ export default function VehiclePage() {
   const requestedView = searchParams.get('view');
   const view = VIEWS.some((option) => option.id === requestedView) ? requestedView : 'components';
 
+  /* `?tab=` opens a tab directly. The Saved page's "View warranty" arrives
+     this way after a receipt filled the vehicle's warranty dates. Applied when
+     the page arrives or the link changes, never while somebody switches tabs. */
+  const requestedTab = searchParams.get('tab');
+  useEffect(() => {
+    if (['records', 'concerns', 'warranty'].includes(requestedTab)) {
+      setTab(requestedTab);
+    }
+  }, [requestedTab]);
+
   /* Arriving with `?view=` means somebody was sent here to do something --
      today that is the Garage's "Review" button, aimed at the timeline. The
      records block sits below the identity header, the completeness strip and

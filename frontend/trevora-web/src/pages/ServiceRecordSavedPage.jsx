@@ -8,6 +8,7 @@ import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import VehicleDetailsOffer from '../components/flow/VehicleDetailsOffer.jsx';
 import WarrantyOffer from '../components/flow/WarrantyOffer.jsx';
+import WarrantyUpdatedNotice from '../components/flow/WarrantyUpdatedNotice.jsx';
 import { getVehicleServiceHistory } from '../api/serviceHistory';
 import { formatDay } from '../utils/format';
 import { serviceItemsArray } from '../utils/serviceText';
@@ -133,6 +134,10 @@ export default function ServiceRecordSavedPage() {
           somebody has finished what they came to do. Its sibling -- the
           "this may be the wrong vehicle" warning -- stayed on the review
           screen, because that one has to be caught before the record exists. */}
+      {/* Confirming the record filled warranty dates the vehicle was missing;
+          this is where that is reported. Before the offers, because it is news,
+          not a question. */}
+      <WarrantyUpdatedNotice update={location.state?.warrantyUpdate} vehicle={vehicle} />
       <VehicleDetailsOffer draft={draft} vehicle={vehicle} onVehicleUpdated={setVehicle} />
       <WarrantyOffer draft={draft} vehicle={vehicle} onVehicleUpdated={setVehicle} />
 

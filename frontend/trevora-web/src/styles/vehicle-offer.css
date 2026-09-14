@@ -268,3 +268,52 @@
     justify-content: center;
   }
 }
+
+/* The Saved page's "Warranty updated" notice. It shares the offer card's frame,
+   but it reports something done rather than asking, so it is marked with a
+   brand rule and an icon instead of a pair of choices. */
+.warranty-notice {
+  border-left: 3px solid var(--brand, #0e7a52);
+}
+
+.warranty-notice__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warranty-notice__icon {
+  display: inline-flex;
+  color: var(--brand, #0e7a52);
+}
+
+.warranty-notice__dismiss {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.warranty-notice__dismiss:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.warranty-notice__period {
+  font-weight: 600;
+  margin: 0;
+}
+
+.warranty-notice__status {
+  margin: 0;
+}
+
+.warranty-notice__status--ended {
+  color: var(--ink-muted, #6b6a66);
+}
