@@ -123,9 +123,12 @@ final class ReplayScorer {
                     .anyMatch(description::equals);
             boolean kindOk = expected.kind().equalsIgnoreCase(String.valueOf(match.kind()));
             boolean amountOk = sameMoney(expected.amount(), match.lineTotal());
+            // The paper prints the code in its own column on the item's row, so a read that
+            // keeps the row whole ("66001 CVT ENHANCER") has the code, just not in the code field.
             Boolean partCodeOk = expected.partCode() == null
                     ? null
-                    : compact(expected.partCode()).equals(compact(match.partCode()));
+                    : compact(expected.partCode()).equals(compact(match.partCode()))
+                            || codeLeadsDescription(expected.partCode(), match.description());
             lines.add(new LineScore(expected.key(), true, descriptionOk, kindOk, amountOk, partCodeOk,
                     match.description(), match.lineTotal(), match.partCode()));
         }
@@ -221,6 +224,18 @@ final class ReplayScorer {
             return "";
         }
         return text.toUpperCase(Locale.ROOT).replaceAll("\\s*/\\s*", " / ").replaceAll("\\s+", " ").trim();
+    }
+
+    /**
+     * Whether the description starts with the code, with or without the printed
+     * quantity in front ("66001 CVT ENHANCER", "1 66001 CVT ENHANCER"). Both forms are
+     * tried rather than the quantity stripped first, because a numeric code such as
+     * 66001 looks exactly like a quantity.
+     */
+    private static boolean codeLeadsDescription(String code, String description) {
+        String words = normalise(description);
+        String prefix = code.toUpperCase(Locale.ROOT) + " ";
+        return words.startsWith(prefix) || words.replaceFirst("^\\d+\\s+", "").startsWith(prefix);
     }
 
     private static String compact(String text) {
