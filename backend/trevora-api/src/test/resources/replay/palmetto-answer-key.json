@@ -1,0 +1,50 @@
+{
+  "receipt": "Palmetto 57 Nissan repair order, Nissan Rogue, 11 January 2025",
+  "confirmedBy": "project owner, 2026-09-14",
+  "notes": "Scored per row, not per total: a run with every amount right and every description wrong must fail. 'SYN / CVT 50T' is accepted because Google Vision reads the printed 5QT as 50T; the model copying Vision's text is not the model's mistake. partCode null means not scored. layoutToken names the text that shares a physical row with the line's price in the photo, for the free layout check.",
+  "totalCost": "256.79",
+  "amountCovered": "56.79",
+  "remarksContains": ["FLUID"],
+  "lines": [
+    {
+      "key": "PERFORM",
+      "descriptions": ["PERFORM CVT TRANSMISSION FLUID SERVICE"],
+      "kind": "OPERATION",
+      "amount": "134.27",
+      "partCode": null,
+      "layoutToken": "115356CPNTN"
+    },
+    {
+      "key": "ENHANCER",
+      "descriptions": ["CVT ENHANCER"],
+      "kind": "PART",
+      "amount": "27.99",
+      "partCode": "66001",
+      "layoutToken": "ENHANCER"
+    },
+    {
+      "key": "SYN",
+      "descriptions": ["SYN / CVT 5QT", "SYN / CVT 50T"],
+      "kind": "PART",
+      "amount": "77.73",
+      "partCode": "EE5501",
+      "layoutToken": "SYN"
+    },
+    {
+      "key": "MULTI POINT",
+      "descriptions": ["MULTI POINT INSPECTION", "MPI MULTI POINT INSPECTION"],
+      "kind": "OPERATION",
+      "amount": "0.00",
+      "partCode": null,
+      "layoutToken": null
+    },
+    {
+      "key": "TIRE CONDITION",
+      "descriptions": ["TIRE CONDITION GOOD"],
+      "kind": "OPERATION",
+      "amount": "0.00",
+      "partCode": null,
+      "layoutToken": null
+    }
+  ]
+}

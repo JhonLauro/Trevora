@@ -4087,3 +4087,30 @@ this"; Account settings has had Delete account, so that sentence now points ther
 Still open: `LEGAL_ENTITY` is "the Trevora team", not a person or company that can
 be the personal information controller, and neither page has been read by
 somebody qualified.
+
+## Receipt replay harness (B1) built; production capture (B2) deferred (2026-09-14)
+
+`ReceiptReplayTest` (tag `replay`, excluded by default) replays a saved Google
+Vision reading through our layout code and scores it against a confirmed answer
+key, with no API calls. `./mvnw test -Preplay` for the free layout report;
+`-Dreplay.model-runs=N` adds N paid OpenAI extractions through the production
+path after Vision (resolvers included). Reports go to `target/replay/`.
+
+- **Scored per row.** `ReplayScorer` finds each expected line by a key word and
+  scores description, kind, amount and part code separately; unmatched lines are
+  invented. A run is exact only when every field is right, nothing is invented,
+  and total cost, amount covered and remarks match. A run with right money on
+  wrong rows fails, as it should.
+- **Two stabilities reported apart.** OCR text against the 2026-09-13 reading
+  (layout changes), and whether every model run got identical input (so
+  differences are the model's).
+- **Layout pairs, free.** For each priced line, whether one OCR row holds its
+  identifying text and its price. On the 2026-09-13 text this is expected to be
+  0 of 3; the price-column triplet fix is measured against it.
+- **Data.** Only the answer key is committed. The saved reading, the image and the
+  OCR text live in `~/trevora-replay/palmetto/`; see `CLAUDE.md` on why.
+- **B2 (production capture for team accounts) is deferred** until there are
+  receipts we photograph ourselves (the Talisay set). Its settled design: flag by
+  account id, captures stored beside their receipt photo and removed through
+  `ReceiptFiles` with it, a daily 30-day purge, and capture refused with an error
+  log whenever a capture older than 31 days still exists. Nothing would watch it.
