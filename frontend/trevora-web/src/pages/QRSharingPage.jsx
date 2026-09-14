@@ -61,6 +61,21 @@ function shortDateTime(value) {
   });
 }
 
+/**
+ * The link a mechanic opens, on the address this page is being used from.
+ *
+ * The API builds its own from TREVORA_FRONTEND_BASE_URL, and that drifts in local
+ * development: a dev server on 5173 handing out a 4173 link that only works while a
+ * preview build happens to be running. The owner's own origin is always the app
+ * they are using -- locally, on a phone over the LAN, and deployed. The API's URL
+ * still decides whether there is a link at all: it is null once the code can no
+ * longer be scanned.
+ */
+function shareLinkFor(request) {
+  if (!request?.accessUrl || !request?.accessToken) return request?.accessUrl ?? null;
+  return `${window.location.origin}/access/request/${encodeURIComponent(request.accessToken)}`;
+}
+
 function timeLeft(value) {
   if (!value) return null;
   const ms = new Date(value).getTime() - Date.now();
@@ -166,11 +181,12 @@ export default function QRSharingPage() {
   }
 
   async function copyLink() {
-    if (!current?.accessUrl) return;
-    await navigator.clipboard.writeText(current.accessUrl);
+    if (!shareLink) return;
+    await navigator.clipboard.writeText(shareLink);
     setCopied(true);
   }
 
+  const shareLink = shareLinkFor(current);
   const name = vehicle ? displayVehicleName(vehicle) : 'this vehicle';
   const liveSessions = useMemo(
     () => sessions.filter((s) => s.status === 'APPROVED' && s.vehicleProfileId === vehicleId),
@@ -302,7 +318,7 @@ export default function QRSharingPage() {
 
                   <div className="share-qr">
                     {current.accessUrl ? (
-                      <QRCodeSVG value={current.accessUrl} size={196} bgColor="#ffffff" fgColor="#1c1b19" level="M" includeMargin />
+                      <QRCodeSVG value={shareLink} size={196} bgColor="#ffffff" fgColor="#1c1b19" level="M" includeMargin />
                     ) : (
                       <div className="share-qr__missing">
                         {/* The server withholds the code once it cannot be scanned. A used
@@ -335,7 +351,7 @@ export default function QRSharingPage() {
                     <>
                   <div className="ink-combo">
                     <label className="ink-combo__label" htmlFor="share-url">Share URL</label>
-                    <input id="share-url" value={current.accessUrl || ''} placeholder="Unavailable" readOnly />
+                    <input id="share-url" value={shareLink || ''} placeholder="Unavailable" readOnly />
                   </div>
 
                   <div className="share-result__actions">

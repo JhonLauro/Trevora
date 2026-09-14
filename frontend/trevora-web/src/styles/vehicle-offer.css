@@ -143,6 +143,13 @@
    Built on .flow-card so it sits in the saved screen's own language rather
    than importing the modal's. */
 
+/* .flow-card has no padding of its own -- the stats card above pads each cell
+   instead -- so without this the text, rules and buttons ran into the border.
+   Same 20px 24px as those cells, so the two cards' contents line up. */
+.vehicle-offer {
+  padding: 20px 24px;
+}
+
 .vehicle-offer__lead {
   color: var(--ink, #1c1b19);
   line-height: 1.5;
@@ -155,12 +162,14 @@
   margin: 14px 0 0;
 }
 
+/* 168px rather than the dialog's 128: the card is page-wide, and at 128
+   "VIN or chassis number" broke over two lines beside a one-line value. */
 .vehicle-offer__fact {
   align-items: baseline;
   border-top: 1px solid var(--rule-hairline, #efebe3);
   display: grid;
   gap: 4px 18px;
-  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   padding: 10px 0;
 }
 
@@ -212,6 +221,10 @@
 }
 
 @media (max-width: 480px) {
+  .vehicle-offer {
+    padding: 18px;
+  }
+
   .vehicle-offer__fact {
     grid-template-columns: minmax(0, 1fr);
   }
