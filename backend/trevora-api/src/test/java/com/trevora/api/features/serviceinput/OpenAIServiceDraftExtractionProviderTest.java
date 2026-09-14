@@ -137,6 +137,57 @@ class OpenAIServiceDraftExtractionProviderTest {
                 .contains("left blank");
     }
 
+    private ReceiptDraftFields withWarranty(String start, String end) {
+        return parseOpenAIResponse(chatCompletionEnvelope("""
+                {
+                  "serviceDate": "2026-07-18",
+                  "services": [],
+                  "odometer": null,
+                  "totalCost": null,
+                  "shopName": null,
+                  "location": null,
+                  "remarks": null,
+                  "warrantyStartDate": %s,
+                  "warrantyExpiryDate": %s,
+                  "classification": null,
+                  "confidenceNotes": [],
+                  "fieldSources": {},
+                  "fieldConfidence": {},
+                  "aiSuggestedFields": [],
+                  "warnings": []
+                }
+                """.formatted(start, end)));
+    }
+
+    @Test
+    void keepsAPrintedWarrantyPeriod() {
+        ReceiptDraftFields fields = withWarranty("\"2024-07-31\"", "\"2026-07-31\"");
+
+        assertThat(fields.warrantyStartDate()).isEqualTo(java.time.LocalDate.of(2024, 7, 31));
+        assertThat(fields.warrantyExpiryDate()).isEqualTo(java.time.LocalDate.of(2026, 7, 31));
+    }
+
+    /**
+     * The Gateway repair order, 2026-09-15: the scan gave "Wty Date" the expiry's
+     * 31/07/2026. The end date is still right and is what the warranty tab needs.
+     */
+    @Test
+    void keepsTheEndDateWhenTheStartReadsAsTheSameDay() {
+        ReceiptDraftFields fields = withWarranty("\"2026-07-31\"", "\"2026-07-31\"");
+
+        assertThat(fields.warrantyStartDate()).isNull();
+        assertThat(fields.warrantyExpiryDate()).isEqualTo(java.time.LocalDate.of(2026, 7, 31));
+        assertThat(fields.warnings()).anyMatch(warning -> warning.contains("only the end date was kept"));
+    }
+
+    @Test
+    void dropsAWarrantyPeriodThatEndsBeforeItStarts() {
+        ReceiptDraftFields fields = withWarranty("\"2026-07-31\"", "\"2024-07-31\"");
+
+        assertThat(fields.warrantyStartDate()).isNull();
+        assertThat(fields.warrantyExpiryDate()).isNull();
+    }
+
     @Test
     void blanksANegativeOdometer() {
         ReceiptDraftFields fields = parseOpenAIResponse(draftWithOdometer("-500"));

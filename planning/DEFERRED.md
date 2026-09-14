@@ -4326,3 +4326,18 @@ way.
   `/vehicles/:id?tab=warranty`.
 - **Unchanged.** The plate and VIN still wait for a click: a different plate can mean
   a different car.
+
+## The scan mis-pairs labels and values in the vehicle box (2026-09-15)
+
+On a second upload of the Gateway / Mercedes-Benz Cebu repair order the OCR text read
+"Wty Date | 31/07/2026" where the paper prints Wty Date 31/07/2024 and Wty Exp Date
+31/07/2026: the box's label row and value row were rebuilt with the start label paired
+to the expiry's value. The model copied it, so start and end came back the same day.
+The earlier upload of the same receipt paired them correctly, so this varies run to run.
+
+- **Handled, not fixed.** A start on the same day as the end is dropped and the end
+  kept, with a warning; a period that ends before it starts is dropped whole. The
+  vehicle is never given a wrong start this way.
+- **Same family as Location reading the customer's address:** both come from how the
+  tabular vehicle and customer box is turned into rows. Fixing it belongs with the
+  layout work, measured on saved Vision readings, not in the prompt.

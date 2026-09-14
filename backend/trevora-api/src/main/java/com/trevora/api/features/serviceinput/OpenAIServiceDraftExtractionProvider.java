@@ -793,10 +793,18 @@ public class OpenAIServiceDraftExtractionProvider {
             if (isInferredFactualValue(fieldSources, "warrantyExpiryDate")) {
                 warrantyExpiryDate = null;
             }
-            // A period that ends before it starts is a misread, and offering it
-            // would put a warranty that never existed onto the vehicle.
-            if (warrantyStartDate != null && warrantyExpiryDate != null
-                    && !warrantyExpiryDate.isAfter(warrantyStartDate)) {
+            /* A start on the same day as the end means one label was given the
+               other's date. On the Gateway repair order the scan paired "Wty Date"
+               with the expiry's 31/07/2026 while the paper prints 31/07/2024, and
+               the model copied it faithfully. The end is labelled as the end and
+               is the date the warranty tab needs, so it is kept; only the start
+               is doubtful. A period that ends before it starts says nothing
+               either date can be trusted for, so both go. */
+            if (warrantyStartDate != null && warrantyStartDate.equals(warrantyExpiryDate)) {
+                warrantyStartDate = null;
+                warnings.add("The warranty start and end dates read as the same day, so only the end date was kept.");
+            } else if (warrantyStartDate != null && warrantyExpiryDate != null
+                    && warrantyExpiryDate.isBefore(warrantyStartDate)) {
                 warrantyStartDate = null;
                 warrantyExpiryDate = null;
                 warnings.add("The warranty dates on the receipt did not make a valid period and were left out.");
