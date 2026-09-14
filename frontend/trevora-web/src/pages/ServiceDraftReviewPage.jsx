@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Wallet } from 'lucide-react';
 import { useT } from '../i18n/index.jsx';
 import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -157,12 +158,15 @@ function PaidFigure({ figures }) {
   const t = useT();
   return (
     <div className="flow-paid" aria-live="polite">
-      <span className="flow-paid__label">{t('review.youPaid')}</span>
-      <span className="flow-paid__value">{formatPeso(figures.paid)}</span>
-      <span className="flow-paid__of">
-        {figures.fullyCovered
-          ? t('review.fullyCovered')
-          : t('review.ofTotal', { total: formatPeso(figures.total) })}
+      <span className="flow-paid__icon" aria-hidden="true"><Wallet size={22} /></span>
+      <span className="flow-paid__body">
+        <span className="flow-paid__label">{t('review.youPaid')}</span>
+        <span className="flow-paid__value">{formatPeso(figures.paid)}</span>
+        <span className="flow-paid__of">
+          {figures.fullyCovered
+            ? t('review.fullyCovered')
+            : t('review.ofTotal', { total: formatPeso(figures.total) })}
+        </span>
       </span>
     </div>
   );
