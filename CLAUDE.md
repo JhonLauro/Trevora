@@ -161,6 +161,20 @@ here because this file is loaded automatically and that one is not.
   model shipped at the time; not re-measured on gpt-5.4-mini). It costs about a
   cent a run, so run it freely; but without `OPENAI_API_KEY` it skips instead of
   failing, so check the scorecard actually printed.
+- **The Palmetto 57 Nissan receipt is a reference photo from the internet, not
+  a receipt anyone here holds.** There is no clearer photo: what looked like one
+  was a re-crop of the same upload, and there is no physical receipt to reshoot.
+  So on this receipt photo quality and row rebuilding **cannot be separated** as
+  causes; that comparison needs receipts we can photograph ourselves. It is a
+  real person's receipt with details only partly redacted: the image, the raw
+  Vision reading and the full OCR text stay out of git (they live in
+  `~/trevora-replay/palmetto/` on the machine that has them), and the committed
+  fixture `printed-subtotals/palmetto-jobs-and-totals.txt` leaves out the
+  header carrying the VIN and customer number -- keep it that way. It is still a
+  valid test case: the bend and the one-row price drift are real, and the
+  correct answer is confirmed in `src/test/resources/replay/palmetto-answer-key.json`.
+  Replay it free with `./mvnw test -Preplay`; add `-Dreplay.model-runs=N` for
+  paid extractions.
 
 Two things that make "it works" a weaker claim here than it sounds, and are
 worth saying plainly rather than glossing:
