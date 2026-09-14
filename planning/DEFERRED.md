@@ -4241,3 +4241,68 @@ screen anyway. Since deletion is refused when receipt files cannot be removed, t
 told the owner the draft was gone when nothing had been deleted. The helper now
 throws; both dialogs stay open and show the server's message. With Discard on the
 review page, that is every frontend path that deletes a draft.
+
+## Coverage kind, toggle citation, unit-neutral odometer wording (2026-09-15)
+
+- **Coverage kind, migration 028.** `coverage_kind` on drafts and records: INSURANCE,
+  WARRANTY, GOODWILL or OTHER, null for nothing covered or "not sure". Set from the
+  totals box only when every credit row names the same kind (INSURER is insurance);
+  otherwise the owner picks it on review. Copied to the record at confirmation and
+  shown on the record page ("covered by insurance"). Never on mechanic responses.
+  **No DISCOUNT value**, although the earlier proposal listed one: a discount is a
+  lower bill, not coverage, and offering it would let owners record discounts as
+  coverage and understate what they paid. A database check refuses a kind without a
+  covered amount; the correction service drops the kind whenever coverage is zero.
+- **Toggle citation.** The covered amount now shows the credit row it came from
+  ("LESS INSURANCE | 56.79"), hidden while the toggle is off.
+- **Still not built:** the one-line breakdown ("Charges + tax = total. Covered. You
+  paid.") and deduction rows read by position rather than by the word LESS.
+- **Odometer warnings carry no unit.** The plausibility and extraction warnings said
+  "km"; the reading is whatever the dashboard shows. A real per-vehicle unit
+  (km or miles) is its own change and was not made.
+
+## Location read the customer's home address (2026-09-15)
+
+On the Gateway / Mercedes-Benz Cebu repair order the Location field held "22 E, Cebu
+Business Park, Park Point, Luz Cebu City", which is the **Customer Name and Address**
+box, not the shop. The paper prints no branch address, so Location should have been
+empty. It was flagged "Check this one", but a record can be shared with a mechanic,
+so this is a privacy problem as well as a wrong value. Not fixed: it is an extraction
+prompt change and needs golden runs before and after. The receipt itself stays out
+of git, same rule as Palmetto.
+
+## Part codes are still not split out of descriptions (2026-09-15)
+
+Not done, deliberately. The paper-correct read "66001 CVT ENHANCER" keeps its code in
+the description (see the correction above). Splitting it needs a rule that takes
+"66001" and "EE5501" but not "10W40" in "10W40 OIL" or "5W30", and nothing in the
+description alone tells those apart: all start with a token mixing digits and
+letters. A usable rule probably needs the OCR row layout (the code's own column), so
+it belongs with the layout work, measured with `./mvnw test -Preplay` before and after.
+
+## Warranty dates from receipts: steps 3 and 4 built (2026-09-15)
+
+- **Extraction (prompt change).** New nullable fields `warrantyStartDate` and
+  `warrantyExpiryDate`, with evidence like the plate and VIN. Taken only from dates
+  labelled as warranty dates (Wty Date, Wty Exp Date, Warranty Expiry...), as
+  yyyy-MM-dd, null when the day and month could be read either way. A Delivery Date is
+  never the start. The service-date rules now also reject Wty Date / Wty Exp Date. A
+  period that ends before it starts is dropped with a warning. Stored in draft
+  metadata as `receiptWarrantyStartDate` / `receiptWarrantyExpiryDate`; never written
+  to the vehicle by extraction.
+- **Golden set before the change** (gpt-5.4-mini, 11 cases x 3, all gates passed):
+  documentType 100, serviceDate 91, odometer 100, totalCost 100, shopName 90,
+  relatedComponents 68, reconciles 50, location 100, lineKinds 85, linePrices 76.
+  **The after run is still owed** and the change is not proven until it is compared
+  against these. No golden case prints warranty dates, so the set measures
+  regressions, not whether the new fields are read; the Gateway repair order is the
+  real check and stays out of git.
+- **Saved-page card.** No warranty dates on the vehicle: "This receipt prints a
+  warranty period... Add it?". Different dates: a non-blocking card showing both,
+  Keep mine / Use the receipt's, and the vehicle's dates stay by default. Accepting
+  sends only the printed dates, with `warrantySource: RECEIPT`.
+- **Printed end dates and later owner edits.** An owner save that changes the start
+  date or the months drops a stored printed end date, which would otherwise outrank
+  what they typed. Resending the same start and months (the warranty dialog sends all
+  three terms every save) keeps it. The dialog still does not show or edit the printed
+  end date itself.

@@ -36,6 +36,7 @@ class ReceiptTotalResolverTest {
         assertThat(resolution.totalCitation()).isEqualTo("TOTAL CHARGES | 239.99 + TAX | 16.80");
         // From the label onward: the legal text OCR glued in front is not cited.
         assertThat(resolution.coveredCitation()).isEqualTo("LESS INSURANCE | 56.79");
+        assertThat(resolution.coverageKind()).isEqualTo("INSURANCE");
         assertThat(resolution.note()).contains("256.79").contains("56.79").contains("200.00");
     }
 
@@ -51,6 +52,16 @@ class ReceiptTotalResolverTest {
         String discounted = BOX.replace("LESS INSURANCE", "LESS DISCOUNT");
 
         assertThat(ReceiptTotalResolver.resolve(PrintedSubtotals.read(discounted), new BigDecimal("200.00"))).isEmpty();
+    }
+
+    @Test
+    void recordsWhichKindTheCreditRowNamed() {
+        assertThat(resolved(BOX.replace("LESS INSURANCE", "LESS WARRANTY"), "200.00").coverageKind())
+                .isEqualTo("WARRANTY");
+        assertThat(resolved(BOX.replace("LESS INSURANCE", "LESS GOODWILL"), "200.00").coverageKind())
+                .isEqualTo("GOODWILL");
+        assertThat(resolved(BOX.replace("LESS INSURANCE", "LESS INSURER"), "200.00").coverageKind())
+                .isEqualTo("INSURANCE");
     }
 
     @Test

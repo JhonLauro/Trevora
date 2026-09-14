@@ -57,6 +57,7 @@ class ReceiptTotalInPipelineTest {
 
         assertThat(result.totalCost()).isEqualByComparingTo("256.79");
         assertThat(result.amountCovered()).isEqualByComparingTo("56.79");
+        assertThat(result.coverageKind()).isEqualTo("INSURANCE");
         assertThat(source(result, "totalCost").get("sourceText")).isEqualTo("TOTAL CHARGES | 239.99 + TAX | 16.80");
         assertThat(source(result, "amountCovered").get("sourceText")).isEqualTo("LESS INSURANCE | 56.79");
         assertThat(source(result, "amountCovered").get("needsReview")).isEqualTo(true);

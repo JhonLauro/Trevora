@@ -190,14 +190,16 @@ public class DraftPlausibilityService {
             return List.of();
         }
 
+        // No unit in these messages: the reading is whatever the dashboard
+        // shows, and on an imported vehicle that is miles.
         if (odometer < highest) {
             return List.of(issue(
                     "odometer",
                     "Odometer",
                     "IMPLAUSIBLE_VALUE",
                     "WARNING",
-                    "This reads " + format(odometer) + " km, which is below the "
-                            + format(highest) + " km already recorded for this vehicle. Odometers only "
+                    "This reads " + format(odometer) + ", which is below the "
+                            + format(highest) + " already recorded for this vehicle. Odometers only "
                             + "go up, so this is usually a misread digit, a receipt for a different "
                             + "vehicle, or an older service being added now.",
                     odometer,
@@ -212,8 +214,8 @@ public class DraftPlausibilityService {
                     "Odometer",
                     "IMPLAUSIBLE_VALUE",
                     "WARNING",
-                    "This reads " + format(odometer) + " km, a jump of "
-                            + format(odometer - highest) + " km since the last record. Check for an "
+                    "This reads " + format(odometer) + ", a jump of "
+                            + format(odometer - highest) + " since the last record. Check for an "
                             + "extra digit before confirming.",
                     odometer,
                     draft,

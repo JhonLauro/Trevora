@@ -45,7 +45,10 @@ public class ServiceDraftCorrectionService {
         draft.setServiceDate(request.serviceDate());
         draft.setOdometer(request.odometer());
         draft.setTotalCost(request.totalCost());
-        draft.setAmountCovered(cappedCoverage(request.amountCovered(), request.totalCost()));
+        BigDecimal covered = cappedCoverage(request.amountCovered(), request.totalCost());
+        draft.setAmountCovered(covered);
+        // A kind without an amount would describe coverage that is not there.
+        draft.setCoverageKind(covered.signum() > 0 ? request.coverageKind() : null);
         draft.setShopName(blankToNull(request.shopName()));
         draft.setLocation(blankToNull(request.location()));
         draft.setRemarks(blankToNull(request.remarks()));

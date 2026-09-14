@@ -102,7 +102,7 @@ class DraftPlausibilityServiceTest {
 
         assertThat(issues).singleElement().satisfies(issue -> {
             assertThat(issue.fieldName()).isEqualTo("odometer");
-            assertThat(issue.message()).contains("45,000 km already recorded");
+            assertThat(issue.message()).contains("45,000 already recorded").doesNotContain(" km");
             // Cluster replacements happen. The owner decides, not the system.
             assertThat(issue.blocksConfirmation()).isFalse();
         });
@@ -117,7 +117,7 @@ class DraftPlausibilityServiceTest {
 
         assertThat(service.check(draft(LocalDate.now(), 50000, null), vehicle(null)))
                 .singleElement()
-                .satisfies(issue -> assertThat(issue.message()).contains("80,000 km"));
+                .satisfies(issue -> assertThat(issue.message()).contains("80,000 already recorded"));
     }
 
     @Test

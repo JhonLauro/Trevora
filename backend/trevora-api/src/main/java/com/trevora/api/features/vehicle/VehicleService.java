@@ -200,6 +200,8 @@ public class VehicleService {
         if (request.has("odometer")) {
             vehicle.setOdometer(request.getOdometer());
         }
+        java.time.LocalDate startBefore = vehicle.getWarrantyStartDate();
+        Integer monthsBefore = vehicle.getWarrantyMonths();
         if (request.has("warrantyStartDate")) {
             vehicle.setWarrantyStartDate(request.getWarrantyStartDate());
         }
@@ -209,8 +211,23 @@ public class VehicleService {
         if (request.has("warrantyKmLimit")) {
             vehicle.setWarrantyKmLimit(request.getWarrantyKmLimit());
         }
-        if (request.has("warrantyStartDate") || request.has("warrantyMonths") || request.has("warrantyKmLimit")) {
-            vehicle.setWarrantySource(ownerWarrantySource(vehicle));
+        if (request.has("warrantyExpiryDate")) {
+            vehicle.setWarrantyExpiryDate(request.getWarrantyExpiryDate());
+        } else if (!java.util.Objects.equals(startBefore, vehicle.getWarrantyStartDate())
+                || !java.util.Objects.equals(monthsBefore, vehicle.getWarrantyMonths())) {
+            /* A printed end date belongs to the period it was printed with. An
+               owner who changes the start or the length is describing another
+               period, and the old end date would quietly outrank what they just
+               typed. The warranty dialog resends all three terms on every save,
+               so resending the same start and length keeps it. */
+            vehicle.setWarrantyExpiryDate(null);
+        }
+        if (request.has("warrantyStartDate") || request.has("warrantyMonths")
+                || request.has("warrantyKmLimit") || request.has("warrantyExpiryDate")) {
+            String source = ownerWarrantySource(vehicle);
+            vehicle.setWarrantySource(source != null && "RECEIPT".equals(request.getWarrantySource())
+                    ? "RECEIPT"
+                    : source);
         }
 
         /* The photo is one fact in two columns: a path without its bucket

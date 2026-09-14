@@ -243,7 +243,12 @@ export default function ServiceRecordDetailPage() {
           <span className="ink-eyebrow">Total cost</span>
           <strong>PHP {formatAmount(record.totalCost)}</strong>
           {record.amountCovered > 0 && (
-            <span className="record-header__covered">PHP {formatAmount(record.amountCovered)} covered</span>
+            <span className="record-header__covered">
+              {/* Who covered it, when anyone recorded that (migration 028).
+                  OTHER and "not sure" both read as plain "covered". */}
+              PHP {formatAmount(record.amountCovered)} covered
+              {{ INSURANCE: ' by insurance', WARRANTY: ' under warranty', GOODWILL: ' as goodwill' }[record.coverageKind] ?? ''}
+            </span>
           )}
         </div>
       </header>

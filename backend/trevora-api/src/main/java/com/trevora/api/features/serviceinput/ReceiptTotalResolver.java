@@ -2,7 +2,9 @@ package com.trevora.api.features.serviceinput;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,9 +29,9 @@ import java.util.stream.Stream;
  *
  * <p><b>Only insurance, warranty or goodwill.</b> A credit is recorded as covered
  * only when every non-zero credit row says one of those. "LESS DISCOUNT" is a
- * lower bill, not coverage, and there is no column yet to say which kind a
- * credit was, so any other deduction leaves the total and the coverage exactly
- * as the model read them.
+ * lower bill, not coverage, so any other deduction leaves the total and the
+ * coverage exactly as the model read them. The kind the rows name is recorded
+ * too (migration 028), which has no discount value for the same reason.
  *
  * <p><b>Only one document.</b> A text with more than one TOTAL CHARGES is several
  * documents in one upload; the totals box of one of them does not speak for the
@@ -47,13 +49,16 @@ final class ReceiptTotalResolver {
      * @param coveredCitation the credit rows as printed, or null
      * @param note a sentence for the draft's warnings, or null when nothing the
      *     owner would notice changed
+     * @param coverageKind INSURANCE, WARRANTY or GOODWILL when every credit row
+     *     names the same one; null when they differ or nothing was covered
      */
     record Resolution(
             BigDecimal totalCost,
             BigDecimal amountCovered,
             String totalCitation,
             String coveredCitation,
-            String note
+            String note,
+            String coverageKind
     ) { }
 
     private ReceiptTotalResolver() {
@@ -98,7 +103,31 @@ final class ReceiptTotalResolver {
                 covered ? credits : null,
                 totalCitation,
                 coveredCitation,
-                note(extractedTotal, total, charges, tax, covered ? credits : null, paid)));
+                note(extractedTotal, total, charges, tax, covered ? credits : null, paid),
+                covered ? kindOf(credited) : null));
+    }
+
+    /**
+     * The one kind every credit row names, or null when they name different
+     * ones. A receipt crediting insurance and goodwill together is recorded
+     * with its amount and no kind, and the owner picks on review rather than
+     * one row's word standing for both. INSURER is insurance.
+     */
+    private static String kindOf(List<PrintedSubtotals.Cited> credited) {
+        String kind = null;
+        for (PrintedSubtotals.Cited row : credited) {
+            Matcher matcher = COVERAGE_LABEL.matcher(row.text());
+            if (!matcher.find()) {
+                return null;
+            }
+            String label = matcher.group(1).toUpperCase(Locale.ROOT);
+            String rowKind = "INSURER".equals(label) ? "INSURANCE" : label;
+            if (kind != null && !kind.equals(rowKind)) {
+                return null;
+            }
+            kind = rowKind;
+        }
+        return kind;
     }
 
     private static String note(

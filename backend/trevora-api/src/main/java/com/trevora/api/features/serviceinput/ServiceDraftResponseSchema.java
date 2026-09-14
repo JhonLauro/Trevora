@@ -37,7 +37,7 @@ final class ServiceDraftResponseSchema {
      */
     private static final List<String> EVIDENCE_FIELDS =
             List.of("serviceDate", "odometer", "totalCost", "shopName", "location", "remarks",
-                    "plateNumber", "vinChassisNumber");
+                    "plateNumber", "vinChassisNumber", "warrantyStartDate", "warrantyExpiryDate");
 
     private static final List<String> CONFIDENCE_VALUES = List.of("high", "medium", "low", "not_found");
 
@@ -106,6 +106,13 @@ final class ServiceDraftResponseSchema {
          */
         properties.put("plateNumber", nullable("string"));
         properties.put("vinChassisNumber", nullable("string"));
+        /*
+         * The manufacturer warranty period, when the paper labels one. Same
+         * standing as the plate and chassis: nothing is filed under them, and
+         * the Saved page offers them to the owner rather than writing them.
+         */
+        properties.put("warrantyStartDate", nullable("string"));
+        properties.put("warrantyExpiryDate", nullable("string"));
         properties.put("classification", classificationSchema());
         properties.put("confidenceNotes", array(Map.of("type", "string")));
         properties.put("fieldSources", fixedKeyMap(evidenceValue));

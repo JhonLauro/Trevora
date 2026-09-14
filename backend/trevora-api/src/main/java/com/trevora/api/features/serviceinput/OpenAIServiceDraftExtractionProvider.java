@@ -216,7 +216,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 fields.classification(),
                 warnings,
                 fields.plateNumber(),
-                fields.vinChassisNumber()
+                fields.vinChassisNumber(),
+                fields.warrantyStartDate(),
+                fields.warrantyExpiryDate()
         );
     }
 
@@ -293,7 +295,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 fields.classification(),
                 warnings,
                 fields.plateNumber(),
-                fields.vinChassisNumber()
+                fields.vinChassisNumber(),
+                fields.warrantyStartDate(),
+                fields.warrantyExpiryDate()
         );
     }
 
@@ -311,7 +315,7 @@ public class OpenAIServiceDraftExtractionProvider {
         }
 
         List<String> warnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
-        warnings.add("Odometer read as " + resolved + " km from the reading printed on the document"
+        warnings.add("Odometer read as " + resolved + " from the reading printed on the document"
                 + (fields.odometer() == null ? "." : ", not the " + fields.odometer()
                         + " first extracted - that figure sits under a different label."));
 
@@ -333,7 +337,9 @@ public class OpenAIServiceDraftExtractionProvider {
                 fields.classification(),
                 warnings,
                 fields.plateNumber(),
-                fields.vinChassisNumber()
+                fields.vinChassisNumber(),
+                fields.warrantyStartDate(),
+                fields.warrantyExpiryDate()
         );
     }
 
@@ -747,6 +753,8 @@ public class OpenAIServiceDraftExtractionProvider {
             String location = asText(fieldsNode.get("location"));
             String plateNumber = asText(fieldsNode.get("plateNumber"));
             String vinChassisNumber = asText(fieldsNode.get("vinChassisNumber"));
+            LocalDate warrantyStartDate = asDate(fieldsNode.get("warrantyStartDate"));
+            LocalDate warrantyExpiryDate = asDate(fieldsNode.get("warrantyExpiryDate"));
             if (isInferredFactualValue(fieldSources, "serviceDate")) {
                 serviceDate = null;
                 warnings.add("Service date was not directly supported by receipt text and was left blank.");
@@ -779,6 +787,20 @@ public class OpenAIServiceDraftExtractionProvider {
             if (isInferredFactualValue(fieldSources, "vinChassisNumber")) {
                 vinChassisNumber = null;
             }
+            if (isInferredFactualValue(fieldSources, "warrantyStartDate")) {
+                warrantyStartDate = null;
+            }
+            if (isInferredFactualValue(fieldSources, "warrantyExpiryDate")) {
+                warrantyExpiryDate = null;
+            }
+            // A period that ends before it starts is a misread, and offering it
+            // would put a warranty that never existed onto the vehicle.
+            if (warrantyStartDate != null && warrantyExpiryDate != null
+                    && !warrantyExpiryDate.isAfter(warrantyStartDate)) {
+                warrantyStartDate = null;
+                warrantyExpiryDate = null;
+                warnings.add("The warranty dates on the receipt did not make a valid period and were left out.");
+            }
             DocumentType documentType = DocumentType.fromNullable(asText(fieldsNode.get("documentType")));
             noteDocumentType(documentType, services, totalCost, warnings);
             String linesGap = reconcileWarning(services, totalCost, TOTAL_PHRASE);
@@ -803,7 +825,9 @@ public class OpenAIServiceDraftExtractionProvider {
                     classification(fieldsNode.get("classification")),
                     warnings,
                     plateNumber,
-                    vinChassisNumber
+                    vinChassisNumber,
+                    warrantyStartDate,
+                    warrantyExpiryDate
             );
     }
 
@@ -1061,8 +1085,10 @@ public class OpenAIServiceDraftExtractionProvider {
                 page you are confident you read correctly:
                   - Delivery Date, Promise Date, Date Promised, ETA, Ready By. These are a plan, not
                     a record, and they are frequently printed ABOVE the service date on the page.
-                  - Warr Exp Date, Warranty Expiry, Warranty Until, Next Service Due, Next PMS. These
-                    are in the future, and a service date never is.
+                  - Wty Exp Date, Warr Exp Date, Warranty Expiry, Warranty Until, Next Service Due,
+                    Next PMS. These are in the future, and a service date never is.
+                  - Wty Date, Warranty Date, Warranty Start. These are when a warranty began, not
+                    this visit.
                   - Ack. Cert. Date Issued, Permit Date, Accreditation Date, Valid Until. These
                     belong to the printed stationery, not to this visit.
                   - Statement, billing-period or payment-due dates.
@@ -1082,7 +1108,7 @@ public class OpenAIServiceDraftExtractionProvider {
                 happen, and unlike a blank it gives the owner no reason to look.
 
                 Factual values must be directly supported by visible OCR text. Do not invent or infer factual values.
-                Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, and chassis number.
+                Factual values include serviceDate, totalCost, odometer, shopName, location, plateNumber, VIN, chassis number, warrantyStartDate and warrantyExpiryDate.
                 If a factual value is missing or uncertain, return null for that field.
 
                 plateNumber and vinChassisNumber are now returned fields. Fill them only from what the
@@ -1093,6 +1119,16 @@ public class OpenAIServiceDraftExtractionProvider {
                 dashes or spaces, and do not tidy them up. If the reading is doubtful — a character
                 that could be O or 0, I or 1, B or 8 — still return what you read, and add a warning
                 saying which characters were unclear.
+
+                warrantyStartDate and warrantyExpiryDate are the manufacturer warranty period, when
+                the paper prints one. Take them ONLY from dates labelled as warranty dates, such as
+                "Wty Date", "Warranty Date" or "Warranty Start" for the start and "Wty Exp Date",
+                "Warr Exp Date", "Warranty Expiry" or "Warranty Until" for the end. Return each as
+                yyyy-MM-dd. A Delivery Date is NEVER the warranty start, even when it is the same
+                day: dealer stock and demo units are delivered long before anyone buys them. Never
+                work one date out from the other, from a coverage period or from the model year.
+                Return null for whichever one the paper does not print. If the day and month of a
+                warranty date could be read either way, return null for that date and add a warning.
                 If multiple possible factual values exist, choose the clearest source-supported value only and add a warning.
 
                 A single visit/receipt can include multiple distinct services (for example an oil change
@@ -1365,7 +1401,7 @@ public class OpenAIServiceDraftExtractionProvider {
             return null;
         }
         if (odometer < 0 || odometer > MAX_PLAUSIBLE_ODOMETER_KM) {
-            warnings.add("The odometer read as " + odometer + " km, which no vehicle reaches."
+            warnings.add("The odometer read as " + odometer + ", which no vehicle reaches."
                     + " It was left blank rather than recorded - enter it from the receipt.");
             return null;
         }

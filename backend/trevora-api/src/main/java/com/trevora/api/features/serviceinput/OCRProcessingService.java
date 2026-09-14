@@ -323,6 +323,7 @@ public class OCRProcessingService {
                 ReceiptTotalResolver.resolve(PrintedSubtotals.read(rawOcrText), fields.totalCost());
         BigDecimal totalCost = resolved.map(ReceiptTotalResolver.Resolution::totalCost).orElse(fields.totalCost());
         BigDecimal amountCovered = resolved.map(ReceiptTotalResolver.Resolution::amountCovered).orElse(null);
+        String coverageKind = resolved.map(ReceiptTotalResolver.Resolution::coverageKind).orElse(null);
         Map<String, Object> resolvedSources =
                 new LinkedHashMap<>(fields.fieldSources() == null ? Map.of() : fields.fieldSources());
         List<String> resolvedWarnings = new ArrayList<>(fields.warnings() == null ? List.of() : fields.warnings());
@@ -367,6 +368,12 @@ public class OCRProcessingService {
          */
         metadata.put("receiptPlateNumber", fields.plateNumber());
         metadata.put("receiptVinChassisNumber", fields.vinChassisNumber());
+        // The warranty period the paper labels, as ISO dates, for the Saved page
+        // to offer. Never written to the vehicle from here.
+        metadata.put("receiptWarrantyStartDate",
+                fields.warrantyStartDate() == null ? null : fields.warrantyStartDate().toString());
+        metadata.put("receiptWarrantyExpiryDate",
+                fields.warrantyExpiryDate() == null ? null : fields.warrantyExpiryDate().toString());
 
         metadata.put("documentType", fields.documentType().name());
         metadata.put("documentNumber", fields.documentNumber());
@@ -385,7 +392,8 @@ public class OCRProcessingService {
                 fields.location(),
                 fields.remarks(),
                 metadata,
-                amountCovered
+                amountCovered,
+                coverageKind
         );
     }
 

@@ -7,6 +7,7 @@ import FlowChrome from '../components/flow/FlowChrome';
 import { getServiceDraft } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import VehicleDetailsOffer from '../components/flow/VehicleDetailsOffer.jsx';
+import WarrantyOffer from '../components/flow/WarrantyOffer.jsx';
 import { getVehicleServiceHistory } from '../api/serviceHistory';
 import { formatDay } from '../utils/format';
 import { serviceItemsArray } from '../utils/serviceText';
@@ -133,6 +134,7 @@ export default function ServiceRecordSavedPage() {
           "this may be the wrong vehicle" warning -- stayed on the review
           screen, because that one has to be caught before the record exists. */}
       <VehicleDetailsOffer draft={draft} vehicle={vehicle} onVehicleUpdated={setVehicle} />
+      <WarrantyOffer draft={draft} vehicle={vehicle} onVehicleUpdated={setVehicle} />
 
       <div className="flow-saved__actions">
         <button

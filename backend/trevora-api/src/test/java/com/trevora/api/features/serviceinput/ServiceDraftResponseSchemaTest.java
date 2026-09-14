@@ -42,6 +42,9 @@ class ServiceDraftResponseSchemaTest {
                 // receiptVinChassisNumber metadata the review screen compares
                 // against the vehicle on file.
                 "remarks", "plateNumber", "vinChassisNumber",
+                // Read back into receiptWarrantyStartDate / receiptWarrantyExpiryDate,
+                // which the Saved page offers to the owner.
+                "warrantyStartDate", "warrantyExpiryDate",
                 "classification", "confidenceNotes", "fieldSources",
                 "fieldConfidence", "aiSuggestedFields", "warnings");
 

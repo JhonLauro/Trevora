@@ -208,6 +208,7 @@ public class ServiceInputService {
         // switch it off or change it on review, like any extracted value.
         if (extraction.amountCovered() != null) {
             draft.setAmountCovered(extraction.amountCovered());
+            draft.setCoverageKind(extraction.coverageKind());
         }
         draft.setStatus(DraftStatus.DRAFT);
         draft.setFieldMetadata(enrichReceiptMetadata(extraction.fieldMetadata(), receiptPagesJson));

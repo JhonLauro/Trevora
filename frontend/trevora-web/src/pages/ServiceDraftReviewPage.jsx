@@ -14,7 +14,7 @@ import ConfirmDialog from '../components/ink/ConfirmDialog';
 import LeaveDraftDialog from '../components/flow/LeaveDraftDialog.jsx';
 import { useLeaveGuard } from '../navigation/LeaveGuard.jsx';
 import { amountsCheck, formatPeso, railAttention, serializeLineEntries } from '../utils/serviceLines';
-import { issuesByField } from '../utils/fieldConfidence';
+import { fieldEvidence, issuesByField, sourceQuote } from '../utils/fieldConfidence';
 import { TIER_BLOCKING, TIER_REVIEW, TIER_SETTLED, tierFor } from '../utils/fieldTier';
 import {
   deleteServiceDraft,
@@ -63,6 +63,16 @@ const editableFields = [
 const fieldDomId = (key) => `field-${key}`;
 const DONE_ID = 'what-was-done';
 
+/* Who covered the amount (migration 028). '' is "Not sure" and saves as null.
+   No discount: a discount is a lower bill, not coverage. */
+const COVERAGE_KINDS = [
+  ['', 'none'],
+  ['INSURANCE', 'insurance'],
+  ['WARRANTY', 'warranty'],
+  ['GOODWILL', 'goodwill'],
+  ['OTHER', 'other'],
+];
+
 function draftToForm(draft) {
   const form = editableFields.reduce((accumulator, [key]) => {
     accumulator[key] = draft?.[key] ?? '';
@@ -70,13 +80,14 @@ function draftToForm(draft) {
   }, {});
   form.services = Array.isArray(draft?.services) ? draft.services : [];
 
-  // Coverage is never extracted — a receipt shows what the service cost, not
-  // what an insurer later paid — so this is only ever whatever the owner has
-  // already entered. The toggle is derived rather than stored: a saved amount
-  // above zero is the only evidence that coverage applies.
+  // Coverage is whatever the owner entered, or a credit row the receipt's
+  // totals box proved (ReceiptTotalResolver on the backend). The toggle is
+  // derived rather than stored: a saved amount above zero is the only evidence
+  // that coverage applies.
   const covered = Number(draft?.amountCovered ?? 0);
   form.amountCovered = covered > 0 ? String(covered) : '';
   form.hasCoverage = covered > 0;
+  form.coverageKind = covered > 0 ? (draft?.coverageKind ?? '') : '';
   return form;
 }
 
@@ -88,6 +99,8 @@ function serializeCorrections(form) {
     // Untick the toggle and the coverage goes back to zero rather than
     // lingering invisibly on the draft.
     amountCovered: form.hasCoverage && form.amountCovered !== '' ? Number(form.amountCovered) : 0,
+    // "Not sure" is null. The server also drops a kind whenever nothing is covered.
+    coverageKind: form.hasCoverage && form.coverageKind ? form.coverageKind : null,
     shopName: form.shopName.trim() || null,
     location: form.location.trim() || null,
     remarks: form.remarks.trim() || null,
@@ -234,6 +247,7 @@ export default function ServiceDraftReviewPage() {
   }, [draftId]);
 
   const issueMap = useMemo(() => issuesByField(validation), [validation]);
+  const coverageQuote = sourceQuote(fieldEvidence(draft, 'amountCovered'));
 
   // The server decides. Re-deriving this on the client meant two definitions
   // of "ready" that only happened to agree.
@@ -523,6 +537,7 @@ export default function ServiceDraftReviewPage() {
                       ...current,
                       hasCoverage: event.target.checked,
                       amountCovered: event.target.checked ? current.amountCovered : '',
+                      coverageKind: event.target.checked ? current.coverageKind : '',
                     }))}
                   />
                   <span className="flow-switch__track" aria-hidden="true" />
@@ -542,6 +557,25 @@ export default function ServiceDraftReviewPage() {
                       onChange={updateField}
                     />
                     {!paidFigures(form) && <span className="flow-note">{coverageHint(form)}</span>}
+                  </label>
+                )}
+                {/* The credit row it was read from, the same way every other
+                    field cites its source, so the owner can see why it was set
+                    and switch it off if that's wrong. Hidden with the toggle
+                    off, where it would explain a value no longer set. */}
+                {form.hasCoverage && coverageQuote && <p className="flow-quote">{coverageQuote}</p>}
+                {form.hasCoverage && (
+                  <label className="flow-field">
+                    <span>{t('review.coverageKind')}</span>
+                    <select
+                      name="coverageKind"
+                      value={form.coverageKind ?? ''}
+                      onChange={(event) => setForm((current) => ({ ...current, coverageKind: event.target.value }))}
+                    >
+                      {COVERAGE_KINDS.map(([value, key]) => (
+                        <option key={key} value={value}>{t(`review.coverageKind.${key}`)}</option>
+                      ))}
+                    </select>
                   </label>
                 )}
                 {form.hasCoverage && paidFigures(form) && <PaidFigure figures={paidFigures(form)} />}

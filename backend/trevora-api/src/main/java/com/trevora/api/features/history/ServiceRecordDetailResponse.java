@@ -33,6 +33,8 @@ public record ServiceRecordDetailResponse(
         Integer odometer,
         BigDecimal totalCost,
         BigDecimal amountCovered,
+        // Owner-only, like amountCovered: mechanic responses carry neither.
+        String coverageKind,
         BigDecimal ownerPaid,
         String shopName,
         String location,
@@ -61,6 +63,7 @@ public record ServiceRecordDetailResponse(
                 record.getOdometer(),
                 record.getTotalCost(),
                 record.getAmountCovered(),
+                record.getCoverageKind(),
                 record.getOwnerPaid(),
                 record.getShopName(),
                 record.getLocation(),

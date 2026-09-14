@@ -177,6 +177,7 @@ public class ServiceRecordService {
         record.setOdometer(draft.getOdometer());
         record.setTotalCost(draft.getTotalCost());
         record.setAmountCovered(draft.getAmountCovered());
+        record.setCoverageKind(draft.getCoverageKind());
         record.setShopName(draft.getShopName());
         record.setLocation(draft.getLocation());
         record.setRemarks(draft.getRemarks());

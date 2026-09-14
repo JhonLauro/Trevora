@@ -132,7 +132,8 @@ class OpenAIServiceDraftExtractionProviderTest {
         assertThat(fields.odometer()).isNull();
         assertThat(fields.warnings())
                 .singleElement(org.assertj.core.api.InstanceOfAssertFactories.STRING)
-                .contains("99000000 km")
+                .contains("99000000, which no vehicle reaches")
+                .doesNotContain(" km")
                 .contains("left blank");
     }
 

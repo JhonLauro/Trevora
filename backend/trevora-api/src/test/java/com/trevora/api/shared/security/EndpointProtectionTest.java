@@ -108,6 +108,9 @@ class EndpointProtectionTest {
         registry.put("GET /api/mechanic-access/sessions/{sessionId}/history", Guard.SESSION);
         registry.put("GET /api/mechanic-access/sessions/{sessionId}/history/search", Guard.SESSION);
         registry.put("GET /api/mechanic-access/sessions/{sessionId}/history/{recordId}", Guard.SESSION);
+        // MechanicReceiptService requires the active read-only session, then reads
+        // the record through getSharedRecord, which scopes it to that session.
+        registry.put("GET /api/mechanic-access/sessions/{sessionId}/history/{recordId}/receipt-pages", Guard.SESSION);
 
         // -- owner-scoped: everything that touches somebody's vehicles -------
         registry.put("GET /api/garage", Guard.OWNER);

@@ -36,6 +36,40 @@ public record ReceiptDraftFields(
          * offer to fill it in.
          */
         String plateNumber,
-        String vinChassisNumber
+        String vinChassisNumber,
+        /*
+         * The manufacturer warranty period, when the paper labels one ("Wty
+         * Date", "Wty Exp Date"). Offered to the owner on the Saved page, never
+         * written to the vehicle on their behalf. A Delivery Date is never the
+         * start: dealer stock and demo units are delivered long before a
+         * customer buys them, and cover starts at the sale.
+         */
+        LocalDate warrantyStartDate,
+        LocalDate warrantyExpiryDate
 ) {
+    /** For callers that predate the warranty dates, and so read none. */
+    public ReceiptDraftFields(
+            DocumentType documentType,
+            String documentNumber,
+            List<String> referenceNumbers,
+            LocalDate serviceDate,
+            List<ServiceItemFields> services,
+            Integer odometer,
+            BigDecimal totalCost,
+            String shopName,
+            String location,
+            String remarks,
+            List<String> confidenceNotes,
+            Map<String, Object> fieldSources,
+            Map<String, String> fieldConfidence,
+            List<String> aiSuggestedFields,
+            ServiceClassification classification,
+            List<String> warnings,
+            String plateNumber,
+            String vinChassisNumber
+    ) {
+        this(documentType, documentNumber, referenceNumbers, serviceDate, services, odometer, totalCost,
+                shopName, location, remarks, confidenceNotes, fieldSources, fieldConfidence,
+                aiSuggestedFields, classification, warnings, plateNumber, vinChassisNumber, null, null);
+    }
 }

@@ -141,7 +141,9 @@ final class ReceiptDocumentMerger {
                    belongs to the same vehicle, so the first one found stands
                    for all of them. */
                 firstNonBlank(documents, ReceiptDraftFields::plateNumber),
-                firstNonBlank(documents, ReceiptDraftFields::vinChassisNumber)
+                firstNonBlank(documents, ReceiptDraftFields::vinChassisNumber),
+                firstNonNull(documents, ReceiptDraftFields::warrantyStartDate),
+                firstNonNull(documents, ReceiptDraftFields::warrantyExpiryDate)
         );
     }
 
@@ -197,7 +199,9 @@ final class ReceiptDocumentMerger {
                 first.classification(),
                 distinct(group, ReceiptDraftFields::warnings),
                 firstNonBlank(group, ReceiptDraftFields::plateNumber),
-                firstNonBlank(group, ReceiptDraftFields::vinChassisNumber)
+                firstNonBlank(group, ReceiptDraftFields::vinChassisNumber),
+                firstNonNull(group, ReceiptDraftFields::warrantyStartDate),
+                firstNonNull(group, ReceiptDraftFields::warrantyExpiryDate)
         );
     }
 

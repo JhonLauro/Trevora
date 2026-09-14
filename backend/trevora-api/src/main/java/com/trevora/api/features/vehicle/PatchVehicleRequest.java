@@ -94,6 +94,16 @@ public class PatchVehicleRequest {
     @Max(value = 2000000, message = "That mileage limit looks like a typo. Enter it in kilometres.")
     private Integer warrantyKmLimit;
 
+    /** A printed warranty end date, sent when the owner accepts one from a receipt. */
+    private LocalDate warrantyExpiryDate;
+
+    /**
+     * RECEIPT when the owner is accepting dates a receipt printed. Anything else
+     * the owner saves is theirs, which is also the default when this is absent.
+     */
+    @Pattern(regexp = "OWNER|RECEIPT", message = "Warranty source must be OWNER or RECEIPT.")
+    private String warrantySource;
+
     /** Whether the body carried this key at all, whatever its value. */
     public boolean has(String field) {
         return provided.contains(field);
@@ -223,5 +233,23 @@ public class PatchVehicleRequest {
     public void setWarrantyKmLimit(Integer warrantyKmLimit) {
         this.warrantyKmLimit = warrantyKmLimit;
         provided.add("warrantyKmLimit");
+    }
+
+    public LocalDate getWarrantyExpiryDate() {
+        return warrantyExpiryDate;
+    }
+
+    public void setWarrantyExpiryDate(LocalDate warrantyExpiryDate) {
+        this.warrantyExpiryDate = warrantyExpiryDate;
+        provided.add("warrantyExpiryDate");
+    }
+
+    public String getWarrantySource() {
+        return warrantySource;
+    }
+
+    public void setWarrantySource(String warrantySource) {
+        this.warrantySource = warrantySource;
+        provided.add("warrantySource");
     }
 }

@@ -96,6 +96,14 @@ public class ServiceRecord {
     @Column(name = "amount_covered", nullable = false, precision = 12, scale = 2)
     private BigDecimal amountCovered = BigDecimal.ZERO;
 
+    /**
+     * Who covered {@link #amountCovered} (migration 028): INSURANCE, WARRANTY,
+     * GOODWILL or OTHER. Null when nothing is covered or nobody knows which.
+     * Never set without a covered amount.
+     */
+    @Column(name = "coverage_kind")
+    private String coverageKind;
+
     @Column(name = "shop_name")
     private String shopName;
 
@@ -232,6 +240,14 @@ public class ServiceRecord {
 
     public void setAmountCovered(BigDecimal amountCovered) {
         this.amountCovered = amountCovered == null ? BigDecimal.ZERO : amountCovered;
+    }
+
+    public String getCoverageKind() {
+        return coverageKind;
+    }
+
+    public void setCoverageKind(String coverageKind) {
+        this.coverageKind = coverageKind;
     }
 
     /**

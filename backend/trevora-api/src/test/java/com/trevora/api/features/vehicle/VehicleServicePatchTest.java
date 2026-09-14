@@ -104,6 +104,45 @@ class VehicleServicePatchTest {
                 .isEqualTo("RECEIPT");
     }
 
+    /** Accepting a receipt's warranty dates on the Saved page. */
+    @Test
+    void storesAReceiptsPrintedPeriodAsTheReceiptsWhenTheOwnerAcceptsIt() {
+        PatchVehicleRequest request = new PatchVehicleRequest();
+        request.setWarrantyStartDate(LocalDate.of(2024, 7, 31));
+        request.setWarrantyExpiryDate(LocalDate.of(2026, 7, 31));
+        request.setWarrantySource("RECEIPT");
+
+        VehicleProfile saved = service.patchVehicleForCurrentUser(VEHICLE, request);
+
+        assertThat(saved.getWarrantyStartDate()).isEqualTo(LocalDate.of(2024, 7, 31));
+        assertThat(saved.getWarrantyExpiryDate()).isEqualTo(LocalDate.of(2026, 7, 31));
+        assertThat(saved.getWarrantySource()).isEqualTo("RECEIPT");
+    }
+
+    /** The warranty dialog resends all three terms; adding a mileage limit must not lose the printed end. */
+    @Test
+    void keepsAPrintedEndDateWhenTheSamePeriodIsSentBack() {
+        stored.setWarrantyExpiryDate(LocalDate.of(2028, 6, 14));
+        PatchVehicleRequest request = new PatchVehicleRequest();
+        request.setWarrantyStartDate(LocalDate.of(2025, 3, 14));
+        request.setWarrantyMonths(36);
+        request.setWarrantyKmLimit(120_000);
+
+        assertThat(service.patchVehicleForCurrentUser(VEHICLE, request).getWarrantyExpiryDate())
+                .isEqualTo(LocalDate.of(2028, 6, 14));
+    }
+
+    @Test
+    void dropsAPrintedEndDateWhenTheOwnerChangesThePeriod() {
+        stored.setWarrantyExpiryDate(LocalDate.of(2028, 6, 14));
+        PatchVehicleRequest request = new PatchVehicleRequest();
+        request.setWarrantyStartDate(LocalDate.of(2025, 3, 14));
+        request.setWarrantyMonths(60);
+        request.setWarrantyKmLimit(100_000);
+
+        assertThat(service.patchVehicleForCurrentUser(VEHICLE, request).getWarrantyExpiryDate()).isNull();
+    }
+
     /** The details dialog's save: four registration fields, nothing else. */
     @Test
     void leavesTheWarrantyAloneWhenOnlyThePlateWasSent() {
