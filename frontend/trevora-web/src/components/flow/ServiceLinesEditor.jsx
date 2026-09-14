@@ -200,7 +200,10 @@ export function Balance({ services, totalCost, printed, amountCovered }) {
         <tbody>
           {check.verdict === 'split-mismatch' && (
             <>
-              {/* Parts includes Supplies lines: receipts print consumables under parts. */}
+              {/* Supplies lines count toward this row, because receipts print
+                  consumables under parts, so the label names both. A row
+                  labelled "Parts" alone read as though Supplies were missing
+                  from the figure. */}
               <FigureRow label={t('lines.partsRow')} figures={check.parts} />
               <FigureRow label={t('lines.labourRow')} figures={check.labour} />
             </>
