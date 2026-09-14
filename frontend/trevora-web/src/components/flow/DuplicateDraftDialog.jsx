@@ -28,6 +28,7 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
   const t = useT();
   const navigate = useNavigate();
   const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
 
   /* Dismissal is reported upward rather than kept here, so that saying "it is
      a different service" settles it once. The band underneath asks the same
@@ -83,10 +84,18 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
 
   if (!open) return null;
 
+  /* A refused delete keeps the dialog open with the server's reason, rather
+     than moving on as if the draft had gone. */
   async function rescan() {
     if (working) return;
     setWorking(true);
-    await discardDraftAndRescan({ draft, vehicleId, navigate });
+    setError('');
+    try {
+      await discardDraftAndRescan({ draft, vehicleId, navigate });
+    } catch (err) {
+      setError(err.message);
+      setWorking(false);
+    }
   }
 
   return (
@@ -121,6 +130,8 @@ export default function DuplicateDraftDialog({ issue, draft, vehicleId, onDismis
             </p>
           )}
         </div>
+
+        {error && <p className="ink-modal__error" role="alert">{error}</p>}
 
         <div className="ink-modal__actions">
           {/* Kept, and not as an afterthought: two genuine services can share a

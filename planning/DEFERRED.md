@@ -4181,3 +4181,44 @@ and the part-code queue item above. Do not treat either as a defect to fix.
   changing it is a prompt change with golden runs either side.
 - **Replay answer key updated to match.** A part line's description may include its
   printed code, and a code found at the start of the description counts as the code.
+
+## Replay answer keys encode readings of the paper: correct them together (2026-09-14)
+
+`src/test/resources/replay/*-answer-key.json` is not neutral data. Each key is a
+reading of one receipt: which text is a description, which is a part code, what a
+line is called. When a reading of the paper is corrected, the key has to be corrected
+in the same change, or the replay harness scores a correct extraction as wrong and
+every later measurement runs against a broken baseline.
+
+This already happened once. The Palmetto key was written from a misreading (part
+codes "absorbed into" descriptions) and would have scored the correct live read
+"66001 CVT ENHANCER" as a failure. It was caught before any before/after measurement
+relied on it and fixed in `correct-part-code-scoring`. Before trusting a replay
+score, check the key against the paper, not against a description of the paper.
+
+## Vehicle and profile photos are not destroyed with their vehicle or account (2026-09-14)
+
+Found while fixing the rescan dialogs. The "deletion destroys" decision in
+`CLAUDE.md` was implemented for receipt photos only (`ReceiptFiles`).
+
+- **Deleting a vehicle** leaves its photo in `vehicle-photos`; deleting an account
+  leaves the vehicle photos and the profile photo in `profile-photos`. Nothing in the
+  backend reads `photo_path` on delete. A vehicle photo can carry a plate; a profile
+  photo is the owner's face.
+- **Removing or replacing a vehicle photo** saves the vehicle first, then deletes the
+  old file from the browser (`removeVehiclePhoto`), and swallows a failure as "best
+  effort". The owner pressed Remove and is told nothing when the file stays. Profile
+  photos have no Remove button; the old file is cleaned up after a replacement, also
+  best effort.
+- **Not fixed.** It needs the same treatment as receipts (files first through the
+  service-role path, refuse loudly), plus a sizing query and a cleanup run for photos
+  already orphaned. Deliberately not folded into the rescan change.
+
+## Rescan dialogs no longer hide a refused delete (2026-09-14)
+
+The "already in history" and "wrong vehicle" dialogs both called
+`discardDraftAndRescan`, which swallowed a failed delete and navigated to the upload
+screen anyway. Since deletion is refused when receipt files cannot be removed, that
+told the owner the draft was gone when nothing had been deleted. The helper now
+throws; both dialogs stay open and show the server's message. With Discard on the
+review page, that is every frontend path that deletes a draft.

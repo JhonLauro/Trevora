@@ -89,6 +89,7 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const dialogRef = useRef(null);
 
   /* Conflicts only. The offer half moved to VehicleDetailsOffer on the saved
@@ -148,14 +149,20 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
    *
    * The draft is deleted rather than abandoned. A draft left behind counts
    * itself in the Garage's "needs review" and asks to be finished — a nag for
-   * work the owner has just been told not to do. If the delete fails the
-   * navigation still happens: a stray draft is a smaller problem than being
-   * stuck in a dialog with nowhere to go.
+   * work the owner has just been told not to do. If the delete is refused the
+   * dialog stays open with the reason: moving on would say the draft had gone
+   * when nothing was deleted.
    */
   async function scanAgain() {
     if (saving) return;
     setSaving(true);
-    await discardDraftAndRescan({ draft, vehicleId: vehicle.vehicleId, navigate });
+    setError('');
+    try {
+      await discardDraftAndRescan({ draft, vehicleId: vehicle.vehicleId, navigate });
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
   }
 
   const vehicleName = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'this vehicle';
@@ -213,6 +220,8 @@ export default function VehicleDetailsDialog({ draft, vehicle, onVehicleUpdated 
             {t('veh.eitherOr')}
           </p>
         </div>
+
+        {error && <p className="ink-modal__error" role="alert">{error}</p>}
 
         <div className="ink-modal__actions">
           {/* The way out is kept, and deliberately.
