@@ -337,6 +337,16 @@ public class OCRProcessingService {
                 resolvedWarnings.add(resolution.note());
             }
         });
+        // The customer's home address is not the shop's location, and the model
+        // takes it from a "Customer Name and Address" box however the prompt is
+        // worded. Checked against the page itself. See CustomerAddressGuard.
+        String location = fields.location();
+        if (CustomerAddressGuard.readsFromCustomerBlock(rawOcrText, location)) {
+            location = null;
+            resolvedSources.remove("location");
+            resolvedWarnings.add("Location was left blank: the address read is in the customer's details on the"
+                    + " receipt, not the shop's.");
+        }
         Map<String, Object> metadata = metadata(
                 "google_vision_openai",
                 rawOcrText,
@@ -389,7 +399,7 @@ public class OCRProcessingService {
                 fields.odometer(),
                 totalCost,
                 fields.shopName(),
-                fields.location(),
+                location,
                 fields.remarks(),
                 metadata,
                 amountCovered,

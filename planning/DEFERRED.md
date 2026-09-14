@@ -4341,3 +4341,20 @@ The earlier upload of the same receipt paired them correctly, so this varies run
 - **Same family as Location reading the customer's address:** both come from how the
   tabular vehicle and customer box is turned into rows. Fixing it belongs with the
   layout work, measured on saved Vision readings, not in the prompt.
+
+## Location no longer takes the customer's address (2026-09-15)
+
+Supersedes "Not fixed" in the earlier note on the Gateway repair order. Two layers:
+
+- **Prompt.** A LOCATION section: the shop's own address only; an address in a
+  "Customer Name and Address", "Sold To", "Bill To" or "Customer" box is never the
+  location; no shop address means null. Shipped without golden runs, by the project
+  owner's decision.
+- **Check against the page (`CustomerAddressGuard`).** If the extracted location
+  appears within six lines after a customer-address label in the OCR text, it is
+  blanked, its "read from receipt" source removed, and a warning added. Letters and
+  digits only are compared, on the first 16 characters. This holds whatever the
+  model does. Tests use an invented receipt with the same layout.
+- **Limits.** A customer address printed with no label, or more than six lines below
+  its label, is not caught. A shop address printed directly under a "Sold To" label
+  would be wrongly blanked; no such receipt has been seen.

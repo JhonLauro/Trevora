@@ -1076,6 +1076,14 @@ public class OpenAIServiceDraftExtractionProvider {
                 TIN and VAT registration numbers, telephone and fax lines, "Business Style:", and the
                 street address, which belongs in location instead.
 
+                LOCATION - the shop's address, never the customer's.
+
+                Take location only from the shop's own letterhead or branch address. Dealer repair
+                orders and invoices often print a box headed "Customer Name and Address", "Sold To",
+                "Bill To" or "Customer" holding the customer's home address. That address is NEVER
+                the location, even when it is the only address on the page. If the page prints no
+                address for the shop, return null for location.
+
                 SERVICE DATE - which date, when the page prints several.
 
                 A dealership invoice prints five or more dates and exactly one of them is the
