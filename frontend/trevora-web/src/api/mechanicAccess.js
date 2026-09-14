@@ -26,6 +26,17 @@ export function getMechanicSessionRecord(sessionId, recordId) {
   });
 }
 
+/*
+ * Signed links to a record's receipt photos. A mechanic has no Supabase
+ * session, so the browser cannot sign them the way the owner's pages do.
+ */
+export function getMechanicReceiptPages(sessionId, recordId) {
+  return apiRequest(
+    `/mechanic-access/sessions/${encodeURIComponent(sessionId)}/history/${encodeURIComponent(recordId)}/receipt-pages`,
+    { skipAuthHeaders: true, headers: sessionHeaders(sessionId) }
+  );
+}
+
 export function searchMechanicSessionHistory(sessionId, query) {
   return apiRequest(
     `/mechanic-access/sessions/${encodeURIComponent(sessionId)}/history/search?query=${encodeURIComponent(query)}`,

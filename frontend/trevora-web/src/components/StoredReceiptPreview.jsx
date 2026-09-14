@@ -22,7 +22,12 @@ import ReceiptViewer from './ReceiptViewer';
 /* 3:4 — taller than wide, because a receipt is. A page that does not match it
    is contained rather than cropped: the whole point of keeping the image is
    being able to check a figure against it, and a crop can hide the total. */
-export default function StoredReceiptPreview({ source, title = 'Saved receipt' }) {
+/* `loadPages`, when given, resolves to `[{ pageNumber, url }]` and replaces
+   signing in the browser. The mechanic's page passes it: a mechanic has no
+   Supabase session, so the bucket's owner-only policy refuses them, and the
+   API signs the links instead after checking their session. Keep it stable
+   (useCallback), since a new function reloads the receipt. */
+export default function StoredReceiptPreview({ source, title = 'Saved receipt', loadPages }) {
   const pages = useMemo(() => storedReceiptPages(source), [source]);
   const [signed, setSigned] = useState([]);
   const [error, setError] = useState('');
@@ -30,6 +35,7 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
   const [loaded, setLoaded] = useState({});
   const [zoomed, setZoomed] = useState(false);
   const openerRef = useRef(null);
+  const refreshedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -37,27 +43,56 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
     setError('');
     setLoaded({});
     setIndex(0);
+    refreshedRef.current = false;
 
     if (pages.length === 0) return () => { active = false; };
 
-    Promise.all(pages.map((page) => (
-      createReceiptSignedUrl({
-        receiptStorageBucket: page.bucket,
-        receiptStoragePath: page.path,
-      }).then((url) => ({ ...page, url }))
-    )))
+    const request = loadPages
+      ? loadPages()
+      : Promise.all(pages.map((page) => (
+        createReceiptSignedUrl({
+          receiptStorageBucket: page.bucket,
+          receiptStoragePath: page.path,
+        }).then((url) => ({ ...page, url }))
+      )));
+
+    request
       .then((withUrls) => {
-        if (active) setSigned(withUrls.filter((page) => page.url));
+        if (!active) return;
+        const usable = withUrls.filter((page) => page.url);
+        setSigned(usable);
+        // Without this an empty answer left "Loading the receipt…" up for good.
+        if (usable.length === 0) setError('The receipt photo could not be loaded.');
       })
       .catch((err) => {
         if (active) setError(err.message);
       });
 
     return () => { active = false; };
-  }, [pages]);
+  }, [pages, loadPages]);
 
   const count = signed.length;
   const current = signed[index];
+  // Links from the API carry no storage path; the link itself is unique enough.
+  const loadedKey = current?.path || current?.url;
+
+  /* A mechanic's links lapse after minutes rather than the owner's hour, so a
+     page first opened after that gets fresh links once before it is called
+     broken. */
+  const handleImageError = () => {
+    if (loadPages && !refreshedRef.current) {
+      refreshedRef.current = true;
+      loadPages()
+        .then((fresh) => {
+          const usable = fresh.filter((page) => page.url);
+          setSigned(usable);
+          setIndex((now) => Math.min(now, Math.max(usable.length - 1, 0)));
+        })
+        .catch((err) => setError(err.message));
+      return;
+    }
+    setError('That page could not be loaded.');
+  };
 
   /* The card's own pager. The full-size view pages itself, and resets its zoom
      when it does -- see ReceiptViewer. */
@@ -107,12 +142,15 @@ export default function StoredReceiptPreview({ source, title = 'Saved receipt' }
               onClick={() => setZoomed(true)}
               aria-label={`Open page ${current.pageNumber} full size`}
             >
-              {!loaded[current.path] && <span className="rcpt__loading">Loading…</span>}
+              {!loaded[loadedKey] && <span className="rcpt__loading">Loading…</span>}
               <img
                 src={current.url}
                 alt={`Receipt page ${current.pageNumber}`}
-                onLoad={() => setLoaded((now) => ({ ...now, [current.path]: true }))}
-                onError={() => setError('That page could not be loaded.')}
+                onLoad={() => {
+                  refreshedRef.current = false;
+                  setLoaded((now) => ({ ...now, [loadedKey]: true }));
+                }}
+                onError={handleImageError}
               />
               <span className="rcpt__zoom" aria-hidden="true">
                 <Maximize2 size={15} />

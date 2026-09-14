@@ -46,7 +46,13 @@ export default function RecordsPage() {
     }
   });
 
+  /* Set by the first press, never by page load: the rows' opening animation is
+     for someone who asked to see them. On arrival the whole block already
+     comes in through .tv-reveal. See unfinished-drafts.css. */
+  const [draftsToggled, setDraftsToggled] = useState(false);
+
   function toggleDrafts() {
+    setDraftsToggled(true);
     setDraftsOpen((open) => {
       try {
         window.localStorage.setItem('trevora.draftsCollapsed', open ? '1' : '0');
@@ -283,7 +289,10 @@ export default function RecordsPage() {
         * its own heading, and never enters `filtered`.
         */}
       {visibleDrafts.length > 0 && (
-        <section className="draft-strip tv-reveal" style={{ '--reveal-index': 1 }}>
+        <section
+          className={`draft-strip tv-reveal${draftsToggled ? ' is-opening' : ''}`}
+          style={{ '--reveal-index': 1 }}
+        >
           <div className="draft-strip__head">
             <div className="draft-strip__heading">
               <h2 className="draft-strip__title">

@@ -1,5 +1,6 @@
 package com.trevora.api.shared.exception;
 
+import com.trevora.api.features.mechanicaccess.ReceiptLinksUnavailableException;
 import com.trevora.api.features.serviceinput.ReceiptQualityErrorResponse;
 import com.trevora.api.features.serviceinput.ReceiptQualityException;
 import com.trevora.api.features.serviceinput.ReceiptUploadException;
@@ -105,6 +106,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleReceiptUpload(ReceiptUploadException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
+    /* 503 with a code: a mechanic's receipt photo could not be signed. The record
+       itself still loads; only the photo is missing. */
+    @ExceptionHandler(ReceiptLinksUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleReceiptLinksUnavailable(ReceiptLinksUnavailableException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiErrorResponse.of(exception.getMessage(), HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        ReceiptLinksUnavailableException.CODE));
     }
 
     /**

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Car, Clock, FileText, Gauge, KeyRound, Lock,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
-import { getMechanicSessionRecord } from '../api/mechanicAccess';
+import { getMechanicReceiptPages, getMechanicSessionRecord } from '../api/mechanicAccess';
 import { forgetMechanicSessionToken } from '../api/mechanicSessionToken.js';
 import useAccessDeadline, { ACCESS_ENDED_MESSAGE } from '../hooks/useAccessDeadline.js';
 import { formatAmount, formatDate, formatOdometer } from '../utils/format';
@@ -95,6 +95,14 @@ export default function MechanicSharedRecordDetailPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  /* The receipt's links come from the API, which checks this session before
+     signing them. Stable per record, so the preview does not refetch on every
+     render. */
+  const loadReceiptPages = useCallback(
+    () => getMechanicReceiptPages(sessionId, recordId).then((data) => data?.pages ?? []),
+    [sessionId, recordId],
+  );
 
   /* Same as the history page: at the session's expiry the record comes off
      the screen, not just out of the server's reach. */
@@ -204,7 +212,11 @@ export default function MechanicSharedRecordDetailPage() {
                       <ReceiptText size={18} aria-hidden="true" /> The receipt
                     </h2>
                   </div>
-                  <StoredReceiptPreview source={record} title="Stored receipt" />
+                  <StoredReceiptPreview
+                    source={record}
+                    title="Stored receipt"
+                    loadPages={loadReceiptPages}
+                  />
                 </section>
               )}
 

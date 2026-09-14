@@ -334,3 +334,57 @@
     transition: none;
   }
 }
+
+/* -------------------------------------------------------------- opening
+
+   The list snapped from nothing to every row in one frame, so opening it read
+   as the page jumping rather than a block unfolding. The note and rows now
+   drop in one after another from under the heading.
+
+   Only once the toggle has been pressed (`is-opening`, set by the click). On
+   page load the block already arrives through .tv-reveal, and a second stagger
+   inside it would be motion on top of motion. No timers: `hidden` is display:
+   none, and a CSS animation starts over whenever its element is displayed
+   again, so every open replays it.
+
+   `backwards`, not `both`, for the stacking-context reason in reveal.css. */
+
+.draft-strip.is-opening .draft-strip__note,
+.draft-strip.is-opening .draft-strip__row {
+  animation: draft-strip-drop 260ms cubic-bezier(0.22, 0.68, 0.32, 1) backwards;
+}
+
+/* A step per row for the first five, then flat: a stagger still growing on the
+   ninth row is a list that feels slow to open. */
+.draft-strip.is-opening .draft-strip__row { animation-delay: 240ms; }
+.draft-strip.is-opening .draft-strip__row:nth-child(1) { animation-delay: 40ms; }
+.draft-strip.is-opening .draft-strip__row:nth-child(2) { animation-delay: 90ms; }
+.draft-strip.is-opening .draft-strip__row:nth-child(3) { animation-delay: 140ms; }
+.draft-strip.is-opening .draft-strip__row:nth-child(4) { animation-delay: 190ms; }
+
+@keyframes draft-strip-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes draft-strip-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Reduced, not removed: the rows still arrive in turn, they only stop
+   travelling. Swapping the name alone keeps the duration and stagger above.
+   Removing the animation outright left this looking broken to anyone with the
+   setting on -- which includes Windows with "Show animations" turned off. */
+@media (prefers-reduced-motion: reduce) {
+  .draft-strip.is-opening .draft-strip__note,
+  .draft-strip.is-opening .draft-strip__row {
+    animation-name: draft-strip-fade;
+  }
+}

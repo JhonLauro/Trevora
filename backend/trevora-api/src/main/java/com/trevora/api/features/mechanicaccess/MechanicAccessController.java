@@ -29,15 +29,18 @@ public class MechanicAccessController {
     private final AccessApprovalService accessApprovalService;
     private final MechanicAccessService mechanicAccessService;
     private final MechanicSearchService mechanicSearchService;
+    private final MechanicReceiptService mechanicReceiptService;
 
     public MechanicAccessController(
             AccessApprovalService accessApprovalService,
             MechanicAccessService mechanicAccessService,
-            MechanicSearchService mechanicSearchService
+            MechanicSearchService mechanicSearchService,
+            MechanicReceiptService mechanicReceiptService
     ) {
         this.accessApprovalService = accessApprovalService;
         this.mechanicAccessService = mechanicAccessService;
         this.mechanicSearchService = mechanicSearchService;
+        this.mechanicReceiptService = mechanicReceiptService;
     }
 
     @GetMapping("/requests/pending")
@@ -106,5 +109,16 @@ public class MechanicAccessController {
             @RequestHeader(value = "X-Mechanic-Session-Token", required = false) String sessionToken
     ) {
         return mechanicAccessService.getSharedRecord(sessionId, recordId, sessionToken);
+    }
+
+    /* Signed links to the record's receipt photos. A mechanic has no Supabase
+       session, so their browser cannot sign them the way the owner's does. */
+    @GetMapping("/sessions/{sessionId}/history/{recordId}/receipt-pages")
+    public MechanicReceiptPagesResponse getSessionRecordReceiptPages(
+            @PathVariable UUID sessionId,
+            @PathVariable UUID recordId,
+            @RequestHeader(value = "X-Mechanic-Session-Token", required = false) String sessionToken
+    ) {
+        return mechanicReceiptService.getReceiptPages(sessionId, recordId, sessionToken);
     }
 }
