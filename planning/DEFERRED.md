@@ -4076,3 +4076,14 @@ anonymises"). What changed and what is still open:
   production; without it every delete of something with photos is refused.
 - **Privacy page.** Updated to say deletion removes photos and text. The
   contact address is still the placeholder `privacy@trevora.example`.
+
+## Legal contact address set; operator name still a placeholder (2026-09-14)
+
+`LEGAL_CONTACT` in `frontend/trevora-web/src/legal/constants.js` is now
+`trevoradomain@gmail.com`, a monitored inbox, replacing `privacy@trevora.example`,
+which did not exist while both legal pages told people to write to it. The Terms
+page also said account closure needed an email because "there is no button for
+this"; Account settings has had Delete account, so that sentence now points there.
+Still open: `LEGAL_ENTITY` is "the Trevora team", not a person or company that can
+be the personal information controller, and neither page has been read by
+somebody qualified.

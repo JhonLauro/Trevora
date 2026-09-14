@@ -129,9 +129,10 @@ export default function TermsPage() {
 
       <h2>8. Ending it</h2>
       <p>
-        You may stop using Trevora at any time. To close your account and have its data removed,
-        email <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a> — there is no button for this
-        inside the app yet, and we would rather say so than imply otherwise.
+        You may stop using Trevora at any time. You can close your account yourself, under Account
+        settings, Delete account. It is permanent, and removes your data as the Privacy Policy
+        describes. If you would rather we do it, email{' '}
+        <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a>.
       </p>
 
       <h2>9. Changes to these terms</h2>
