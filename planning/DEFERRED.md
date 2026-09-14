@@ -4156,3 +4156,23 @@ What is left is the model's, on identical input:
 - **Kinds, 9 of 10 each**, all in that same swapped run, which also missed remarks.
 - **Not scored, still wrong:** PERFORM's part code is usually the operation header's
   (66001EE5501 or 66001 / E85501). The answer key does not score PERFORM's code.
+
+## Mechanic receipt photos are signed by the API (2026-09-14)
+
+Mechanics saw "Object not found" instead of the receipt on any device except the
+owner's own. The page signed links in the browser, and the `service-receipts`
+owner-only policy refuses anyone not signed in as the owner, which a mechanic never
+is. Testing looked fine because the owner's session was in the same browser.
+
+- **Now:** `GET /api/mechanic-access/sessions/{id}/history/{recordId}/receipt-pages`
+  signs with the service-role key after the same session check as the record, only
+  for files the shared record already names, and only under `<ownerId>/`. Without
+  the key it answers 503 `RECEIPT_PHOTO_UNAVAILABLE`; the record still loads.
+- **Why the folder check:** the service-role key ignores bucket policies, and record
+  metadata is written from the owner's browser. Without it an owner could point a
+  record at another account's receipt and share it to themselves.
+- **Known limit:** links last 15 minutes, never past the session. A signed link
+  cannot be recalled, so revoking a session leaves one already issued working until
+  it lapses.
+- **Unverified:** end to end with a real mechanic session in a browser where the
+  owner is not signed in.
