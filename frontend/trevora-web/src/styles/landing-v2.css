@@ -942,6 +942,7 @@
   justify-content: space-between;
   padding: 18px 20px;
   text-align: left;
+  transition: background 120ms ease-out, color 120ms ease-out;
   width: 100%;
 }
 
@@ -952,7 +953,7 @@
 .tvl .tvl-faq__q:hover,
 .tvl .tvl-faq__q:active,
 .tvl .tvl-faq__q:focus {
-  background: #eef6f1;
+  background: var(--brand-tint, #eef6f1);
   color: var(--ink);
 }
 
@@ -964,7 +965,7 @@
 .tvl-faq__q svg {
   color: var(--ink-faint);
   flex: 0 0 auto;
-  transition: transform 140ms ease;
+  transition: transform 140ms ease, color 120ms ease-out;
 }
 
 .tvl-faq__item[data-open='true'] .tvl-faq__q svg {

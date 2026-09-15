@@ -388,3 +388,264 @@
     animation-name: draft-strip-fade;
   }
 }
+
+/* ---------------------------------------------------- Records Page Tabs & Polish */
+
+.records-tabs-container {
+  margin-bottom: 24px;
+}
+
+.records-draft-notice {
+  align-items: center;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 12px 18px;
+}
+
+:root[data-theme='dark'] .records-draft-notice {
+  background: var(--brand-tint);
+  border-color: var(--status-ok-border);
+}
+
+.records-draft-notice__message {
+  align-items: center;
+  color: var(--ink);
+  display: flex;
+  font-size: 15px;
+  gap: 10px;
+}
+
+.records-draft-notice__badge {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  height: 22px;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 7px;
+}
+
+.records-draft-notice__btn {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 6px;
+  min-height: 0;
+  padding: 4px 8px;
+  transition: color 120ms ease-out;
+}
+
+.records-draft-notice__btn:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+.records-toolbar {
+  margin-bottom: 24px;
+}
+
+.records-toolbar__search {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  max-width: 520px;
+  position: relative;
+}
+
+.records-toolbar__search-icon {
+  color: var(--ink-muted);
+  left: 14px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.records-toolbar__search input {
+  max-width: 100%;
+  padding-left: 40px;
+  padding-right: 36px;
+  width: 100%;
+}
+
+.records-toolbar__clear {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  position: absolute;
+  right: 8px;
+  width: 28px;
+}
+
+.records-toolbar__clear:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------- Dedicated Drafts Tab Panel */
+
+.drafts-tab__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.drafts-tab__note {
+  color: var(--ink-muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+.drafts-tab__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.draft-card {
+  align-items: center;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 12px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 20px;
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.draft-card:hover {
+  border-color: var(--rule, #dcd7ce);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.draft-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.draft-card__title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.draft-card__title {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.draft-card__badge {
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 999px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+.draft-card__badge--ready {
+  background: var(--status-good-bg, #edf7ee);
+  border-color: var(--status-good-border, #c3e6c5);
+  color: var(--status-good-text, #1b6348);
+}
+
+.draft-card__meta {
+  align-items: center;
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.draft-card__vehicle {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.draft-card__cost {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.draft-card__actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.draft-card__finish-btn {
+  align-items: center;
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 6px;
+  height: 38px;
+  min-height: 0;
+  padding: 0 16px;
+  text-decoration: none;
+  transition: background 120ms ease-out, transform 120ms ease-out;
+}
+
+.draft-card__finish-btn:hover {
+  background: var(--brand-hover);
+  color: #ffffff;
+}
+
+.draft-card__finish-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 640px) {
+  .draft-card {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .draft-card__actions {
+    align-self: flex-start;
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+

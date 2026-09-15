@@ -21,9 +21,22 @@ import { readVehicleDetails, vehicleWithField } from './VehicleDetailsDialog.jsx
  * may belong to another car, and that has to be caught before the record is
  * filed rather than after.
  */
-export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }) {
+export default function VehicleDetailsOffer({
+  draft,
+  vehicle,
+  onVehicleUpdated,
+  dismissKey,
+  dismissLabel,
+}) {
   const t = useT();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (!dismissKey) return false;
+    try {
+      return window.localStorage?.getItem(dismissKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState('');
@@ -38,13 +51,23 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
   if (dismissed) return null;
   if (added) {
     return (
-      <section className="flow-card vehicle-offer">
+      <section className="ink-card flow-card vehicle-offer">
         <p className="vehicle-offer__done">{t('veh.addedTo', { vehicle: vehicleName })}</p>
       </section>
     );
   }
   if (offers.length === 0) return null;
 
+  function handleDismiss() {
+    if (dismissKey) {
+      try {
+        window.localStorage?.setItem(dismissKey, 'true');
+      } catch {
+        // Ignore localStorage error
+      }
+    }
+    setDismissed(true);
+  }
 
   async function addAll() {
     if (saving) return;
@@ -63,6 +86,13 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
       }
       onVehicleUpdated?.(current);
       setAdded(true);
+      if (dismissKey) {
+        try {
+          window.localStorage?.removeItem(dismissKey);
+        } catch {
+          // Ignore localStorage error
+        }
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -71,8 +101,8 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
   }
 
   return (
-    <section className="flow-card vehicle-offer">
-      <span className="flow-eyebrow">{t('veh.fromReceipt')}</span>
+    <section className="ink-card flow-card vehicle-offer">
+      <span className="flow-eyebrow ink-eyebrow">{t('veh.fromReceipt')}</span>
         {/* One whole sentence per case, not English grammar spliced in three
             places. "a detail"/"details" and "it"/"them" are agreements neither
             Tagalog nor Cebuano makes, so a template stitched from fragments can
@@ -99,9 +129,9 @@ export default function VehicleDetailsOffer({ draft, vehicle, onVehicleUpdated }
           className="flow-btn flow-btn--ghost"
           type="button"
           disabled={saving}
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
         >
-          {t('action.notNow')}
+          {dismissLabel || t('action.notNow')}
         </button>
         <button className="flow-btn" type="button" disabled={saving} onClick={addAll}>
           {saving ? t('veh.adding') : offers.length > 1 ? t('veh.addBoth') : t('veh.addIt')}

@@ -1266,8 +1266,8 @@
   }
 
   .ink-topbar__button:hover:not(:disabled) {
-    background: var(--on-ink-rule);
-    color: var(--on-ink);
+    background: var(--hover-tint);
+    color: var(--ink);
   }
 
   .ink-topbar__count {

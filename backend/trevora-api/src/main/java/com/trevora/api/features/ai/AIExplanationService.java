@@ -52,6 +52,7 @@ public class AIExplanationService {
     private final VehicleService vehicleService;
     private final OpenAIExplanationProvider explanationProvider;
     private final ServiceRecordExplanationRepository explanationRepository;
+    private final ServiceRecordAIFeedbackRepository feedbackRepository;
 
     public AIExplanationService(
             ServiceRecordRepository serviceRecordRepository,
@@ -59,7 +60,8 @@ public class AIExplanationService {
             CurrentUserService currentUserService,
             VehicleService vehicleService,
             OpenAIExplanationProvider explanationProvider,
-            ServiceRecordExplanationRepository explanationRepository
+            ServiceRecordExplanationRepository explanationRepository,
+            ServiceRecordAIFeedbackRepository feedbackRepository
     ) {
         this.serviceRecordRepository = serviceRecordRepository;
         this.serviceRecordItemReader = serviceRecordItemReader;
@@ -67,6 +69,7 @@ public class AIExplanationService {
         this.vehicleService = vehicleService;
         this.explanationProvider = explanationProvider;
         this.explanationRepository = explanationRepository;
+        this.feedbackRepository = feedbackRepository;
     }
 
     /**
@@ -83,22 +86,67 @@ public class AIExplanationService {
         vehicleService.verifyVehicleBelongsToCurrentUser(record.getVehicleId());
         List<ServiceRecordItem> items = serviceRecordItemReader.forRecord(record.getRecordId());
 
+        AIExplanationResponse response;
         if (nothingToExplain(record, items)) {
-            return costOnlyExplanation(record);
-        }
-
-        try {
-            /* The model first, the template when it cannot answer. The template
-               is not a lesser copy kept for tidiness -- it is what an owner
-               reads when the key is unset, the provider is down or the response
-               comes back unusable, and it has to stand on its own. */
-            AIExplanationResponse generated = generateModelExplanation(record, items, language);
-            if (generated != null) {
-                return generated;
+            response = costOnlyExplanation(record);
+        } else {
+            try {
+                /* The model first, the template when it cannot answer. The template
+                   is not a lesser copy kept for tidiness -- it is what an owner
+                   reads when the key is unset, the provider is down or the response
+                   comes back unusable, and it has to stand on its own. */
+                AIExplanationResponse generated = generateModelExplanation(record, items, language);
+                if (generated != null) {
+                    response = generated;
+                } else {
+                    response = generateTemplateExplanation(record, items);
+                }
+            } catch (RuntimeException exception) {
+                response = fallbackExplanation(record);
             }
-            return generateTemplateExplanation(record, items);
-        } catch (RuntimeException exception) {
-            return fallbackExplanation(record);
+        }
+        return attachFeedbackIfPresent(recordId, response);
+    }
+
+    public AIFeedbackResponse submitFeedback(UUID recordId, AIFeedbackRequest request, String language) {
+        currentUserService.requireVehicleOwner();
+        UUID userId = currentUserService.getCurrentUserId();
+        ServiceRecord record = serviceRecordRepository
+                .findByRecordIdAndOwnerId(recordId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Service record was not found."));
+        vehicleService.verifyVehicleBelongsToCurrentUser(record.getVehicleId());
+
+        ServiceRecordAIFeedback feedback = feedbackRepository
+                .findByRecordIdAndUserId(recordId, userId)
+                .orElseGet(() -> new ServiceRecordAIFeedback(
+                        recordId,
+                        userId,
+                        Boolean.TRUE.equals(request.helpful()),
+                        request.reason(),
+                        request.notes(),
+                        language
+                ));
+
+        feedback.update(Boolean.TRUE.equals(request.helpful()), request.reason(), request.notes(), language);
+        ServiceRecordAIFeedback saved = feedbackRepository.save(feedback);
+        log.info("AI explanation feedback recorded for record {}: helpful={}, reason={}",
+                recordId, saved.isHelpful(), saved.getReason());
+        return AIFeedbackResponse.from(saved);
+    }
+
+    private AIExplanationResponse attachFeedbackIfPresent(UUID recordId, AIExplanationResponse response) {
+        if (feedbackRepository == null || currentUserService == null || response == null) {
+            return response;
+        }
+        try {
+            UUID userId = currentUserService.getCurrentUserId();
+            AIFeedbackResponse feedback = feedbackRepository
+                    .findByRecordIdAndUserId(recordId, userId)
+                    .map(AIFeedbackResponse::from)
+                    .orElse(null);
+            return response.withFeedback(feedback);
+        } catch (RuntimeException ignored) {
+            return response;
         }
     }
 

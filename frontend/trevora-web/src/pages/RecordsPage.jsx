@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, ChevronDown, Trash2 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowRight, BadgeCheck, Search, Trash2, X } from 'lucide-react';
 import { useT } from '../i18n/index.jsx';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import FilterMenu from '../components/ink/FilterMenu.jsx';
 import RecordsTable from '../components/ink/RecordsTable.jsx';
+import Tabs from '../components/ink/Tabs.jsx';
 import useGarage from '../hooks/useGarage.js';
 import { deleteVehicleServiceRecord } from '../api/serviceHistory';
 import { confirmServiceDraft, deleteServiceDraft, listServiceDrafts } from '../api/serviceDrafts';
@@ -21,45 +22,25 @@ const ALL_VEHICLES = 'all';
  * Every record across every vehicle — where the dashboard's "View all {n}"
  * goes.
  *
- * Deliberately plain: this screen has not had its own design slice yet, so it
- * reuses the dashboard's table wholesale rather than inventing a layout that
- * would only be thrown away.
+ * Separates completed service history records and unfinished drafts into
+ * dedicated accessible tabs to avoid mental model collision and keep the
+ * records table clean and focused.
  */
 export default function RecordsPage() {
   const t = useT();
   const { garages, allRecords, loading, error, removeRecord, refresh } = useGarage();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'drafts' ? 'drafts' : 'records';
+
+  function handleTabChange(tabId) {
+    setSearchParams(tabId === 'drafts' ? { tab: 'drafts' } : {});
+  }
+
   const [query, setQuery] = useState('');
   const [vehicleId, setVehicleId] = useState(ALL_VEHICLES);
   const [pendingRecord, setPendingRecord] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [pendingDraft, setPendingDraft] = useState(null);
-
-  /* Remembered, because the answer to "I do not want to look at this" is not
-     "ask me again on every visit". The heading stays either way, so nothing is
-     truly hidden -- collapsed still reads "Not finished yet · 12". */
-  const [draftsOpen, setDraftsOpen] = useState(() => {
-    try {
-      return window.localStorage.getItem('trevora.draftsCollapsed') !== '1';
-    } catch {
-      // Private windows and blocked site data throw on access.
-      return true;
-    }
-  });
-
-  /* Set by the first press, never by page load: the rows' opening animation is
-     for someone who asked to see them. On arrival the whole block already
-     comes in through .tv-reveal. See unfinished-drafts.css. */
-  const [draftsToggled, setDraftsToggled] = useState(false);
-
-  function toggleDrafts() {
-    setDraftsToggled(true);
-    setDraftsOpen((open) => {
-      try {
-        window.localStorage.setItem('trevora.draftsCollapsed', open ? '1' : '0');
-      } catch { /* see above */ }
-      return !open;
-    });
-  }
 
   const draftDelete = useDeleteAction(
     () => deleteServiceDraft(pendingDraft.draftId),
@@ -195,10 +176,30 @@ export default function RecordsPage() {
     return (id) => byId.get(id) ?? 'your vehicle';
   }, [vehicleOptions]);
 
+  const tabs = useMemo(() => [
+    {
+      id: 'records',
+      label: t('records.tabAll'),
+      count: allRecords.length,
+    },
+    {
+      id: 'drafts',
+      label: t('records.tabDrafts'),
+      count: drafts.length,
+    },
+  ], [allRecords.length, drafts.length, t]);
+
   /* The old line reported the unfiltered total while the table showed a
      filtered subset, so searching left "3 records" above a single row. */
   function summaryText() {
     if (loading) return 'Loading your records…';
+    if (activeTab === 'drafts') {
+      if (drafts.length === 0) return t('drafts.emptyTitle');
+      if (vehicleId !== ALL_VEHICLES && selectedVehicle) {
+        return `Showing ${visibleDrafts.length} of ${pluralize(drafts.length, 'draft')} · ${selectedVehicle.name}`;
+      }
+      return `${pluralize(drafts.length, 'draft')} waiting to be finished and confirmed`;
+    }
     if (!isFiltered) return `${pluralize(allRecords.length, 'record')} across your vehicles`;
     const scope = selectedVehicle ? ` · ${selectedVehicle.name}` : '';
     return `Showing ${filtered.length} of ${pluralize(allRecords.length, 'record')}${scope}`;
@@ -232,186 +233,226 @@ export default function RecordsPage() {
 
       {error && <div className="ink-alert">{error}</div>}
 
-      {/* Toolbar first, then whatever it is filtering. The reveal sits on
-          the container, not the rows -- rows re-render on every keystroke
-          in the search box. */}
-      <div className="records-toolbar tv-reveal">
-        <input
-          type="search"
-          value={query}
-          aria-label={t('records.searchPlaceholder')}
-          placeholder={t('records.searchPlaceholder')}
-          onChange={(event) => setQuery(event.target.value)}
+      <div className="records-tabs-container tv-reveal">
+        <Tabs
+          tabs={tabs}
+          activeId={activeTab}
+          onChange={handleTabChange}
+          label="Records sections"
         />
-        {/* One vehicle means nothing to choose between, and a dropdown whose
-            only real option is the car you are already looking at is noise. */}
-        {vehicleOptions.length > 1 && (
-          <FilterMenu
-            className="records-toolbar__filter"
-            label="Filter records by vehicle"
-            value={vehicleId}
-            onChange={setVehicleId}
-            options={[
-              /* No count here — it is already in the summary directly above,
-                 and a hint on this row alone would make it the only two-line
-                 row in an otherwise even list. */
-              { value: ALL_VEHICLES, label: 'All vehicles' },
-              ...vehicleOptions.map((option) => ({
-                value: option.vehicleId,
-                label: option.name,
-                hint: option.hint,
-              })),
-            ]}
-          />
-        )}
       </div>
 
-      {/* Nothing below the toolbar until the records are actually in hand.
-
-          This used to render the table card straight away, empty, because the
-          `!loading` test only guarded the *empty state* branch -- so the card
-          mounted at first paint, ran its arrival animation against nothing,
-          and the rows appeared later in an element that had finished moving
-          half a second earlier. The header already says "Loading your
-          records…", so there is nothing lost by holding this back and
-          everything gained: the block now mounts when the data lands, which is
-          the moment the animation is for. */}
-      {/*
-        * Unfinished drafts, above the history and deliberately not in it.
-        *
-        * They are listed here because this is where people come looking for a
-        * record they entered -- "Save and finish later" saved it and nothing
-        * showed it again. But a draft is not history: it is unvalidated, its
-        * total may be half-read, and the project rule that drafts are never
-        * displayed as service history exists because one folded into the table
-        * would count toward spend, stretch the years covered, and reach
-        * mechanics through the shared view. So it sits in its own block, with
-        * its own heading, and never enters `filtered`.
-        */}
-      {visibleDrafts.length > 0 && (
-        <section
-          className={`draft-strip tv-reveal${draftsToggled ? ' is-opening' : ''}`}
-          style={{ '--reveal-index': 1 }}
-        >
-          <div className="draft-strip__head">
-            <div className="draft-strip__heading">
-              <h2 className="draft-strip__title">
-                {t('drafts.heading')} <span className="draft-strip__count">{visibleDrafts.length}</span>
-              </h2>
-              {/* A chevron rather than the word, for the same reason the row
-                  actions lost theirs: this is a disclosure control, the
-                  universal shape for one is an arrow that turns, and "Hide"
-                  floating at the far end of a wide header read as a stray link.
-                  The word survives as the accessible name, which still changes
-                  between Hide and Show so a screen reader is told the state. */}
+      {activeTab === 'records' && (
+        <div id="panel-records" role="tabpanel" aria-labelledby="tab-records" tabIndex={-1}>
+          {drafts.length > 0 && (
+            <div className="records-draft-notice tv-reveal" style={{ '--reveal-index': 1 }}>
+              <div className="records-draft-notice__message">
+                <span className="records-draft-notice__badge">{drafts.length}</span>
+                <span>
+                  {drafts.length === 1
+                    ? 'You have 1 unfinished draft waiting to be completed.'
+                    : `You have ${drafts.length} unfinished drafts waiting to be completed.`}
+                </span>
+              </div>
               <button
-                aria-controls="draft-strip-list"
-                aria-expanded={draftsOpen}
-                aria-label={draftsOpen ? t('action.hide') : t('action.show')}
-                className="draft-strip__toggle"
-                onClick={toggleDrafts}
-                title={draftsOpen ? t('action.hide') : t('action.show')}
                 type="button"
+                className="records-draft-notice__btn"
+                onClick={() => handleTabChange('drafts')}
               >
-                <ChevronDown size={18} aria-hidden="true" />
+                <span>{t('records.reviewDrafts')}</span>
+                <ArrowRight size={15} aria-hidden="true" />
               </button>
             </div>
-            {draftError && (
-              <p className="draft-strip__error" role="alert">{draftError}</p>
-            )}
-            {draftsOpen && (
-              <p className="draft-strip__note">
-                {t('drafts.note')}
-              </p>
+          )}
+
+          <div className="records-toolbar tv-reveal" style={{ '--reveal-index': drafts.length > 0 ? 2 : 1 }}>
+            <div className="records-toolbar__search">
+              <Search size={17} className="records-toolbar__search-icon" aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                aria-label={t('records.searchPlaceholder')}
+                placeholder={t('records.searchPlaceholder')}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="records-toolbar__clear"
+                  aria-label="Clear search"
+                  onClick={() => setQuery('')}
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            {vehicleOptions.length > 1 && (
+              <FilterMenu
+                className="records-toolbar__filter"
+                label={t('records.filterByVehicle')}
+                value={vehicleId}
+                onChange={setVehicleId}
+                options={[
+                  { value: ALL_VEHICLES, label: 'All vehicles' },
+                  ...vehicleOptions.map((option) => ({
+                    value: option.vehicleId,
+                    label: option.name,
+                    hint: option.hint,
+                  })),
+                ]}
+              />
             )}
           </div>
-          <ul className="draft-strip__list" id="draft-strip-list" hidden={!draftsOpen}>
-            {visibleDrafts.map((draft) => (
-              <li className="draft-strip__row" key={draft.draftId}>
-                <div className="draft-strip__facts">
-                  <span className="draft-strip__vehicle">{vehicleNameFor(draft.vehicleId)}</span>
-                  <span className="draft-strip__meta">
-                    {[
-                      draft.serviceDate ? formatDate(draft.serviceDate) : 'No date yet',
-                      draft.shopName?.trim() || 'No shop yet',
-                    ].join(' · ')}
-                  </span>
+
+          {loading ? null : filtered.length === 0 ? (
+            <section className="ink-empty tv-reveal" style={{ '--reveal-index': 2 }}>
+              <h2 className="ink-empty__title">{emptyTitle()}</h2>
+              <p className="ink-empty__body">{emptyBody()}</p>
+              {allRecords.length === 0 && (
+                <div className="ink-empty__actions">
+                  <Link className="ink-button" to="/service-input">Add service record</Link>
                 </div>
-                {/* Icons, not words. Three text buttons per row on a list that
-                    is four rows long put twelve competing labels on a block
-                    whose whole job is to stay out of the way of the records
-                    below it. Each still carries its word as `aria-label` and
-                    `title`, so a screen reader hears it and a pointer sees it
-                    on hover -- the label is moved, not dropped. */}
-                <div className="draft-strip__actions">
-                  {/* Without this the list only ever grows: a draft nobody
-                      intends to finish has no other way out, and the block
-                      that was meant to help ends up burying the records. */}
-                  <button
-                    aria-label={t('action.discard')}
-                    className="draft-action draft-action--danger"
-                    onClick={() => askDiscardDraft(draft)}
-                    title={t('action.discard')}
-                    type="button"
-                  >
-                    <Trash2 size={17} aria-hidden="true" />
-                  </button>
-                  {/* Only where the word is true.
-                      ServiceRecordService.validationStatusFor grants VALIDATED
-                      to manual entry and to drafts the owner opened and
-                      corrected (READY_FOR_REVIEW). A receipt confirmed straight
-                      off the extraction is filed NEEDS_REVIEW no matter which
-                      button did it -- so offering "Mark as validated" on one
-                      would promise a status the server will not give, and the
-                      record would come back still asking to be reviewed. Those
-                      drafts get Finish, which is the review this is missing. */}
-                  {canValidate(draft) && (
-                    <button
-                      aria-label={t('drafts.markValidated')}
-                      className="draft-action"
-                      disabled={confirmingId === draft.draftId}
-                      onClick={() => markValidated(draft)}
-                      title={t('drafts.markValidated')}
-                      type="button"
-                    >
-                      <BadgeCheck size={17} aria-hidden="true" />
-                    </button>
-                  )}
-                  {/* The one action that is not optional, so it keeps a filled
-                      shape rather than becoming a third identical glyph. */}
-                  <Link
-                    aria-label={t('action.finish')}
-                    className="draft-action draft-action--primary"
-                    title={t('action.finish')}
-                    to={`/service-drafts/${draft.draftId}`}
-                  >
-                    <ArrowRight size={17} aria-hidden="true" />
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+              )}
+            </section>
+          ) : (
+            <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 2 }}>
+              <RecordsTable
+                records={filtered}
+                ariaLabel="All service records across your vehicles"
+                onDelete={askDeleteRecord}
+              />
+            </section>
+          )}
+        </div>
       )}
 
-      {loading ? null : filtered.length === 0 ? (
-        <section className="ink-empty tv-reveal" style={{ '--reveal-index': 1 }}>
-          <h2 className="ink-empty__title">{emptyTitle()}</h2>
-          <p className="ink-empty__body">{emptyBody()}</p>
-          {allRecords.length === 0 && (
-            <div className="ink-empty__actions">
-              <Link className="ink-button" to="/service-input">Add service record</Link>
+      {activeTab === 'drafts' && (
+        <div id="panel-drafts" role="tabpanel" aria-labelledby="tab-drafts" tabIndex={-1}>
+          <div className="drafts-tab tv-reveal" style={{ '--reveal-index': 1 }}>
+            <div className="drafts-tab__header">
+              <p className="drafts-tab__note">{t('drafts.note')}</p>
+              {vehicleOptions.length > 1 && (
+                <FilterMenu
+                  className="records-toolbar__filter"
+                  label={t('records.filterByVehicle')}
+                  value={vehicleId}
+                  onChange={setVehicleId}
+                  options={[
+                    { value: ALL_VEHICLES, label: 'All vehicles' },
+                    ...vehicleOptions.map((option) => ({
+                      value: option.vehicleId,
+                      label: option.name,
+                      hint: option.hint,
+                    })),
+                  ]}
+                />
+              )}
             </div>
-          )}
-        </section>
-      ) : (
-        <section className="ink-table-card tv-reveal" style={{ '--reveal-index': 1 }}>
-          <RecordsTable
-            records={filtered}
-            ariaLabel="All service records across your vehicles"
-            onDelete={askDeleteRecord}
-          />
-        </section>
+
+            {draftError && (
+              <div className="ink-alert" role="alert">{draftError}</div>
+            )}
+
+            {visibleDrafts.length === 0 ? (
+              <section className="ink-empty">
+                <h2 className="ink-empty__title">
+                  {drafts.length === 0 ? t('drafts.emptyTitle') : `No drafts for ${selectedVehicle?.name}`}
+                </h2>
+                <p className="ink-empty__body">
+                  {drafts.length === 0
+                    ? t('drafts.emptyBody')
+                    : 'Try switching back to all vehicles to see your drafts.'}
+                </p>
+                <div className="ink-empty__actions">
+                  {drafts.length === 0 ? (
+                    <button
+                      type="button"
+                      className="ink-button"
+                      onClick={() => handleTabChange('records')}
+                    >
+                      {t('records.viewAllRecords')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ink-button"
+                      onClick={() => setVehicleId(ALL_VEHICLES)}
+                    >
+                      Show all vehicles
+                    </button>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <ul className="drafts-tab__list">
+                {visibleDrafts.map((draft) => (
+                  <li className="draft-card" key={draft.draftId}>
+                    <div className="draft-card__main">
+                      <div className="draft-card__title-row">
+                        <h3 className="draft-card__title">
+                          {draft.shopName?.trim() || 'Service receipt / shop not named'}
+                        </h3>
+                        <span className={`draft-card__badge${canValidate(draft) ? ' draft-card__badge--ready' : ''}`}>
+                          {draft.status === 'READY_FOR_REVIEW'
+                            ? 'Ready for review'
+                            : draft.inputMethod === 'RECEIPT'
+                            ? 'Receipt scan'
+                            : draft.inputMethod === 'VOICE'
+                            ? 'Voice note'
+                            : 'Manual draft'}
+                        </span>
+                      </div>
+                      <div className="draft-card__meta">
+                        <span className="draft-card__vehicle">{vehicleNameFor(draft.vehicleId)}</span>
+                        <span>·</span>
+                        <span className="draft-card__date">
+                          {draft.serviceDate ? formatDate(draft.serviceDate) : 'No date recorded'}
+                        </span>
+                        {draft.totalCost != null && (
+                          <>
+                            <span>·</span>
+                            <span className="draft-card__cost">PHP {Number(draft.totalCost).toLocaleString()}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="draft-card__actions icon-actions">
+                      <button
+                        aria-label={t('action.discard')}
+                        className="icon-action icon-action--danger"
+                        onClick={() => askDiscardDraft(draft)}
+                        title={t('action.discard')}
+                        type="button"
+                      >
+                        <Trash2 size={17} aria-hidden="true" />
+                      </button>
+                      {canValidate(draft) && (
+                        <button
+                          aria-label={t('drafts.markValidated')}
+                          className="icon-action"
+                          disabled={confirmingId === draft.draftId}
+                          onClick={() => markValidated(draft)}
+                          title={t('drafts.markValidated')}
+                          type="button"
+                        >
+                          <BadgeCheck size={17} aria-hidden="true" />
+                        </button>
+                      )}
+                      <Link
+                        className="draft-card__finish-btn"
+                        to={`/service-drafts/${draft.draftId}`}
+                        title={t('action.finish')}
+                      >
+                        <span>{t('action.finish')}</span>
+                        <ArrowRight size={15} aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Wording deliberately unlike the record one. Discarding a draft throws

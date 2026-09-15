@@ -229,6 +229,47 @@
   gap: 0.55rem;
 }
 
+.concern-prompt__item input {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  flex: 0 0 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  position: relative;
+  transition: all 120ms ease-out;
+  width: 18px;
+}
+
+.concern-prompt__item input:hover {
+  border-color: var(--brand);
+}
+
+.concern-prompt__item input:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.concern-prompt__item input:checked::after {
+  border-bottom: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+  content: '';
+  height: 8px;
+  left: 50%;
+  position: absolute;
+  top: 45%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 4px;
+}
+
+.concern-prompt__item input:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 /* ---- mechanic: read-only quotation ------------------------------------ */
 
 /* `.ink-card` carries no padding of its own -- each variant states it, the way

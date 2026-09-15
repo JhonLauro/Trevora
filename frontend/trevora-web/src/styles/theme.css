@@ -548,8 +548,17 @@
   background: var(--surface);
 }
 
+:root[data-theme='dark'] .tvl .tvl-faq__q:hover,
+:root[data-theme='dark'] .tvl .tvl-faq__q:active,
 :root[data-theme='dark'] .tvl .tvl-faq__q:focus {
-  background: var(--brand-tint);
+  background: var(--hover-tint);
+  color: var(--ink-hover);
+}
+
+:root[data-theme='dark'] .tvl .tvl-faq__q:hover svg,
+:root[data-theme='dark'] .tvl .tvl-faq__q:active svg,
+:root[data-theme='dark'] .tvl .tvl-faq__q:focus svg {
+  color: var(--ink);
 }
 
 :root[data-theme='dark'] .tvl-footer__inner {

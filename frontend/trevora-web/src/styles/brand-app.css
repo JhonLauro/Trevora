@@ -347,6 +347,34 @@
   .ink-topbar a,
   .ink-topbar__button {
     color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  .ink-topbar__button {
+    transition: background 120ms ease-out, color 120ms ease-out;
+  }
+
+  .ink-topbar__button:hover:not(:disabled),
+  .ink-topbar__button:active {
+    background: var(--hover-tint);
+    color: var(--ink);
+  }
+
+  .ink-topbar__button:focus {
+    outline: none;
+  }
+
+  .ink-topbar__button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  .ink-topbar__count {
+    background: var(--brand);
+    color: #ffffff;
   }
 
   .ink-sheet {
@@ -1215,21 +1243,25 @@
    and was left at the 14px field radius, so the add-record flow was the one
    place with square-ish buttons. Easy to miss — the two never appear on the
    same screen. */
-.flow .flow-btn {
+.flow .flow-btn,
+.vehicle-offer .flow-btn {
   border-radius: var(--radius-pill);
 }
 
-/* The flow's primary action, on every one of the six screens. */
-.flow .flow-btn:not(.flow-btn--ghost) {
+/* The flow's primary action, on every one of the six screens and in vehicle offers. */
+.flow .flow-btn:not(.flow-btn--ghost),
+.vehicle-offer .flow-btn:not(.flow-btn--ghost) {
   background: var(--brand);
   color: #ffffff;
 }
 
-.flow .flow-btn:not(.flow-btn--ghost):hover:not(:disabled) {
+.flow .flow-btn:not(.flow-btn--ghost):hover:not(:disabled),
+.vehicle-offer .flow-btn:not(.flow-btn--ghost):hover:not(:disabled) {
   background: var(--brand-hover);
 }
 
-.flow .flow-btn:not(.flow-btn--ghost):active:not(:disabled) {
+.flow .flow-btn:not(.flow-btn--ghost):active:not(:disabled),
+.vehicle-offer .flow-btn:not(.flow-btn--ghost):active:not(:disabled) {
   background: var(--brand-hover);
   transform: translateY(1px);
 }
@@ -1238,12 +1270,14 @@
    that case on contrast grounds — paper on #c4bdb0 measures 1.70:1 — and the
    argument is unchanged by the palette. Restated only so the brand fill above
    cannot leak into it. */
-.flow .flow-btn:not(.flow-btn--ghost):disabled {
+.flow .flow-btn:not(.flow-btn--ghost):disabled,
+.vehicle-offer .flow-btn:not(.flow-btn--ghost):disabled {
   background: var(--border);
   color: var(--ink);
 }
 
-.flow .flow-btn--ghost:hover:not(:disabled) {
+.flow .flow-btn--ghost:hover:not(:disabled),
+.vehicle-offer .flow-btn--ghost:hover:not(:disabled) {
   border-color: var(--brand);
   color: var(--brand-hover);
 }

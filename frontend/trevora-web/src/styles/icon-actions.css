@@ -15,11 +15,12 @@
 
 .icon-actions.ink-table__actions,
 .icon-actions.ink-record-card__actions,
-.icon-actions.vehicle-timeline__card-actions {
+.icon-actions.vehicle-timeline__card-actions,
+.icon-actions.draft-card__actions {
   align-items: center;
   display: flex;
-  /* Tight, because they are one group of related choices. */
-  gap: 4px;
+  /* Comfortable breathing room between actions, preventing accidental misclicks. */
+  gap: 10px;
 }
 
 /* On a card the actions sit at the right, where a thumb already is, rather
@@ -103,7 +104,7 @@
    to its right end instead of starting at the left. */
 @media (max-width: 720px) {
   .icon-actions.vehicle-timeline__card-actions {
-    gap: 4px;
+    gap: 10px;
     justify-content: flex-end;
   }
 }

@@ -221,12 +221,12 @@
   gap: 9px;
   cursor: pointer;
   border: 0;
-  background: var(--ink-block);
-  color: var(--on-ink);
+  background: var(--brand);
+  color: #ffffff;
   text-decoration: none;
 }
 
-.flow-btn:hover:not(:disabled) { background: var(--ink-hover); }
+.flow-btn:hover:not(:disabled) { background: var(--brand-hover); }
 
 /* Disabled is a filled grey rather than a faded ink, because a half-opacity
    button reads as a rendering glitch to the audience this is drawn for.
@@ -1288,25 +1288,117 @@
 /* The assent. Its own bordered block with nothing competing beside it. */
 .flow-assent {
   background: var(--surface);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-card);
-  padding: 22px 24px;
+  padding: 20px 22px;
   display: flex;
   align-items: flex-start;
   gap: 14px;
   cursor: pointer;
+  transition: border-color 150ms ease-out, background 150ms ease-out;
+}
+
+.flow-assent:hover {
+  border-color: var(--brand);
+}
+
+.flow-assent.is-checked,
+.flow-assent:has(input:checked) {
+  border-color: var(--brand);
+  background: var(--brand-wash);
 }
 
 .flow-assent input {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  margin: 1px 0 0;
-  accent-color: var(--ink);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  margin: 2px 0 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms ease-out, border-color 120ms ease-out, box-shadow 120ms ease-out;
 }
 
-.flow-assent__title { font-size: 16px; font-weight: 600; line-height: 1.5; }
-.flow-assent__note { font-size: 15px; color: var(--ink-muted); }
+.flow-assent input:hover {
+  border-color: var(--brand);
+}
+
+.flow-assent input:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.flow-assent input:checked::after {
+  content: '';
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 5px;
+  height: 10px;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.flow-assent input:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.flow-assent__content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.flow-assent__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flow-assent__title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.flow-assent__badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn-border);
+  color: var(--status-warn-text);
+  line-height: 1.3;
+  transition: background 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+}
+
+.flow-assent.is-checked .flow-assent__badge,
+.flow-assent:has(input:checked) .flow-assent__badge {
+  background: var(--status-ok-bg);
+  border-color: var(--status-ok-border);
+  color: var(--status-ok-text);
+}
+
+.flow-assent__note {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
 
 /* ==================================================== step 6 · saved ==== */
 

@@ -40,28 +40,32 @@
 
 .notif__summary {
   color: var(--ink-muted);
-  font-size: 16px;
+  font-size: 15px;
   margin: 6px 0 0;
 }
 
 /* A text button, not a filled one. Marking everything read is a tidying
    action — it should not compete with the request each row links to. */
 .notif .notif__markread {
+  align-items: center;
   background: none;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--brand);
   cursor: pointer;
+  display: inline-flex;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
+  gap: 6px;
   min-height: 0;
-  padding: 8px 4px;
+  padding: 6px 10px;
+  transition: color 120ms ease-out, background 120ms ease-out;
 }
 
 .notif .notif__markread:hover:not(:disabled),
 .notif .notif__markread:active:not(:disabled) {
-  background: none;
+  background: var(--hover-tint);
   color: var(--brand-hover);
 }
 
@@ -69,6 +73,7 @@
   background: none;
   color: var(--ink-faint);
   cursor: default;
+  opacity: 0.5;
 }
 
 .notif .notif__markread:focus-visible {
@@ -78,50 +83,84 @@
 
 .notif__alert {
   background: var(--status-bad-bg);
-  border-radius: 18px;
+  border-radius: 12px;
   color: var(--status-bad-text);
   font-size: 15px;
   margin: 0;
   padding: 14px 18px;
 }
 
-.notif__tabs {
-  align-self: flex-start;
+.notif__tabs-wrap {
+  margin-top: 4px;
 }
 
-/* ----------------------------------------------------------------- list */
+/* ----------------------------------------------------------------- list / feed */
+
+.notif__card {
+  background: var(--surface);
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
 
 .notif__list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.notif__item {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
+.notif-row {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--rule-hairline, #efebe3);
+  cursor: pointer;
   display: flex;
   gap: 14px;
   padding: 18px 20px;
+  position: relative;
+  transition: background 120ms ease-out;
 }
 
-/* Unread is the tint plus the word — see the "New" pill in the markup. The
-   two together are the product's standing rule: a state is never colour
-   alone. Removing the pill to tidy the row breaks the rule the tint relies
-   on; removing the tint just makes the list harder to scan. */
-.notif__item.is-unread {
-  background: var(--brand-wash);
-  border-color: #dcebe3;
+.notif-row:last-child {
+  border-bottom: 0;
 }
 
-.notif__icon {
+.notif-row:hover {
+  background: var(--hover-tint);
+}
+
+.notif-row.is-unread {
+  background: rgba(53, 177, 131, 0.04);
+}
+
+.notif-row.is-unread:hover {
+  background: rgba(53, 177, 131, 0.08);
+}
+
+.notif-row__indicator {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  height: 20px;
+  justify-content: center;
+  margin-top: 8px;
+  width: 10px;
+}
+
+.notif-row__dot {
+  background: var(--brand);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.notif-row__icon {
   align-items: center;
   background: var(--surface-sunken);
-  border-radius: 12px;
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 10px;
   color: var(--ink-muted);
   display: flex;
   flex: 0 0 auto;
@@ -130,85 +169,139 @@
   width: 38px;
 }
 
-.notif__item.is-unread .notif__icon {
+.notif-row.is-unread .notif-row__icon {
   background: var(--brand-tint);
-  color: var(--brand-hover);
+  border-color: rgba(53, 177, 131, 0.2);
+  color: var(--brand);
 }
 
-.notif__body {
+.notif-row__body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
 
-.notif__row {
+.notif-row__head {
   align-items: baseline;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: space-between;
 }
 
-.notif__item-title {
-  font-size: 16px;
+.notif-row__title-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notif-row__title {
+  font-family: var(--font-sans);
+  font-size: 15px;
   font-weight: 600;
   margin: 0;
 }
 
-.notif__new {
+.notif-row__badge {
   background: var(--brand);
-  border-radius: 100px;
+  border-radius: 999px;
   color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 3px 9px;
+  padding: 2px 7px;
 }
 
-/* Pushed to the end of the row rather than given a column of its own: the
-   title is variable length and a fixed timestamp column left a gap on every
-   short one. */
-.notif__time {
+.notif-row__time {
   color: var(--ink-faint);
-  font-size: 14px;
+  font-size: 13px;
   margin-left: auto;
   white-space: nowrap;
 }
 
-.notif__text {
+.notif-row__text {
   color: var(--ink-muted);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
   margin: 0;
 }
 
-.notif__action {
+.notif-row__action {
+  align-items: center;
   align-self: flex-start;
   color: var(--brand);
-  font-size: 15px;
+  display: inline-flex;
+  font-size: 13px;
   font-weight: 600;
+  gap: 4px;
   margin-top: 6px;
   text-decoration: none;
+  transition: color 120ms ease-out;
 }
 
-.notif__action:hover {
+.notif-row__action:hover {
   color: var(--brand-hover);
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-underline-offset: 3px;
+}
+
+.notif-row__mark-btn {
+  align-items: center;
+  background: none;
+  border: 1px solid var(--rule-faint, #e7e2d9);
+  border-radius: 50%;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 28px;
+  justify-content: center;
+  min-height: 0;
+  opacity: 0.5;
+  padding: 0;
+  transition: opacity 120ms ease-out, background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+  width: 28px;
+}
+
+.notif-row:hover .notif-row__mark-btn {
+  opacity: 1;
+}
+
+.notif-row__mark-btn:hover {
+  background: var(--brand-tint);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 /* ---------------------------------------------------------------- empty */
 
 .notif__empty {
-  background: var(--brand-wash);
-  border-radius: var(--radius-card);
-  padding: 40px 28px;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px 24px;
   text-align: center;
+}
+
+.notif__empty-icon {
+  align-items: center;
+  background: var(--surface-sunken);
+  border-radius: 50%;
+  color: var(--ink-faint);
+  display: flex;
+  height: 56px;
+  justify-content: center;
+  margin-bottom: 16px;
+  width: 56px;
 }
 
 .notif__empty-title {
   font-family: var(--font-serif);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0;
@@ -216,20 +309,59 @@
 
 .notif__empty-body {
   color: var(--ink-muted);
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.5;
   margin: 8px 0 0;
+  max-width: 400px;
+}
+
+/* --------------------------------------------------------- dark mode */
+
+:root[data-theme='dark'] .notif__card {
+  border-color: var(--border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='dark'] .notif-row {
+  border-bottom-color: var(--rule-hairline);
+}
+
+:root[data-theme='dark'] .notif-row.is-unread {
+  background: rgba(53, 177, 131, 0.07);
+}
+
+:root[data-theme='dark'] .notif-row.is-unread:hover {
+  background: rgba(53, 177, 131, 0.12);
+}
+
+:root[data-theme='dark'] .notif-row__icon {
+  background: var(--surface-sunken);
+  border-color: var(--rule);
+}
+
+:root[data-theme='dark'] .notif-row.is-unread .notif-row__icon {
+  background: var(--brand-tint);
+  border-color: var(--status-ok-border);
+}
+
+:root[data-theme='dark'] .notif-row__mark-btn {
+  border-color: var(--rule);
+}
+
+:root[data-theme='dark'] .notif-row__mark-btn:hover {
+  background: var(--brand-tint);
+  border-color: var(--brand);
 }
 
 /* --------------------------------------------------------- narrow view */
 
 @media (max-width: 600px) {
-  .notif__item {
-    padding: 16px;
+  .notif-row {
+    gap: 12px;
+    padding: 14px 16px;
   }
 
-  /* The timestamp drops under the title rather than being pushed off the
-     end of a 375px row. */
-  .notif__time {
+  .notif-row__time {
     margin-left: 0;
     width: 100%;
   }

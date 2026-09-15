@@ -23,9 +23,22 @@ function period(t, start, end) {
   return t('warrantyOffer.startsOn', { start: formatDate(start) });
 }
 
-export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
+export default function WarrantyOffer({
+  draft,
+  vehicle,
+  onVehicleUpdated,
+  dismissKey,
+  dismissLabel,
+}) {
   const t = useT();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (!dismissKey) return false;
+    try {
+      return window.localStorage?.getItem(dismissKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +51,7 @@ export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
   if (dismissed) return null;
   if (done) {
     return (
-      <section className="flow-card vehicle-offer">
+      <section className="ink-card flow-card vehicle-offer">
         <p className="vehicle-offer__done">{t('warrantyOffer.done', { vehicle: vehicleName })}</p>
       </section>
     );
@@ -46,6 +59,17 @@ export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
   if (!offer) return null;
 
   const conflict = offer.kind === 'conflict';
+
+  function handleDismiss() {
+    if (dismissKey) {
+      try {
+        window.localStorage?.setItem(dismissKey, 'true');
+      } catch {
+        // Ignore localStorage error
+      }
+    }
+    setDismissed(true);
+  }
 
   async function accept() {
     if (saving) return;
@@ -55,6 +79,13 @@ export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
       const updated = await patchVehicle(vehicle.vehicleId, warrantyOfferPatch(offer));
       onVehicleUpdated?.(updated);
       setDone(true);
+      if (dismissKey) {
+        try {
+          window.localStorage?.removeItem(dismissKey);
+        } catch {
+          // Ignore localStorage error
+        }
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -63,8 +94,8 @@ export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
   }
 
   return (
-    <section className="flow-card vehicle-offer">
-      <span className="flow-eyebrow">{t('veh.fromReceipt')}</span>
+    <section className="ink-card flow-card vehicle-offer">
+      <span className="flow-eyebrow ink-eyebrow">{t('veh.fromReceipt')}</span>
       <p className="vehicle-offer__lead">
         {conflict
           ? t('warrantyOffer.conflictLead', { vehicle: vehicleName })
@@ -91,9 +122,9 @@ export default function WarrantyOffer({ draft, vehicle, onVehicleUpdated }) {
           className="flow-btn flow-btn--ghost"
           type="button"
           disabled={saving}
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
         >
-          {conflict ? t('warrantyOffer.keepMine') : t('action.notNow')}
+          {conflict ? t('warrantyOffer.keepMine') : (dismissLabel || t('action.notNow'))}
         </button>
         <button className="flow-btn" type="button" disabled={saving} onClick={accept}>
           {saving ? t('veh.adding') : conflict ? t('warrantyOffer.useReceipts') : t('veh.addIt')}

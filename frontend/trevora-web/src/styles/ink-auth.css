@@ -367,29 +367,37 @@
 }
 
 .ink-field__control--with-toggle input {
-  padding-right: 70px;
+  padding-right: 44px;
 }
 
 .ink-toggle {
+  align-items: center;
   background: none;
   border: 0;
   border-radius: 6px;
-  color: var(--ink);
+  color: var(--ink-muted);
   cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: var(--text-label);
-  font-weight: 600;
-  padding: 4px 6px;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
   position: absolute;
-  right: 10px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  right: 8px;
+  text-decoration: none;
   top: 50%;
   transform: translateY(-50%);
+  transition: color 120ms ease-out;
+  width: 32px;
 }
 
 .ink-toggle:hover {
-  color: var(--ink-muted);
+  color: var(--ink);
+}
+
+.ink-toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .ink-help {
@@ -645,6 +653,11 @@
   font-size: var(--text-secondary);
   font-weight: 600;
   margin-top: -12px;
+  text-decoration: none;
+}
+
+.ink-inline-link:hover {
+  text-decoration: underline;
 }
 
 .ink-link-button {

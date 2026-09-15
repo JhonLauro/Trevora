@@ -14,3 +14,17 @@ export function getServiceRecordAIExplanation(recordId, language = 'en') {
     `/service-records/${recordId}/ai-explanation?lang=${encodeURIComponent(language)}`,
   );
 }
+
+/**
+ * Submits owner feedback on the plain-language explanation ("Was this helpful?").
+ */
+export function submitAIExplanationFeedback(recordId, { helpful, reason = null, notes = null }, language = 'en') {
+  return apiRequest(
+    `/service-records/${recordId}/ai-explanation/feedback?lang=${encodeURIComponent(language)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ helpful, reason, notes }),
+    },
+  );
+}

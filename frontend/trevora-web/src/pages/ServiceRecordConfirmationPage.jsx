@@ -141,6 +141,11 @@ export default function ServiceRecordConfirmationPage() {
   const services = serviceItemsArray(draft?.services);
   const pageCount = Number(draft?.fieldMetadata?.pageCount) || 0;
 
+  const requiredRaw = t('confirm.required');
+  const dotIndex = requiredRaw.indexOf('.');
+  const requiredBadge = dotIndex > 0 ? requiredRaw.slice(0, dotIndex).trim() : null;
+  const noteRemainder = dotIndex > 0 ? requiredRaw.slice(dotIndex + 1).trim() : requiredRaw;
+
   return (
     <FlowChrome
       step={5}
@@ -250,20 +255,25 @@ export default function ServiceRecordConfirmationPage() {
             </section>
           )}
 
-          <label className="flow-assent">
+          <label className={`flow-assent ${authorized ? 'is-checked' : ''}`.trim()}>
             <input
               checked={authorized}
               onChange={(event) => setAuthorized(event.target.checked)}
               type="checkbox"
             />
-            <span>
-              <span className="flow-assent__title">
-                {t('confirm.checked')}
-              </span>
+            <div className="flow-assent__content">
+              <div className="flow-assent__header">
+                <span className="flow-assent__title">
+                  {t('confirm.checked')}
+                </span>
+                {requiredBadge && (
+                  <span className="flow-assent__badge">{requiredBadge}</span>
+                )}
+              </div>
               <span className="flow-assent__note">
-                {t('confirm.required')}
+                {noteRemainder}
               </span>
-            </span>
+            </div>
           </label>
 
           <div className="flow-actions">

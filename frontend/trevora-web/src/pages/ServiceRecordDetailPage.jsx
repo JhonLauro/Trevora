@@ -8,6 +8,9 @@ import AIExplanationPanel from '../components/AIExplanationPanel';
 import ConfirmDialog, { useDeleteAction } from '../components/ink/ConfirmDialog.jsx';
 import ServiceItemsList from '../components/ServiceItemsList';
 import StoredReceiptPreview from '../components/StoredReceiptPreview';
+import VehicleDetailsOffer from '../components/flow/VehicleDetailsOffer.jsx';
+import WarrantyOffer from '../components/flow/WarrantyOffer.jsx';
+import { useT } from '../i18n/index.jsx';
 import {
   deleteVehicleServiceRecord,
   getVehicleServiceRecord,
@@ -90,6 +93,7 @@ function Field({ icon: Icon, label, value, mono, absent = 'Not recorded' }) {
 }
 
 export default function ServiceRecordDetailPage() {
+  const t = useT();
   const { vehicleId, recordId } = useParams();
   const navigate = useNavigate();
 
@@ -274,6 +278,21 @@ export default function ServiceRecordDetailPage() {
 
       <div className="record-layout">
         <div className="record-main">
+          <VehicleDetailsOffer
+            draft={record}
+            vehicle={vehicle}
+            onVehicleUpdated={setVehicle}
+            dismissKey={`trevora.dismissedOffer.${record.recordId}`}
+            dismissLabel={t('action.ignore')}
+          />
+          <WarrantyOffer
+            draft={record}
+            vehicle={vehicle}
+            onVehicleUpdated={setVehicle}
+            dismissKey={`trevora.dismissedWarrantyOffer.${record.recordId}`}
+            dismissLabel={t('action.ignore')}
+          />
+
           {/* The receipt sits at the top of the column it explains: the paper
               first, then what was read off it, then the fields it produced.
               It was in the side column, which put the source document beside

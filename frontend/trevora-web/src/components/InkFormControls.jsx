@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import GoogleIcon from './GoogleIcon.jsx';
 
 export function InkField({ id, label, error, help, className = '', inputRef, children, ...inputProps }) {
@@ -44,11 +45,12 @@ export function InkPasswordField({ label = 'Password', ...props }) {
     <InkField label={label} type={visible ? 'text' : 'password'} {...props}>
       <button
         type="button"
-        className="ink-toggle"
+        className={`ink-toggle ${visible ? 'is-visible' : ''}`.trim()}
         onClick={() => setVisible((current) => !current)}
         aria-label={visible ? 'Hide password' : 'Show password'}
+        title={visible ? 'Hide password' : 'Show password'}
       >
-        {visible ? 'Hide' : 'Show'}
+        {visible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
       </button>
     </InkField>
   );

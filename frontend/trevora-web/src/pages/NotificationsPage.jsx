@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useT } from '../i18n/index.jsx';
-import { Link } from 'react-router-dom';
-import { Bell, Clock, UserRoundCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Bell, Check, Clock, UserRoundCheck } from 'lucide-react';
+import Tabs from '../components/ink/Tabs.jsx';
+import { formatDate } from '../utils/format.js';
 import { getActiveCurrentUser } from '../api/currentUser.js';
 import { LOCAL_NOTIFICATIONS_CHANGED_EVENT, getLocalNotifications } from '../api/localNotifications.js';
 import {
@@ -50,11 +52,20 @@ function formatTime(value) {
   const day = 24 * hour;
 
   if (diffMs < minute) return 'Just now';
-  if (diffMs < hour) return `${Math.floor(diffMs / minute)} minutes ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)} hours ago`;
-  if (diffMs < 7 * day) return `${Math.floor(diffMs / day)} days ago`;
+  if (diffMs < hour) {
+    const mins = Math.floor(diffMs / minute);
+    return `${mins} ${mins === 1 ? 'minute' : 'minutes'} ago`;
+  }
+  if (diffMs < day) {
+    const hours = Math.floor(diffMs / hour);
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  }
+  if (diffMs < 7 * day) {
+    const days = Math.floor(diffMs / day);
+    return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  }
 
-  return new Date(value).toLocaleDateString();
+  return formatDate(value);
 }
 
 /**
@@ -211,6 +222,16 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((item) => item.unread).length;
   const shown = filter === 'unread' ? notifications.filter((item) => item.unread) : notifications;
 
+  const navigate = useNavigate();
+
+  function markAsRead(id) {
+    if (!id || readIds.has(id)) return;
+    const nextReadIds = new Set(readIds);
+    nextReadIds.add(id);
+    setReadIds(nextReadIds);
+    saveReadNotificationIds(currentUser?.userId, nextReadIds);
+  }
+
   function markAllRead() {
     // Reads the rendered list rather than the requests array: expired sessions
     // and locally raised events are unread notifications too, and the old
@@ -238,78 +259,103 @@ export default function NotificationsPage() {
           onClick={markAllRead}
           disabled={unreadCount === 0}
         >
+          <Check size={16} aria-hidden="true" />
           {t('notif.markAllRead')}
         </button>
       </header>
 
       {error && <p className="notif__alert" role="alert">{error}</p>}
 
-      {/* Same segmented pill as the vehicle page's view switcher, so a
-          two-way filter looks like a two-way filter wherever it appears. */}
-      <div className="ink-segmented notif__tabs" role="group" aria-label={t('notif.filter')}>
-        <button
-          className={filter === 'all' ? 'is-active' : undefined}
-          type="button"
-          aria-pressed={filter === 'all'}
-          onClick={() => setFilter('all')}
-        >
-          All ({notifications.length})
-        </button>
-        <button
-          className={filter === 'unread' ? 'is-active' : undefined}
-          type="button"
-          aria-pressed={filter === 'unread'}
-          onClick={() => setFilter('unread')}
-        >
-          Unread ({unreadCount})
-        </button>
+      <div className="notif__tabs-wrap">
+        <Tabs
+          label={t('notif.filter')}
+          activeId={filter}
+          onChange={setFilter}
+          tabs={[
+            { id: 'all', label: t('notif.tabAll'), count: notifications.length },
+            { id: 'unread', label: t('notif.tabUnread'), count: unreadCount },
+          ]}
+        />
       </div>
 
       {loading ? (
-        <section className="notif__empty">
+        <section className="notif__card notif__empty">
           <h2 className="notif__empty-title">Loading…</h2>
         </section>
       ) : shown.length === 0 ? (
-        <section className="notif__empty">
+        <section className="notif__card notif__empty">
+          <div className="notif__empty-icon" aria-hidden="true">
+            <Bell size={28} />
+          </div>
           <h2 className="notif__empty-title">
-            {filter === 'unread' ? 'Nothing unread' : 'Nothing yet'}
+            {filter === 'unread' ? 'Nothing unread' : 'No notifications yet'}
           </h2>
           <p className="notif__empty-body">
             {t('notif.requestsArrive')}
           </p>
         </section>
       ) : (
-        <ul className="notif__list">
-          {shown.map((notification) => {
-            const Icon = CATEGORY_ICONS[notification.category] ?? Bell;
-            return (
-              <li
-                className={`notif__item${notification.unread ? ' is-unread' : ''}`}
-                key={notification.id}
-              >
-                <span className="notif__icon" aria-hidden="true">
-                  <Icon size={18} strokeWidth={1.9} />
-                </span>
-                <div className="notif__body">
-                  <div className="notif__row">
-                    <h2 className="notif__item-title">{notification.title}</h2>
-                    {/* The word, not only the tint. Unread is a state, and
-                        this product's rule is that a state carries its own
-                        word rather than relying on a colour. */}
-                    {notification.unread && <span className="notif__new">{t('notif.new')}</span>}
-                    <span className="notif__time">{notification.time}</span>
+        <div className="notif__card">
+          <ul className="notif__list">
+            {shown.map((notification) => {
+              const Icon = CATEGORY_ICONS[notification.category] ?? Bell;
+              return (
+                <li
+                  className={`notif-row${notification.unread ? ' is-unread' : ''}`}
+                  key={notification.id}
+                  onClick={() => {
+                    if (notification.unread) markAsRead(notification.id);
+                    if (notification.href) navigate(notification.href);
+                  }}
+                >
+                  <span className="notif-row__indicator" aria-hidden="true">
+                    {notification.unread && <span className="notif-row__dot" />}
+                  </span>
+                  <span className="notif-row__icon" aria-hidden="true">
+                    <Icon size={18} strokeWidth={2} />
+                  </span>
+                  <div className="notif-row__body">
+                    <div className="notif-row__head">
+                      <div className="notif-row__title-line">
+                        <h2 className="notif-row__title">{notification.title}</h2>
+                        {notification.unread && <span className="notif-row__badge">{t('notif.new')}</span>}
+                      </div>
+                      <span className="notif-row__time">{notification.time}</span>
+                    </div>
+                    <p className="notif-row__text">{notification.body}</p>
+                    {notification.action && (
+                      <Link
+                        className="notif-row__action"
+                        to={notification.href}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (notification.unread) markAsRead(notification.id);
+                        }}
+                      >
+                        <span>{notification.action}</span>
+                        <ArrowRight size={14} aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
-                  <p className="notif__text">{notification.body}</p>
-                  {notification.action && (
-                    <Link className="notif__action" to={notification.href}>
-                      {notification.action}
-                    </Link>
+                  {notification.unread && (
+                    <button
+                      type="button"
+                      className="notif-row__mark-btn"
+                      title="Mark as read"
+                      aria-label="Mark as read"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(notification.id);
+                      }}
+                    >
+                      <Check size={15} aria-hidden="true" />
+                    </button>
                   )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </main>
   );

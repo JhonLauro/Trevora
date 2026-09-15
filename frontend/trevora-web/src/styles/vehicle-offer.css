@@ -209,6 +209,34 @@
   margin-top: 16px;
 }
 
+.vehicle-offer__actions .flow-btn:not(.flow-btn--ghost) {
+  background: var(--brand);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+}
+
+.vehicle-offer__actions .flow-btn:not(.flow-btn--ghost):hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.vehicle-offer__actions .flow-btn:not(.flow-btn--ghost):active:not(:disabled) {
+  background: var(--brand-hover);
+  transform: translateY(1px);
+}
+
+.vehicle-offer__actions .flow-btn--ghost {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}
+
+.vehicle-offer__actions .flow-btn--ghost:hover:not(:disabled) {
+  background: var(--hover-tint);
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
 .vehicle-offer__error {
   color: var(--danger-ink, #8c2018);
   font-size: 15px;

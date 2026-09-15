@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../i18n/index.jsx';
-import { Sparkles, TriangleAlert } from 'lucide-react';
-import { getServiceRecordAIExplanation } from '../api/aiExplanations';
+import { Sparkles, TriangleAlert, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import { getServiceRecordAIExplanation, submitAIExplanationFeedback } from '../api/aiExplanations';
 
 /**
  * The plain-language explanation of one confirmed record.
@@ -61,12 +61,24 @@ const SERVER_LABEL_KEYS = {
 const SERVER_DISCLAIMER =
   'This explanation is for understanding only and does not replace professional mechanic judgment.';
 
+const REASON_KEYS = [
+  { key: 'INACCURATE', labelKey: 'ai.feedback.reason.inaccurate' },
+  { key: 'CONFUSING', labelKey: 'ai.feedback.reason.confusing' },
+  { key: 'TRANSLATION', labelKey: 'ai.feedback.reason.translation' },
+  { key: 'OTHER', labelKey: 'ai.feedback.reason.other' },
+];
+
 export default function AIExplanationPanel({ recordId }) {
   const { language, t } = useLanguage();
   const [explanation, setExplanation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+
+  const [feedback, setFeedback] = useState(null);
+  const [showReasons, setShowReasons] = useState(false);
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [feedbackNotice, setFeedbackNotice] = useState(false);
 
   useEffect(() => {
     if (!recordId) return undefined;
@@ -77,7 +89,14 @@ export default function AIExplanationPanel({ recordId }) {
 
     getServiceRecordAIExplanation(recordId, language)
       .then((data) => {
-        if (active) setExplanation(data);
+        if (!active) return;
+        setExplanation(data);
+        if (data?.userFeedback) {
+          setFeedback(data.userFeedback);
+        } else {
+          setFeedback(null);
+        }
+        setShowReasons(false);
       })
       .catch((err) => {
         if (!active) return;
@@ -89,10 +108,74 @@ export default function AIExplanationPanel({ recordId }) {
       });
 
     return () => { active = false; };
-    /* `language` belongs here: the prose is written per language on the server,
-       so switching it has to refetch. Without it the labels would change around
-       an explanation still written in the language before. */
   }, [recordId, reloadKey, language]);
+
+  const handleVote = async (helpful) => {
+    if (!recordId || savingFeedback) return;
+
+    if (feedback?.helpful === helpful && !showReasons) {
+      if (!helpful) {
+        setShowReasons(true);
+      }
+      return;
+    }
+
+    const previousFeedback = feedback;
+    const nextFeedback = {
+      ...previousFeedback,
+      helpful,
+      reason: helpful ? null : (previousFeedback?.reason || null),
+    };
+
+    setFeedback(nextFeedback);
+    setShowReasons(!helpful);
+    setSavingFeedback(true);
+
+    try {
+      const saved = await submitAIExplanationFeedback(
+        recordId,
+        { helpful, reason: nextFeedback.reason },
+        language,
+      );
+      setFeedback(saved);
+      setFeedbackNotice(true);
+      if (helpful) {
+        setTimeout(() => setFeedbackNotice(false), 4000);
+      }
+    } catch {
+      // Keep optimistic state
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  const handleSelectReason = async (reasonKey) => {
+    if (!recordId || savingFeedback) return;
+
+    const nextFeedback = {
+      ...feedback,
+      helpful: false,
+      reason: reasonKey,
+    };
+    setFeedback(nextFeedback);
+    setSavingFeedback(true);
+
+    try {
+      const saved = await submitAIExplanationFeedback(
+        recordId,
+        { helpful: false, reason: reasonKey },
+        language,
+      );
+      setFeedback(saved);
+      setFeedbackNotice(true);
+      setShowReasons(false);
+      setTimeout(() => setFeedbackNotice(false), 4000);
+    } catch {
+      // Keep optimistic state
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
 
   const watchFor = explanation?.watchFor ?? [];
   const details = (explanation?.details ?? []).filter((d) => d?.values?.length);
@@ -166,13 +249,76 @@ export default function AIExplanationPanel({ recordId }) {
             </section>
           )}
 
-          {explanation.disclaimer && (
-            <p className="aiex__disclaimer">
-              {explanation.disclaimer === SERVER_DISCLAIMER
-                ? t('ai.disclaimer')
-                : explanation.disclaimer}
-            </p>
-          )}
+          <div className="aiex__footer">
+            {explanation.disclaimer && (
+              <p className="aiex__disclaimer">
+                {explanation.disclaimer === SERVER_DISCLAIMER
+                  ? t('ai.disclaimer')
+                  : explanation.disclaimer}
+              </p>
+            )}
+
+            <div className="aiex__feedback">
+              <div className="aiex__feedback-row">
+                <span className="aiex__feedback-prompt">{t('ai.feedback.wasHelpful')}</span>
+                <div className="aiex__feedback-buttons" role="group" aria-label={t('ai.feedback.wasHelpful')}>
+                  <button
+                    type="button"
+                    className={`aiex__feedback-btn aiex__feedback-btn--up ${feedback?.helpful === true ? 'is-active' : ''}`}
+                    onClick={() => handleVote(true)}
+                    disabled={savingFeedback}
+                    aria-pressed={feedback?.helpful === true}
+                    title={t('ai.feedback.yes')}
+                  >
+                    <ThumbsUp size={15} aria-hidden="true" />
+                    <span>{t('ai.feedback.yes')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`aiex__feedback-btn aiex__feedback-btn--down ${feedback?.helpful === false ? 'is-active' : ''}`}
+                    onClick={() => handleVote(false)}
+                    disabled={savingFeedback}
+                    aria-pressed={feedback?.helpful === false}
+                    title={t('ai.feedback.no')}
+                  >
+                    <ThumbsDown size={15} aria-hidden="true" />
+                    <span>{t('ai.feedback.no')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {feedback?.helpful === false && showReasons && (
+                <div className="aiex__feedback-reasons" role="region" aria-label={t('ai.feedback.whatWentWrong')}>
+                  <span className="aiex__feedback-reasons-title">{t('ai.feedback.whatWentWrong')}</span>
+                  <div className="aiex__feedback-chips">
+                    {REASON_KEYS.map(({ key, labelKey }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`aiex__chip ${feedback.reason === key ? 'is-selected' : ''}`}
+                        onClick={() => handleSelectReason(key)}
+                        disabled={savingFeedback}
+                      >
+                        {feedback.reason === key && <Check size={13} aria-hidden="true" />}
+                        <span>{t(labelKey)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {feedbackNotice && (
+                <div className="aiex__feedback-notice" role="status">
+                  <Check size={14} aria-hidden="true" />
+                  <span>
+                    {feedback?.helpful === true
+                      ? t('ai.feedback.thankYou')
+                      : t('ai.feedback.thankYouNoted')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>

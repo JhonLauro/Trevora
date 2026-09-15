@@ -398,8 +398,21 @@ body {
 }
 
 .ink-toggle {
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+
+.ink-toggle:hover:not(:disabled),
+.ink-toggle:active:not(:disabled) {
   color: var(--brand);
-  font-weight: 600;
+}
+
+.ink-toggle.is-visible {
+  color: var(--brand);
+}
+
+.ink-toggle.is-visible:hover:not(:disabled) {
+  color: var(--brand-hover);
 }
 
 .ink-notice {

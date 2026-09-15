@@ -18,6 +18,27 @@ public record AIExplanationResponse(
         String whyItMatters,
         List<String> watchFor,
         String disclaimer,
-        Instant generatedAt
+        Instant generatedAt,
+        AIFeedbackResponse userFeedback
 ) {
+    public AIExplanationResponse(
+            UUID recordId,
+            UUID vehicleId,
+            String source,
+            boolean fallback,
+            String whatWasDone,
+            List<AIExplanationDetail> details,
+            String whyItMatters,
+            List<String> watchFor,
+            String disclaimer,
+            Instant generatedAt
+    ) {
+        this(recordId, vehicleId, source, fallback, whatWasDone, details, whyItMatters, watchFor, disclaimer, generatedAt, null);
+    }
+
+    public AIExplanationResponse withFeedback(AIFeedbackResponse feedback) {
+        return new AIExplanationResponse(
+                recordId, vehicleId, source, fallback, whatWasDone, details, whyItMatters, watchFor, disclaimer, generatedAt, feedback
+        );
+    }
 }

@@ -46,10 +46,10 @@ function subLine(record) {
 export default function RecordsTable({ records, ariaLabel, showVehicle = true, onDelete }) {
   const t = useT();
   /* The action column widens when it holds two controls rather than one: two
-     38px icons and the 4px between them, with a little to spare. It was 132px
+     38px icons and the 10px between them, with a little to spare. It was 132px
      while they were the words "View" and "Delete". */
   const columns = (showVehicle ? CROSS_VEHICLE_COLUMNS : SINGLE_VEHICLE_COLUMNS)
-    .replace(/ 60px$/, onDelete ? ' 88px' : ' 60px');
+    .replace(/ 60px$/, onDelete ? ' 96px' : ' 60px');
 
   return (
     <>
