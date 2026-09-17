@@ -21,19 +21,12 @@ import './styles/ink-vehicle.css';
 // The mechanic's shared view. Last, because it builds on primitives from
 // every file above it and overrides none of them.
 import './styles/ink-mechanic.css';
-// Landing composition and section rhythm. Overrides the .fig-* rules in
-// styles.css without those needing to be edited in place.
-import './styles/ink-landing.css';
 // Adding a service record, and checking it before saving. Overrides the
 // pre-Ink tokens in styles.css, and neutralises the bare `button` rules there
 // and in ink-app.css that out-specify component classes.
-//
-// These last two sheets cover disjoint surfaces — the landing page and the
-// add-record flow share no selectors — so their order relative to each other
-// carries no meaning. Both merely need to come after styles.css.
 import './styles/service-flow.css';
-// One confirmed record, opened. Disjoint from the two above it as well — it
-// shares no selectors with either, and only needs to follow styles.css.
+// One confirmed record, opened. Disjoint from the flow sheet above -- it
+// shares no selectors with it, and only needs to follow styles.css.
 import './styles/ink-record.css';
 // Account settings. The last screen still served by the legacy styles.css
 // block; this sheet overrides it in place of editing that shared file.
@@ -110,9 +103,6 @@ import './styles/receipt-scan.css';
 import './styles/tips.css';
 // The language chooser on the settings page.
 import './styles/language.css';
-// Status badges as labels rather than controls. Additive, shares no selector
-// with anything above it.
-import './styles/record-badges.css';
 // Owner concerns, and their quotation in the shared mechanic view. Additive,
 // own `.concern*` namespace.
 import './styles/concerns.css';

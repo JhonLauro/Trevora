@@ -466,27 +466,6 @@
   }
 }
 
-.garage-dots {
-  display: none;
-  gap: 8px;
-  justify-content: center;
-}
-
-.garage-dots button {
-  background: var(--rule);
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  height: 9px;
-  min-height: 0;
-  padding: 0;
-  width: 9px;
-}
-
-.garage-dots button.is-active {
-  background: var(--ink-block);
-}
-
 /* ---------------------------------------------------------- vehicle card */
 
 .garage-card {
@@ -1412,10 +1391,6 @@
   .garage-card__chart .ink-bars {
     gap: 5px;
     height: 46px;
-  }
-
-  .garage-dots {
-    display: flex;
   }
 
   .ink-badge {

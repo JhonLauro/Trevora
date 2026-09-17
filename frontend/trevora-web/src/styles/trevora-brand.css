@@ -126,8 +126,7 @@ body {
 /* The mark is three plates in depth; at 30px the rear two are three pixels
    of tone each, which is the whole point of them — do not shrink it further
    without dropping to a single plate. */
-.ink-lockup__mark,
-.trevora-logo__mark {
+.ink-lockup__mark {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
@@ -299,8 +298,7 @@ body {
 .ink-button,
 .ink-auth .ink-button,
 .ink-button--primary,
-.ink-button--oauth,
-.ink-back-button {
+.ink-button--oauth {
   border-radius: var(--radius-pill);
 }
 
@@ -421,7 +419,6 @@ body {
   color: #3b4a43;
 }
 
-.ink-progress__bar[data-active='true'],
 .ink-meter__bar[data-filled='true'] {
   background: var(--brand);
 }
@@ -432,9 +429,7 @@ body {
    Scoped to the Ink component classes so no legacy `.fig-*` block is caught
    by accident. `.ink-sheet` is deliberately absent — that is the full-height
    mobile menu drawer, not a card, and rounding it would be wrong. */
-.ink-card,
-.ink-panel-card,
-.ink-tile {
+.ink-card {
   border-radius: var(--radius-card);
 }
 

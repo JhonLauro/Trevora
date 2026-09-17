@@ -93,12 +93,6 @@ body {
   line-height: 1.5;
 }
 
-/* Ink separates surfaces with tone and hairlines. Menus and dropdowns keep a
-   shadow because they float over content and need to read as detached. */
-.app-content *:not(.active-vehicle-menu):not(.dropdown-menu):not(.menu-panel) {
-  box-shadow: none;
-}
-
 /* ------------------------------------------------------------ typography */
 
 h1,
@@ -126,8 +120,6 @@ h3 {
    never for card headers, table headers or form legends. */
 .card h3,
 .card h4,
-.stat-card h3,
-.stat-card strong,
 table th,
 label,
 legend,
@@ -143,23 +135,6 @@ h5,
 h6 {
   font-family: var(--font-sans);
   font-weight: 600;
-}
-
-/* Page titles were set per-page in styles.css and drifted between 1.5rem and
-   2rem. One size everywhere — inconsistent headings were part of the original
-   complaint about the old UI. */
-.page-header h1,
-.dashboard-header h1,
-.record-detail-header h1,
-.shared-access-header h1,
-.service-history-header h1,
-.notifications-header h1,
-.saved-record-state h1 {
-  font-family: var(--font-serif);
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
 }
 
 small,
@@ -180,7 +155,6 @@ small,
 /* Plates, odometer readings, dates and record ids read as data, not prose. */
 .mono,
 .plate,
-.record-id,
 .odometer {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -264,8 +238,7 @@ label {
 
 /* --------------------------------------------------------------- buttons */
 
-button,
-.button-link {
+button {
   border-radius: var(--radius);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -349,8 +322,6 @@ a:focus-visible {
 }
 
 /* Secondary / ghost buttons across the app share one treatment. */
-.secondary-button,
-.ghost-button,
 .button-secondary,
 button.secondary,
 button.ghost {
@@ -359,8 +330,6 @@ button.ghost {
   color: var(--ink);
 }
 
-.secondary-button:hover:not(:disabled),
-.ghost-button:hover:not(:disabled),
 .button-secondary:hover:not(:disabled),
 button.secondary:hover:not(:disabled),
 button.ghost:hover:not(:disabled) {
@@ -372,8 +341,6 @@ button.ghost:hover:not(:disabled) {
 
 .card,
 .panel,
-.stat-card,
-.surface-card,
 section.card {
   background: var(--surface);
   border: 1px solid var(--rule);
@@ -384,49 +351,12 @@ section.card {
 
 .chip,
 .badge,
-.pill,
-.status-chip {
+.pill {
   border-radius: 999px;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 600;
   padding: 5px 12px;
-}
-
-.chip-ok,
-.badge-ok,
-.status-validated,
-.status-confirmed {
-  background: var(--ok-fill);
-  border: 1px solid var(--ok-border);
-  color: var(--ok-text);
-}
-
-.chip-warn,
-.badge-warn,
-.status-review,
-.status-pending {
-  background: var(--warn-fill);
-  border: 1px solid var(--warn-border);
-  color: var(--warn-text);
-}
-
-.chip-bad,
-.badge-bad,
-.status-overdue,
-.status-error,
-.status-denied {
-  background: var(--bad-fill);
-  border: 1px solid var(--bad-border);
-  color: var(--bad-text);
-}
-
-.chip-neutral,
-.badge-neutral,
-.status-draft {
-  background: var(--sunken);
-  border: 1px solid var(--rule);
-  color: var(--ink-muted);
 }
 
 /* ---------------------------------------------------------------- tables */
@@ -453,320 +383,6 @@ table td {
 
 table tbody tr:last-child td {
   border-bottom: 0;
-}
-
-/* ----------------------------------------------------------- app sidebar */
-
-/* The sidebar is the ink panel from the auth screens. Text colours are set
-   explicitly here: the palette sweep could not know which rules render on
-   ink rather than on paper. */
-.app-sidebar {
-  background: var(--ink-block);
-  border-right: 1px solid var(--on-ink-rule);
-  color: var(--on-ink);
-  padding: 20px 0;
-}
-
-.app-sidebar a,
-.app-sidebar button {
-  color: var(--on-ink);
-}
-
-.app-sidebar small,
-.app-sidebar .muted {
-  color: var(--on-ink-muted);
-}
-
-.side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 10px;
-}
-
-.side-nav a {
-  align-items: center;
-  border-radius: var(--radius);
-  color: var(--on-ink-muted);
-  display: flex;
-  font-size: 15px;
-  font-weight: 600;
-  gap: 12px;
-  min-height: 44px;
-  padding: 0 12px;
-  text-decoration: none;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
-}
-
-.side-nav a:hover {
-  background: var(--on-ink-rule);
-  color: var(--on-ink);
-}
-
-/* Deliberately keyed on `.active` only, never `[aria-current]`: several nav
-   items fall back to /vehicles when no vehicle is selected, so router-derived
-   matching lights up three items at once. AppShell decides what is active. */
-.side-nav a.active {
-  background: var(--on-ink);
-  color: var(--ink);
-}
-
-.side-nav .nav-icon {
-  align-items: center;
-  display: inline-flex;
-  flex: 0 0 20px;
-  justify-content: center;
-}
-
-.brand-mark {
-  border-bottom: 1px solid var(--on-ink-rule);
-  margin-bottom: 16px;
-  padding: 0 16px 16px;
-}
-
-.brand-mark .trevora-logo__wordmark {
-  font-family: var(--font-serif);
-  font-size: 21px;
-  font-weight: 600;
-}
-
-/* Active-vehicle switcher */
-.active-vehicle-panel {
-  border-bottom: 1px solid var(--on-ink-rule);
-  margin-bottom: 16px;
-  padding: 0 14px 16px;
-}
-
-.active-vehicle-panel > span {
-  color: var(--on-ink-faint);
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-
-.active-vehicle-card {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--on-ink-rule);
-  border-radius: var(--radius);
-  color: var(--on-ink);
-  display: flex;
-  gap: 10px;
-  min-height: 52px;
-  padding: 0 12px;
-  text-align: left;
-  width: 100%;
-}
-
-.active-vehicle-card:hover:not(:disabled) {
-  background: var(--on-ink-rule);
-  border-color: var(--border);
-}
-
-.active-vehicle-copy {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.active-vehicle-copy strong {
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.active-vehicle-copy small {
-  color: var(--on-ink-muted);
-  font-size: 13px;
-}
-
-.active-vehicle-menu {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
-  box-shadow: 0 8px 24px rgba(28, 27, 25, 0.16);
-  margin-top: 6px;
-  overflow: hidden;
-  padding: 6px;
-}
-
-.active-vehicle-menu button,
-.active-vehicle-menu a {
-  background: transparent;
-  border-radius: 6px;
-  color: var(--ink);
-  display: flex;
-  flex-direction: column;
-  min-height: 44px;
-  padding: 8px 10px;
-  text-align: left;
-  width: 100%;
-}
-
-.active-vehicle-menu button:hover,
-.active-vehicle-menu a:hover {
-  background: var(--sunken);
-  color: var(--ink);
-}
-
-.active-vehicle-menu button.selected {
-  background: var(--ink-block);
-  color: var(--on-ink);
-}
-
-.active-vehicle-menu small {
-  color: var(--ink-muted);
-  font-size: 13px;
-}
-
-.active-vehicle-menu button.selected small {
-  color: var(--on-ink-muted);
-}
-
-/* User panel + sign out */
-.sidebar-user-panel {
-  border-top: 1px solid var(--on-ink-rule);
-  margin-top: auto;
-  padding: 16px 14px 0;
-}
-
-.sidebar-user-card {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  min-width: 0;
-}
-
-.sidebar-user-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.sidebar-user-copy strong {
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-user-copy small {
-  color: var(--on-ink-faint);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-signout-button {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--on-ink-rule);
-  color: var(--on-ink-muted);
-  display: flex;
-  gap: 10px;
-  justify-content: flex-start;
-  min-height: 44px;
-  width: 100%;
-}
-
-.sidebar-signout-button:hover {
-  background: var(--on-ink-rule);
-  color: var(--on-ink);
-}
-
-.notification-pill {
-  background: var(--on-ink);
-  border-radius: 999px;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: auto;
-  padding: 2px 8px;
-}
-
-.side-nav a.active .notification-pill,
-.side-nav a[aria-current='page'] .notification-pill {
-  background: var(--ink-block);
-  color: var(--on-ink);
-}
-
-.sidebar-collapse-button,
-.brand-logo-button {
-  background: transparent;
-  border: 0;
-  color: var(--on-ink-muted);
-  min-height: 32px;
-  padding: 4px;
-}
-
-.sidebar-collapse-button:hover,
-.brand-logo-button:hover {
-  background: var(--on-ink-rule);
-  color: var(--on-ink);
-}
-
-/* ------------------------------------------------------------ brand mark */
-
-/* The mark must not carry chroma — a coloured element anywhere in Trevora
-   means record status. Depth comes from two tones of the same neutral. */
-.trevora-logo {
-  font-weight: 600;
-}
-
-.trevora-logo__wordmark {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.trevora-logo__mark-primary,
-.trevora-logo__vehicle {
-  fill: var(--ink);
-}
-
-.trevora-logo__mark-accent {
-  fill: var(--ink-faint);
-}
-
-.trevora-logo__road {
-  stroke: var(--paper);
-}
-
-.trevora-logo__lane {
-  stroke: var(--ink);
-}
-
-.trevora-logo--light .trevora-logo__mark-primary,
-.trevora-logo--light .trevora-logo__vehicle {
-  fill: var(--on-ink);
-}
-
-.trevora-logo--light .trevora-logo__mark-accent {
-  fill: var(--on-ink-faint);
-}
-
-.trevora-logo--light .trevora-logo__road {
-  stroke: var(--ink);
-}
-
-.trevora-logo--light .trevora-logo__lane {
-  stroke: var(--ink);
-}
-
-/* --------------------------------------------------------- app content */
-
-.app-content {
-  background: var(--paper);
-  min-width: 0;
 }
 
 /* ---------------------------------------------------------------- lockup

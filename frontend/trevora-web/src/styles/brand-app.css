@@ -35,13 +35,6 @@
   color: var(--ink);
 }
 
-/* Same fall-through, on the carousel's page dots. They are 9px, so the fill
-   showed up as a black speck rather than as a button turning dark. */
-.garage-dots button:hover:not(:disabled),
-.garage-dots button:active:not(:disabled) {
-  background: var(--ink-faint);
-}
-
 /* =====================================================================
    The app shell — the one thing on every screen.
 
@@ -490,8 +483,7 @@
 
 /* The range and layout switches are the vehicle page's segmented control at a
    smaller size — same object, so it is the same control. */
-.garage-page .garage-range button,
-.garage-page .garage-view button {
+.garage-page .garage-range button {
   align-items: center;
   display: inline-flex;
   font-size: 14px;
@@ -798,10 +790,6 @@
   background: var(--brand-hover);
   border-color: var(--brand-hover);
   transform: translateY(1px);
-}
-
-.garage-page .garage-dots button.is-active {
-  background: var(--brand);
 }
 
 .garage-page .ink-table-card__link {

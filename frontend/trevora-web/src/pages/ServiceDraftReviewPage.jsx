@@ -10,7 +10,6 @@ import RecordIssueBand from '../components/flow/RecordIssueBand';
 import DuplicateDraftDialog from '../components/flow/DuplicateDraftDialog.jsx';
 import StatusRail from '../components/flow/StatusRail';
 import ServiceLinesEditor, { Balance, balanceWarning } from '../components/flow/ServiceLinesEditor';
-import ConfirmDialog from '../components/ink/ConfirmDialog';
 import LeaveDraftDialog from '../components/flow/LeaveDraftDialog.jsx';
 import { useLeaveGuard } from '../navigation/LeaveGuard.jsx';
 import { amountsCheck, formatPeso, railAttention, serializeLineEntries } from '../utils/serviceLines';

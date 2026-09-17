@@ -116,10 +116,6 @@ function notifyAuthUserChanged() {
   }
 }
 
-export function isVehicleOwnerUser(user = getActiveCurrentUser()) {
-  return user?.role === 'VEHICLE_OWNER';
-}
-
 export function getCurrentUserHeaders() {
   const user = getLoggedInUser();
   if (!user) {

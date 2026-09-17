@@ -103,8 +103,6 @@ export const BODY_TYPES = [
   },
 ];
 
-export const VEHICLE_CLASSES = ['car', 'motorcycle'];
-
 export const OTHER = 'Other';
 
 /* make → { model: bodyType }. Models are listed roughly by how common they
@@ -310,22 +308,9 @@ export const VEHICLE_CATALOG = {
   },
 };
 
-export function catalogMakes() {
-  return Object.keys(VEHICLE_CATALOG);
-}
-
-export function modelsForMake(make) {
-  const models = VEHICLE_CATALOG[make];
-  return models ? Object.keys(models) : [];
-}
-
 /** The whole point of the catalogue: a known model already knows its shape. */
 export function bodyTypeFor(make, model) {
   return VEHICLE_CATALOG[make]?.[model] ?? null;
-}
-
-export function isKnownMake(make) {
-  return Object.prototype.hasOwnProperty.call(VEHICLE_CATALOG, make);
 }
 
 export function bodyTypeLabel(id) {
@@ -341,10 +326,6 @@ export function bodyTypeLabel(id) {
  */
 export function vehicleClassFor(bodyType) {
   return BODY_TYPES.find((type) => type.id === bodyType)?.vehicleClass ?? 'car';
-}
-
-export function isMotorcycle(bodyType) {
-  return vehicleClassFor(bodyType) === 'motorcycle';
 }
 
 /**

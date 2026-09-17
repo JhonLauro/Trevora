@@ -5,7 +5,7 @@ before starting work, and before pointing Claude Code at anything.
 
 The goal is not process for its own sake. It is that four people and four AI
 assistants can work the same week without spending Friday resolving conflicts
-in an 11,000-line stylesheet.
+in a stylesheet everyone has open.
 
 ---
 

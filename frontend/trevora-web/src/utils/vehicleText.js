@@ -24,7 +24,3 @@ export function displayVehicleSubtitle(vehicle) {
   const parts = [vehicle?.plateNumber, modelLine === name ? null : modelLine].filter(Boolean);
   return parts.join(' · ') || 'No plate recorded';
 }
-
-export function vehicleInitials(vehicle) {
-  return displayVehicleName(vehicle).trim().charAt(0).toUpperCase() || 'V';
-}

@@ -662,22 +662,6 @@
   font-weight: 600;
 }
 
-.coverage-toggle {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 10px;
-}
-
-.coverage-toggle input {
-  height: 20px;
-  width: 20px;
-}
-
-.coverage-amount {
-  margin-top: 12px;
-}
-
 .parts-views {
   border: 1px solid var(--rule-faint);
   border-radius: 8px;
@@ -1009,49 +993,6 @@
   font-size: 15px;
 }
 
-/* -------------------------------------------------------------- upcoming */
-
-.vehicle-upcoming {
-  margin-top: 20px;
-}
-
-.vehicle-upcoming article {
-  align-items: center;
-  display: flex;
-  gap: 20px;
-  justify-content: space-between;
-  padding: 18px 22px;
-}
-
-.vehicle-upcoming article + article {
-  border-top: 1px solid var(--rule-hairline);
-}
-
-.vehicle-upcoming__main h3 {
-  font-family: var(--font-sans);
-  font-size: 17px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.vehicle-upcoming__main p {
-  color: var(--ink-muted);
-  font-size: 15px;
-  margin: 4px 0 0;
-}
-
-.vehicle-upcoming__side {
-  align-items: center;
-  display: flex;
-  flex: 0 0 auto;
-  gap: 14px;
-}
-
-.vehicle-upcoming__when {
-  color: var(--ink-muted);
-  font-size: 15px;
-}
-
 .vehicle-page .ink-empty {
   margin-top: 20px;
 }
@@ -1212,16 +1153,6 @@
 
   .vehicle-timeline__cost {
     min-width: 0;
-  }
-
-  .vehicle-upcoming article {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .vehicle-upcoming__side {
-    flex-wrap: wrap;
   }
 
   .vehicle-years li {
@@ -1831,7 +1762,6 @@
     width: 100%;
   }
 }
-
 
 /* --------------------------------------------- timeline card action row
 

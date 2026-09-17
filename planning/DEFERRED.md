@@ -4358,3 +4358,37 @@ Supersedes "Not fixed" in the earlier note on the Gateway repair order. Two laye
 - **Limits.** A customer address printed with no label, or more than six lines below
   its label, is not caught. A shop address printed directly under a "Sold To" label
   would be wrongly blanked; no such receipt has been seen.
+
+## Dead code removed, and how it was shown to be dead (2026-09-16)
+
+- **Gone.** Frontend files nothing imports or routes: `DashboardPage`,
+  `VehicleProfileSelectionPage`, `VehicleServiceHistoryPage`, `PartsMap`,
+  `BrandLogo` and `pages/.settings-conflict-backup`. This reverses the
+  `frontend/CONTEXT.md` note that kept them "for comparison"; git history has them.
+  About 11,500 lines of CSS for components that no longer exist (the old shell
+  and sidebar, dashboard, Figma and landing mockups, the pre-tab drafts block),
+  plus `record-badges.css` and `ink-landing.css`, which had nothing live left;
+  `styles.css` is now about 1,090 lines. Also 40 exported helpers nothing imported
+  (and what only they used), 40 unused translation keys in en/tl/ceb, one private
+  backend method, five unused Java imports and two tracked run logs.
+- **How it was checked.** Files: an esbuild import graph from `main.jsx`. CSS: a
+  rule went only if one of its classes (outside `:not`/`:is`/`:where`) names a
+  component that appears nowhere in the live code, `index.html`, `sw.js` or
+  driver.js, and matches no prefix the code completes at runtime (`is-`,
+  `ink-badge--`, `tab-`, ...). Then every element's computed style on 29 screens,
+  signed in and out with a mocked API, at 1280px and 375px, before and after:
+  0 of 9,484 elements changed. Build, `check-i18n` and `check_refs` pass. The
+  backend suite matches its baseline (537 run, 1 failure, 12 errors, same four
+  classes, all environmental here).
+- **Not covered.** States the harness could not reach with mocked data (a
+  receipt mid-upload, open dialogs). A class name built in a shape the prefix
+  scan does not recognise would have been missed; none was found.
+- **Failing before and after, not caused by this.** Under the Node stand-in for
+  vitest: `concerns.test.js` (1) and `serviceCategory.test.js` (4).
+  `ReceiptAllowance.test.js` and `vehiclePatch.test.js` import `.jsx`, which plain
+  Node cannot load. vitest is declared in `package.json` but not installed.
+- **Kept on purpose.** `api/localNotifications.js` is read-only now (nothing
+  writes to it) but still shows entries older versions stored.
+  `api/activeVehicle.js` only clears the old active-vehicle keys on sign-out.
+  `scripts/apply_i18n.py` and `add_hooks.py` are one-off tools, kept for
+  translating the 16 pages that still hard-code English.

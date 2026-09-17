@@ -6,8 +6,8 @@
    badge ladder they share.
 
    A new file rather than an addition to styles.css, per
-   planning/COLLABORATION.md §2 — that file is 11k lines and shared by four
-   people. Imported last in main.jsx, so it wins over the older tokens these
+   planning/COLLABORATION.md §2 — that file is shared by four people.
+   Imported last in main.jsx, so it wins over the older tokens these
    screens used to run on.
 
    The rules carried from Ink, unchanged:
@@ -629,34 +629,6 @@
      right edge. `anywhere` breaks the run instead of the layout. */
   overflow-wrap: anywhere;
 }
-
-/* --- the conflicting-value chooser --- */
-
-.flow-choice {
-  display: flex;
-  gap: 10px;
-}
-
-.flow-choice__opt {
-  flex: 1;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 11px 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-  background: var(--surface);
-  font-family: inherit;
-  cursor: pointer;
-  color: var(--ink);
-}
-
-.flow-choice__opt:hover:not(:disabled) { border-color: var(--ink); background: var(--surface-sunken); }
-.flow-choice__opt.is-active { border: 1.5px solid var(--ink); }
-
-.flow-choice__verdict { font-size: 15px; font-weight: 600; }
-.flow-choice__opt:not(.is-active) .flow-choice__verdict { color: var(--ink-muted); }
 
 /* ------------------------------------------------- the coverage toggle */
 

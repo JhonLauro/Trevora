@@ -38,14 +38,8 @@ export const LINE_KINDS = [
   },
 ];
 
-const KIND_LABELS = new Map(LINE_KINDS.map((kind) => [kind.value, kind.label]));
-
 /** Matches the backend default: the kind that claims least when it is unclear. */
 export const DEFAULT_LINE_KIND = 'MATERIAL';
-
-export function lineKindLabel(kind) {
-  return KIND_LABELS.get(kind) ?? KIND_LABELS.get(DEFAULT_LINE_KIND);
-}
 
 export function lineEntriesOf(item) {
   return Array.isArray(item?.lineEntries) ? item.lineEntries.filter(Boolean) : [];
@@ -53,22 +47,6 @@ export function lineEntriesOf(item) {
 
 export function allLineEntries(services) {
   return serviceItemsArray(services).flatMap(lineEntriesOf);
-}
-
-export function hasLineEntries(services) {
-  return allLineEntries(services).length > 0;
-}
-
-/** How many lines of each kind, for a one-glance summary of a long invoice. */
-export function kindCounts(services) {
-  const counts = new Map(LINE_KINDS.map((kind) => [kind.value, 0]));
-  allLineEntries(services).forEach((entry) => {
-    const key = counts.has(entry.kind) ? entry.kind : DEFAULT_LINE_KIND;
-    counts.set(key, counts.get(key) + 1);
-  });
-  return LINE_KINDS
-    .map((kind) => ({ ...kind, count: counts.get(kind.value) }))
-    .filter((kind) => kind.count > 0);
 }
 
 // Money is compared in whole centavos. Summing a column of floats produces

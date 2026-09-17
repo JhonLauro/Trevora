@@ -21,14 +21,6 @@ export function createManualServiceDraft(draft) {
   });
 }
 
-export async function createReceiptServiceDraft({ vehicleId, receiptImage }) {
-  return createReceiptPagesServiceDraft({
-    vehicleId,
-    pages: [{ file: receiptImage, pageNumber: 1 }],
-    receiptInputMode: 'UPLOAD',
-  });
-}
-
 /**
  * Stores the pages, then sends them for reading.
  *
@@ -244,4 +236,3 @@ function normalizeValidation(validation) {
     flaggedFields: validation.flaggedFields ?? [],
   };
 }
-

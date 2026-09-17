@@ -98,9 +98,4 @@ export function isApiWarm() {
   return Boolean(warmedAt) && Date.now() - warmedAt < WARM_TTL_MS;
 }
 
-/** True while a wake-up is outstanding and still plausibly a wake-up. */
-export function isApiWaking() {
-  return Boolean(inFlight) && !isApiWarm();
-}
-
 export { WARM_TIMEOUT_MS, HEALTH_URL };

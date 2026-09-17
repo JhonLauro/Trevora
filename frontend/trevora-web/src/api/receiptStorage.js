@@ -3,16 +3,6 @@ import { requireSupabaseClient, supabase } from './supabaseClient.js';
 
 export const RECEIPT_BUCKET = import.meta.env.VITE_SUPABASE_RECEIPT_BUCKET ?? 'service-receipts';
 
-export async function uploadReceiptImage({ vehicleId, receiptImage }) {
-  const [page] = await uploadReceiptPages({ vehicleId, pages: [receiptImage] });
-  return {
-    bucket: page.bucket,
-    path: page.path,
-    originalFilename: page.originalFilename,
-    contentType: page.contentType,
-  };
-}
-
 /**
  * @param onPageStored called with (storedCount, totalCount) after each page
  *     lands. Pages upload one at a time, so this is a real count of work

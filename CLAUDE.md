@@ -140,8 +140,8 @@ here because this file is loaded automatically and that one is not.
 - **Ask what the user owns** if the task does not make it obvious, and stay
   inside it. Work is split by feature (backend `features.*` package plus the
   frontend pages that use it), not by layer.
-- **Never reorder or reformat a shared file** — `styles.css` (11k lines),
-  `App.jsx` routes, `main.jsx` imports. Add at the end, leave the rest alone. A
+- **Never reorder or reformat a shared file** — `styles.css`, `App.jsx`
+  routes, `main.jsx` imports. Add at the end, leave the rest alone. A
   whitespace pass on any of these conflicts with everybody.
 - **Prefer a new stylesheet** under `src/styles/<feature>.css`, imported at the
   end of `main.jsx`, over adding to `styles.css`.

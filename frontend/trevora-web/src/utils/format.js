@@ -38,11 +38,6 @@ export function formatAmount(value) {
   return numberFormatter.format(Number(value || 0));
 }
 
-/** Standalone value, for a stat that carries no currency label of its own. */
-export function formatMoney(value) {
-  return `PHP ${formatAmount(value)}`;
-}
-
 /**
  * A bare grouped distance, for a sentence that carries "km" itself.
  *

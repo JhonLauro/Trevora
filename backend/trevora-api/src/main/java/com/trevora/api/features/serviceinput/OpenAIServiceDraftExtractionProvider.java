@@ -1666,20 +1666,6 @@ public class OpenAIServiceDraftExtractionProvider {
                 || "EXTRACTED_AND_SUMMARIZED".equalsIgnoreCase(sourceType);
     }
 
-    private Map<String, String> asStringMap(JsonNode node) {
-        if (node == null || node.isNull() || !node.isObject()) {
-            return Map.of();
-        }
-        Map<String, String> values = new LinkedHashMap<>();
-        node.fields().forEachRemaining(entry -> {
-            String value = asText(entry.getValue());
-            if (value != null) {
-                values.put(entry.getKey(), value);
-            }
-        });
-        return values;
-    }
-
     private String stripMarkdownFence(String value) {
         String trimmed = value.trim();
         if (!trimmed.startsWith("```")) {
