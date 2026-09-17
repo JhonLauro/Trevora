@@ -11,15 +11,11 @@ import { getVehicles } from './vehicles.js';
  *
  * <p>Cached for the life of the page. Without it every route change costs two
  * requests before anything renders, which on a cold backend is the difference
- * between a slow app and an unusable one. `clearOnboardingCache()` is called
- * at the two moments the answer changes: finishing the walkthrough, and saving
- * the first vehicle.
+ * between a slow app and an unusable one. `markOnboardingStep()` updates it at
+ * the two moments the answer changes: finishing the walkthrough, and saving the
+ * first vehicle.
  */
 let pending = null;
-
-export function clearOnboardingCache() {
-  pending = null;
-}
 
 /**
  * Records a step as done without asking the server again.

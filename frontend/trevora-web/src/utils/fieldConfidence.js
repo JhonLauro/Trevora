@@ -129,34 +129,6 @@ export function issuesByField(validation) {
   return issues;
 }
 
-/**
- * How many fields the owner is being asked to look at.
- *
- * <p>Counted by field, not by issue. One field can carry two — a total that is
- * both blank and was read with low confidence — and that is one thing to fix,
- * not two. Counting issues inflated the number on exactly the drafts that
- * needed the most attention, where it mattered most that the count was
- * believable.
- *
- * <p>An empty odometer is not counted at all: plenty of receipts never print
- * one, and treating that as a problem made almost every draft look like work.
- */
-export function attentionCount(validation, form = {}) {
-  const fields = new Set();
-  for (const issue of validation?.missingRequiredFields ?? []) {
-    fields.add(issue.fieldName);
-  }
-  for (const issue of validation?.invalidFields ?? []) {
-    fields.add(issue.fieldName);
-  }
-  for (const issue of validation?.flaggedFields ?? []) {
-    if (issue.requiresReview && !isBlankOptionalField(issue, form)) {
-      fields.add(issue.fieldName);
-    }
-  }
-  return fields.size;
-}
-
 export function isBlankOptionalField(issue, form = {}) {
   return issue?.fieldName === 'odometer' && !String(form.odometer ?? issue.currentValue ?? '').trim();
 }

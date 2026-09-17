@@ -8,7 +8,7 @@ import RecordsTable from '../components/ink/RecordsTable.jsx';
 import useGarage from '../hooks/useGarage.js';
 import { getActiveCurrentUser, getUserDisplayName } from '../api/currentUser.js';
 import { usePendingAccessRequests } from '../hooks/usePendingAccessRequests.js';
-import { formatAmount, formatMonthYear, pluralize, relativeDays } from '../utils/format';
+import { formatAmount, formatMonthYear, relativeDays } from '../utils/format';
 import {
   allTimeSeries, lastTwelveMonths, monthSeries, peakMonth, previousPeriodTotal, seriesTotal,
 } from '../utils/monthlySeries';

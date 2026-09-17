@@ -41,24 +41,6 @@
   margin: 6px 0 0;
 }
 
-/* The line that replaced four counters. One sentence, scannable, and it says
-   nothing at all when there are no records — the empty state speaks then. */
-.mechanic-summary {
-  color: var(--ink-muted);
-  font-size: 16px;
-  margin: 8px 0 0;
-}
-
-.mechanic-summary strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.mechanic-summary__warn {
-  color: var(--status-warn-text);
-  font-weight: 600;
-}
-
 /* ------------------------------------------------------------- briefing */
 
 .mechanic-briefing {

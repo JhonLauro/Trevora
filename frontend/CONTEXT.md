@@ -54,7 +54,7 @@ Three of them bite:
 
 `service-flow.css` neutralises all three inside `.flow`: a zero-specificity `.flow :where(button)` reset, plus `.flow button:hover` (which ties the legacy rule at (0,2,1) and wins on import order, since this sheet loads last). Component hovers carry `:not(:disabled)` to reach (0,3,0) and win in turn. Copy that pattern rather than editing the shared sheets.
 
-Shared Ink components live in `src/components/ink/` — `RecordsTable` (cross-vehicle and single-vehicle shapes), `Timeline`, `PartsView`, `Tabs`, `MonthBars`. Derivations live in `src/utils/` and are shared by both pages: `recordStatus`, `serviceComponents`, `componentStatus`, `serviceCategory`, `completeness`, `monthlySeries`, `nextDue`, `format`, `vehicleText`.
+Shared Ink components live in `src/components/ink/` — `RecordsTable` (cross-vehicle and single-vehicle shapes), `Timeline`, `PartsView`, `Tabs`, `MonthBars`. Derivations live in `src/utils/` and are shared by both pages: `recordStatus`, `serviceComponents`, `componentStatus`, `serviceCategory`, `completeness`, `monthlySeries`, `format`, `vehicleText`.
 
 ### Information architecture (changed Aug 2026)
 
@@ -89,7 +89,7 @@ There are three two-wheeler body types — `scooter`, `underbone` and `motorcycl
 
 Adding a model is a one-line change in the catalogue. The table is intentionally not exhaustive.
 
-`/dashboard` and `/vehicles` redirect to `/`. `src/api/activeVehicle.js`, `DashboardPage.jsx`, `VehicleProfileSelectionPage.jsx`, `VehicleServiceHistoryPage.jsx` and `PartsMap.jsx` are unrouted leftovers kept only for comparison; do not build against them. Use `src/utils/vehicleText.js` for vehicle display strings.
+`/dashboard` and `/vehicles` redirect to `/`. The unrouted pre-Ink pages — `DashboardPage.jsx`, `VehicleProfileSelectionPage.jsx`, `VehicleServiceHistoryPage.jsx` and `PartsMap.jsx` — were deleted on 2026-09-16; git history still has them for comparison. `src/api/activeVehicle.js` is kept only to clear the old active-vehicle keys on sign-out. Use `src/utils/vehicleText.js` for vehicle display strings.
 
 The **parts map is drawn**: artwork in `components/ink/vehicleDrawings.jsx`, viewBoxes and marker anchors in `components/ink/vehicleShapes.js`, rendered by `components/ink/VehicleDiagram.jsx` above the component list in `PartsView`.
 
@@ -100,8 +100,6 @@ Front and rear were dropped in the 2026-08-23 redraw. They held lights, brakes a
 **Marker numbers are global**, not per view: each is the component's position in its class taxonomy (`componentNumbersFor` in `utils/serviceComponents.js`), so 5 is Tires on both tabs and every body type, and the list is ordered to match rather than putting documented components first. A car's side view reads 1–6 and its bonnet 7–13.
 
 The view tabs are the only real buttons on the map; markers are `aria-hidden`, since each duplicates a list row and putting the same controls in the tab order twice is worse than a pointer-only map. Selection is owned by the row — hovering a marker mirrors its row, not the other way round — and both hover and selection are rings *outside* the marker, because the marker's own fill and stroke are already carrying status (solid + solid ring = has records, hollow + dashed = none). A vehicle with a null `bodyType` gets no drawing and no tabs, just an explanatory note and the full component list — picking a silhouette would assert a fact the row does not carry. The drawing is hidden below 720px where markers fall under a fingertip; the tabs stay, working as a "where on the vehicle" filter.
-
-`PartsMap.jsx` is the pre-Ink parts map, in the old palette and with the four-status due/overdue grading that was removed for being a forecast. It is **not** unwired, whatever earlier notes said: `MechanicAccessSessionPlaceholderPage` is routed at `/mechanic/access/:sessionId` and still renders it. Replacing it is its own job.
 
 Nav is five destinations — Garage, Records, Shared access, Notifications, Settings. "Add service record" is not among them: it is an action, not a place, and it is the primary button in each page header.
 

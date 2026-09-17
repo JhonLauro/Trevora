@@ -9,7 +9,6 @@
  * See planning/DEFERRED.md.
  */
 import { serviceItemsArray } from './serviceText';
-import { vehicleClassFor } from '../data/vehicleCatalog';
 
 /* Shared between both vehicle classes — an engine is an engine. */
 const COMMON_RULES = [
@@ -223,9 +222,4 @@ export function inferComponents(record, vehicleClass = 'car') {
     return ['engine', 'brakes', 'tires', 'lights'];
   }
   return ['engine'];
-}
-
-/** Convenience for callers that hold a vehicle rather than a class. */
-export function inferComponentsForVehicle(record, vehicle) {
-  return inferComponents(record, vehicleClassFor(vehicle?.bodyType));
 }

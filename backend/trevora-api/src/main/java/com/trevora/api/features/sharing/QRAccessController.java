@@ -2,7 +2,6 @@ package com.trevora.api.features.sharing;
 
 import com.trevora.api.features.sharing.CreateMechanicAccessRequest;
 import com.trevora.api.features.sharing.CreateQRAccessRequest;
-import com.trevora.api.features.sharing.MechanicAccessRequestResponse;
 import com.trevora.api.features.sharing.PublicMechanicRequestStatusResponse;
 import com.trevora.api.features.sharing.PublicQRAccessRequestResponse;
 import com.trevora.api.features.sharing.QRAccessRequestResponse;

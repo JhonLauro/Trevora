@@ -2,7 +2,6 @@ package com.trevora.api.features.sharing;
 
 
 import com.trevora.api.features.auth.CurrentUserService;
-import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.vehicle.VehicleService;
 import com.trevora.api.features.sharing.CreateMechanicAccessRequest;
 import com.trevora.api.features.sharing.CreateQRAccessRequest;

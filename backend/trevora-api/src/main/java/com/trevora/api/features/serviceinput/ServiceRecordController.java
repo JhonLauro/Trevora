@@ -1,7 +1,6 @@
 package com.trevora.api.features.serviceinput;
 
 
-import com.trevora.api.features.servicerecord.ServiceRecord;
 import com.trevora.api.features.serviceinput.ManualServiceDraftRequest;
 import com.trevora.api.features.validation.ServiceDraftCorrectionRequest;
 import com.trevora.api.features.serviceinput.ServiceDraftResponse;

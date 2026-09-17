@@ -132,42 +132,6 @@
   overflow-wrap: anywhere;
 }
 
-/* UUIDs, folded away. They matter when chasing a support question and never
-   otherwise, so they do not get four rows of the page. */
-.record-trace {
-  border-top: 1px solid var(--rule-hairline);
-  margin-top: 20px;
-  padding-top: 16px;
-}
-
-.record-trace summary {
-  color: var(--ink-muted);
-  cursor: pointer;
-  font-size: 15px;
-}
-
-.record-trace summary:hover {
-  color: var(--ink);
-}
-
-.record-trace dl {
-  display: grid;
-  gap: 12px;
-  margin: 14px 0 0;
-}
-
-.record-trace dd {
-  font-size: 15px;
-  margin: 3px 0 0;
-  overflow-wrap: anywhere;
-}
-
-.record-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 @media (max-width: 900px) {
   .record-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -191,10 +155,6 @@
 
   .record-card {
     padding: 18px;
-  }
-
-  .record-actions .ink-button {
-    width: 100%;
   }
 }
 

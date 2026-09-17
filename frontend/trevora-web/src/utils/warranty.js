@@ -25,11 +25,6 @@ export function isWarrantyUnset(warranty) {
   return !warranty || warranty.status === 'NOT_SET';
 }
 
-/** Recorded, but neither limit can be evaluated from what is there. */
-export function isWarrantyIncomplete(warranty) {
-  return warranty?.status === 'INCOMPLETE';
-}
-
 /**
  * The heading.
  *

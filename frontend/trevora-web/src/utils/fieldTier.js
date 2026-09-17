@@ -38,11 +38,6 @@ export function tierFor(signal) {
   return TIER_SETTLED;
 }
 
-/** True when this field is one of the things the owner is being asked to look at. */
-export function isCounted(signal) {
-  return tierFor(signal) !== TIER_SETTLED;
-}
-
 /**
  * The class suffix for a tier, used by `service-flow.css`.
  *

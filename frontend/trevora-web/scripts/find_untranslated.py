@@ -17,10 +17,6 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 
-# Routed pages only: three pages are on disk but unreachable, and translating
-# them is work nobody will ever see.
-DEAD = {"DashboardPage", "VehicleProfileSelectionPage", "VehicleServiceHistoryPage"}
-
 TEXT_ATTRS = ("title", "label", "aria-label", "placeholder", "alt", "confirmLabel",
               "subtitle", "body", "foot", "hint", "ariaLabel", "helpText", "caption")
 
@@ -80,8 +76,6 @@ def find(path):
 def main():
     tally = {}
     for path in sorted(SRC.rglob("*.jsx")):
-        if path.stem in DEAD:
-            continue
         hits = find(path)
         if hits:
             tally[str(path.relative_to(SRC))] = sorted(hits)

@@ -102,39 +102,6 @@ export async function completeOAuthSignIn() {
 }
 
 /**
- * Parked, not deleted. Nothing calls this while signup goes straight through
- * (see `registerUser`), but the OTP step is coming back — keeping the working
- * verify here is cheaper than rewriting it against `verifyOtp`'s type/session
- * handling a second time.
- */
-export async function verifyRegistrationOtp(payload) {
-  const client = requireSupabaseClient();
-  const { data, error } = await client.auth.verifyOtp({
-    email: payload.email,
-    token: payload.token,
-    type: payload.otpType || 'signup',
-  });
-
-  if (error) {
-    throw normalizeSupabaseAuthError(error);
-  }
-
-  if (!data.session) {
-    throw new Error('Account verification did not return a session. Request a new code and try again.');
-  }
-
-  const supabaseProfile = profileFromSupabaseUser(data.user);
-  const profile = {
-    firstName: payload.firstName || supabaseProfile.firstName,
-    lastName: payload.lastName || supabaseProfile.lastName,
-    role: payload.role || supabaseProfile.role,
-  };
-  const user = await syncSupabaseProfile(profile, data.session.access_token);
-  setLoggedInUser(withAvatar(user, profile), data.session);
-  return user;
-}
-
-/**
  * `/auth/sync` answers with the backend's own view of the user, which has no
  * photo in it -- the pointer lives in Supabase Auth metadata. Without this the
  * avatar would be dropped on every sign-in and reappear only after a save.
@@ -331,10 +298,6 @@ export async function completePasswordReset(newPassword) {
 
   await client.auth.signOut();
   clearLoggedInUser();
-}
-
-export function getCurrentUser() {
-  return apiRequest('/auth/me');
 }
 
 export function syncCurrentUserProfile(payload) {

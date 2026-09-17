@@ -46,34 +46,6 @@
   width: 100%;
 }
 
-.wt-skip {
-  background: none;
-  border: 0;
-  color: var(--ink-faint);
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 500;
-  min-height: 0;
-  padding: 8px 4px;
-}
-
-/* The bare `button` rules in ink-app.css set an ink background on hover and
-   press and outscore a single class. Skip is a text link that happens to be a
-   button, so it states all three states itself. */
-.wt-page .wt-skip:hover,
-.wt-page .wt-skip:active,
-.wt-page .wt-skip:focus {
-  background: none;
-  color: var(--brand);
-}
-
-.wt-page .wt-skip:focus-visible {
-  border-radius: 8px;
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
-
 /* ---------------------------------------------------------------- stage */
 
 .wt-stage {
