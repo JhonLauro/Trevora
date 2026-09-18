@@ -1,0 +1,28 @@
+{
+  "id": "synthetic-customer-block-unlabelled",
+  "layer": "text",
+  "format": "The same invented invoice with the customer block's heading removed",
+  "synthetic": true,
+  "why": [
+    "The same shape with no label above the customer block, which is a documented limit of CustomerAddressGuard: with nothing saying whose details these are, the guard cannot fire and only the prompt stands between the customer's address and the location field.",
+    "Expected to be the weaker of the pair. A fixture that fails honestly is worth more than not knowing: if this scores a location where the labelled one does not, the difference is exactly what the guard is buying.",
+    "Wholly invented, like its sibling."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios",
+    "modelYear": 2019,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "redacted": [],
+  "kept": [
+    "The customer block in full, because it is the thing under test"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "Identical to synthetic-customer-block except for the removed heading and the invoice number, so the two are directly comparable.",
+    "If this case starts passing on its own, the prompt is carrying it and the guard's limit costs less than feared."
+  ]
+}

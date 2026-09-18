@@ -4392,3 +4392,128 @@ Supersedes "Not fixed" in the earlier note on the Gateway repair order. Two laye
   `api/activeVehicle.js` only clears the old active-vehicle keys on sign-out.
   `scripts/apply_i18n.py` and `add_hooks.py` are one-off tools, kept for
   translating the 16 pages that still hard-code English.
+
+## The golden set cannot catch a customer address taken as the location (2026-09-19)
+
+Measured, not assumed: ten golden cases expect a location and **every one of them prints
+the shop's address on the page**. The set scored location 100% in the run of 2026-09-15
+while the bug was live in production -- the Gateway / Mercedes-Benz Cebu repair order
+filled Location with the customer's home address on two separate uploads.
+
+- **The shape the set has no example of:** a prominent customer block ("Customer Name
+  and Address") with **no shop address anywhere on the page**, so the only address
+  available is the wrong one. Eight fixtures do print customer labels, and the Toyota
+  Talisay ones print a redacted customer address, but in all of them the shop's address
+  is also printed and is what the case expects. Nothing in the harness distinguishes
+  "picked the right address" from "only one address was on offer".
+- **Consequence:** a location regression of this kind is invisible to the golden set.
+  Do not read a location score of 100% as evidence that whose-address-is-this works.
+- **Do not add the Gateway receipt as a fixture.** Same rule as Palmetto: a real person's
+  document, barely redacted -- image, raw Vision reading and full OCR text stay out of
+  git. If a fixture is worth making, **construct a synthetic receipt** of that shape
+  (customer block with name, address and mobile; letterhead with a trading name and no
+  address) and write the expected location as null.
+- **Checked while recording this:** `CustomerAddressGuard`'s rule was run against every
+  committed fixture using each case's own expected location. None would be wrongly
+  blanked, so the guard costs the set nothing.
+
+## Receipts store personal data about people who are not our users (2026-09-19)
+
+Recorded for the list, not being acted on. Raised by the project owner on 2026-09-19,
+out of the Gateway repair order.
+
+- **What is stored.** The whole scan transcript, twice: `fieldMetadata.rawOcrText` and,
+  per page, `rawText` (plus `textLength`). Copied onto the service record at
+  confirmation. On a dealer repair order that text carries the customer's full name,
+  home address and mobile number, alongside plate, chassis and engine number.
+- **The shape of the exposure.** The customer named on the paper **is not necessarily
+  the person uploading it** -- a second-hand car, a company vehicle, a relative's
+  receipt. That person has no account, no relationship with us, and no way to know
+  their details are held or to ask for them back. Everything else in the system is
+  data the account holder gave about themselves.
+- **Why it is not simply removed.** The transcript is what every field's citation is
+  quoted from, and what the review screen shows under "The words we read off it".
+  Mechanics are already walled off (their metadata copy is a whitelist that drops
+  `rawOcrText` and per-page `rawText`), and deletion destroys it with the record.
+- **Privacy page implications.** The page is written entirely in the first person:
+  "Your vehicles", "Your service records", "Receipt photographs **you** upload".
+  **It says nothing about personal data belonging to anyone other than the account
+  holder**, and nothing about text read off a receipt that describes a third party.
+  Whatever is decided about storage, that silence is the first thing to fix. The
+  third-party processors are disclosed (Supabase, OpenAI, Google Cloud Vision), so a
+  reader is told where receipt text goes, but not whose it might be.
+- **Remarks are unguarded.** Remarks is free text the model writes. Nothing stops it
+  repeating a customer's name from the page; `CustomerAddressGuard` covers the location
+  field only. No instance has been seen, and nothing checks for one.
+
+## Next Svc Date and Next Svc Km: noted, not started (2026-09-19)
+
+Recorded so they are not lost. **Not to be started early** (project owner, 2026-09-19):
+they come after B1 and the price-column work, as their own step.
+
+- **What they are.** The Gateway / Mercedes-Benz Cebu repair order prints "Next Svc Date"
+  (13 May 2026) and "Next Svc Km" (27,484) in its header block, beside Km Reading. Other
+  dealer forms print the same pair under names like "Next PMS" or "Next Service Due".
+- **Why they are worth having.** They would feed a maintenance reminder directly, without
+  depending on service intervals, vehicle class or anything else we would have to infer.
+  The odometer prompt already rejects these labels for the odometer, so the words are
+  known to the extraction; nothing captures their values.
+- **Why it waits.** Reading them is an extraction prompt change, and CLAUDE.md records a
+  prompt change that took line kinds and prices from 100% to 36%. It cannot be measured
+  cleanly while layout work is in flight, so: one change at a time, golden runs either
+  side of it (see the note on golden runs being stopped -- whatever measurement is agreed
+  then, it has to be the only change in flight).
+- **Also needed when it happens:** columns or metadata to hold them, and a decision about
+  whether a reminder belongs to the vehicle or the record.
+
+## Synthetic fixture for the location gap, and C reassessed (2026-09-19)
+
+**The fixture.** `golden/synthetic-customer-block` and
+`golden/synthetic-customer-block-unlabelled`, both `"synthetic": true`, both text
+layer, `expected.location` null. An invented service invoice: customer name, address
+and mobile in a labelled block, letterhead with a trading name and no address, three
+lines summing to the printed total. The twin is identical with the heading removed.
+Wholly invented details, per the rule that the receipts which showed this behaviour
+stay out of git. `CustomerAddressGuard` is now tested against both fixtures: it fires
+on the labelled one and, pinned deliberately, does not fire on the unlabelled one --
+its documented limit, measured rather than assumed. The golden README gained an
+"Invented cases" section.
+
+**C (full row tracing) reassessed, measured on the saved Palmetto reading.**
+After the price-column triplet fix:
+
+- **Free layout report, rerun 2026-09-19:** 3 of 3 priced lines on their own row;
+  totals box reads charges 239.99, tax 16.80, credits 56.79, paid 200.00 and resolves
+  to 256.79 with 56.79 covered. The OCR text differs from the 2026-09-13 reading in 46
+  rows, which is the correction working.
+- **Paid runs, 10 x gpt-5.4-mini (2026-09-14):** 6 of 10 exact, up from 0 of 10.
+  Descriptions, amounts and totals right in 10 of 10, and no invented lines in any run
+  -- the failures row tracing was meant to fix are gone.
+- **What is left, and what it is:** part codes on the two parts in about 4 of 10 runs
+  (blank or swapped), one run's kinds (Part versus Supplies), one run's remarks. None
+  is a row-placement failure. They are choices the model makes about which field a
+  printed code belongs in and what to call a line -- and one of them, the code printed
+  in the item's own column, the project owner has already ruled a correct read rather
+  than a bug.
+
+**Recommendation: drop C rather than queue it.** Row tracing addresses placement, and
+placement is solved on the only receipt we can measure. Keep the free layout-pair
+number as the tripwire: if a receipt we photograph ourselves (the Talisay set) reports
+fewer than all priced lines on their own row, that is the evidence that would put row
+tracing back on the table. One receipt remains one receipt.
+
+## A change reported as merged was not merged, twice (2026-09-19)
+
+Recorded so the next session does not trust a "done" without checking.
+
+On 2026-09-15 the parts row label ("Parts" to "Parts & supplies") was written, committed
+and reported merged. It was not: `lines.partsRow` still reads "Parts" in all three
+locales on `main`. The commit exists -- `1f65c53`, on the branch
+`parts-and-supplies-label`, local and on origin -- but the branch was never merged. This
+is the second time a merge was reported complete without verification; the first was the
+same week.
+
+**How to check, and it costs seconds:** grep the value on `main` rather than reading the
+branch name, and `git log --all -S "<the new string>"` before rewriting anything. A
+rewrite would have produced a second commit saying the same thing and a conflict the day
+the branch surfaced.

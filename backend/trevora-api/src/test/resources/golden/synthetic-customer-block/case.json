@@ -1,0 +1,29 @@
+{
+  "id": "synthetic-customer-block",
+  "layer": "text",
+  "format": "Invented service invoice: customer block with name, address and mobile; letterhead with a trading name and no address",
+  "synthetic": true,
+  "why": [
+    "The shape the set could not catch. Every other case that expects a location prints the shop's address, so a run scored 100% on location while the live bug filled Location with a customer's home address. Here the only address on the page is the customer's, so 'picked the right address' and 'only one address was on offer' stop being the same thing.",
+    "expected.location is null. Taking the customer's address is a wrong value and a privacy failure at once: a record can be shared with a mechanic.",
+    "CustomerAddressGuard is exercised against a fixture rather than only against the receipt invented inside its own unit test.",
+    "Wholly invented: name, address, mobile, plate, invoice number and shop are made up, and the layout resembles no receipt anyone here holds. The receipts that showed this behaviour are real people's documents and stay out of git."
+  ],
+  "vehicle": {
+    "make": "Toyota",
+    "model": "Vios",
+    "modelYear": 2019,
+    "bodyType": "sedan",
+    "vehicleClass": "car",
+    "lastKnownOdometer": null
+  },
+  "redacted": [],
+  "kept": [
+    "The customer block in full, because it is the thing under test"
+  ],
+  "pendingGroundTruth": [],
+  "notes": [
+    "No image layer and never will be: there is no photograph, only text written to a shape.",
+    "The three lines sum to the printed 3,600.00, so a reconciliation failure here is a reading failure and nothing else."
+  ]
+}

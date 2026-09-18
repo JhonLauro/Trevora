@@ -20,6 +20,15 @@ import java.util.Locale;
  * read. Only the start of the location is matched: a location the model stitched
  * together from two cells ("... Luz Cebu Cebu City") still begins with what the
  * box printed.
+ *
+ * <p><b>Known limits.</b> Two, both deliberate and neither closed:
+ * an unlabelled customer block is invisible to this -- plenty of forms print
+ * the customer's details with no heading at all -- and so is an address
+ * sitting further than {@link #LINES_AFTER_LABEL} lines below its label,
+ * which a tall or badly rebuilt table can do. Widening either one trades a
+ * missed customer address for a blanked shop address, and no receipt seen so
+ * far needs it. The label list has the same shape of gap: it covers the
+ * headings seen on real paper, not every heading that exists.
  */
 final class CustomerAddressGuard {
 

@@ -1,0 +1,35 @@
+{
+  "documentType": "SERVICE_INVOICE",
+  "serviceDate": "2026-02-14",
+  "odometer": 42180,
+  "totalCost": 3600.0,
+  "shopName": "Carmen Auto Works",
+  "location": null,
+  "relatedComponents": [
+    "Engine Oil",
+    "Oil Filter"
+  ],
+  "lineEntries": [
+    {
+      "kind": "OPERATION",
+      "description": "CHANGE OIL AND FILTER",
+      "lineTotal": 800.0
+    },
+    {
+      "kind": "PART",
+      "description": "FULLY SYNTHETIC OIL 4L",
+      "lineTotal": 2450.0
+    },
+    {
+      "kind": "PART",
+      "description": "OIL FILTER",
+      "lineTotal": 350.0
+    }
+  ],
+  "_comment": [
+    "location is null because the page prints no address for the shop. The address it does print belongs to the customer, under a label saying so. An extractor returning '7 Rizal Extension, Barangay Ilaya, San Fabian' has filed a person's home address as a place of business.",
+    "shopName is the letterhead trading name. The TIN and telephone line beside it are apparatus, not the name.",
+    "odometer is 42,180 from Km Reading. The date beside it is the service date, not a reading.",
+    "Three lines, one labour and two parts, summing to the printed 3,600.00."
+  ]
+}

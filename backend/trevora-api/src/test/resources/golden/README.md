@@ -254,3 +254,17 @@ The first four are one receipt from one shop photographed four ways, and they
 are deliberately the same receipt: they isolate the angle from everything else.
 Four different receipts at four different angles cannot tell you whether the
 angle or the shop was the problem.
+
+## Invented cases
+
+Most cases are real receipts. A few are written rather than photographed, marked
+`"synthetic": true` in `case.json`, and they exist for a shape the real ones do
+not have. The first pair is `synthetic-customer-block` and its unlabelled twin: a
+customer's name, address and mobile on the page, and a letterhead with no address,
+so the only address available is the wrong one. Every real case that expects a
+location prints the shop's address, which is why the set scored location 100%
+while extraction was filing a customer's home address as the place of business.
+
+Invent every detail. These exist because the receipts that showed the behaviour
+are real people's documents and cannot be committed, so a fixture that borrows
+their names, addresses or numbers defeats its own purpose.
