@@ -194,6 +194,9 @@ public class OCRProcessingService {
             pages.add(page);
         }
 
+        // Before the AI is paid to read what OCR found: is there a receipt at all?
+        checkText(pages, readAnyway);
+
         String combinedOcrText = String.join("\n\n", combinedSections).trim();
         if (combinedOcrText.isBlank()) {
             return emptyExtraction(firstFileName, inputMode, files.size(), extractionErrors.isEmpty()
@@ -255,6 +258,42 @@ public class OCRProcessingService {
             throw new ReceiptQualityException(problems);
         }
         return reports;
+    }
+
+    /**
+     * After OCR, before the AI extraction: stops pages that carry no receipt.
+     *
+     * <p>Follows the quality gate's mode -- off looks at nothing, shadow records,
+     * enforce stops -- so one switch governs both halves. A page whose OCR call
+     * itself failed is not judged: that is Vision's problem, not the photo's.
+     * Stopping here costs the Vision calls already made, but not the extraction,
+     * and the upload is refunded like any other quality stop.
+     */
+    private void checkText(List<Map<String, Object>> pages, boolean readAnyway) {
+        ReceiptImageQualityGate.Mode mode = qualityGate.mode();
+        if (mode == ReceiptImageQualityGate.Mode.OFF) {
+            return;
+        }
+        List<ReceiptQualityException.PageIssue> problems = new ArrayList<>();
+        for (Map<String, Object> page : pages) {
+            Object status = page.get("ocrStatus");
+            if (!"SUCCESS".equals(status) && !"EMPTY".equals(status)) {
+                continue;
+            }
+            ReceiptQualityIssue issue = ReceiptTextCheck.assess((String) page.get("rawText"));
+            if (issue == null) {
+                continue;
+            }
+            int pageNumber = (Integer) page.get("pageNumber");
+            page.put("textCheck", issue.name());
+            qualityStats.recordText(issue, readAnyway);
+            log.info("Receipt text check: page {} {}, mode {}{}",
+                    pageNumber, issue, mode, readAnyway ? ", read anyway" : "");
+            problems.add(new ReceiptQualityException.PageIssue(pageNumber, issue));
+        }
+        if (mode == ReceiptImageQualityGate.Mode.ENFORCE && !readAnyway && !problems.isEmpty()) {
+            throw new ReceiptQualityException(problems);
+        }
     }
 
     /**

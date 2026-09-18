@@ -39,7 +39,7 @@ class ReceiptTotalInPipelineTest {
 
         OCRProcessingService pipeline = new OCRProcessingService(
                 vision, openai, mock(ServiceClassificationService.class),
-                new ReceiptImageQualityGate("off", 800, 45, 50, 245, 15, 20), ReceiptQualityStats.disabled(),
+                ReceiptImageQualityGate.off(), ReceiptQualityStats.disabled(),
                 "google-vision", "openai", 10, 10L * 1024 * 1024);
         return pipeline.extractReceiptFields(
                 List.of(jpeg("palmetto.jpg", receipt(1500, 2000))), "UPLOAD", VehicleContext.UNKNOWN);

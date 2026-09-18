@@ -26,23 +26,24 @@ import org.springframework.web.multipart.MultipartFile;
  */
 class ReceiptQualityGateInPipelineTest {
     private final GoogleVisionOCRProvider vision = mock(GoogleVisionOCRProvider.class);
+    private final OpenAIServiceDraftExtractionProvider extraction = mock(OpenAIServiceDraftExtractionProvider.class);
     private final MultipartFile sharp = jpeg("sharp.jpg", receipt(1500, 2000));
     private final MultipartFile blurry = jpeg("blurry.jpg", blurred(receipt(1500, 2000), 40));
 
     @BeforeEach
     void visionReadsSomething() {
-        when(vision.extractText(any())).thenReturn("BRAKE SERVICE 1000");
+        when(vision.extractText(any())).thenReturn("BRAKE SERVICE  TOTAL 1,000.00");
     }
 
     private OCRProcessingService pipeline(String mode) {
         return new OCRProcessingService(
                 vision,
-                mock(OpenAIServiceDraftExtractionProvider.class),
+                extraction,
                 mock(ServiceClassificationService.class),
-                new ReceiptImageQualityGate(mode, 800, 45, 50, 245, 15, 20),
+                new ReceiptImageQualityGate(mode),
                 ReceiptQualityStats.disabled(),
                 "google-vision",
-                "mock",
+                "openai",
                 10,
                 10L * 1024 * 1024
         );
@@ -111,6 +112,81 @@ class ReceiptQualityGateInPipelineTest {
 
         verify(vision, times(1)).extractText(any());
         assertThat(firstPage(result)).doesNotContainKey("quality");
+    }
+
+    @Test
+    @DisplayName("enforce: a small page is warned about on the draft, and still read")
+    void warningsNeverStop() {
+        MultipartFile small = jpeg("small.jpg", receipt(600, 450));
+
+        ReceiptExtractionResult result = pipeline("enforce")
+                .extractReceiptFields(List.of(small), "UPLOAD", VehicleContext.UNKNOWN);
+
+        verify(vision, times(1)).extractText(any());
+        assertThat(quality(result).get("issues")).isEqualTo(List.of());
+        assertThat(quality(result).get("warnings")).isEqualTo(List.of("LOW_RESOLUTION"));
+    }
+
+    @Test
+    @DisplayName("enforce: a sharp photo with no writing (a selfie) stops as NO_TEXT before the AI call")
+    void enforceStopsPhotoWithNoText() {
+        when(vision.extractText(any())).thenReturn("");
+
+        ReceiptQualityException stopped = assertThrows(
+                ReceiptQualityException.class,
+                () -> pipeline("enforce").extractReceiptFields(List.of(sharp), "UPLOAD", VehicleContext.UNKNOWN));
+
+        assertThat(stopped.code()).isEqualTo("RECEIPT_NO_TEXT");
+        verify(extraction, never()).extractFields(any(), any());
+    }
+
+    @Test
+    @DisplayName("enforce: writing that is not a receipt (a T-shirt) stops as NO_DOCUMENT on its page")
+    void enforceStopsNonDocument() {
+        when(vision.extractText(any())).thenReturn("BRAKE SERVICE  TOTAL 1,000.00", "JUST DO IT NIKE ATHLETIC DEPT");
+
+        ReceiptQualityException stopped = assertThrows(
+                ReceiptQualityException.class,
+                () -> pipeline("enforce").extractReceiptFields(
+                        List.of(sharp, sharp), "UPLOAD", VehicleContext.UNKNOWN));
+
+        assertThat(stopped.pages()).containsExactly(
+                new ReceiptQualityException.PageIssue(2, ReceiptQualityIssue.NO_DOCUMENT));
+        verify(extraction, never()).extractFields(any(), any());
+    }
+
+    @Test
+    @DisplayName("enforce: read anyway sends a page that is not a receipt on to extraction, marked")
+    void readAnywayReadsNonDocument() {
+        when(vision.extractText(any())).thenReturn("JUST DO IT NIKE ATHLETIC DEPT");
+
+        ReceiptExtractionResult result = pipeline("enforce")
+                .extractReceiptFields(List.of(sharp), "UPLOAD", VehicleContext.UNKNOWN, true);
+
+        verify(extraction, times(1)).extractFields(any(), any());
+        assertThat(firstPage(result).get("textCheck")).isEqualTo("NO_DOCUMENT");
+    }
+
+    @Test
+    @DisplayName("shadow: a page that is not a receipt is marked but never stopped")
+    void shadowMarksNonDocument() {
+        when(vision.extractText(any())).thenReturn("JUST DO IT NIKE ATHLETIC DEPT");
+
+        ReceiptExtractionResult result = pipeline("shadow")
+                .extractReceiptFields(List.of(sharp), "UPLOAD", VehicleContext.UNKNOWN);
+
+        assertThat(firstPage(result).get("textCheck")).isEqualTo("NO_DOCUMENT");
+    }
+
+    @Test
+    @DisplayName("off: the text is not judged either")
+    void offDoesNotJudgeText() {
+        when(vision.extractText(any())).thenReturn("JUST DO IT NIKE ATHLETIC DEPT");
+
+        ReceiptExtractionResult result = pipeline("off")
+                .extractReceiptFields(List.of(sharp), "UPLOAD", VehicleContext.UNKNOWN);
+
+        assertThat(firstPage(result)).doesNotContainKey("textCheck");
     }
 
     @Test

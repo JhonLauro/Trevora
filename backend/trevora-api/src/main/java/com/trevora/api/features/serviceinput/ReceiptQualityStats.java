@@ -69,10 +69,28 @@ public class ReceiptQualityStats {
         if (jdbcTemplate == null || report == null) {
             return;
         }
+        // A warned page passed, but is kept apart from a clean pass so the
+        // warning lines can be tuned from real uploads too.
         String outcome = !report.checked()
                 ? "UNCHECKED"
-                : report.passed() ? "PASSED" : report.primaryIssue().name();
-        boolean overridden = readAnyway && report.checked() && !report.passed();
+                : !report.passed() ? report.primaryIssue().name()
+                : report.primaryWarning() != null ? "WARN_" + report.primaryWarning().name()
+                : "PASSED";
+        write(outcome, readAnyway && report.checked() && !report.passed());
+    }
+
+    /**
+     * Counts one page that OCR found no receipt on ({@code NO_TEXT} or
+     * {@code NO_DOCUMENT}), after the pixels had passed.
+     */
+    public void recordText(ReceiptQualityIssue issue, boolean readAnyway) {
+        if (jdbcTemplate == null || issue == null) {
+            return;
+        }
+        write(issue.name(), readAnyway);
+    }
+
+    private void write(String outcome, boolean overridden) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         try {
             Runnable write = () -> jdbcTemplate.update(UPSERT, today, outcome, overridden);

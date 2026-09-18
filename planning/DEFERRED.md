@@ -4407,3 +4407,55 @@ reference found either way; restoring an unused string costs nothing).
 and fails the build when one is missing, so the same deletion cannot pass
 again. The earlier note's "0 of 9,484 elements changed" was true and
 irrelevant: those screens used mocked data that raised no review issues.
+
+## Receipt quality gate calibrated against Vision (2026-09-18)
+
+The old gate blocked on fixed pixel numbers nobody had checked against what
+Vision can actually read. Measured, it was wrong both ways: of 335 test photos
+it blocked 43 that Vision read fine and let 35 of 44 unreadable ones through.
+
+- **Method.** Four synthetic receipts (invoice, job order, parts slip, thermal
+  small-shop), each degraded along one axis at a time -- blur, shake, darkness,
+  over-exposure, glare, faded print, shadow, noise, tilt, resolution -- and
+  finished the way the app finishes an upload (long edge <= 2000px, JPEG 85).
+  Each read by Vision (DOCUMENT_TEXT_DETECTION, hints en + fil). "Readable"
+  means at least 90% of the key values (amounts, dates, plate, VIN, part codes)
+  found exactly. Thresholds were then set so nothing readable is blocked.
+- **Two tiers.** `issues` stop the upload (422, unless the owner reads it
+  anyway); `warnings` are only shown. Defaults, the same in
+  `ReceiptImageQualityGate.Limits` and `RECEIPT_QUALITY_LIMITS` in
+  `receiptImage.js`, each overridable with `TREVORA_RECEIPT_QUALITY_WARN_*` /
+  `_BLOCK_*`:
+  long edge warn < 650, block < 400; brightness warn < 20, block < 8; contrast
+  warn < 8; clipped-white share (glare) warn >= 0.15, never blocks; relative
+  sharpness warn < 2.5, block < 1.0; edge isotropy (shake) warn < 0.68, block
+  < 0.60; tilt warn > 28 degrees, never blocks.
+- **New measures.** Relative sharpness is Laplacian variance over the square of
+  the local detail contrast, so faint print and a shadow across the page no
+  longer read as blur. Isotropy is how evenly the strong edges point every way
+  (structure tensor); shake leaves them all pointing one way even when the page
+  still measures sharp, which is what the old gate missed most.
+- **Result.** 0 of 291 readable photos blocked. 41 of 44 unreadable caught (18
+  blocked, 23 warned). 58 readable photos warned -- all deliberately degraded
+  ones. Missed: `thermal__shake__10`, `smallshop__shake__16`,
+  `smallshop__skew__30`. Browser and server give the same verdict on the same
+  pixels (checked on 12 images, worst relative difference 8e-3).
+- **Not a receipt.** After OCR, `ReceiptTextCheck` flags a page as `NO_TEXT`
+  (fewer than 3 words) or `NO_DOCUMENT` (no amount, no date and fewer than two
+  receipt words) and, in ENFORCE, stops before the AI extraction call; the
+  owner can read it anyway. It follows the gate's mode. Flagged 0 of 291
+  readable receipts and all 6 non-receipt pictures tried (a drawn selfie,
+  landscape, floor, car, T-shirt and letter -- drawn, not photographed). The Vision call has already been paid by then;
+  the saving is the extraction call and a draft the owner would throw away.
+- **Limits, not solved.** The photos are synthetic; the thresholds should be
+  re-checked once we have real uploads (the gate logs every verdict, and
+  SHADOW mode measures without stopping). The browser's canvas downscale is not
+  the server's box average, so a page on a line can get different verdicts in
+  the two places. Glare is measured crudely (share of pure white), which is why
+  it only ever warns. A "hard to read" warning from Vision's own word confidence
+  would catch the three misses, but needs `GoogleVisionOCRProvider` to return
+  confidences -- to agree with whoever owns it first. The new Tagalog and
+  Cebuano messages (`quality.warn.*`, `quality.noText`, `quality.noDocument`,
+  `quality.serverNotReceipt`) need a native speaker's review. A near-black
+  frame (brightness 4) is blocked, yet Vision still read it: the dark block
+  line was never tested below brightness 14 and may be too strict.
