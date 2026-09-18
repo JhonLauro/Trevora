@@ -1553,6 +1553,23 @@
   min-width: 0;
 }
 
+/* A page that will probably read, but may be misread in part. Said in the warn
+   colour, quietly: no dialog, and nothing to do unless the owner wants to retake
+   it. The stopped page above keeps the red border; this one is not an error. */
+.flow-page-card.has-warning { border: 2px solid var(--status-warn-border, #e6c56d); }
+
+.flow-page-card__warn-msg {
+  color: var(--status-warn-text, #7a5200);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+  padding: 9px 12px 0;
+}
+
+/* The same line on a stopped page, in the stop colour. */
+.flow-page-card__warn-msg.is-issue { color: var(--tier1); }
+
 .flow-page-add {
   border: 1.5px dashed var(--border);
   border-radius: 10px;

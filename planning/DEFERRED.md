@@ -4517,3 +4517,104 @@ same week.
 branch name, and `git log --all -S "<the new string>"` before rewriting anything. A
 rewrite would have produced a second commit saying the same thing and a conflict the day
 the branch surfaced.
+
+## Correction: the dead-code cleanup deleted live translation keys (2026-09-19)
+
+The 2026-09-16 cleanup (`2da56a8`, PR #89) removed 40 keys per language as
+unused, judged by searching the frontend for `t('...')` literals. Five were
+live: `issue.duplicateRecord`, `issue.duplicateDraft` and
+`issue.agreement.{total,odometer,similar}` are sent by the backend as a
+review issue's `messageKey` and only looked up at runtime. Since that merge
+the duplicate dialog and the agreement checks on the review page have shown
+the raw key. All 40 are restored in en, tl and ceb (the other 35 have no
+reference found either way; restoring an unused string costs nothing).
+`check-i18n.mjs` now also reads `"issue.*"` literals from the backend source
+and fails the build when one is missing, so the same deletion cannot pass
+again. The earlier note's "0 of 9,484 elements changed" was true and
+irrelevant: those screens used mocked data that raised no review issues.
+
+## Receipt quality gate calibrated against Vision (2026-09-18)
+
+The old gate blocked on fixed pixel numbers nobody had checked against what
+Vision can actually read. Measured, it was wrong both ways: of 335 test photos
+it blocked 43 that Vision read fine and let 35 of 44 unreadable ones through.
+
+- **Method.** Four synthetic receipts (invoice, job order, parts slip, thermal
+  small-shop), each degraded along one axis at a time -- blur, shake, darkness,
+  over-exposure, glare, faded print, shadow, noise, tilt, resolution -- and
+  finished the way the app finishes an upload (long edge <= 2000px, JPEG 85).
+  Each read by Vision (DOCUMENT_TEXT_DETECTION, hints en + fil). "Readable"
+  means at least 90% of the key values (amounts, dates, plate, VIN, part codes)
+  found exactly. Thresholds were then set so nothing readable is blocked.
+- **Two tiers.** `issues` stop the upload (422, unless the owner reads it
+  anyway); `warnings` are only shown. Defaults, the same in
+  `ReceiptImageQualityGate.Limits` and `RECEIPT_QUALITY_LIMITS` in
+  `receiptImage.js`, each overridable with `TREVORA_RECEIPT_QUALITY_WARN_*` /
+  `_BLOCK_*`:
+  long edge warn < 650, block < 400; brightness warn < 20, block < 8; contrast
+  warn < 8; clipped-white share (glare) warn >= 0.15, never blocks; relative
+  sharpness warn < 2.5, block < 1.0; edge isotropy (shake) warn < 0.68, block
+  < 0.60; tilt warn > 28 degrees, never blocks.
+- **New measures.** Relative sharpness is Laplacian variance over the square of
+  the local detail contrast, so faint print and a shadow across the page no
+  longer read as blur. Isotropy is how evenly the strong edges point every way
+  (structure tensor); shake leaves them all pointing one way even when the page
+  still measures sharp, which is what the old gate missed most.
+- **Result.** 0 of 291 readable photos blocked. 41 of 44 unreadable caught (18
+  blocked, 23 warned). 58 readable photos warned -- all deliberately degraded
+  ones. Missed: `thermal__shake__10`, `smallshop__shake__16`,
+  `smallshop__skew__30`. Browser and server give the same verdict on the same
+  pixels (checked on 12 images, worst relative difference 8e-3).
+- **Not a receipt.** After OCR, `ReceiptTextCheck` flags a page as `NO_TEXT`
+  (fewer than 3 words) or `NO_DOCUMENT` (no amount, no date and fewer than two
+  receipt words) and, in ENFORCE, stops before the AI extraction call; the
+  owner can read it anyway. It follows the gate's mode. Flagged 0 of 291
+  readable receipts and all 6 non-receipt pictures tried (a drawn selfie,
+  landscape, floor, car, T-shirt and letter -- drawn, not photographed). The Vision call has already been paid by then;
+  the saving is the extraction call and a draft the owner would throw away.
+- **Limits, not solved.** The photos are synthetic; the thresholds should be
+  re-checked once we have real uploads (the gate logs every verdict, and
+  SHADOW mode measures without stopping). The browser's canvas downscale is not
+  the server's box average, so a page on a line can get different verdicts in
+  the two places. Glare is measured crudely (share of pure white), which is why
+  it only ever warns. A "hard to read" warning from Vision's own word confidence
+  would catch the three misses, but needs `GoogleVisionOCRProvider` to return
+  confidences -- to agree with whoever owns it first. The new Tagalog and
+  Cebuano messages (`quality.warn.*`, `quality.noText`, `quality.noDocument`,
+  `quality.serverNotReceipt`) need a native speaker's review. A near-black
+  frame (brightness 4) is blocked, yet Vision still read it: the dark block
+  line was never tested below brightness 14 and may be too strict.
+
+## Unrelated receipts: NOT_A_RECEIPT widened, and a dialog on review (2026-09-19)
+
+A grocery receipt, a restaurant bill or a utility statement passes every check
+before extraction: sharp, full of amounts and dates, and a receipt. The prompt
+described NOT_A_RECEIPT only as "a photo of something else entirely", so the
+model filed them as OFFICIAL_RECEIPT (gpt-4o-mini) or, for the grocery one,
+PARTS_PURCHASE (gpt-5.4-mini) -- while its own warning said "not a vehicle
+service record". The definition now names receipts for things that are not the
+vehicle, and says a vehicle shop's or parts seller's receipt never is one.
+
+- **Golden set, gpt-5.4-mini, 3 runs per case, two runs each side.**
+  documentType stayed 100% on every case in all four runs. The other averages
+  moved within the spread the two unchanged runs showed between themselves
+  (odometer 89/100, location 89/89 vs 78/89, linePrices 76/76 vs 69/76).
+  `toyota-talisay-body-paint` lost its total in one after-run; the unchanged
+  prompt also lost it in one run of three (`before2`), and its type was
+  SERVICE_INVOICE throughout, so this is existing flakiness, not the change.
+- **Target cases (drawn receipts, not in the golden set).** Grocery,
+  restaurant and electric bill: NOT_A_RECEIPT on both gpt-5.4-mini and
+  gpt-4o-mini, twice each. Four vehicle receipts and a parts-store sale were
+  never flagged.
+- **Review page.** `UnrelatedReceiptDialog` opens when the draft's
+  documentType is NOT_A_RECEIPT, before the duplicate and wrong-vehicle
+  dialogs: "Keep it anyway" or "Scan a vehicle receipt" (deletes the draft,
+  via `discardDraftAndRescan`). A question, not a block -- the model can be
+  wrong, and fuel, parking or registration receipts are the owner's call.
+- **Not covered.** A stack where only one page is unrelated: the merged draft
+  keeps the main document's type, so no dialog; the merger already drops that
+  page's content. Tagalog/Cebuano wording needs review.
+- **Model note.** The root `.env` sets OPENAI_MODEL=gpt-4o-mini; render.yaml
+  sets none, so production uses the code default gpt-5.4-mini unless the
+  Render dashboard says otherwise. Local testing and production may not be
+  running the same model.

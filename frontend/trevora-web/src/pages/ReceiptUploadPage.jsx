@@ -4,6 +4,7 @@ import { translate as t } from '../i18n/index.jsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Camera, Plus, Sun, Upload } from 'lucide-react';
 import FlowChrome from '../components/flow/FlowChrome';
+import PhotoCheck from '../components/flow/PhotoCheck.jsx';
 import GarageTransition from '../components/GarageTransition.jsx';
 import ConfirmDialog from '../components/ink/ConfirmDialog.jsx';
 import ProcessingModal, {
@@ -217,7 +218,7 @@ export default function ReceiptUploadPage() {
       const prepared = await Promise.all(files.map(prepareReceiptFile));
       setPages((current) => renumberPages([
         ...current,
-        ...prepared.map((result) => toPage(result.file, 'UPLOAD', result.issues)),
+        ...prepared.map((result) => toPage(result.file, 'UPLOAD', result.issues, result.warnings, result.measured)),
       ]));
     } finally {
       setPreparingUpload(false);
@@ -248,6 +249,8 @@ export default function ReceiptUploadPage() {
           ...page,
           file: result.file,
           issues: result.issues,
+          warnings: result.warnings,
+          measured: result.measured,
           previewUrl: URL.createObjectURL(result.file),
         };
       }));
@@ -267,8 +270,8 @@ export default function ReceiptUploadPage() {
     // A camera-app photo carries the phone's GPS position, and this path skips
     // prepareReceiptFile, so nothing else removes it or checks how it will read.
     // Pixels are left as they are.
-    const [cleaned, issues] = await Promise.all([stripImageMetadata(file), assessReceiptFile(file)]);
-    setPages((current) => renumberPages([...current, toPage(cleaned, 'SCAN', issues)]));
+    const [cleaned, verdict] = await Promise.all([stripImageMetadata(file), assessReceiptFile(file)]);
+    setPages((current) => renumberPages([...current, toPage(cleaned, 'SCAN', verdict.issues, verdict.warnings, verdict.measured)]));
     setError('');
   }
 
@@ -338,7 +341,7 @@ export default function ReceiptUploadPage() {
     const context = canvas.getContext('2d');
     context.drawImage(video, 0, 0, width, height);
 
-    const { blob, issues } = await prepareCanvasCapture(canvas);
+    const { blob, issues, warnings, measured } = await prepareCanvasCapture(canvas);
     if (!blob) {
       setError('The camera frame could not be captured. Please try again or upload receipt images instead.');
       return;
@@ -352,11 +355,15 @@ export default function ReceiptUploadPage() {
       type: 'image/jpeg',
       lastModified: Date.now(),
     });
-    setPages((current) => renumberPages([...current, toPage(file, 'SCAN', issues)]));
+    setPages((current) => renumberPages([...current, toPage(file, 'SCAN', issues, warnings, measured)]));
     setError('');
-    setCameraMessage(issues.length > 0
-      ? `Page ${pageNumber} captured. ${t(qualityKey(issues[0]))}.`
-      : `Page ${pageNumber} captured. Add another page or finish scanning.`);
+    if (issues.length > 0) {
+      setCameraMessage(`Page ${pageNumber} captured. ${t(cardMessageKey({ issues, warnings }))}.`);
+    } else if (warnings.length > 0) {
+      setCameraMessage(`Page ${pageNumber} captured. ${t(warningKey(warnings[0]))}.`);
+    } else {
+      setCameraMessage(`Page ${pageNumber} captured. Add another page or finish scanning.`);
+    }
   }
 
   function retakeLastScanPage() {
@@ -431,9 +438,10 @@ export default function ReceiptUploadPage() {
   }
 
   /**
-   * The server's quality gate stopped the upload before reading anything: mark
-   * the pages it named, so each shows what is wrong and the next tap asks
-   * before reading them anyway.
+   * The server stopped the upload before the extraction: its quality gate, or
+   * -- after OCR -- because a page carried no receipt at all. Mark the pages it
+   * named, so each shows what is wrong and the next tap asks before reading
+   * them anyway.
    *
    * @returns whether the error was one
    */
@@ -445,7 +453,8 @@ export default function ReceiptUploadPage() {
       if (!issue || page.issues.includes(issue)) return page;
       return { ...page, issues: [issue, ...page.issues] };
     }));
-    setError(t('quality.serverStopped'));
+    const notReceipts = err.pages.every((item) => item.issue === 'NO_TEXT' || item.issue === 'NO_DOCUMENT');
+    setError(t(notReceipts ? 'quality.serverNotReceipt' : 'quality.serverStopped'));
     return true;
   }
 
@@ -709,7 +718,7 @@ export default function ReceiptUploadPage() {
           <div className="flow-pages">
             {pages.map((page, index) => (
               <article
-                className={`flow-page-card${page.issues.length > 0 ? ' has-issue' : ''}`}
+                className={`flow-page-card${page.issues.length > 0 ? ' has-issue' : page.warnings.length > 0 ? ' has-warning' : ''}`}
                 key={page.id}
               >
                 <button
@@ -722,60 +731,42 @@ export default function ReceiptUploadPage() {
                   <span className="flow-page-card__n">{page.pageNumber}</span>
                 </button>
 
+                {/* One layout for every page: what is wrong (if anything), the
+                    Photo check, then Replace and Remove. A stopped page used to
+                    get a big Replace button in its own panel, which put the same
+                    two actions in two different shapes side by side. The red
+                    border and message already say this page is the one to fix. */}
                 {page.issues.length > 0 ? (
-                  <div className="flow-page-card__blur">
-                    <span className="flow-page-card__blur-msg">{t(qualityKey(page.issues[0]))}</span>
-                    {/* Remove sits beside the fix rather than behind it. A page
-                        that reads badly is often one that should not be in the
-                        receipt at all -- a duplicate, a stray shot -- and making
-                        someone replace it first just to be allowed to delete it
-                        was a detour. */}
-                    <div className="flow-page-card__blur-actions">
-                      <button
-                        className="flow-btn flow-btn--ghost"
-                        type="button"
-                        style={{ height: 38, fontSize: 14 }}
-                        onClick={() => (page.source === 'SCAN'
-                          ? retakeScanPage(page.id)
-                          : requestReplaceUploadPage(page.id))}
-                        disabled={replacingPageId === page.id}
-                      >
-                        {page.source === 'SCAN' ? 'Retake' : 'Replace'}
-                      </button>
-                      <button
-                        className="flow-link"
-                        type="button"
-                        style={{ color: 'var(--bad-text)' }}
-                        onClick={() => removePage(page.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flow-page-card__foot">
-                    <button
-                      className="flow-link"
-                      type="button"
-                      onClick={() => (page.source === 'SCAN'
-                        ? retakeScanPage(page.id)
-                        : requestReplaceUploadPage(page.id))}
-                      disabled={replacingPageId === page.id}
-                    >
-                      {replacingPageId === page.id
-                        ? 'Replacing…'
-                        : page.source === 'SCAN' ? 'Retake' : 'Replace'}
-                    </button>
-                    <button
-                      className="flow-link"
-                      type="button"
-                      style={{ color: 'var(--bad-text)' }}
-                      onClick={() => removePage(page.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+                  <p className="flow-page-card__warn-msg is-issue">{t(cardMessageKey(page))}</p>
+                ) : page.warnings.length > 0 && (
+                  <p className="flow-page-card__warn-msg">{t(warningKey(page.warnings[0]))}</p>
                 )}
+                <PhotoCheck measured={page.measured} />
+                {/* Remove sits beside the fix rather than behind it: a page that
+                    reads badly is often one that should not be in the receipt at
+                    all -- a duplicate, a stray shot. */}
+                <div className="flow-page-card__foot">
+                  <button
+                    className="flow-link"
+                    type="button"
+                    onClick={() => (page.source === 'SCAN'
+                      ? retakeScanPage(page.id)
+                      : requestReplaceUploadPage(page.id))}
+                    disabled={replacingPageId === page.id}
+                  >
+                    {replacingPageId === page.id
+                      ? 'Replacing…'
+                      : page.source === 'SCAN' ? 'Retake' : 'Replace'}
+                  </button>
+                  <button
+                    className="flow-link"
+                    type="button"
+                    style={{ color: 'var(--bad-text)' }}
+                    onClick={() => removePage(page.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
 
                 {/* Reorder stays on buttons rather than drag. This is used
                     one-handed on a phone with the paper in the other hand,
@@ -826,7 +817,12 @@ export default function ReceiptUploadPage() {
             <li>Sharp focus — hold steady before taking the photo</li>
           </ul>
         ) : (
-          <p className="flow-note">{t('receipt.order')}</p>
+          <>
+            <p className="flow-note">{t('receipt.order')}</p>
+            {pages.some((page) => page.measured) && (
+              <p className="flow-note">{t('photoCheck.hint')}</p>
+            )}
+          </>
         )}
 
         {cameraMessage && <p className="flow-note">{cameraMessage}</p>}
@@ -962,20 +958,45 @@ function coldFoot(storing, wokeCold, t) {
   return t('receipt.longer');
 }
 
-/* Keys, resolved at render. `issues` lists the most fundamental problem first,
-   and that is the one a page names. */
+/* Keys, resolved at render. Each list is most fundamental problem first, and
+   that is the one a page names. Issues stop a page and say what to do; the
+   last two come from the server, after OCR found no receipt on the page. */
 const QUALITY_MESSAGE_KEYS = {
   LOW_RESOLUTION: 'quality.small',
   POOR_LIGHTING: 'quality.lighting',
   BLURRY: 'quality.blurry',
   MISALIGNED: 'quality.tilted',
+  NO_TEXT: 'quality.noText',
+  NO_DOCUMENT: 'quality.noDocument',
+};
+
+/* Warnings: the page will probably read, but some of it may be misread. */
+const WARNING_MESSAGE_KEYS = {
+  LOW_RESOLUTION: 'quality.warn.small',
+  POOR_LIGHTING: 'quality.warn.lighting',
+  GLARE: 'quality.warn.glare',
+  BLURRY: 'quality.warn.blurry',
+  MISALIGNED: 'quality.warn.tilted',
+  NO_DOCUMENT: 'quality.warn.noDocument',
 };
 
 function qualityKey(issue) {
   return QUALITY_MESSAGE_KEYS[issue] ?? 'quality.generic';
 }
 
-function toPage(file, source, issues = []) {
+function warningKey(warning) {
+  return WARNING_MESSAGE_KEYS[warning] ?? 'quality.generic';
+}
+
+// A stopped page's message. "No receipt here" wins over the problem that stopped
+// it: a photo of a car is stopped as blurry (its few edges all run one way), and
+// "hold steady and retake" is the wrong advice for the wrong photo.
+function cardMessageKey({ issues, warnings }) {
+  if (issues.includes('NO_DOCUMENT') || warnings.includes('NO_DOCUMENT')) return warningKey('NO_DOCUMENT');
+  return qualityKey(issues[0]);
+}
+
+function toPage(file, source, issues = [], warnings = [], measured = null) {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     file,
@@ -984,9 +1005,14 @@ function toPage(file, source, issues = []) {
     source,
     pageNumber: 1,
     previewUrl: URL.createObjectURL(file),
-    // How well it is likely to read: [] when nothing is wrong, most fundamental
-    // problem first otherwise. See qualityIssues in receiptImage.js.
+    // How well it is likely to read, most fundamental problem first in each:
+    // issues stop the page until it is replaced, removed or read anyway;
+    // warnings are only said. See qualityVerdict in receiptImage.js.
     issues: Array.isArray(issues) ? issues : [],
+    warnings: Array.isArray(warnings) ? warnings : [],
+    // The numbers behind that verdict, for the Photo check meters; null when
+    // the browser could not open the file.
+    measured,
   };
 }
 

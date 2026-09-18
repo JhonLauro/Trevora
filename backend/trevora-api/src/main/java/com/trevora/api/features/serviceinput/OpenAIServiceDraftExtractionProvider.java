@@ -961,7 +961,11 @@ public class OpenAIServiceDraftExtractionProvider {
                   pass/fail, replace/keep - rather than anything performed on the car. Choose this over
                   WORK_PERFORMED when nothing was actually done, only measured.
 
-                NOT_A_RECEIPT - not a service document at all. A photo of something else entirely.
+                NOT_A_RECEIPT - not a service document at all. A photo of something else entirely, or
+                  a receipt, bill or statement for something that is not the vehicle: groceries,
+                  food, a restaurant, a utility or phone bill, clothes, household shopping. Judge by
+                  what was bought, not by the layout. A receipt from a shop that services vehicles or
+                  sells vehicle parts is never NOT_A_RECEIPT, even when it lists no work.
 
                 THE RULE THAT MATTERS: SERVICE_INVOICE is what you return unless another type is
                 EARNED by evidence printed on the page. Absence of evidence is not evidence. Do not
