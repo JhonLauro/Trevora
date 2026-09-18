@@ -1,6 +1,6 @@
 /**
- * Three ways a translated app breaks that a build will not tell you about.
- * All three shipped at least once while this was being written.
+ * Four ways a translated app breaks that a build will not tell you about.
+ * All four shipped at least once.
  *
  * <p><b>1. A key that exists in English and nowhere else.</b> The fallback
  * serves the English string, so it looks right to whoever is testing, and
@@ -15,6 +15,9 @@
  * bound. This one does not even degrade: the module throws on load and the
  * whole route dies before a single element renders. Hold the key in the data
  * and translate at render, the way NAV_ITEMS does.
+ *
+ * <p><b>4. A key the server sends that the app no longer defines.</b> See the
+ * section below; this one shipped too.
  *
  * <p>Run with: npm run check:i18n  (also runs automatically before a build)
  */
@@ -159,6 +162,24 @@ for (const file of sources) {
       return;
     }
   });
+}
+
+// ---- 4. every key the server sends is defined -------------------------------
+/* Review issues arrive from the API as a messageKey ("issue.duplicateRecord")
+   and are looked up at runtime, so no t('...') literal in this tree names
+   them. A cleanup that went by (1) alone judged all five unused and deleted
+   them, and the review page showed the raw key. Read them from the backend
+   source instead, when it is checked out next to this app. */
+const BACKEND = join(SRC, '..', '..', '..', 'backend', 'trevora-api', 'src', 'main', 'java');
+try {
+  for (const file of walk(BACKEND).filter((f) => f.endsWith('.java'))) {
+    for (const [, key] of readFileSync(file, 'utf8').matchAll(/"(issue\.[A-Za-z0-9_.]+)"/g)) {
+      used.add(key);
+      if (!english.has(key)) problems.push(`sent by the server but missing from en: ${key}`);
+    }
+  }
+} catch {
+  // The frontend checked out on its own: nothing to compare against.
 }
 
 if (problems.length) {

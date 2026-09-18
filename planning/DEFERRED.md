@@ -4392,3 +4392,18 @@ Supersedes "Not fixed" in the earlier note on the Gateway repair order. Two laye
   `api/activeVehicle.js` only clears the old active-vehicle keys on sign-out.
   `scripts/apply_i18n.py` and `add_hooks.py` are one-off tools, kept for
   translating the 16 pages that still hard-code English.
+
+## Correction: the dead-code cleanup deleted live translation keys (2026-09-19)
+
+The 2026-09-16 cleanup (`2da56a8`, PR #89) removed 40 keys per language as
+unused, judged by searching the frontend for `t('...')` literals. Five were
+live: `issue.duplicateRecord`, `issue.duplicateDraft` and
+`issue.agreement.{total,odometer,similar}` are sent by the backend as a
+review issue's `messageKey` and only looked up at runtime. Since that merge
+the duplicate dialog and the agreement checks on the review page have shown
+the raw key. All 40 are restored in en, tl and ceb (the other 35 have no
+reference found either way; restoring an unused string costs nothing).
+`check-i18n.mjs` now also reads `"issue.*"` literals from the backend source
+and fails the build when one is missing, so the same deletion cannot pass
+again. The earlier note's "0 of 9,484 elements changed" was true and
+irrelevant: those screens used mocked data that raised no review issues.
