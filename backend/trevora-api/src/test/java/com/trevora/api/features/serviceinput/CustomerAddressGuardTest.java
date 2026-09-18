@@ -61,4 +61,44 @@ class CustomerAddressGuardTest {
         assertThat(CustomerAddressGuard.readsFromCustomerBlock("RJ MOTOR PARTS\nPoblacion, Talisay City", "Poblacion, Talisay City"))
                 .isFalse();
     }
+
+    /**
+     * The golden fixture written for this, rather than only the receipt invented
+     * above: a customer block with name, address and mobile, and a letterhead
+     * with no address at all, so the only address on the page is the wrong one.
+     */
+    @Test
+    void rejectsTheCustomerAddressInTheGoldenFixture() {
+        assertThat(CustomerAddressGuard.readsFromCustomerBlock(
+                goldenOcr("synthetic-customer-block"),
+                "7 Rizal Extension, Barangay Ilaya, San Fabian"))
+                .isTrue();
+    }
+
+    /**
+     * The same page with the block's heading removed, which is a documented limit:
+     * with nothing saying whose details these are, only the prompt stands between
+     * that address and the location field. Pinned so the limit is measured rather
+     * than assumed, and so this test fails loudly if the guard ever starts
+     * catching it by other means.
+     */
+    @Test
+    void missesAnUnlabelledCustomerBlock() {
+        assertThat(CustomerAddressGuard.readsFromCustomerBlock(
+                goldenOcr("synthetic-customer-block-unlabelled"),
+                "7 Rizal Extension, Barangay Ilaya, San Fabian"))
+                .isFalse();
+    }
+
+    private static String goldenOcr(String caseId) {
+        try (java.io.InputStream stream = CustomerAddressGuardTest.class.getClassLoader()
+                .getResourceAsStream("golden/" + caseId + "/ocr.txt")) {
+            if (stream == null) {
+                throw new IllegalStateException("Missing golden fixture: " + caseId);
+            }
+            return new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
+        }
+    }
 }

@@ -27,3 +27,8 @@ talisay-visit
 # Parts shop, handwritten, one battery and no labour. The smallest real
 # receipt in the set and the shape most owners will actually upload.
 powerstart-battery-purchase
+
+# Invented, not photographed: a customer block with no shop address anywhere on
+# the page, which is the shape no real fixture in this set has. Text layer only.
+synthetic-customer-block
+synthetic-customer-block-unlabelled

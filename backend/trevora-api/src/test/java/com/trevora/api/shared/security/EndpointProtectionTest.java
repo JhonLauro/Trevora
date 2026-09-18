@@ -135,6 +135,10 @@ class EndpointProtectionTest {
         registry.put("PATCH /api/vehicles/{vehicleId}/concerns/{concernId}/resolution", Guard.OWNER);
         registry.put("DELETE /api/vehicles/{vehicleId}/concerns/{concernId}", Guard.OWNER);
         registry.put("GET /api/service-records/{recordId}/ai-explanation", Guard.OWNER);
+        // Merged in 06798e4 without a registry line, which turned this test red for
+        // everyone. AIExplanationService.recordFeedback calls requireVehicleOwner and
+        // looks the record up by the current user id, so it is OWNER.
+        registry.put("POST /api/service-records/{recordId}/ai-explanation/feedback", Guard.OWNER);
         // Listing is owner-scoped in the service: findByOwnerId on the
         // current user, never a parameter, so there is no id to tamper with.
         registry.put("GET /api/service-drafts", Guard.OWNER);
