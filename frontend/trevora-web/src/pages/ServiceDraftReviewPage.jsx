@@ -22,6 +22,7 @@ import {
 } from '../api/serviceDrafts';
 import { getVehicle } from '../api/vehicles';
 import VehicleDetailsDialog from '../components/flow/VehicleDetailsDialog.jsx';
+import UnrelatedReceiptDialog, { isUnrelatedReceipt } from '../components/flow/UnrelatedReceiptDialog.jsx';
 
 /**
  * Step 4 — the one screen between an extracted draft and confirming it.
@@ -212,6 +213,7 @@ export default function ServiceDraftReviewPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [duplicateDismissed, setDuplicateDismissed] = useState(false);
+  const [unrelatedDismissed, setUnrelatedDismissed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -619,7 +621,15 @@ export default function ServiceDraftReviewPage() {
       {/* A duplicate is the more definite of the two problems, and two
           stacked modals is nobody's idea of a warning — so it goes first
           and the vehicle one waits its turn. */}
-      {duplicateIssue ? (
+      {/* Before both: if the receipt is not about a vehicle at all, whether it
+          is a duplicate or which vehicle it matches is beside the point. */}
+      {isUnrelatedReceipt(draft) && !unrelatedDismissed ? (
+        <UnrelatedReceiptDialog
+          draft={draft}
+          vehicleId={draft?.vehicleId ?? vehicle?.vehicleId}
+          onDismiss={() => setUnrelatedDismissed(true)}
+        />
+      ) : duplicateIssue ? (
         <DuplicateDraftDialog
           issue={duplicateIssue}
           draft={draft}

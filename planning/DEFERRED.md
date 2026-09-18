@@ -4459,3 +4459,37 @@ it blocked 43 that Vision read fine and let 35 of 44 unreadable ones through.
   `quality.serverNotReceipt`) need a native speaker's review. A near-black
   frame (brightness 4) is blocked, yet Vision still read it: the dark block
   line was never tested below brightness 14 and may be too strict.
+
+## Unrelated receipts: NOT_A_RECEIPT widened, and a dialog on review (2026-09-19)
+
+A grocery receipt, a restaurant bill or a utility statement passes every check
+before extraction: sharp, full of amounts and dates, and a receipt. The prompt
+described NOT_A_RECEIPT only as "a photo of something else entirely", so the
+model filed them as OFFICIAL_RECEIPT (gpt-4o-mini) or, for the grocery one,
+PARTS_PURCHASE (gpt-5.4-mini) -- while its own warning said "not a vehicle
+service record". The definition now names receipts for things that are not the
+vehicle, and says a vehicle shop's or parts seller's receipt never is one.
+
+- **Golden set, gpt-5.4-mini, 3 runs per case, two runs each side.**
+  documentType stayed 100% on every case in all four runs. The other averages
+  moved within the spread the two unchanged runs showed between themselves
+  (odometer 89/100, location 89/89 vs 78/89, linePrices 76/76 vs 69/76).
+  `toyota-talisay-body-paint` lost its total in one after-run; the unchanged
+  prompt also lost it in one run of three (`before2`), and its type was
+  SERVICE_INVOICE throughout, so this is existing flakiness, not the change.
+- **Target cases (drawn receipts, not in the golden set).** Grocery,
+  restaurant and electric bill: NOT_A_RECEIPT on both gpt-5.4-mini and
+  gpt-4o-mini, twice each. Four vehicle receipts and a parts-store sale were
+  never flagged.
+- **Review page.** `UnrelatedReceiptDialog` opens when the draft's
+  documentType is NOT_A_RECEIPT, before the duplicate and wrong-vehicle
+  dialogs: "Keep it anyway" or "Scan a vehicle receipt" (deletes the draft,
+  via `discardDraftAndRescan`). A question, not a block -- the model can be
+  wrong, and fuel, parking or registration receipts are the owner's call.
+- **Not covered.** A stack where only one page is unrelated: the merged draft
+  keeps the main document's type, so no dialog; the merger already drops that
+  page's content. Tagalog/Cebuano wording needs review.
+- **Model note.** The root `.env` sets OPENAI_MODEL=gpt-4o-mini; render.yaml
+  sets none, so production uses the code default gpt-5.4-mini unless the
+  Render dashboard says otherwise. Local testing and production may not be
+  running the same model.
