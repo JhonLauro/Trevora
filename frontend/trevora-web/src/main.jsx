@@ -115,6 +115,9 @@ import './styles/receipt-allowance.css';
 // Icon row actions for the records table and the vehicle timeline. Additive,
 // own `.icon-action*` namespace, tokens only.
 import './styles/icon-actions.css';
+// The upload screen's per-photo quality meters. Additive, own `.photo-check*`
+// namespace, tokens only.
+import './styles/photo-check.css';
 // Last: it redefines the token values every sheet above draws from.
 import './styles/theme.css';
 
